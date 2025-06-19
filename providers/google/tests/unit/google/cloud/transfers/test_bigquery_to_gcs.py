@@ -173,9 +173,9 @@ class TestBigQueryToGCSOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context=mock.MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryInsertJobTrigger
-        ), "Trigger is not a BigQueryInsertJobTrigger"
+        assert isinstance(exc.value.trigger, BigQueryInsertJobTrigger), (
+            "Trigger is not a BigQueryInsertJobTrigger"
+        )
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=expected_configuration,

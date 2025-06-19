@@ -25,11 +25,12 @@ from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable
 
+from databricks.sql.utils import ParamEscaper
+
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
-from databricks.sql.utils import ParamEscaper
 
 if TYPE_CHECKING:
     try:
@@ -225,6 +226,5 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         self.log.debug("Partition sensor result: %s", partition_result)
         if partition_result:
             return True
-        else:
-            message = f"Specified partition(s): {self.partitions} were not found."
-            raise AirflowException(message)
+        message = f"Specified partition(s): {self.partitions} were not found."
+        raise AirflowException(message)

@@ -25,6 +25,7 @@ from airflow.providers.google.marketing_platform.hooks.search_ads import (
     GoogleSearchAdsHook,
     GoogleSearchAdsReportingHook,
 )
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 GCP_CONN_ID = "google_cloud_default"

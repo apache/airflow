@@ -36,7 +36,7 @@ the original text corresponding to the vectors that could be ingested into the d
 
 An example using the operator in this way:
 
-.. exampleinclude:: /../../providers/pinecone/tests/system/pinecone/example_dag_pinecone.py
+.. exampleinclude:: /../../pinecone/tests/system/pinecone/example_dag_pinecone.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_pinecone_ingest]
@@ -58,7 +58,7 @@ passed via arguments to the operator or via the connection.
 
 An example using the operator in this way:
 
-.. exampleinclude:: /../../providers/pinecone/tests/system/pinecone/example_create_pod_index.py
+.. exampleinclude:: /../../pinecone/tests/system/pinecone/example_create_pod_index.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_pod_index]
@@ -81,7 +81,7 @@ passed via arguments to the operator or via the connection.
 
 An example using the operator in this way:
 
-.. exampleinclude:: /../../providers/pinecone/tests/system/pinecone/example_create_serverless_index.py
+.. exampleinclude:: /../../pinecone/tests/system/pinecone/example_create_serverless_index.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_serverless_index]

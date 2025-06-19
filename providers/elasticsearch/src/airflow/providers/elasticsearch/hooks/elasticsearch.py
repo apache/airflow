@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
 
+from elasticsearch import Elasticsearch
+
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from elasticsearch import Elasticsearch
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -127,13 +129,15 @@ class ESConnection:
         self.user = user
         self.password = password
         self.scheme = scheme
-        self.kwargs = kwargs
+        self.kwargs = deepcopy(kwargs)
+        kwargs.pop("fetch_size", None)
+        kwargs.pop("field_multi_value_leniency", None)
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
         if user and password:
-            self.es = Elasticsearch(self.url, http_auth=(user, password), **self.kwargs)
+            self.es = Elasticsearch(self.url, http_auth=(user, password), **kwargs)
         else:
-            self.es = Elasticsearch(self.url, **self.kwargs)
+            self.es = Elasticsearch(self.url, **kwargs)
 
     def cursor(self) -> ElasticsearchSQLCursor:
         return ElasticsearchSQLCursor(self.es, **self.kwargs)
@@ -162,7 +166,7 @@ class ElasticsearchSQLHook(DbApiHook):
 
     conn_name_attr = "elasticsearch_conn_id"
     default_conn_name = "elasticsearch_default"
-    connector = ESConnection
+    connector = ESConnection  # type: ignore[assignment]
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 
@@ -214,6 +218,17 @@ class ElasticsearchSQLHook(DbApiHook):
                 uri += "&"
 
         return uri
+
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ):
+        # TODO: Custom ElasticsearchSQLCursor is incompatible with polars.read_database.
+        # To support: either adapt cursor to polars._executor interface or create custom polars reader.
+        # https://github.com/apache/airflow/pull/50454
+        raise NotImplementedError("Polars is not supported for Elasticsearch")
 
 
 class ElasticsearchPythonHook(BaseHook):

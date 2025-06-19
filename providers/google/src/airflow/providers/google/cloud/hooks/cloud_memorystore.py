@@ -31,9 +31,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow import version
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core import path_template
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -46,6 +43,10 @@ from google.cloud.redis_v1 import (
     Instance,
     OutputConfig,
 )
+
+from airflow import version
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

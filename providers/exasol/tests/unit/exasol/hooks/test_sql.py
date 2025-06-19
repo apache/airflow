@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.exasol.hooks.exasol import ExasolHook
 from airflow.utils.session import provide_session
 

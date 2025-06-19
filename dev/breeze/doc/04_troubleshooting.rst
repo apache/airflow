@@ -27,14 +27,25 @@ Basic troubleshooting of breeze command
 If you are having problems with the Breeze environment, try the steps below. After each step you
 can check whether your problem is fixed.
 
-1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
-2. Stop Breeze with ``breeze down``.
-3. Git fetch the origin and git rebase the current branch with main branch.
-4. Delete the ``.build`` directory and run ``breeze ci-image build``.
-5. Clean up Docker images via ``breeze cleanup`` command.
-6. Restart your Docker Engine and try again.
-7. Restart your machine and try again.
-8. Re-install Docker Desktop and try again.
+1. Run ``breeze doctor`` to auto-heal/fix a majority of the common issues such as below. If you still have face issues, try the next steps.
+
+   * Unavailability of Docker resources (will warn you if sufficient resources are not available)
+   * Perform environment checks and Docker ownership issues on Linux OS
+   * Clean up temp Python files
+   * Execute ``breeze down``
+   * Cleanup build cache and execute ``breeze cleanup``. Breeze will ask you to confirm each step.
+
+2. Git fetch the origin and git rebase the current branch with main branch.
+3. Restart your Docker Engine and try again.
+4. Restart your machine and try again.
+5. Re-install Docker Desktop and try again.
+
+These are all available flags of ``breeze doctor`` command:
+
+.. image:: ./images/output_doctor.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_doctor.svg
+  :width: 100%
+  :alt: Breeze doctor
 
 .. note::
   If the pip is taking a significant amount of time and your internet connection is causing pip to be unable to download the libraries within the default timeout, it is advisable to modify the default timeout as follows and run the breeze again.

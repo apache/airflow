@@ -33,6 +33,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.exceptions import NotFound
+from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
+from google.cloud.pubsub_v1.types import PublisherOptions
+from google.pubsub_v1.services.subscriber.async_client import SubscriberAsyncClient
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -43,12 +49,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
 from airflow.version import version
-from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.exceptions import NotFound
-from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import PublisherOptions
-from google.pubsub_v1.services.subscriber.async_client import SubscriberAsyncClient
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

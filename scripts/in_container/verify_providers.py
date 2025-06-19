@@ -40,9 +40,8 @@ from airflow.secrets import BaseSecretsBackend
 
 console = Console(width=400, color_system="standard")
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
-PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 ALL_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
@@ -138,7 +137,7 @@ def import_all_classes(
     can find all the subclasses of operators/sensors etc.
 
     :param walkable_paths_and_prefixes: dict of paths with accompanying prefixes
-        to look the provider packages in
+        to look the provider distributions in
     :param prefix: prefix to add
     :param provider_ids - provider ids that should be loaded.
     :param print_imports - if imported class should also be printed in output
@@ -353,8 +352,7 @@ def strip_package_from_class(base_package: str, class_name: str) -> str:
     """Strips base package name from the class (if it starts with the package name)."""
     if class_name.startswith(base_package):
         return class_name[len(base_package) + 1 :]
-    else:
-        return class_name
+    return class_name
 
 
 def convert_class_name_to_url(base_url: str, class_name) -> str:
@@ -472,7 +470,7 @@ def get_package_class_summary(
 
     # Remove this conditional check after providers are 2.6+ compatible
     try:
-        from airflow.notifications.basenotifier import BaseNotifier
+        from airflow.providers.common.compat.notifier import BaseNotifier
 
         has_notifier = True
     except ImportError:
@@ -622,15 +620,15 @@ def check_if_classes_are_properly_named(
     return total_class_number, badly_named_class_number
 
 
-def verify_provider_classes_for_single_provider(imported_classes: list[str], provider_package_id: str):
+def verify_provider_classes_for_single_provider(imported_classes: list[str], provider_id: str):
     """Verify naming of provider classes for single provider."""
-    full_package_name = f"airflow.providers.{provider_package_id}"
+    full_package_name = f"airflow.providers.{provider_id}"
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
     total, bad = check_if_classes_are_properly_named(entity_summaries)
     bad += sum(len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values())
     if bad != 0:
         console.print()
-        console.print(f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]")
+        console.print(f"[red]There are {bad} errors of {total} entities for {provider_id}[/]")
         console.print()
     return total, bad
 
@@ -662,8 +660,7 @@ def summarise_total_vs_bad(total: int, bad: int) -> bool:
 def get_providers_paths() -> list[str]:
     import airflow.providers
 
-    # handle providers in sources
-    paths = [str(PROVIDERS_PATH)]
+    paths = []
     # as well as those installed via packages
     paths.extend(airflow.providers.__path__)  # type: ignore[attr-defined]
     return paths
@@ -709,10 +706,8 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
     )
     total = 0
     bad = 0
-    for provider_package_id in provider_ids:
-        inc_total, inc_bad = verify_provider_classes_for_single_provider(
-            imported_classes, provider_package_id
-        )
+    for provider_id in provider_ids:
+        inc_total, inc_bad = verify_provider_classes_for_single_provider(imported_classes, provider_id)
         total += inc_total
         bad += inc_bad
     if not summarise_total_vs_bad(total, bad):
@@ -722,7 +717,7 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
         console.print("[red]Something is seriously wrong - no classes imported[/]")
         sys.exit(1)
     console.print()
-    console.print("[green]SUCCESS: All provider packages are importable![/]\n")
+    console.print("[green]SUCCESS: All provider distributions are importable![/]\n")
     console.print(f"Imported {len(imported_classes)} classes.")
     console.print()
     return imported_classes, classes_with_potential_circular_import
@@ -743,8 +738,6 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "logging"], check=True)
     console.print("[bright_blue]List all secrets[/]\n")
     subprocess.run(["airflow", "providers", "secrets"], check=True)
-    console.print("[bright_blue]List all auth backends[/]\n")
-    subprocess.run(["airflow", "providers", "auth"], check=True)
     console.print("[bright_blue]List all triggers[/]\n")
     subprocess.run(["airflow", "providers", "triggers"], check=True)
     console.print("[bright_blue]List all executors[/]\n")
@@ -755,7 +748,7 @@ AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))
+    sys.path.insert(0, str(AIRFLOW_ROOT_PATH))
     all_imported_classes, all_classes_with_potential_for_circular_import = verify_provider_classes()
     try:
         AIRFLOW_LOCAL_SETTINGS_PATH.write_text(

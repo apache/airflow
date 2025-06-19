@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-Access Control
-==============
+Access Control with FAB auth manager
+====================================
 
-Access Control of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
+FAB auth manager access control is handled by Flask AppBuilder (FAB).
 Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
 regarding its security model.
 
@@ -33,7 +33,7 @@ regarding its security model.
 
 Default Roles
 '''''''''''''
-Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+FAB auth manager ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
 By default, only ``Admin`` users can configure/alter permissions for roles. However,
 it is recommended that these default roles remain unaltered, and instead ``Admin`` users
 create new roles with the desired permissions if changes are necessary.
@@ -46,7 +46,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited read permissions:
 
-.. exampleinclude:: /../../providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
@@ -55,7 +55,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_user_perms]
     :end-before: [END security_user_perms]
@@ -64,7 +64,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
@@ -74,7 +74,7 @@ Admin
 ``Admin`` users have all possible permissions, including granting or revoking permissions from
 other users. ``Admin`` users have ``Op`` permission plus additional permissions:
 
-.. exampleinclude:: /../../providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../fab/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_admin_perms]
     :end-before: [END security_admin_perms]
@@ -110,7 +110,7 @@ Permissions
 
 .. warning::
 
-  Airflow allows you to define custom Roles with fine-grained RBAC permissions for users. However, not all
+  FAB auth manager allows you to define custom Roles with fine-grained RBAC permissions for users. However, not all
   combinations of permissions are fully consistent, and there is no mechanism to make sure that the set of
   permissions assigned is fully consistent. There are a number of cases where permissions for
   particular resources are overlapping. A good example is menu access permissions - a lack of menu access
@@ -125,7 +125,7 @@ Permissions
 Resource-Based permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those
+Permissions are based on individual resources and a small subset of actions on those
 resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and
 ``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``.
 
@@ -138,7 +138,10 @@ There are five default roles: Public, Viewer, User, Op, and Admin. Each one has 
 DAG-level permissions
 ^^^^^^^^^^^^^^^^^^^^^
 
-For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_read``, ``DAGs.can_edit``, ``DAGs.can_delete``, ``DAG Runs.can_read``, ``DAG Runs.can_create``, ``DAG Runs.can_delete``, and ``DAG Runs.menu_access``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID, or for the DAG Runs resource the resource name is ``DAG Run:``.
+For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects.
+This includes ``DAGs.can_read``, ``DAGs.can_edit``, ``DAGs.can_delete``, ``DAG Runs.can_read``, ``DAG Runs.can_create``, ``DAG Runs.can_delete``, and ``DAG Runs.menu_access``.
+When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon.
+For individual DAGs, the resource name is ``DAG:`` + the DAG ID, or for the DAG Runs resource the resource name is ``DAG Run:``.
 
 For example, if a user is trying to view DAG information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
 

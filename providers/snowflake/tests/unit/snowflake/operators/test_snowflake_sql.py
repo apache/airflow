@@ -30,7 +30,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     InputField,
     SQLJobFacet,
 )
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from importlib import reload
 from unittest import mock
 
 import pytest
@@ -24,6 +25,7 @@ import pytest
 from airflow.cli import cli_parser
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import sync_perm_command
@@ -34,7 +36,19 @@ pytestmark = pytest.mark.db_test
 class TestCliSyncPerm:
     @classmethod
     def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
+        ):
+            # Reload the module to use FAB auth manager
+            reload(cli_parser)
+            # Clearing the cache before calling it
+            cli_parser.get_parser.cache_clear()
+            cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.providers.fab.auth_manager.cli_commands.utils.get_application_builder")
     def test_cli_sync_perm(self, mock_get_application_builder):

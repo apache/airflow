@@ -22,10 +22,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
 import attr
-
 import papermill as pm
+
 from airflow.models import BaseOperator
 from airflow.providers.common.compat.lineage.entities import File
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
 
 if TYPE_CHECKING:
@@ -59,6 +60,7 @@ class PapermillOperator(BaseOperator):
         (ignores kernel name in the notebook document metadata)
     """
 
+    # TODO: Remove this when provider drops 2.x support.
     supports_lineage = True
 
     template_fields: Sequence[str] = (
@@ -68,6 +70,8 @@ class PapermillOperator(BaseOperator):
         "kernel_name",
         "language_name",
         "kernel_conn_id",
+        "nbconvert",
+        "nbconvert_args",
     )
 
     def __init__(
@@ -79,6 +83,8 @@ class PapermillOperator(BaseOperator):
         kernel_name: str | None = None,
         language_name: str | None = None,
         kernel_conn_id: str | None = None,
+        nbconvert: bool = False,
+        nbconvert_args: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -95,14 +101,17 @@ class PapermillOperator(BaseOperator):
         self.kernel_name = kernel_name
         self.language_name = language_name
         self.kernel_conn_id = kernel_conn_id
+        self.nbconvert = nbconvert
+        self.nbconvert_args = nbconvert_args
 
     def execute(self, context: Context):
         if not isinstance(self.input_nb, NoteBook):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
         if not isinstance(self.output_nb, NoteBook):
             self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
-        self.inlets.append(self.input_nb)
-        self.outlets.append(self.output_nb)
+        if not AIRFLOW_V_3_0_PLUS:
+            self.inlets.append(self.input_nb)
+            self.outlets.append(self.output_nb)
         remote_kernel_kwargs = {}
         kernel_hook = self.hook
         if kernel_hook:
@@ -132,10 +141,11 @@ class PapermillOperator(BaseOperator):
             **remote_kernel_kwargs,
         )
 
+        return self.output_nb
+
     @cached_property
     def hook(self) -> KernelHook | None:
         """Get valid hook."""
         if self.kernel_conn_id:
             return KernelHook(kernel_conn_id=self.kernel_conn_id)
-        else:
-            return None
+        return None

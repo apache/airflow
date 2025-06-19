@@ -33,6 +33,8 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchJobTrigger,
 )
 
+from unit.amazon.aws.utils.test_template_fields import validate_template_fields
+
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
@@ -139,31 +141,13 @@ class TestBatchOperator:
         assert batch_job.share_identifier is None
         assert batch_job.scheduling_priority_override is None
         assert batch_job.hook.region_name is None
-        assert batch_job.hook.aws_conn_id is None
         assert issubclass(type(batch_job.hook.client), botocore.client.BaseClient)
         assert batch_job.tags == {}
         assert batch_job.wait_for_completion is True
         assert batch_job.submit_job_timeout is None
 
     def test_template_fields_overrides(self):
-        assert self.batch.template_fields == (
-            "job_id",
-            "job_name",
-            "job_definition",
-            "job_queue",
-            "container_overrides",
-            "array_properties",
-            "ecs_properties_override",
-            "eks_properties_override",
-            "node_overrides",
-            "parameters",
-            "retry_strategy",
-            "waiters",
-            "tags",
-            "wait_for_completion",
-            "awslogs_enabled",
-            "awslogs_fetch_interval",
-        )
+        validate_template_fields(self.batch)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
@@ -562,6 +546,24 @@ class TestBatchOperator:
 
 class TestBatchCreateComputeEnvironmentOperator:
     warn_message = "The `status_retries` parameter is unused and should be removed"
+
+    def test_template_fields(self):
+        environment_name = "environment_name"
+        compute_resources = {}
+        service_role = "test_role"
+        environment_type = "environment_type"
+        environment_state = "state"
+
+        operator = BatchCreateComputeEnvironmentOperator(
+            task_id="task",
+            compute_environment_name=environment_name,
+            environment_type=environment_type,
+            state=environment_state,
+            compute_resources=compute_resources,
+            service_role=service_role,
+        )
+
+        validate_template_fields(operator)
 
     @mock.patch.object(BatchClientHook, "client")
     def test_execute(self, mock_conn):

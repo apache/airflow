@@ -23,15 +23,6 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
-from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.utils.helpers import merge_dicts
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -45,9 +36,20 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
+from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.utils.helpers import merge_dicts
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 ALLOWED_FORMATS = [
     "CSV",
@@ -56,6 +58,7 @@ ALLOWED_FORMATS = [
     "GOOGLE_SHEETS",
     "DATASTORE_BACKUP",
     "PARQUET",
+    "ORC",
 ]
 
 
@@ -260,8 +263,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 f"{source_format} is not a valid source format. "
                 f"Please use one of the following types: {ALLOWED_FORMATS}."
             )
-        else:
-            self.source_format = source_format.upper()
+        self.source_format = source_format.upper()
         self.compression = compression
         self.create_disposition = create_disposition
         self.skip_leading_rows = skip_leading_rows
@@ -371,7 +373,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=table_obj_api_repr["tableReference"]["datasetId"],
                 project_id=table_obj_api_repr["tableReference"]["projectId"],
                 table_id=table_obj_api_repr["tableReference"]["tableId"],
@@ -404,14 +405,13 @@ class GCSToBigQueryOperator(BaseOperator):
                         f"want to force rerun it consider setting `force_rerun=True`."
                         f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                     )
-                else:
-                    # Job already reached state DONE
-                    if job.state == "DONE":
-                        raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+                # Job already reached state DONE
+                if job.state == "DONE":
+                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
 
-                    # We are reattaching to a job
-                    self.log.info("Reattaching to existing Job in state %s", job.state)
-                    self._handle_job_error(job)
+                # We are reattaching to a job
+                self.log.info("Reattaching to existing Job in state %s", job.state)
+                self._handle_job_error(job)
 
             job_types = {
                 LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -484,8 +484,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if self.max_id_key:
             self.log.info("Selecting the MAX value from BigQuery column %r...", self.max_id_key)
             select_command = (
-                f"SELECT MAX({self.max_id_key}) AS max_value "
-                f"FROM {self.destination_project_dataset_table}"
+                f"SELECT MAX({self.max_id_key}) AS max_value FROM {self.destination_project_dataset_table}"
             )
             self.configuration = {
                 "query": {
@@ -505,8 +504,7 @@ class GCSToBigQueryOperator(BaseOperator):
                         f"Could not determine MAX value in column {self.max_id_key} "
                         f"since the default value of 'string_field_n' was set by BQ"
                     )
-                else:
-                    raise AirflowException(e.message)
+                raise AirflowException(e.message)
             if rows:
                 for row in rows:
                     max_id = row[0] if row[0] else 0
@@ -548,6 +546,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote",
                 "encoding",
                 "preserveAsciiControlCharacters",
+                "columnNameCharacterMap",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
@@ -643,11 +642,10 @@ class GCSToBigQueryOperator(BaseOperator):
                     "allowed if write_disposition is "
                     "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
                 )
-            else:
-                # To provide backward compatibility
-                self.schema_update_options = list(self.schema_update_options or [])
-                self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)
-                self.configuration["load"]["schemaUpdateOptions"] = self.schema_update_options
+            # To provide backward compatibility
+            self.schema_update_options = list(self.schema_update_options or [])
+            self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)
+            self.configuration["load"]["schemaUpdateOptions"] = self.schema_update_options
 
         if self.max_bad_records:
             self.configuration["load"]["maxBadRecords"] = self.max_bad_records
@@ -674,11 +672,13 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote",
                 "encoding",
                 "preserveAsciiControlCharacters",
+                "columnNameCharacterMap",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
             "PARQUET": ["autodetect", "ignoreUnknownValues"],
             "AVRO": ["useAvroLogicalTypes"],
+            "ORC": ["autodetect"],
         }
 
         valid_configs = src_fmt_to_configs_mapping[self.source_format]

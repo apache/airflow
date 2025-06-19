@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-pgvector",
         "name": "pgvector",
         "description": "`pgvector <https://github.com/pgvector/pgvector>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734536254,
-        "versions": ["1.4.0", "1.3.0", "1.2.2", "1.2.1", "1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {
                 "integration-name": "pgvector",
@@ -46,10 +43,4 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.pgvector.operators.pgvector"],
             }
         ],
-        "dependencies": [
-            "apache-airflow>=2.9.0",
-            "apache-airflow-providers-postgres>=5.7.1",
-            "pgvector!=0.3.0",
-        ],
-        "optional-dependencies": {"common.sql": ["apache-airflow-providers-common-sql"]},
     }

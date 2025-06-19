@@ -22,9 +22,12 @@ from contextlib import closing
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 
 import pyexasol
+from deprecated import deprecated
 from pyexasol import ExaConnection, ExaStatement
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -72,7 +75,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(
+    def _get_pandas_df(
         self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> pd.DataFrame:
         """
@@ -88,6 +91,34 @@ class ExasolHook(DbApiHook):
         with closing(self.get_conn()) as conn:
             df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
             return df
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Execute the sql and returns a pandas dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        return self._get_pandas_df(sql, parameters, **kwargs)
+
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ):
+        raise NotImplementedError("Polars is not supported for Exasol")
 
     def get_records(
         self,
@@ -234,8 +265,8 @@ class ExasolHook(DbApiHook):
             self.set_autocommit(conn, autocommit)
             results = []
             for sql_statement in sql_list:
+                self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                 with closing(conn.execute(sql_statement, parameters)) as exa_statement:
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
                         result = self._make_common_data_structure(  # type: ignore[attr-defined]
                             handler(exa_statement)
@@ -257,8 +288,7 @@ class ExasolHook(DbApiHook):
         if return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_columns]
             return _last_result
-        else:
-            return results
+        return results
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
         """

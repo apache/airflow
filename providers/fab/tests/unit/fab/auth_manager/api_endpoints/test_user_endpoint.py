@@ -25,15 +25,15 @@ from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_M
 from airflow.providers.fab.www.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    assert_401,
     create_user,
     delete_role,
     delete_user,
 )
-
-from tests_common.test_utils.api_connexion_utils import assert_401
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
@@ -47,7 +47,15 @@ DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
-    app = minimal_app_for_auth_api
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        app = minimal_app_for_auth_api
     create_user(
         app,
         username="test",
@@ -106,7 +114,7 @@ class TestGetUser(TestUserEndpoint):
         users = self._create_users(1)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -134,7 +142,7 @@ class TestGetUser(TestUserEndpoint):
         )
         self.session.add_all([prince])
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/prince", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users/prince", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -162,7 +170,7 @@ class TestGetUser(TestUserEndpoint):
         )
         self.session.add_all([liberace])
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -190,7 +198,7 @@ class TestGetUser(TestUserEndpoint):
         )
         self.session.add_all([nameless])
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -207,9 +215,7 @@ class TestGetUser(TestUserEndpoint):
         }
 
     def test_should_respond_404(self):
-        response = self.client.get(
-            "/auth/fab/v1/users/invalid-user", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/fab/v1/users/invalid-user", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert response.json == {
             "detail": "The User with username `invalid-user` was not found",
@@ -219,32 +225,30 @@ class TestGetUser(TestUserEndpoint):
         }
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/auth/fab/v1/users/TEST_USER1")
+        response = self.client.get("/fab/v1/users/TEST_USER1")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
 
 class TestGetUsers(TestUserEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
         usernames = [user["username"] for user in response.json["users"] if user]
         assert usernames == ["test", "test_no_permissions"]
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/auth/fab/v1/users")
+        response = self.client.get("/fab/v1/users")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get(
-            "/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
+        response = self.client.get("/fab/v1/users", environ_overrides={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
 
@@ -252,10 +256,10 @@ class TestGetUsersPagination(TestUserEndpoint):
     @pytest.mark.parametrize(
         "url, expected_usernames",
         [
-            ("/auth/fab/v1/users?limit=1", ["test"]),
-            ("/auth/fab/v1/users?limit=2", ["test", "test_no_permissions"]),
+            ("/fab/v1/users?limit=1", ["test"]),
+            ("/fab/v1/users?limit=2", ["test", "test_no_permissions"]),
             (
-                "/auth/fab/v1/users?offset=5",
+                "/fab/v1/users?offset=5",
                 [
                     "TEST_USER4",
                     "TEST_USER5",
@@ -267,7 +271,7 @@ class TestGetUsersPagination(TestUserEndpoint):
                 ],
             ),
             (
-                "/auth/fab/v1/users?offset=0",
+                "/fab/v1/users?offset=0",
                 [
                     "test",
                     "test_no_permissions",
@@ -283,10 +287,10 @@ class TestGetUsersPagination(TestUserEndpoint):
                     "TEST_USER10",
                 ],
             ),
-            ("/auth/fab/v1/users?limit=1&offset=5", ["TEST_USER4"]),
-            ("/auth/fab/v1/users?limit=1&offset=1", ["test_no_permissions"]),
+            ("/fab/v1/users?limit=1&offset=5", ["TEST_USER4"]),
+            ("/fab/v1/users?limit=1&offset=1", ["test_no_permissions"]),
             (
-                "/auth/fab/v1/users?limit=2&offset=2",
+                "/fab/v1/users?limit=2&offset=2",
                 ["TEST_USER1", "TEST_USER2"],
             ),
         ],
@@ -306,7 +310,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         # Explicitly add the 2 users on setUp
         assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
@@ -316,9 +320,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         users = self._create_users(2)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get(
-            "/auth/fab/v1/users?order_by=myname", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/fab/v1/users?order_by=myname", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         msg = "Ordering with 'myname' is disallowed or the attribute does not exist on the model"
         assert response.json["detail"] == msg
@@ -328,11 +330,11 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/auth/fab/v1/users?limit=0", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users?limit=0", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         # Explicit add the 2 users on setUp
         assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
-        assert len(response.json["users"]) == 100
+        assert len(response.json["users"]) == 50
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):
@@ -340,7 +342,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/auth/fab/v1/users?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/users?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert len(response.json["users"]) == 150
 
@@ -433,7 +435,7 @@ class TestPostUser(TestUserEndpoint):
     def test_with_default_role(self, autoclean_username, autoclean_user_payload):
         self.client.application.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -446,7 +448,7 @@ class TestPostUser(TestUserEndpoint):
 
     def test_with_custom_roles(self, autoclean_username, autoclean_user_payload):
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json={"roles": [{"name": "User"}, {"name": "Viewer"}], **autoclean_user_payload},
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -460,7 +462,7 @@ class TestPostUser(TestUserEndpoint):
     @pytest.mark.usefixtures("user_different")
     def test_with_existing_different_user(self, autoclean_user_payload):
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json={"roles": [{"name": "User"}, {"name": "Viewer"}], **autoclean_user_payload},
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -468,14 +470,14 @@ class TestPostUser(TestUserEndpoint):
 
     def test_unauthenticated(self, autoclean_user_payload):
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json=autoclean_user_payload,
         )
         assert response.status_code == 401, response.json
 
     def test_forbidden(self, autoclean_user_payload):
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
@@ -499,7 +501,7 @@ class TestPostUser(TestUserEndpoint):
         existing = request.getfixturevalue(existing_user_fixture_name)
 
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -535,7 +537,7 @@ class TestPostUser(TestUserEndpoint):
     )
     def test_invalid_payload(self, autoclean_user_payload, payload_converter, error_message):
         response = self.client.post(
-            "/auth/fab/v1/users",
+            "/fab/v1/users",
             json=payload_converter(autoclean_user_payload),
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -550,7 +552,7 @@ class TestPostUser(TestUserEndpoint):
     def test_internal_server_error(self, autoclean_user_payload):
         with unittest.mock.patch.object(self.app.appbuilder.sm, "add_user", return_value=None):
             response = self.client.post(
-                "/auth/fab/v1/users",
+                "/fab/v1/users",
                 json=autoclean_user_payload,
                 environ_overrides={"REMOTE_USER": "test"},
             )
@@ -567,7 +569,7 @@ class TestPatchUser(TestUserEndpoint):
     def test_change(self, autoclean_username, autoclean_user_payload):
         autoclean_user_payload["first_name"] = "Changed"
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -583,7 +585,7 @@ class TestPatchUser(TestUserEndpoint):
         autoclean_user_payload["first_name"] = "Changed"
         autoclean_user_payload["last_name"] = "McTesterson"
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}?update_mask=last_name",
+            f"/fab/v1/users/{autoclean_username}?update_mask=last_name",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -613,7 +615,7 @@ class TestPatchUser(TestUserEndpoint):
     ):
         autoclean_user_payload.update(payload)
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -634,7 +636,7 @@ class TestPatchUser(TestUserEndpoint):
     ):
         autoclean_user_payload.pop(field)
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -646,7 +648,7 @@ class TestPatchUser(TestUserEndpoint):
         testusername = "testusername"
         autoclean_user_payload.update({"username": testusername})
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -666,7 +668,7 @@ class TestPatchUser(TestUserEndpoint):
     ):
         autoclean_user_payload["password"] = "new-pass"
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -685,7 +687,7 @@ class TestPatchUser(TestUserEndpoint):
         # Patching a user's roles should replace the entire list.
         autoclean_user_payload["roles"] = [{"name": "User"}, {"name": "Viewer"}]
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}?update_mask=roles",
+            f"/fab/v1/users/{autoclean_username}?update_mask=roles",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -696,7 +698,7 @@ class TestPatchUser(TestUserEndpoint):
     def test_unchanged(self, autoclean_username, autoclean_user_payload):
         # Should allow a PATCH that changes nothing.
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -708,7 +710,7 @@ class TestPatchUser(TestUserEndpoint):
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_unauthenticated(self, autoclean_username, autoclean_user_payload):
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
         )
         assert response.status_code == 401, response.json
@@ -716,7 +718,7 @@ class TestPatchUser(TestUserEndpoint):
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_forbidden(self, autoclean_username, autoclean_user_payload):
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
@@ -725,7 +727,7 @@ class TestPatchUser(TestUserEndpoint):
     def test_not_found(self, autoclean_username, autoclean_user_payload):
         # This test does not populate autoclean_admin_user into the database.
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -765,7 +767,7 @@ class TestPatchUser(TestUserEndpoint):
         error_message,
     ):
         response = self.client.patch(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             json=payload_converter(autoclean_user_payload),
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -782,7 +784,7 @@ class TestDeleteUser(TestUserEndpoint):
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_delete(self, autoclean_username):
         response = self.client.delete(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204, response.json  # NO CONTENT.
@@ -791,7 +793,7 @@ class TestDeleteUser(TestUserEndpoint):
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_unauthenticated(self, autoclean_username):
         response = self.client.delete(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
         )
         assert response.status_code == 401, response.json
         assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
@@ -799,7 +801,7 @@ class TestDeleteUser(TestUserEndpoint):
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_forbidden(self, autoclean_username):
         response = self.client.delete(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403, response.json
@@ -808,7 +810,7 @@ class TestDeleteUser(TestUserEndpoint):
     def test_not_found(self, autoclean_username):
         # This test does not populate autoclean_admin_user into the database.
         response = self.client.delete(
-            f"/auth/fab/v1/users/{autoclean_username}",
+            f"/fab/v1/users/{autoclean_username}",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404, response.json

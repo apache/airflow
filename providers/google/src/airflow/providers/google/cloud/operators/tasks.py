@@ -22,18 +22,20 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
-from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.tasks_v2.types import Queue, Task
 
+from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
+from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 MetaData = Sequence[tuple[str, str]]
@@ -135,7 +137,6 @@ class CloudTasksQueueCreateOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=queue.name,
         )
@@ -234,7 +235,6 @@ class CloudTasksQueueUpdateOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=queue.name,
         )
@@ -317,7 +317,6 @@ class CloudTasksQueueGetOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=queue.name,
         )
@@ -404,7 +403,6 @@ class CloudTasksQueuesListOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id or hook.project_id,
         )
@@ -562,7 +560,6 @@ class CloudTasksQueuePurgeOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=queue.name,
         )
@@ -645,7 +642,6 @@ class CloudTasksQueuePauseOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=queue.name,
         )
@@ -728,7 +724,6 @@ class CloudTasksQueueResumeOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=queue.name,
         )
@@ -828,7 +823,6 @@ class CloudTasksTaskCreateOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=task.name,
         )
@@ -921,7 +915,6 @@ class CloudTasksTaskGetOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=task.name,
         )
@@ -1014,7 +1007,6 @@ class CloudTasksTasksListOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=f"projects/{self.project_id or hook.project_id}/"
             f"locations/{self.location}/queues/{self.queue_name}",
@@ -1188,7 +1180,6 @@ class CloudTasksTaskRunOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         CloudTasksQueueLink.persist(
-            operator_instance=self,
             context=context,
             queue_name=task.name,
         )

@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import AlreadyExists
 from kubernetes.client import V1JobList, models as k8s
 from packaging.version import parse as parse_version
 
@@ -56,11 +57,9 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEOperationTrigger,
     GKEStartPodTrigger,
 )
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
-from google.api_core.exceptions import AlreadyExists
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
@@ -73,11 +72,11 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
+    from google.cloud.container_v1.types import Cluster
     from kubernetes.client.models import V1Job
     from pendulum import DateTime
 
     from airflow.utils.context import Context
-    from google.cloud.container_v1.types import Cluster
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
@@ -89,6 +88,7 @@ class GKEClusterAuthDetails:
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param project_id: The Google Developers Console project id.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param cluster_hook: airflow hook for working with kubernetes cluster.
     """
 
@@ -97,11 +97,13 @@ class GKEClusterAuthDetails:
         cluster_name: str,
         project_id: str,
         use_internal_ip: bool,
+        use_dns_endpoint: bool,
         cluster_hook: GKEHook,
     ):
         self.cluster_name = cluster_name
         self.project_id = project_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.cluster_hook = cluster_hook
         self._cluster_url: str
         self._ssl_ca_cert: str
@@ -113,10 +115,14 @@ class GKEClusterAuthDetails:
             project_id=self.project_id,
         )
 
-        if not self.use_internal_ip:
-            self._cluster_url = f"https://{cluster.endpoint}"
-        else:
+        if self.use_dns_endpoint:
+            self._cluster_url = (
+                f"https://{cluster.control_plane_endpoints_config.dns_endpoint_config.endpoint}"
+            )
+        elif self.use_internal_ip:
             self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
+        else:
+            self._cluster_url = f"https://{cluster.endpoint}"
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 
@@ -130,6 +136,7 @@ class GKEOperatorMixin:
         "location",
         "cluster_name",
         "use_internal_ip",
+        "use_dns_endpoint",
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -151,6 +158,7 @@ class GKEOperatorMixin:
             cluster_url=self.cluster_url,
             ssl_ca_cert=self.ssl_ca_cert,
             enable_tcp_keepalive=self.enable_tcp_keepalive,
+            use_dns_endpoint=self.use_dns_endpoint,  # type: ignore[attr-defined]
         )
 
     @cached_property
@@ -160,6 +168,7 @@ class GKEOperatorMixin:
             cluster_name=self.cluster_name,  # type: ignore[attr-defined]
             project_id=self.project_id,  # type: ignore[attr-defined]
             use_internal_ip=self.use_internal_ip,  # type: ignore[attr-defined]
+            use_dns_endpoint=self.use_dns_endpoint,  # type: ignore[attr-defined]
             cluster_hook=self.cluster_hook,
         )
         return auth_details.fetch_cluster_info()
@@ -200,6 +209,7 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -211,7 +221,6 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param name: (Deprecated) The name of the resource to delete, in this case cluster name
     :param api_version: The api version to use
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Interval size which defines how often operation status is checked.
@@ -225,11 +234,11 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self,
         location: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         cluster_name: str | None = None,
-        name: str | None = None,
         api_version: str = "v2",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
@@ -239,34 +248,16 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         super().__init__(*args, **kwargs)
 
         self.location = location
-        self.cluster_name = cluster_name or name
+        self.cluster_name = cluster_name
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self._name = name
         self.api_version = api_version
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self._check_input()
-
-    @property
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="cluster_name",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def name(self) -> str | None:
-        return self._name
-
-    @name.setter
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="cluster_name",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def name(self, name: str) -> None:
-        self._name = name
 
     def _check_input(self) -> None:
         if not all([self.project_id, self.cluster_name, self.location]):
@@ -347,6 +338,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     :param location: The name of the Google Kubernetes Engine zone or region in which the
         cluster resides, e.g. 'us-central1-a'
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -375,6 +367,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         body: dict | Cluster,
         location: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -387,6 +380,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.body = body
         self.location = location
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.cluster_name = body.get("name") if isinstance(body, dict) else getattr(body, "name", None)
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -441,8 +435,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         """Extract the value of the given field name."""
         if isinstance(self.body, dict):
             return self.body.get(field_name, default_value)
-        else:
-            return getattr(self.body, field_name, default_value)
+        return getattr(self.body, field_name, default_value)
 
     def _alert_deprecated_body_fields(self) -> None:
         """Generate warning messages if deprecated fields were used in the body."""
@@ -460,8 +453,15 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     stacklevel=2,
                 )
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "location": self.location,
+        }
+
     def execute(self, context: Context) -> str:
-        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
+        KubernetesEngineClusterLink.persist(context=context, cluster=self.body)
 
         try:
             operation = self.cluster_hook.create_cluster(
@@ -519,6 +519,7 @@ class GKEStartKueueInsideClusterOperator(GKEOperatorMixin, KubernetesInstallKueu
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -543,6 +544,7 @@ class GKEStartKueueInsideClusterOperator(GKEOperatorMixin, KubernetesInstallKueu
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -555,11 +557,19 @@ class GKEStartKueueInsideClusterOperator(GKEOperatorMixin, KubernetesInstallKueu
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "location": self.location,
+        }
 
     def execute(self, context: Context):
         cluster = self.cluster_hook.get_cluster(name=self.cluster_name, project_id=self.project_id)
-        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=cluster)
+        KubernetesEngineClusterLink.persist(context=context, cluster=cluster)
 
         if self.cluster_hook.check_cluster_autoscaling_ability(cluster=cluster):
             super().execute(context)
@@ -592,6 +602,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -603,21 +614,15 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param regional: (Deprecated) The location param is region name.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
         Current default is `keep_pod`, but this will be changed in the next major release of this provider.
-    :param is_delete_operator_pod: (Deprecated) What to do when the pod reaches its final
-        state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod. Current default is False, but this will be
-        changed in the next major release of this provider.
-        Deprecated - use `on_finish_action` instead.
     :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = tuple(
-        {"on_finish_action", "deferrable"}
+        {"deferrable"}
         | (set(KubernetesPodOperator.template_fields) - {"is_delete_operator_pod", "regional"})
         | set(GKEOperatorMixin.template_fields)
     )
@@ -628,85 +633,33 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        regional: bool | None = None,
         on_finish_action: str | None = None,
-        is_delete_operator_pod: bool | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         *args,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is not None:
-            kwargs["on_finish_action"] = (
-                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
-            )
-        elif on_finish_action is not None:
+        if on_finish_action is not None:
             kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
         else:
-            warnings.warn(
-                f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `keep_pod` but in a future release"
-                " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
-                " the future you will need to set `on_finish_action=keep_pod` explicitly.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
-
+            kwargs["on_finish_action"] = OnFinishAction.DELETE_POD
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
-        self._regional = regional
-        if is_delete_operator_pod is not None:
-            self.is_delete_operator_pod = is_delete_operator_pod
         self.deferrable = deferrable
 
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
-
-    @property
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="on_finish_action",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def is_delete_operator_pod(self) -> bool | None:
-        return self._is_delete_operator_pod
-
-    @is_delete_operator_pod.setter
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="on_finish_action",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def is_delete_operator_pod(self, is_delete_operator_pod) -> None:
-        self._is_delete_operator_pod = is_delete_operator_pod
-
-    @property
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        reason="The parameter is not in actual use.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def regional(self) -> bool | None:
-        return self._regional
-
-    @regional.setter
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        reason="The parameter is not in actual use.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def regional(self, regional) -> None:
-        self._regional = regional
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""
@@ -760,6 +713,7 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -788,6 +742,7 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -804,6 +759,7 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
 
         # There is no need to manage the kube_config file, as it will be generated automatically.
@@ -860,6 +816,7 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -883,6 +840,7 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -898,6 +856,7 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
         self.job: V1Job | None = None
 
@@ -909,7 +868,14 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.cluster_name,
             self.job,
         )
-        KubernetesEngineJobLink.persist(context=context, task_instance=self)
+        KubernetesEngineJobLink.persist(
+            context=context,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=self.job.metadata.namespace,
+            job_name=self.job.metadata.name,
+            project_id=self.project_id,
+        )
         return None
 
 
@@ -928,6 +894,7 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -951,6 +918,7 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -966,9 +934,19 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
         self.namespace = namespace
         self.do_xcom_push = do_xcom_push
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_name": self.cluster_name,
+            "namespace": self.namespace,
+            "project_id": self.project_id,
+        }
 
     def execute(self, context: Context) -> dict:
         if self.namespace:
@@ -980,7 +958,7 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         if self.do_xcom_push:
             ti = context["ti"]
             ti.xcom_push(key="jobs_list", value=V1JobList.to_dict(jobs))
-        KubernetesEngineWorkloadsLink.persist(context=context, task_instance=self)
+        KubernetesEngineWorkloadsLink.persist(context=context)
         return V1JobList.to_dict(jobs)
 
 
@@ -1003,6 +981,7 @@ class GKECreateCustomResourceOperator(GKEOperatorMixin, KubernetesCreateResource
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1025,6 +1004,7 @@ class GKECreateCustomResourceOperator(GKEOperatorMixin, KubernetesCreateResource
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1038,6 +1018,7 @@ class GKECreateCustomResourceOperator(GKEOperatorMixin, KubernetesCreateResource
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
 
         if self.gcp_conn_id is None:
@@ -1073,6 +1054,7 @@ class GKEDeleteCustomResourceOperator(GKEOperatorMixin, KubernetesDeleteResource
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1095,6 +1077,7 @@ class GKEDeleteCustomResourceOperator(GKEOperatorMixin, KubernetesDeleteResource
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1108,6 +1091,7 @@ class GKEDeleteCustomResourceOperator(GKEOperatorMixin, KubernetesDeleteResource
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
 
         if self.gcp_conn_id is None:
@@ -1132,6 +1116,7 @@ class GKEStartKueueJobOperator(GKEOperatorMixin, KubernetesStartKueueJobOperator
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1154,6 +1139,7 @@ class GKEStartKueueJobOperator(GKEOperatorMixin, KubernetesStartKueueJobOperator
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1166,6 +1152,7 @@ class GKEStartKueueJobOperator(GKEOperatorMixin, KubernetesStartKueueJobOperator
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
 
 
@@ -1192,6 +1179,7 @@ class GKEDeleteJobOperator(GKEOperatorMixin, KubernetesDeleteJobOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1214,6 +1202,7 @@ class GKEDeleteJobOperator(GKEOperatorMixin, KubernetesDeleteJobOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1227,6 +1216,7 @@ class GKEDeleteJobOperator(GKEOperatorMixin, KubernetesDeleteJobOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
 
         if self.gcp_conn_id is None:
@@ -1255,6 +1245,7 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1278,6 +1269,7 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1293,6 +1285,7 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
         self.job: V1Job | None = None
 
@@ -1307,8 +1300,14 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.name,
             self.cluster_name,
         )
-        KubernetesEngineJobLink.persist(context=context, task_instance=self)
-
+        KubernetesEngineJobLink.persist(
+            context=context,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=self.job.metadata.namespace,
+            job_name=self.job.metadata.name,
+            project_id=self.project_id,
+        )
         return k8s.V1Job.to_dict(self.job)
 
 
@@ -1326,6 +1325,7 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1349,6 +1349,7 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1364,6 +1365,7 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
         self.job: V1Job | None = None
 
@@ -1378,6 +1380,13 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.name,
             self.cluster_name,
         )
-        KubernetesEngineJobLink.persist(context=context, task_instance=self)
+        KubernetesEngineJobLink.persist(
+            context=context,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=self.job.metadata.namespace,
+            job_name=self.job.metadata.name,
+            project_id=self.project_id,
+        )
 
         return k8s.V1Job.to_dict(self.job)

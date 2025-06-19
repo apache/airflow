@@ -19,21 +19,21 @@ from __future__ import annotations
 import pytest
 
 from airflow_breeze.global_constants import GroupOfTests
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
 def _all_providers() -> list[str]:
-    providers_root = AIRFLOW_SOURCES_ROOT / "providers"
+    providers_root = AIRFLOW_ROOT_PATH / "providers"
     return sorted(
         file.parent.relative_to(providers_root).as_posix() for file in providers_root.rglob("provider.yaml")
     )
 
 
 def _find_all_integration_folders() -> list[str]:
-    providers_root = AIRFLOW_SOURCES_ROOT / "providers"
+    providers_root = AIRFLOW_ROOT_PATH / "providers"
     return sorted(
-        provider_posix_path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        provider_posix_path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
         for provider_posix_path in providers_root.rglob("integration")
     )
 
@@ -41,17 +41,17 @@ def _find_all_integration_folders() -> list[str]:
 @pytest.mark.parametrize(
     "test_group, test_type, pytest_args",
     [
-        # Those list needs to be updated every time we add a new directory to tests/ folder
+        # Those list needs to be updated every time we add a new directory to airflow-core/tests/ folder
         (
             GroupOfTests.CORE,
             "Core",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
+                "airflow-core/tests/unit/core",
+                "airflow-core/tests/unit/executors",
+                "airflow-core/tests/unit/jobs",
+                "airflow-core/tests/unit/models",
+                "airflow-core/tests/unit/ti_deps",
+                "airflow-core/tests/unit/utils",
             ],
         ),
         (
@@ -63,6 +63,8 @@ def _find_all_integration_folders() -> list[str]:
                 "providers/apache/hive/tests/integration",
                 "providers/apache/kafka/tests/integration",
                 "providers/apache/pinot/tests/integration",
+                "providers/apache/tinkerpop/tests/integration",
+                "providers/celery/tests/integration",
                 "providers/google/tests/integration",
                 "providers/microsoft/mssql/tests/integration",
                 "providers/mongo/tests/integration",
@@ -76,22 +78,17 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.INTEGRATION_CORE,
             "All",
-            ["tests/integration"],
+            ["airflow-core/tests/integration"],
         ),
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
             "Serialization",
-            ["tests/serialization"],
-        ),
-        (
-            GroupOfTests.CORE,
-            "Operators",
-            ["tests/operators"],
+            ["airflow-core/tests/unit/serialization"],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -140,7 +137,7 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.CORE,
             "All-Quarantined",
-            ["tests", "-m", "quarantined", "--include-quarantined"],
+            ["airflow-core/tests/unit/", "-m", "quarantined", "--include-quarantined"],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -156,39 +153,38 @@ def _find_all_integration_folders() -> list[str]:
             GroupOfTests.CORE,
             "Other",
             [
-                "tests/assets",
-                "tests/auth",
-                "tests/callbacks",
-                "tests/charts",
-                "tests/cluster_policies",
-                "tests/config_templates",
-                "tests/dag_processing",
-                "tests/datasets",
-                "tests/decorators",
-                "tests/hooks",
-                "tests/io",
-                "tests/lineage",
-                "tests/listeners",
-                "tests/macros",
-                "tests/notifications",
-                "tests/plugins",
-                "tests/secrets",
-                "tests/security",
-                "tests/sensors",
-                "tests/task",
-                "tests/testconfig",
-                "tests/timetables",
+                "airflow-core/tests/unit/assets",
+                "airflow-core/tests/unit/callbacks",
+                "airflow-core/tests/unit/charts",
+                "airflow-core/tests/unit/cluster_policies",
+                "airflow-core/tests/unit/config_templates",
+                "airflow-core/tests/unit/dag_processing",
+                "airflow-core/tests/unit/datasets",
+                "airflow-core/tests/unit/decorators",
+                "airflow-core/tests/unit/hooks",
+                "airflow-core/tests/unit/io",
+                "airflow-core/tests/unit/lineage",
+                "airflow-core/tests/unit/listeners",
+                "airflow-core/tests/unit/logging",
+                "airflow-core/tests/unit/macros",
+                "airflow-core/tests/unit/plugins",
+                "airflow-core/tests/unit/secrets",
+                "airflow-core/tests/unit/security",
+                "airflow-core/tests/unit/sensors",
+                "airflow-core/tests/unit/task",
+                "airflow-core/tests/unit/testconfig",
+                "airflow-core/tests/unit/timetables",
             ],
         ),
         (
             GroupOfTests.HELM,
             "All",
-            ["helm_tests"],
+            ["helm-tests"],
         ),
         (
             GroupOfTests.HELM,
             "airflow_aux",
-            ["helm_tests/airflow_aux"],
+            ["helm-tests/tests/helm_tests/airflow_aux"],
         ),
     ],
 )
@@ -220,29 +216,35 @@ def test_pytest_args_for_missing_provider():
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
             "CLI",
             [
-                "tests/cli",
+                "airflow-core/tests/unit/cli",
             ],
         ),
         (
             GroupOfTests.CORE,
             "API CLI",
             [
-                "tests/api",
-                "tests/api_connexion",
-                "tests/api_fastapi",
-                "tests/cli",
+                "airflow-core/tests/unit/api",
+                "airflow-core/tests/unit/api_fastapi",
+                "airflow-core/tests/unit/cli",
             ],
         ),
         (
             GroupOfTests.CORE,
             "Core",
-            ["tests/core", "tests/executors", "tests/jobs", "tests/models", "tests/ti_deps", "tests/utils"],
+            [
+                "airflow-core/tests/unit/core",
+                "airflow-core/tests/unit/executors",
+                "airflow-core/tests/unit/jobs",
+                "airflow-core/tests/unit/models",
+                "airflow-core/tests/unit/ti_deps",
+                "airflow-core/tests/unit/utils",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -298,21 +300,28 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.HELM,
             "All",
             [
-                "helm_tests",
+                "helm-tests",
             ],
         ),
         (
             GroupOfTests.TASK_SDK,
             "All",
             [
-                "task_sdk/tests",
+                "task-sdk/tests",
+            ],
+        ),
+        (
+            GroupOfTests.CTL,
+            "All",
+            [
+                "airflow-ctl/tests",
             ],
         ),
         (
             GroupOfTests.INTEGRATION_CORE,
             "All",
             [
-                "tests/integration",
+                "airflow-core/tests/integration",
             ],
         ),
         (

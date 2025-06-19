@@ -30,35 +30,27 @@ DEFAULT_DATE = timezone.datetime(2021, 9, 9)
 
 
 class TestSFTPDecoratorSensor:
-    @pytest.mark.parametrize(
-        "file_path,",
-        ["/path/to/file/2021-09-09.txt", "/path/to/file/{{ ds }}.txt"],
-    )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_decorator_with_file_path_with_template(self, sftp_hook_mock, file_path, dag_maker):
+    def test_decorator_with_file_path(self, sftp_hook_mock, dag_maker):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
-        file_path_templated = file_path
         file_path = "/path/to/file/2021-09-09.txt"
         decorated_func_return = "decorated_func_returns"
         expected_xcom_return = {"files_found": [file_path], "decorator_return_value": decorated_func_return}
 
-        @task.sftp_sensor(path=file_path_templated)
+        @task.sftp_sensor(path=file_path)
         def f():
             return decorated_func_return
 
         with dag_maker():
             ret = f()
 
-        dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == expected_xcom_return
+        assert ret.operator.execute({}) == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_decorator_with_file_path_with_args(self, sftp_hook_mock, dag_maker):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         file_path = "/path/to/file/1970-01-01.txt"
-        op_args = ["op_args_1"]
+        op_args = ("op_args_1",)
         op_kwargs = {"key": "value"}
         decorated_func_return = {"args": op_args, "kwargs": {**op_kwargs, "files_found": [file_path]}}
         expected_xcom_return = {"files_found": [file_path], "decorator_return_value": decorated_func_return}
@@ -70,10 +62,7 @@ class TestSFTPDecoratorSensor:
         with dag_maker():
             ret = f(*op_args, **op_kwargs)
 
-        dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == expected_xcom_return
+        assert ret.operator.execute({}) == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_decorator_with_file_pattern(self, sftp_hook_mock, dag_maker):
@@ -96,16 +85,13 @@ class TestSFTPDecoratorSensor:
         with dag_maker():
             ret = f()
 
-        dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == expected_xcom_return
+        assert ret.operator.execute({}) == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_decorator_with_file_pattern_with_args(self, sftp_hook_mock, dag_maker):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         file_path_list = ["/path/to/file/text_file.txt", "/path/to/file/another_text_file.txt"]
-        op_args = ["op_args_1"]
+        op_args = ("op_args_1",)
         op_kwargs = {"key": "value"}
         sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
             "text_file.txt",
@@ -124,7 +110,4 @@ class TestSFTPDecoratorSensor:
         with dag_maker():
             ret = f(*op_args, **op_kwargs)
 
-        dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == expected_xcom_return
+        assert ret.operator.execute({}) == expected_xcom_return

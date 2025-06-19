@@ -17,11 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import tempfile
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -31,9 +28,7 @@ from openlineage.client.facet_v2 import (
     ownership_dataset,
     schema_dataset,
 )
-from uuid6 import uuid7
 
-from airflow.io.path import ObjectStoragePath
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.lineage.entities import Column, File, Table, User
 from airflow.providers.openlineage.extractors import OperatorLineage
@@ -41,43 +36,48 @@ from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import PythonOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     try:
+        from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, TIRunContext
         from airflow.sdk.definitions.context import Context
+
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
+        # TIRunContext is only used in Airflow 3 tests
         from airflow.utils.context import Context
 
-    from task_sdk.tests.conftest import MakeTIContextCallable
+        AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
 
-if AIRFLOW_V_2_10_PLUS:
 
-    @pytest.fixture
-    def hook_lineage_collector():
-        from airflow.lineage import hook
-        from airflow.providers.common.compat.lineage.hook import (
-            get_hook_lineage_collector,
-        )
+@pytest.fixture
+def hook_lineage_collector():
+    from airflow.lineage import hook
+    from airflow.providers.common.compat.lineage.hook import (
+        get_hook_lineage_collector,
+    )
 
-        hook._hook_lineage_collector = None
-        hook._hook_lineage_collector = hook.HookLineageCollector()
+    hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = hook.HookLineageCollector()
 
-        yield get_hook_lineage_collector()
+    yield get_hook_lineage_collector()
 
-        hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = None
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance as SDKTaskInstance
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk import ObjectStoragePath
+    from airflow.sdk.api.datamodels._generated import TaskInstance as SDKTaskInstance
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import StartupDetails
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
 else:
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
+    from airflow.models import BaseOperator
 
     SDKTaskInstance = ...  # type: ignore
     task_runner = ...  # type: ignore
@@ -278,7 +278,7 @@ def test_convert_to_ol_dataset_table():
     assert result.facets == expected_facets
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+@skip_if_force_lowest_dependencies_marker
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()
     task = MagicMock()
@@ -289,13 +289,14 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
     hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="input_key")]
     assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector,
 ):
@@ -314,7 +315,9 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     # s3://bucket/input_key not here - use data from operator
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
@@ -323,8 +326,8 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
 
 @pytest.mark.db_test
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS,
-    reason="Test for hook level lineage in Airflow >= 2.10.0 < 3.0",
+    AIRFLOW_V_3_0_PLUS,
+    reason="Test for hook level lineage in Airflow < 3.0",
 )
 def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hook_lineage_collector):
     path = None
@@ -354,109 +357,9 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
     assert datasets.outputs[0].asset == Asset(uri=path)
 
 
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
-
-
-@pytest.fixture
-def mocked_parse(spy_agency):
-    """
-    Fixture to set up an inline DAG and use it in a stubbed `parse` function. Use this fixture if you
-    want to isolate and test `parse` or `run` logic without having to define a DAG file.
-
-    This fixture returns a helper function `set_dag` that:
-    1. Creates an in line DAG with the given `dag_id` and `task` (limited to one task)
-    2. Constructs a `RuntimeTaskInstance` based on the provided `StartupDetails` and task.
-    3. Stubs the `parse` function using `spy_agency`, to return the mocked `RuntimeTaskInstance`.
-
-    After adding the fixture in your test function signature, you can use it like this ::
-
-            mocked_parse(
-                StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
-                    file="",
-                    requests_fd=0,
-                ),
-                "example_dag_id",
-                CustomOperator(task_id="hello"),
-            )
-    """
-
-    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
-        from airflow.sdk.definitions.dag import DAG
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
-        from airflow.utils import timezone
-
-        if not task.has_dag():
-            dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
-            task.dag = dag
-            task = dag.task_dict[task.task_id]
-        else:
-            dag = task.dag
-        if what.ti_context.dag_run.conf:
-            dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
-        ti = RuntimeTaskInstance.model_construct(
-            **what.ti.model_dump(exclude_unset=True),
-            task=task,
-            _ti_context_from_server=what.ti_context,
-            max_tries=what.ti_context.max_tries,
-            start_date=what.start_date,
-        )
-        if hasattr(parse, "spy"):
-            spy_agency.unspy(parse)
-        spy_agency.spy_on(parse, call_fake=lambda _: ti)
-        return ti
-
-    return set_dag
-
-
-@pytest.fixture
-def make_ti_context() -> MakeTIContextCallable:
-    """Factory for creating TIRunContext objects."""
-    from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
-
-    def _make_context(
-        dag_id: str = "test_dag",
-        run_id: str = "test_run",
-        logical_date: str | datetime = "2024-12-01T01:00:00Z",
-        data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
-        data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
-        clear_number: int = 0,
-        start_date: str | datetime = "2024-12-01T01:00:00Z",
-        run_after: str | datetime = "2024-12-01T01:00:00Z",
-        run_type: str = "manual",
-        task_reschedule_count: int = 0,
-        conf=None,
-    ) -> TIRunContext:
-        return TIRunContext(
-            dag_run=DagRun(
-                dag_id=dag_id,
-                run_id=run_id,
-                logical_date=logical_date,  # type: ignore
-                data_interval_start=data_interval_start,  # type: ignore
-                data_interval_end=data_interval_end,  # type: ignore
-                clear_number=clear_number,  # type: ignore
-                start_date=start_date,  # type: ignore
-                run_type=run_type,  # type: ignore
-                run_after=run_after,  # type: ignore
-                conf=conf,  # type: ignore
-            ),
-            task_reschedule_count=task_reschedule_count,
-            max_tries=0,
-        )
-
-    return _make_context
-
-
 @pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Task SDK related test")
-def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
-    session, hook_lineage_collector, mocked_parse, make_ti_context, mock_supervisor_comms
-):
+def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(session, hook_lineage_collector, run_task):
     path = None
     with tempfile.NamedTemporaryFile() as f:
         path = f.name
@@ -467,27 +370,36 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
                 out.write("test")
 
     task = PythonOperator(task_id="test_task_extractor_pythonoperator", python_callable=use_read)
-    FAKE_BUNDLE = BundleInfo.model_construct(name="anything", version="any")
 
-    what = StartupDetails(
-        ti=SDKTaskInstance(
-            id=uuid7(),
-            task_id="test_task_extractor_pythonoperator",
-            dag_id="test_hookcollector_dag",
-            run_id="c",
-            try_number=1,
-        ),
-        dag_rel_path="",
-        bundle_info=FAKE_BUNDLE,
-        requests_fd=0,
-        ti_context=make_ti_context(),
-        start_date=datetime.now(),
-    )
-    ti = mocked_parse(what, "test_hookcollector_dag", task)
-
-    task_runner.run(ti, logging.getLogger(__name__))
+    run_task(task, dag_id="test_hookcollector_dag")
 
     datasets = hook_lineage_collector.collected_assets
 
     assert len(datasets.outputs) == 1
     assert datasets.outputs[0].asset == Asset(uri=path)
+
+
+def test_extract_inlets_and_outlets_with_operator():
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    extractor_manager = ExtractorManager()
+    task = PythonOperator(task_id="task_id", python_callable=lambda x: x, inlets=inlets, outlets=outlets)
+    lineage = OperatorLineage()
+    extractor_manager.extract_inlets_and_outlets(lineage, task)
+    assert lineage.inputs == inlets
+    assert lineage.outputs == outlets
+
+
+def test_extract_inlets_and_outlets_with_sensor():
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    extractor_manager = ExtractorManager()
+    task = DateTimeSensor(
+        task_id="task_id", target_time="2025-04-04T08:48:13.713922+00:00", inlets=inlets, outlets=outlets
+    )
+    lineage = OperatorLineage()
+    extractor_manager.extract_inlets_and_outlets(lineage, task)
+    assert lineage.inputs == inlets
+    assert lineage.outputs == outlets

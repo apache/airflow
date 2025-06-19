@@ -57,6 +57,7 @@ def test_render_template(dag_maker):
         "test_druid_render_template",
         schedule="@daily",
         default_args={"start_date": DEFAULT_DATE},
+        catchup=True,
     ):
         operator = DruidOperator(
             task_id="spark_submit_job",
@@ -82,6 +83,7 @@ def test_render_template_from_file(tmp_path, dag_maker):
         schedule="@daily",
         template_searchpath=[str(tmp_path)],
         default_args={"start_date": DEFAULT_DATE},
+        catchup=True,
     ):
         operator = DruidOperator(
             task_id="spark_submit_job",

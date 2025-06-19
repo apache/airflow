@@ -36,6 +36,13 @@ from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from google.api_core import protobuf_helpers
+from google.cloud.storage_transfer_v1 import (
+    ListTransferJobsRequest,
+    StorageTransferServiceAsyncClient,
+    TransferJob,
+    TransferOperation,
+)
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
@@ -46,21 +53,13 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from google.api_core import protobuf_helpers
-from google.cloud.storage_transfer_v1 import (
-    ListTransferJobsRequest,
-    StorageTransferServiceAsyncClient,
-    TransferJob,
-    TransferOperation,
-)
 
 if TYPE_CHECKING:
-    from proto import Message
-
     from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
         ListTransferJobsAsyncPager,
     )
     from google.longrunning import operations_pb2  # type: ignore[attr-defined]
+    from proto import Message
 
 log = logging.getLogger(__name__)
 
@@ -219,7 +218,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     return (
                         self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
                     )
-                elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
+                if transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
                     return self.enable_transfer_job(job_name=job_name, project_id=body.get(PROJECT_ID))
             else:
                 raise e

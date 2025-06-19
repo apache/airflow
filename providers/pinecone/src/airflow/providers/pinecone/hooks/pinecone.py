@@ -24,14 +24,16 @@ import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
+
 from airflow.hooks.base import BaseHook
-from pinecone import Pinecone, PodSpec, ServerlessSpec
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
     from pinecone import Vector
     from pinecone.core.client.model.sparse_values import SparseValues
     from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
+
+    from airflow.models.connection import Connection
 
 
 class PineconeHook(BaseHook):
@@ -180,7 +182,7 @@ class PineconeHook(BaseHook):
         replicas: int | None = None,
         shards: int | None = None,
         pods: int | None = None,
-        pod_type: str | None = "p1.x1",
+        pod_type: str | PodType = PodType.P1_X1,
         metadata_config: dict | None = None,
         source_collection: str | None = None,
         environment: str | None = None,
@@ -201,7 +203,7 @@ class PineconeHook(BaseHook):
             replicas=replicas,
             shards=shards,
             pods=pods,
-            pod_type=pod_type,
+            pod_type=pod_type if isinstance(pod_type, PodType) else PodType(pod_type),
             metadata_config=metadata_config,
             source_collection=source_collection,
         )

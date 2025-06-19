@@ -19,42 +19,54 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
-from flask import current_app, flash, redirect, request, url_for
+from flask import flash, redirect, request, url_for
+from flask_appbuilder import BaseView
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models import DagBag
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.utils.airflow_flask_app import AirflowApp
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.fab.www import auth
+else:
+    from airflow.www import auth  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.www import auth
-from airflow.www.views import AirflowBaseView
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.models import BaseOperator
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
 REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
 
-airflow_app = cast(AirflowApp, current_app)
-
 
 def get_auth_decorator():
-    from airflow.auth.managers.models.resource_details import DagAccessEntity
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+    else:
+        from airflow.auth.managers.models.resource_details import DagAccessEntity
 
     return auth.has_access_dag("POST", DagAccessEntity.RUN)
 
@@ -101,7 +113,8 @@ def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun
 def _clear_task_instances(
     dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None
 ) -> None:
-    dag = airflow_app.dag_bag.get_dag(dag_id)
+    dag_bag = DagBag(read_dags_from_db=True)
+    dag = dag_bag.get_dag(dag_id)
     log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
     tis_to_clear = [ti for ti in dr.get_task_instances() if ti.databricks_task_key in task_ids]
@@ -136,11 +149,15 @@ def _repair_task(
         databricks_run_id,
     )
 
+    run_data = hook.get_run(databricks_run_id)
     repair_json = {
         "run_id": databricks_run_id,
         "latest_repair_id": repair_history_id,
         "rerun_tasks": tasks_to_repair,
     }
+
+    if "overriding_parameters" in run_data:
+        repair_json["overriding_parameters"] = run_data["overriding_parameters"]
 
     return hook.repair_run(repair_json)
 
@@ -238,7 +255,8 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
         if not task_group:
             raise AirflowException("Task group is required for generating Databricks Workflow Job Run Link.")
 
-        dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
+        dag_bag = DagBag(read_dags_from_db=True)
+        dag = dag_bag.get_dag(ti_key.dag_id)
         dag.get_task(ti_key.task_id)
         self.log.info("Getting link for task %s", ti_key.task_id)
         if ".launch" not in ti_key.task_id:
@@ -310,7 +328,8 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
             raise AirflowException("Task group is required for generating repair link.")
         if not task_group.group_id:
             raise AirflowException("Task group ID is required for generating repair link.")
-        dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
+        dag_bag = DagBag(read_dags_from_db=True)
+        dag = dag_bag.get_dag(ti_key.dag_id)
         dr = _get_dagrun(dag, ti_key.run_id)
         log.debug("Getting failed and skipped tasks for dag run %s", dr.run_id)
         task_group_sub_tasks = self.get_task_group_children(task_group).items()
@@ -369,7 +388,8 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             task_group.group_id,
             ti_key.task_id,
         )
-        dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
+        dag_bag = DagBag(read_dags_from_db=True)
+        dag = dag_bag.get_dag(ti_key.dag_id)
         task = dag.get_task(ti_key.task_id)
 
         if ".launch" not in ti_key.task_id:
@@ -387,7 +407,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         return url_for("RepairDatabricksTasks.repair", **query_params)
 
 
-class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
+class RepairDatabricksTasks(BaseView, LoggingMixin):
     """Repair databricks tasks from Airflow."""
 
     default_view = "repair"

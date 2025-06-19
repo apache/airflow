@@ -32,7 +32,7 @@ from libcst.codemod.visitors import AddImportsVisitor
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
 DEFERRABLE_DOC = (
-    "https://github.com/apache/airflow/blob/main/docs/apache-airflow/"
+    "https://github.com/apache/airflow/blob/main/airflow-core/docs/"
     "authoring-and-scheduling/deferring.rst#writing-deferrable-operators"
 )
 
@@ -88,11 +88,11 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
     # We check the module using the ast once and then fix it through cst if needed.
     # The primary reason we don't do it all through cst is performance.
     if visitor.error_linenos:
-        _fix_invalide_deferrable_default_value(module_filename)
+        _fix_invalid_deferrable_default_value(module_filename)
     yield from (f"{module_filename}:{lineno}" for lineno in visitor.error_linenos)
 
 
-def _fix_invalide_deferrable_default_value(module_filename: str) -> None:
+def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
     context = CodemodContext(filename=module_filename)
     AddImportsVisitor.add_needed_import(context, "airflow.configuration", "conf")
     transformer = DefaultDeferrableTransformer()
@@ -106,8 +106,8 @@ def _fix_invalide_deferrable_default_value(module_filename: str) -> None:
 
 def main() -> int:
     modules = itertools.chain(
-        glob.glob(f"{ROOT_DIR}/airflow/**/sensors/**.py", recursive=True),
-        glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
+        glob.glob(f"{ROOT_DIR}/**/sensors/**.py", recursive=True),
+        glob.glob(f"{ROOT_DIR}/**/operators/**.py", recursive=True),
     )
 
     errors = [error for module in modules for error in iter_check_deferrable_default_errors(module)]

@@ -3,7 +3,6 @@
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:ffb1a766b791beaf5f8a983587db870f
 build-docs:2e9882744f219e56726548ce2d13c3f5
-ci:find-backtracking-candidates:17fe56b867a745e5032a08dfcd3f73ee
 ci:fix-ownership:3e5a73533cc96045e72cb258783cfc96
 ci:free-space:49af17b032039c05c41a7a8283f365cc
 ci:get-workflow-info:8246038093359b9c3c110043419473e2
@@ -41,16 +40,16 @@ release-management:create-minor-branch:a3834afc4aa5d1e98002c9e9e7a9931d
 release-management:generate-constraints:01aef235b11e59ed7f10c970a5cdaba7
 release-management:generate-issue-content-providers:cda108e7f2506c2816af8f2a6c24070c
 release-management:generate-providers-metadata:d4e8e5cfaa024e3963af02d7a873048d
-release-management:install-provider-packages:34c38aca17d23dbb454fe7a6bfd8e630
-release-management:prepare-airflow-package:85d01c57e5b5ee0fb9e5f9d9706ed3b5
+release-management:install-provider-distributions:34c38aca17d23dbb454fe7a6bfd8e630
+release-management:prepare-airflow-distributions:85d01c57e5b5ee0fb9e5f9d9706ed3b5
 release-management:prepare-provider-documentation:eb861d68b8d72cd98dc8732fc5393796
-release-management:prepare-provider-packages:908e2c826f7b4959dfd8bc693f3857a7
+release-management:prepare-provider-distributions:908e2c826f7b4959dfd8bc693f3857a7
 release-management:publish-docs:51ee9bf1268529513996a14bd5350c19
 release-management:release-prod-images:cfbfe8b19fee91fd90718f98ef2fd078
 release-management:start-rc-process:b27bd524dd3c89f50a747b60a7e892c1
 release-management:start-release:419f48f6a4ff4457cb9de7ff496aebbe
 release-management:update-constraints:02ec4b119150e3fdbac52026e94820ef
-release-management:verify-provider-packages:96dce5644aad6b37080acf77b3d8de3a
+release-management:verify-provider-distributions:96dce5644aad6b37080acf77b3d8de3a
 release-management:59d956e45fccf55e47f16e33cfc5d04a
 sbom:build-all-airflow-images:32f8acade299c2b112e986bae99846db
 sbom:generate-providers-requirements:3926848718283cf2ef00310a0892e867

@@ -52,14 +52,14 @@ the connection metadata is structured as follows:
 
 An example usage of the SQLExecuteQueryOperator is as follows:
 
-.. exampleinclude:: /../../providers/mysql/tests/system/mysql/example_mysql.py
+.. exampleinclude:: /../../mysql/tests/system/mysql/example_mysql.py
     :language: python
     :start-after: [START howto_operator_mysql]
     :end-before: [END howto_operator_mysql]
 
 You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
-.. exampleinclude:: /../../providers/mysql/tests/system/mysql/example_mysql.py
+.. exampleinclude:: /../../mysql/tests/system/mysql/example_mysql.py
     :language: python
     :start-after: [START howto_operator_mysql_external_file]
     :end-before: [END howto_operator_mysql_external_file]

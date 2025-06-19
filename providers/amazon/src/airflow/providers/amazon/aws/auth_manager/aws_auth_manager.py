@@ -18,22 +18,15 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
-from collections.abc import Container, Sequence
+from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urljoin
 
 from fastapi import FastAPI
-from flask import session
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.resource_details import (
-    AccessView,
-    ConnectionDetails,
-    DagAccessEntity,
-    DagDetails,
-    PoolDetails,
-    VariableDetails,
-)
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -49,16 +42,26 @@ from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from flask_appbuilder.menu import MenuItem
-
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.batch_apis import (
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AccessView,
+        AssetAliasDetails,
+        AssetDetails,
+        BackfillDetails,
+        ConfigurationDetails,
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+        PoolDetails,
+        VariableDetails,
+    )
+    from airflow.api_fastapi.common.types import MenuItem
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -69,13 +72,11 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     authentication and authorization in Airflow.
     """
 
-    def __init__(self) -> None:
+    def init(self) -> None:
         if not AIRFLOW_V_3_0_PLUS:
             raise AirflowOptionalProviderFeatureException(
                 "AWS auth manager is only compatible with Airflow versions >= 3.0.0"
             )
-
-        super().__init__()
         self._check_avp_schema_version()
 
     @cached_property
@@ -83,21 +84,20 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return AwsAuthManagerAmazonVerifiedPermissionsFacade()
 
     @cached_property
-    def fastapi_endpoint(self) -> str:
-        return conf.get("fastapi", "base_url")
-
-    def get_user(self) -> AwsAuthManagerUser | None:
-        return session["aws_user"] if self.is_logged_in() else None
-
-    def is_logged_in(self) -> bool:
-        return "aws_user" in session
+    def apiserver_endpoint(self) -> str:
+        return conf.get("api", "base_url", fallback="/")
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
-        return AwsAuthManagerUser(**token)
+        return AwsAuthManagerUser(
+            user_id=token.pop("sub"),
+            groups=token.get("groups", []),
+            username=token.get("username"),
+            email=token.get("email"),
+        )
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
         return {
-            "user_id": user.get_id(),
+            "sub": user.get_id(),
             "groups": user.get_groups(),
             "username": user.username,
             "email": user.email,
@@ -159,12 +159,28 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             context=context,
         )
 
+    def is_authorized_backfill(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: BackfillDetails | None = None
+    ) -> bool:
+        backfill_id = details.id if details else None
+        return self.avp_facade.is_authorized(
+            method=method, entity_type=AvpEntities.BACKFILL, user=user, entity_id=backfill_id
+        )
+
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetDetails | None = None
     ) -> bool:
-        asset_uri = details.uri if details else None
+        asset_id = details.id if details else None
         return self.avp_facade.is_authorized(
-            method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_uri
+            method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_id
+        )
+
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetAliasDetails | None = None
+    ) -> bool:
+        asset_alias_id = details.id if details else None
+        return self.avp_facade.is_authorized(
+            method=method, entity_type=AvpEntities.ASSET_ALIAS, user=user, entity_id=asset_alias_id
         )
 
     def is_authorized_pool(
@@ -204,13 +220,32 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
 
     def is_authorized_custom_view(
         self, *, method: ResourceMethod | str, resource_name: str, user: AwsAuthManagerUser
-    ):
+    ) -> bool:
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CUSTOM,
             user=user,
             entity_id=resource_name,
         )
+
+    def filter_authorized_menu_items(
+        self, menu_items: list[MenuItem], *, user: AwsAuthManagerUser
+    ) -> list[MenuItem]:
+        requests: dict[str, IsAuthorizedRequest] = {}
+        for menu_item in menu_items:
+            requests[menu_item.value] = self._get_menu_item_request(menu_item.value)
+
+        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
+            requests=list(requests.values()), user=user
+        )
+
+        def _has_access_to_menu_item(request: IsAuthorizedRequest):
+            result = self.avp_facade.get_batch_is_authorized_single_result(
+                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+            )
+            return result["decision"] == "ALLOW"
+
+        return [menu_item for menu_item in menu_items if _has_access_to_menu_item(requests[menu_item.value])]
 
     def batch_is_authorized_connection(
         self,
@@ -222,7 +257,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.CONNECTION,
-                "entity_id": cast(ConnectionDetails, request["details"]).conn_id
+                "entity_id": cast("ConnectionDetails", request["details"]).conn_id
                 if request.get("details")
                 else None,
             }
@@ -240,10 +275,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.DAG,
-                "entity_id": cast(DagDetails, request["details"]).id if request.get("details") else None,
+                "entity_id": cast("DagDetails", request["details"]).id if request.get("details") else None,
                 "context": {
                     "dag_entity": {
-                        "string": cast(DagAccessEntity, request["access_entity"]).value,
+                        "string": cast("DagAccessEntity", request["access_entity"]).value,
                     },
                 }
                 if request.get("access_entity")
@@ -263,7 +298,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.POOL,
-                "entity_id": cast(PoolDetails, request["details"]).name if request.get("details") else None,
+                "entity_id": cast("PoolDetails", request["details"]).name if request.get("details") else None,
             }
             for request in requests
         ]
@@ -279,7 +314,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.VARIABLE,
-                "entity_id": cast(VariableDetails, request["details"]).key
+                "entity_id": cast("VariableDetails", request["details"]).key
                 if request.get("details")
                 else None,
             }
@@ -287,28 +322,23 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=user)
 
-    def filter_permitted_dag_ids(
+    def filter_authorized_dag_ids(
         self,
         *,
         dag_ids: set[str],
         user: AwsAuthManagerUser,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod = "GET",
     ):
-        if not methods:
-            methods = ["PUT", "GET"]
-
         requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
         requests_list: list[IsAuthorizedRequest] = []
         for dag_id in dag_ids:
-            for method in ["GET", "PUT"]:
-                if method in methods:
-                    request: IsAuthorizedRequest = {
-                        "method": cast("ResourceMethod", method),
-                        "entity_type": AvpEntities.DAG,
-                        "entity_id": dag_id,
-                    }
-                    requests[dag_id][cast("ResourceMethod", method)] = request
-                    requests_list.append(request)
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.DAG,
+                "entity_id": dag_id,
+            }
+            requests[dag_id][method] = request
+            requests_list.append(request)
 
         batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
             requests=requests_list, user=user
@@ -320,67 +350,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             )
             return result["decision"] == "ALLOW"
 
-        return {
-            dag_id
-            for dag_id in dag_ids
-            if (
-                "GET" in methods
-                and _has_access_to_dag(requests[dag_id]["GET"])
-                or "PUT" in methods
-                and _has_access_to_dag(requests[dag_id]["PUT"])
-            )
-        }
-
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
-        """
-        user = self.get_user()
-        if not user:
-            return []
-
-        requests: dict[str, IsAuthorizedRequest] = {}
-        for menu_item in menu_items:
-            if menu_item.childs:
-                for child in menu_item.childs:
-                    requests[child.name] = self._get_menu_item_request(child.name)
-            else:
-                requests[menu_item.name] = self._get_menu_item_request(menu_item.name)
-
-        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
-            requests=list(requests.values()), user=user
-        )
-
-        def _has_access_to_menu_item(request: IsAuthorizedRequest):
-            result = self.avp_facade.get_batch_is_authorized_single_result(
-                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
-            )
-            return result["decision"] == "ALLOW"
-
-        accessible_items = []
-        for menu_item in menu_items:
-            if menu_item.childs:
-                accessible_children = []
-                for child in menu_item.childs:
-                    if _has_access_to_menu_item(requests[child.name]):
-                        accessible_children.append(child)
-                menu_item.childs = accessible_children
-
-                # Display the menu if the user has access to at least one sub item
-                if len(accessible_children) > 0:
-                    accessible_items.append(menu_item)
-            elif _has_access_to_menu_item(requests[menu_item.name]):
-                accessible_items.append(menu_item)
-
-        return accessible_items
+        return {dag_id for dag_id in dag_ids if _has_access_to_dag(requests[dag_id][method])}
 
     def get_url_login(self, **kwargs) -> str:
-        return f"{self.fastapi_endpoint}/auth/login"
-
-    def get_url_logout(self) -> str:
-        raise NotImplementedError()
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -394,7 +367,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
 
     def get_fastapi_app(self) -> FastAPI | None:
-        from airflow.providers.amazon.aws.auth_manager.router.login import login_router
+        from airflow.providers.amazon.aws.auth_manager.routes.login import login_router
 
         app = FastAPI(
             title="AWS auth manager sub application",
@@ -409,11 +382,11 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return app
 
     @staticmethod
-    def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:
+    def _get_menu_item_request(menu_item_text: str) -> IsAuthorizedRequest:
         return {
             "method": "MENU",
             "entity_type": AvpEntities.MENU,
-            "entity_id": resource_name,
+            "entity_id": menu_item_text,
         }
 
     def _check_avp_schema_version(self):

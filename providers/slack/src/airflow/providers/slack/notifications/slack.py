@@ -22,13 +22,15 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.slack.hooks.slack import SlackHook
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
 
-ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static/pin_100.png"
+ICON_URL: str = (
+    "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
+)
 
 
 class SlackNotifier(BaseNotifier):

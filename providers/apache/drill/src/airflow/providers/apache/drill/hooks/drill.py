@@ -55,7 +55,7 @@ class DrillHook(DbApiHook):
         database_url = (
             f"{conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')}://{creds}"
             f"{conn_md.host}:{conn_md.port}/"
-            f'{conn_md.extra_dejson.get("storage_plugin", "dfs")}'
+            f"{conn_md.extra_dejson.get('storage_plugin', 'dfs')}"
         )
         if "?" in database_url:
             raise ValueError("Drill database_url should not contain a '?'")

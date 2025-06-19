@@ -281,11 +281,11 @@ def test_custom_run_facets_with_no_values():
         (
             _CONFIG_SECTION,
             _CONFIG_OPTION_CUSTOM_RUN_FACETS,
-        ): " tests.my_function;; tests.my_function ; my_function_2; ",
+        ): " unit.my_function;; unit.my_function ; my_function_2; ",
     }
 )
 def test_custom_run_facets():
-    assert custom_run_facets() == {"tests.my_function", "my_function_2"}
+    assert custom_run_facets() == {"unit.my_function", "my_function_2"}
 
 
 @env_vars({_VAR_NAMESPACE: "my_custom_namespace"})

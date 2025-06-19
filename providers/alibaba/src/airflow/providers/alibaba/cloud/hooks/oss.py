@@ -49,7 +49,7 @@ def provide_bucket_name(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 def unify_bucket_name_and_key(func: T) -> T:
@@ -73,13 +73,13 @@ def unify_bucket_name_and_key(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 class OSSHook(BaseHook):
     """Interact with Alibaba Cloud OSS, using the oss2 library."""
 
-    conn_name_attr = "alibabacloud_conn_id"
+    conn_name_attr = "oss_conn_id"
     default_conn_name = "oss_default"
     conn_type = "oss"
     hook_name = "OSS"

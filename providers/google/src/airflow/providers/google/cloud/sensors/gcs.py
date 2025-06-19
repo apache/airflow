@@ -25,6 +25,8 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
+from google.cloud.storage.retry import DEFAULT_RETRY
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -35,11 +37,11 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSUploadSessionTrigger,
 )
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-from google.cloud.storage.retry import DEFAULT_RETRY
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
@@ -304,23 +306,22 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
             return self._matches
+        if not self.poke(context=context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=GCSPrefixBlobTrigger(
+                    bucket=self.bucket,
+                    prefix=self.prefix,
+                    poke_interval=self.poke_interval,
+                    google_cloud_conn_id=self.google_cloud_conn_id,
+                    hook_params={
+                        "impersonation_chain": self.impersonation_chain,
+                    },
+                ),
+                method_name="execute_complete",
+            )
         else:
-            if not self.poke(context=context):
-                self.defer(
-                    timeout=timedelta(seconds=self.timeout),
-                    trigger=GCSPrefixBlobTrigger(
-                        bucket=self.bucket,
-                        prefix=self.prefix,
-                        poke_interval=self.poke_interval,
-                        google_cloud_conn_id=self.google_cloud_conn_id,
-                        hook_params={
-                            "impersonation_chain": self.impersonation_chain,
-                        },
-                    ),
-                    method_name="execute_complete",
-                )
-            else:
-                return self._matches
+            return self._matches
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
         """Return immediately and rely on trigger to throw a success event. Callback for the trigger."""

@@ -303,9 +303,9 @@ class TestBigQueryInsertJobTrigger:
         except asyncio.CancelledError:
             pass
 
-        assert (
-            "Skipping to cancel job" in caplog.text
-        ), "Expected message about skipping cancellation not found in log."
+        assert "Skipping to cancel job" in caplog.text, (
+            "Expected message about skipping cancellation not found in log."
+        )
         assert mock_get_job_status.call_count == 2, "Job status should be checked multiple times"
 
 

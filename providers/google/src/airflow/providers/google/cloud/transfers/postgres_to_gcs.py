@@ -57,9 +57,8 @@ class _PostgresServerSideCursorDecorator:
     def __next__(self):
         if self.rows:
             return self.rows.pop()
-        else:
-            self.initialized = True
-            return next(self.cursor)
+        self.initialized = True
+        return next(self.cursor)
 
     @property
     def description(self):

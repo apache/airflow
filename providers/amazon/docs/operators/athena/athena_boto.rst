@@ -50,7 +50,7 @@ In the following example, we query an existing Athena table and send the results
 an existing Amazon S3 bucket.  For more examples of how to use this operator, please
 see the `Sample DAG <https://github.com/apache/airflow/blob/|version|/providers/amazon/tests/system/amazon/aws/example_athena.py>`__.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_athena.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena.py
     :language: python
     :start-after: [START howto_operator_athena]
     :dedent: 4
@@ -67,7 +67,7 @@ Wait on Amazon Athena query results
 Use the :class:`~airflow.providers.amazon.aws.sensors.athena.AthenaSensor`
 to wait for the results of a query in Amazon Athena.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_athena.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena.py
     :language: python
     :start-after: [START howto_sensor_athena]
     :dedent: 4

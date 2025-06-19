@@ -35,7 +35,12 @@ from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
-from requests import Session
+from google.api_core.exceptions import GoogleAPICallError, NotFound
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
@@ -49,20 +54,14 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
-from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
-from google.cloud.exceptions import GoogleCloudError
-from google.cloud.storage.retry import DEFAULT_RETRY
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from aiohttp import ClientSession
-
     from google.api_core.retry import Retry
     from google.cloud.storage.blob import Blob
+    from requests import Session
 
 
 RT = TypeVar("RT")
@@ -136,16 +135,16 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             return func(self, *args, **kwargs)
 
-        return cast(Callable[FParams, RT], _inner_wrapper)
+        return cast("Callable[FParams, RT]", _inner_wrapper)
 
-    return cast(Callable[[T], T], _wrapper)
+    return cast("Callable[[T], T]", _wrapper)
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
 # This allows the 'bucket' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-PROVIDE_BUCKET: str = cast(str, None)
+PROVIDE_BUCKET: str = cast("str", None)
 
 
 class GCSHook(GoogleBaseHook):
@@ -359,11 +358,10 @@ class GCSHook(GoogleBaseHook):
                     )
                     self.log.info("File downloaded to %s", filename)
                     return filename
-                else:
-                    get_hook_lineage_collector().add_input_asset(
-                        context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
-                    )
-                    return blob.download_as_bytes()
+                get_hook_lineage_collector().add_input_asset(
+                    context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+                )
+                return blob.download_as_bytes()
 
             except GoogleCloudError:
                 if attempt == num_max_attempts - 1:
@@ -551,13 +549,13 @@ class GCSHook(GoogleBaseHook):
         if cache_control:
             blob.cache_control = cache_control
 
-        if filename and data:
+        if filename is not None and data is not None:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
                 "specify a single parameter, either 'filename' for "
                 "local file uploads or 'data' for file content uploads."
             )
-        elif filename:
+        if filename is not None:
             if not mime_type:
                 mime_type = "application/octet-stream"
             if gzip:
@@ -577,7 +575,7 @@ class GCSHook(GoogleBaseHook):
             if gzip:
                 os.remove(filename)
             self.log.info("File %s uploaded to %s in %s bucket", filename, object_name, bucket_name)
-        elif data:
+        elif data is not None:
             if not mime_type:
                 mime_type = "text/plain"
             if gzip:
@@ -726,6 +724,14 @@ class GCSHook(GoogleBaseHook):
         )
 
         self.log.info("Blob %s deleted.", object_name)
+
+    def get_bucket(self, bucket_name: str) -> storage.Bucket:
+        """
+        Get a bucket object from the Google Cloud Storage.
+
+        :param bucket_name: name of the bucket
+        """
+        return self.get_conn().bucket(bucket_name)
 
     def delete_bucket(self, bucket_name: str, force: bool = False, user_project: str | None = None) -> None:
         """
@@ -1495,5 +1501,5 @@ class GCSAsyncHook(GoogleBaseAsyncHook):
         token = await self.get_token(session=session)
         return Storage(
             token=token,
-            session=cast(Session, session),
+            session=cast("Session", session),
         )

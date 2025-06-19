@@ -23,6 +23,9 @@ from pathlib import Path
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
+    VERSION_MAJOR_INDEX,
+    VERSION_MINOR_INDEX,
+    VERSION_PATCHLEVEL_INDEX,
     Change,
     TypeOfChange,
     _convert_git_changes_to_table,
@@ -30,6 +33,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
+    get_most_impactful_change,
     get_version_tag,
 )
 
@@ -299,3 +303,91 @@ def test_classify_changes_automatically(
     assert len(classified_changes.other) == other_count
     assert len(classified_changes.other) == other_count
     assert len(classified_changes.misc) == misc_count
+
+
+@pytest.mark.parametrize(
+    "initial_version, bump_index, expected_version",
+    [
+        ("4.2.1", VERSION_MAJOR_INDEX, "5.0.0"),
+        ("3.5.9", VERSION_MINOR_INDEX, "3.6.0"),
+        ("2.0.0", VERSION_PATCHLEVEL_INDEX, "2.0.1"),
+    ],
+)
+def test_version_bump_for_provider_documentation(initial_version, bump_index, expected_version):
+    from airflow_breeze.prepare_providers.provider_documentation import Version, bump_version
+
+    result = bump_version(Version(initial_version), bump_index)
+    assert str(result) == expected_version
+
+
+@pytest.mark.parametrize(
+    "changes, expected",
+    [
+        pytest.param([TypeOfChange.SKIP], TypeOfChange.SKIP, id="only-skip"),
+        pytest.param([TypeOfChange.DOCUMENTATION], TypeOfChange.DOCUMENTATION, id="only-doc"),
+        pytest.param([TypeOfChange.MISC], TypeOfChange.MISC, id="only-misc"),
+        pytest.param([TypeOfChange.BUGFIX], TypeOfChange.BUGFIX, id="only-bugfix"),
+        pytest.param(
+            [TypeOfChange.MIN_AIRFLOW_VERSION_BUMP],
+            TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            id="only-min-airflow-bump",
+        ),
+        pytest.param([TypeOfChange.FEATURE], TypeOfChange.FEATURE, id="only-feature"),
+        pytest.param([TypeOfChange.BREAKING_CHANGE], TypeOfChange.BREAKING_CHANGE, id="only-breaking"),
+        pytest.param(
+            [TypeOfChange.SKIP, TypeOfChange.DOCUMENTATION], TypeOfChange.DOCUMENTATION, id="doc-vs-skip"
+        ),
+        pytest.param([TypeOfChange.SKIP, TypeOfChange.MISC], TypeOfChange.MISC, id="misc-vs-skip"),
+        pytest.param([TypeOfChange.DOCUMENTATION, TypeOfChange.MISC], TypeOfChange.MISC, id="misc-vs-doc"),
+        pytest.param([TypeOfChange.MISC, TypeOfChange.BUGFIX], TypeOfChange.BUGFIX, id="bugfix-vs-misc"),
+        pytest.param(
+            [TypeOfChange.BUGFIX, TypeOfChange.MIN_AIRFLOW_VERSION_BUMP],
+            TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            id="bump-vs-bugfix",
+        ),
+        pytest.param(
+            [TypeOfChange.MIN_AIRFLOW_VERSION_BUMP, TypeOfChange.FEATURE],
+            TypeOfChange.FEATURE,
+            id="feature-vs-bump",
+        ),
+        pytest.param(
+            [TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE],
+            TypeOfChange.BREAKING_CHANGE,
+            id="breaking-vs-feature",
+        ),
+        # Bigger combos
+        pytest.param(
+            [
+                TypeOfChange.SKIP,
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.MISC,
+                TypeOfChange.BUGFIX,
+                TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+            ],
+            TypeOfChange.BREAKING_CHANGE,
+            id="full-spectrum",
+        ),
+        pytest.param(
+            [
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.BUGFIX,
+                TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            ],
+            TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            id="version-bump-over-bugfix-doc",
+        ),
+        pytest.param(
+            [
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.MISC,
+                TypeOfChange.SKIP,
+            ],
+            TypeOfChange.MISC,
+            id="misc-over-doc-skip",
+        ),
+    ],
+)
+def test_get_most_impactful_change(changes, expected):
+    assert get_most_impactful_change(changes) == expected

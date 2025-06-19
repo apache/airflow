@@ -39,10 +39,11 @@ class AirbyteJobSensor(BaseSensorOperator):
     """
     Check for the state of a previously submitted Airbyte job.
 
-    :param airbyte_job_id: Required. Id of the Airbyte job
+    :param airbyte_job_id: Required. Id of the Airbyte job.
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
-    :param deferrable: Run sensor in the deferrable mode.
         connection information for Airbyte. Defaults to "airbyte_default".
+    :param deferrable: Optional. Runs the sensor in deferrable mode. Defaults
+        to the config value "default_deferrable" or False, if not defined.
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
     """
 
@@ -79,10 +80,10 @@ class AirbyteJobSensor(BaseSensorOperator):
         if status == JobStatusEnum.FAILED:
             message = f"Job failed: \n{job}"
             raise AirflowException(message)
-        elif status == JobStatusEnum.CANCELLED:
+        if status == JobStatusEnum.CANCELLED:
             message = f"Job was cancelled: \n{job}"
             raise AirflowException(message)
-        elif status == JobStatusEnum.SUCCEEDED:
+        if status == JobStatusEnum.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
             return True
 

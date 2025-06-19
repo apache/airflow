@@ -34,7 +34,7 @@ import yaml
 from common_precommit_black_utils import black_format
 from common_precommit_utils import (
     AIRFLOW_BREEZE_SOURCES_PATH,
-    AIRFLOW_SOURCES_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
     insert_documentation,
 )
 from rich.console import Console
@@ -43,7 +43,7 @@ from tabulate import tabulate
 console = Console(width=400, color_system="standard")
 
 PRE_COMMIT_IDS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "pre_commit_ids.py"
-PRE_COMMIT_YAML_FILE = AIRFLOW_SOURCES_ROOT_PATH / ".pre-commit-config.yaml"
+PRE_COMMIT_YAML_FILE = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml"
 
 
 def get_errors_and_hooks(content: Any, max_length: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
@@ -134,7 +134,7 @@ def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[st
         rows.append((hook_id, formatted_hook_description, " * " if hook_id in image_hooks else "  "))
     formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("ID", "Description", "Image")) + "\n\n"
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "08_static_code_checks.rst",
+        file_path=AIRFLOW_ROOT_PATH / "contributing-docs" / "08_static_code_checks.rst",
         content=formatted_table.splitlines(keepends=True),
         header="  .. BEGIN AUTO-GENERATED STATIC CHECK LIST",
         footer="  .. END AUTO-GENERATED STATIC CHECK LIST",

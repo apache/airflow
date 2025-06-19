@@ -26,6 +26,174 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add NominalTimeRunFacet to all OL events (#51404)``
+* ``feat: Add TagsJobFacet to DAGRun OpenLineage events (#51303)``
+* ``feat: Add Airflow-specific OL system tests validation and more tests (#51084)``
+* ``feat: merge TimeDeltaSensorAsync to TimeDeltaSensor (#51133)``
+* ``expose OpenLineage's lineage_root_* macros in plugin (#50532)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Use task owner for TASK level Ownership facet (#51305)``
+* ``Fix openlineage doc error (#51356)``
+* ``Fix OpenLineage macro _get_logical_date (#51210)``
+* ``Fix failing static checks (#51197)``
+* ``Fix simple grammar mistakes in doc (#51138)``
+* ``Fixes issue RuntimeTaskInstance does not contain log_url | added during taskrunner startup (#50376)``
+
+Misc
+~~~~
+
+* ``nit: task-level facets should not overwrite integration-level facets (#51690)``
+* ``Make duration in 'List Dag Run' page sortable (#51495)``
+* ``import MappedOperator from airflow.sdk.definitions.mappedoperator (#51492)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Adjust OL system test after ownership facet changes (#51394)``
+
+2.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``add root parent information to OpenLineage events (#49237)``
+* ``feat: Add DAG versioning information to OpenLineage events (#48741)``
+* ``Improve execution time messages for DAG or Task not found (#49352)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``nit: Remove duplicate warning when no OL metadata returned (#50350)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Fix clearing Variables for OpenLineage system tests (#50234)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Bump openlineage provider (#50230)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``tests: Fix OpenLineage VariableTransport's initialization (#49550)``
+   * ``Delete duplicate 'mock_supervisor_comms' pytest fixtures from OL provider (#49520)``
+   * ``Remove redundant fixtures in OL provider (#49357)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add support for task's manual state change notification in OpenLineage listener (#49040)``
+* ``feat: Explicitly propagate airflow logging level to OL client (#49108)``
+* ``feat: Add owner_links in DAG object in airflow facet (#49085)``
+
+Misc
+~~~~
+
+* ``gate import behind Airflow 2 path (#49209)``
+* ``remove superfluous else block (#49199)``
+* ``chore: Update requirement for openlineage client to >=1.31.0 (#49083)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.3
+.....
+
+Misc
+~~~~
+
+* ``Move ObjectStoragePath and attach to Task SDK (#48906)``
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: verify openlineage airflow models serialization (#47915)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
+* ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
+* ``fix: Re-add configuring orm for OpenLineage's listener on scheduler (#48049)``
+* ``fix: remove use of get_inlet_defs and get_outlet_defs from OpenLineage (#48792)``
+* ``Make datetime objects in Context as Pendulum objects (#48592)``
+* ``fix: OpenLineage BaseExtractor's on_failure should call on_complete by default (#48456)``
+* ``Fix OL tests due to decorators move to standard provider (#48808)``
+
+Misc
+~~~~
+* ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
+* ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
+* ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
+* ``serialize http transports contained in composite transport (#47444)``
+* ``Implement task-level "on" callbacks in sdk (#48002)``
+* ``Calculate retry eligibility before task runs (#47996)``
+* ``Implement triggering_asset_events in task sdk (#48650)``
+* ``nit: log more details about OpenLineage exceptions being caught (#48459)``
+* ``Add backcompat to openlineage provider method (#48406)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump OL provider for Airflow 3.0.0b4 release (#48011)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``docs: Update OL docs after BaseExtractor changes (#48585)``
+   * ``Remove auto lineage from Airflow (#48421)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move BaseOperator to 'airflow/sdk/bases/operator.py' (#48529)``
+   * ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage serialization of dataset timetables for Airflow 2.9 (#47150)``
+
+Misc
+~~~~
+
+* ``chore: Update description of 'execution_timeout' in OpenLineage provider.yaml (#47448)``
+* ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+* ``Move task_sdk to a standalone task-sdk distribution (#47451)``
+* ``Move uuid6 to be devel dependency of openlineage (#47464)``
+* ``revert removing 'external_trigger' from OpenLineage provider (#47383)``
+* ``Implement stale dag bundle cleanup (#46503)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 2.1.0
 .....
 
@@ -476,7 +644,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 1.2.1
 .....

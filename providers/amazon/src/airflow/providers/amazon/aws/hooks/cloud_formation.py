@@ -62,8 +62,7 @@ class CloudFormationHook(AwsBaseHook):
         except ClientError as e:
             if "does not exist" in str(e):
                 return None
-            else:
-                raise e
+            raise e
 
     def create_stack(self, stack_name: str, cloudformation_parameters: dict) -> None:
         """

@@ -24,16 +24,15 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import tenacity
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud import alloydb_v1
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud import alloydb_v1
 
 if TYPE_CHECKING:
     import proto
-
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask

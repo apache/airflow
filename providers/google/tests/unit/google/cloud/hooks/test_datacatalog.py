@@ -27,8 +27,9 @@ from google.api_core.retry import Retry
 from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
+
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -86,11 +87,12 @@ TEST_CREDENTIALS = mock.MagicMock()
 
 class TestCloudDataCatalog:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
-            new=mock_base_gcp_hook_default_project_id,
-        ):
-            self.hook = CloudDataCatalogHook(gcp_conn_id="test")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
+                new=mock_base_gcp_hook_default_project_id,
+            ):
+                self.hook = CloudDataCatalogHook(gcp_conn_id="test")
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
@@ -165,11 +167,12 @@ class TestCloudDataCatalog:
 
 class TestCloudDataCatalogWithDefaultProjectIdHook:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
-            new=mock_base_gcp_hook_default_project_id,
-        ):
-            self.hook = CloudDataCatalogHook(gcp_conn_id="test")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
+                new=mock_base_gcp_hook_default_project_id,
+            ):
+                self.hook = CloudDataCatalogHook(gcp_conn_id="test")
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
@@ -694,11 +697,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
 
 class TestCloudDataCatalogWithoutDefaultProjectIdHook:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
-            new=mock_base_gcp_hook_no_default_project_id,
-        ):
-            self.hook = CloudDataCatalogHook(gcp_conn_id="test")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
+                new=mock_base_gcp_hook_no_default_project_id,
+            ):
+                self.hook = CloudDataCatalogHook(gcp_conn_id="test")
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
@@ -1230,11 +1234,12 @@ TEST_MESSAGE = re.escape(
 
 class TestCloudDataCatalogMissingProjectIdHook:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
-            new=mock_base_gcp_hook_no_default_project_id,
-        ):
-            self.hook = CloudDataCatalogHook(gcp_conn_id="test")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
+                new=mock_base_gcp_hook_no_default_project_id,
+            ):
+                self.hook = CloudDataCatalogHook(gcp_conn_id="test")
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",

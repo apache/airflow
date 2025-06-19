@@ -26,6 +26,135 @@
 Changelog
 ---------
 
+7.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage support for DatabricksSQLStatementsOperator (#50891)``
+* ``feat: Add OpenLineage support for DatabricksCopyIntoOperator (#50821)``
+* ``Adding 'DatabricksSQLStatementSensor' Sensor with Deferrability (#49516)``
+
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.4.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Upgrade 'DatabricksSqlHook' to support polars (#50523)``
+* ``feat: Add OpenLineage support for DatabricksSqlHook (#50392)``
+* ``enhance: logs SQL before execution in 'snowflake' and 'databricks_sql' (#48942)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``chore: import paths use the stable functions (#49460)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
+7.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing DatabricksNotebookOperator invalid dependency graph issue (#48492)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix overriding_parameters missing in repair_task (#48877)``
+* ``fix for databricks repair buttons not overriding the template parameters (#46704)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix static checks in mock_databricks_hook (#48869)``
+   * ``Improve documentation building iteration (#48760)``
+
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksSQLStatementsOperator (#48507)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+7.2.2
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+7.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx deprecation warnings in common.sql (#47169)``
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Move 'airflow.www.auth' to 'airflow.providers.fab.www.auth' (#47307)``
+* ``Remove 'api_connexion' (#47171)``
+* ``Remove old UI and webserver (#46942)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 7.2.0
 .....
 
@@ -421,7 +550,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 5.0.0

@@ -22,6 +22,8 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from azure.batch import BatchServiceClient, batch_auth, models as batch_models
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -30,7 +32,6 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
 )
 from airflow.utils import timezone
-from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
 if TYPE_CHECKING:
     from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
@@ -232,8 +233,7 @@ class AzureBatchHook(BaseHook):
         except batch_models.BatchErrorException as err:
             if not err.error or err.error.code != "PoolExists":
                 raise
-            else:
-                self.log.info("Pool %s already exists", pool.id)
+            self.log.info("Pool %s already exists", pool.id)
 
     def _get_latest_verified_image_vm_and_sku(
         self,
@@ -321,8 +321,7 @@ class AzureBatchHook(BaseHook):
         except batch_models.BatchErrorException as err:
             if not err.error or err.error.code != "JobExists":
                 raise
-            else:
-                self.log.info("Job %s already exists", job.id)
+            self.log.info("Job %s already exists", job.id)
 
     def configure_task(
         self,
@@ -365,8 +364,7 @@ class AzureBatchHook(BaseHook):
         except batch_models.BatchErrorException as err:
             if not err.error or err.error.code != "TaskExists":
                 raise
-            else:
-                self.log.info("Task %s already exists", task.id)
+            self.log.info("Task %s already exists", task.id)
 
     def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> list[batch_models.CloudTask]:
         """

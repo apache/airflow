@@ -20,8 +20,8 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
       run-ui-tests:
@@ -66,7 +66,7 @@ jobs:
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -76,8 +76,8 @@ jobs:
           # Need to fetch all history for selective checks tests
           fetch-depth: 0
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -87,7 +87,7 @@ jobs:
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.run-ui-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -97,8 +97,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
@@ -109,21 +109,22 @@ jobs:
         with:
           node-version: 21
           cache: 'pnpm'
-          cache-dependency-path: 'airflow/**/pnpm-lock.yaml'
+          cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/ui/node_modules/
-          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
+          path: airflow-core/src/airflow/ui/node_modules/
+          # yamllint disable-line rule:line-length
+          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
         id: restore-eslint-cache-ui
-      - run: cd airflow/ui && pnpm install --frozen-lockfile
-      - run: cd airflow/ui && pnpm test
+      - run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
+      - run: cd airflow-core/src/airflow/ui && pnpm test
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/ui/node_modules/
+          path: airflow-core/src/airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
@@ -131,71 +132,32 @@ jobs:
       - name: "Restore eslint cache (simple auth manager UI)"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/auth/managers/simple/ui/node_modules/
+          path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
             cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
         id: restore-eslint-cache-simple-am-ui
-      - run: cd airflow/auth/managers/simple/ui && pnpm install --frozen-lockfile
-      - run: cd airflow/auth/managers/simple/ui && pnpm test
+      - run: cd airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui && pnpm install --frozen-lockfile
+      - run: cd airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui && pnpm test
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/auth/managers/simple/ui/node_modules/
+          path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
             cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
         if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'
 
-  tests-www:
-    timeout-minutes: 10
-    name: React WWW tests
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
-    if: inputs.run-www-tests == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Setup node"
-        uses: actions/setup-node@v4
-        with:
-          node-version: 21
-      - name: "Restore eslint cache (www)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
-        with:
-          path: airflow/www/node_modules/
-          key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
-        id: restore-eslint-cache
-      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
-      - run: yarn --cwd airflow/www/ run test
-        env:
-          FORCE_COLOR: 2
-      - name: "Save eslint cache (www)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
-        with:
-          path: airflow/www/node_modules/
-          key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
-          if-no-files-found: 'error'
-          retention-days: '2'
-        if: steps.restore-eslint-cache.outputs.stash-hit != 'true'
-
   install-pre-commit:
     timeout-minutes: 5
     name: "Install pre-commit for cache"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-    if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -221,7 +183,7 @@ jobs:
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     needs: install-pre-commit
     if: inputs.basic-checks-only == 'true'
     steps:
@@ -232,8 +194,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -274,11 +236,11 @@ jobs:
   upgrade-check:
     timeout-minutes: 45
     name: "Upgrade checks"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-    if: inputs.canary-run == 'true' && inputs.latest-versions-only != 'true'
+    if: inputs.canary-run == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -287,8 +249,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -308,15 +270,6 @@ jobs:
           --hook-stage manual
           update-black-version
         if: always()
-      - name: "Run automated upgrade for build dependencies"
-        run: >
-          pre-commit run
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
-          update-build-dependencies
-        if: always()
-        env:
-          SKIP_TROVE_CLASSIFIERS_ONLY: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run
@@ -336,21 +289,24 @@ jobs:
         env:
           UPGRADE_UV: "true"
           UPGRADE_PIP: "false"
-          UPGRADE_PRE_COMMIT: "true"
-      - name: "Run automated upgrade for pip"
+          UPGRADE_PRE_COMMIT: "false"
+          UPGRADE_NODE_LTS: "false"
+      - name: "Run automated upgrade for pip, pre-commit and node"
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual update-installers
+          --hook-stage manual update-installers-and-pre-commit
         if: always()
         env:
           UPGRADE_UV: "false"
           UPGRADE_PIP: "true"
+          UPGRADE_PRE_COMMIT: "true"
+          UPGRADE_NODE_LTS: "true"
 
   test-airflow-release-commands:
     timeout-minutes: 80
     name: "Test Airflow release commands"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -366,8 +322,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -381,20 +337,26 @@ jobs:
       - name: Install twine
         run: pip install twine
       - name: "Check Airflow create minor branch command"
-        run: |
-          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
-          release-management create-minor-branch --version-branch 2-8 --answer yes
+        run: >
+          breeze release-management create-minor-branch
+          --version-branch 3-1 --answer yes --dry-run
       - name: "Check Airflow RC process command"
-        run: |
-          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
-          release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0 --answer yes
+        run: >
+          breeze release-management start-rc-process
+          --version 3.1.0rc1 --previous-version 3.0.0 --answer yes --dry-run
       - name: "Check Airflow release process command"
+        run: >
+          breeze release-management start-release --release-candidate 3.1.0rc1
+          --previous-release 3.0.0 --answer yes --dry-run
+      - name: "Test providers metadata generation"
         run: |
-          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
-          release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0 --answer yes
-      - name: "Fetch all git tags"
+          git remote add apache https://github.com/apache/airflow.git
+          git fetch apache --tags
+          breeze release-management generate-providers-metadata --refresh-constraints
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Fetch all git tags for origin"
         run: git fetch --tags >/dev/null 2>&1 || true
       - name: "Test airflow core issue generation automatically"
         run: |
-          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
-          release-management generate-issue-content-core --limit-pr-count 25 --latest --verbose
+          breeze release-management generate-issue-content-core --limit-pr-count 25 --latest --verbose

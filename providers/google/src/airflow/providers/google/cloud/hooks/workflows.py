@@ -19,11 +19,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
 from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
+
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation

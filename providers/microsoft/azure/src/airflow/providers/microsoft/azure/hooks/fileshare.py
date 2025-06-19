@@ -19,12 +19,13 @@ from __future__ import annotations
 
 from typing import IO, Any
 
+from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
+
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_sync_default_azure_credential,
 )
-from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
 
 
 class AzureFileShareHook(BaseHook):
@@ -122,15 +123,14 @@ class AzureFileShareHook(BaseHook):
             return ShareServiceClient.from_connection_string(
                 conn_str=self._connection_string,
             )
-        elif self._account_url and (self._sas_token or self._account_access_key):
+        if self._account_url and (self._sas_token or self._account_access_key):
             credential = self._sas_token or self._account_access_key
             return ShareServiceClient(account_url=self._account_url, credential=credential)
-        else:
-            return ShareServiceClient(
-                account_url=self._account_url,
-                credential=self._get_sync_default_azure_credential(),
-                token_intent="backup",
-            )
+        return ShareServiceClient(
+            account_url=self._account_url,
+            credential=self._get_sync_default_azure_credential(),
+            token_intent="backup",
+        )
 
     @property
     def share_directory_client(self):
@@ -141,7 +141,7 @@ class AzureFileShareHook(BaseHook):
                 share_name=self.share_name,
                 directory_path=self.directory_path,
             )
-        elif self._account_url and (self._sas_token or self._account_access_key):
+        if self._account_url and (self._sas_token or self._account_access_key):
             credential = self._sas_token or self._account_access_key
             return ShareDirectoryClient(
                 account_url=self._account_url,
@@ -149,14 +149,13 @@ class AzureFileShareHook(BaseHook):
                 directory_path=self.directory_path,
                 credential=credential,
             )
-        else:
-            return ShareDirectoryClient(
-                account_url=self._account_url,
-                share_name=self.share_name,
-                directory_path=self.directory_path,
-                credential=self._get_sync_default_azure_credential(),
-                token_intent="backup",
-            )
+        return ShareDirectoryClient(
+            account_url=self._account_url,
+            share_name=self.share_name,
+            directory_path=self.directory_path,
+            credential=self._get_sync_default_azure_credential(),
+            token_intent="backup",
+        )
 
     @property
     def share_file_client(self):
@@ -167,7 +166,7 @@ class AzureFileShareHook(BaseHook):
                 share_name=self.share_name,
                 file_path=self.file_path,
             )
-        elif self._account_url and (self._sas_token or self._account_access_key):
+        if self._account_url and (self._sas_token or self._account_access_key):
             credential = self._sas_token or self._account_access_key
             return ShareFileClient(
                 account_url=self._account_url,
@@ -175,14 +174,13 @@ class AzureFileShareHook(BaseHook):
                 file_path=self.file_path,
                 credential=credential,
             )
-        else:
-            return ShareFileClient(
-                account_url=self._account_url,
-                share_name=self.share_name,
-                file_path=self.file_path,
-                credential=self._get_sync_default_azure_credential(),
-                token_intent="backup",
-            )
+        return ShareFileClient(
+            account_url=self._account_url,
+            share_name=self.share_name,
+            file_path=self.file_path,
+            credential=self._get_sync_default_azure_credential(),
+            token_intent="backup",
+        )
 
     def check_for_directory(self) -> bool:
         """Check if a directory exists on Azure File Share."""

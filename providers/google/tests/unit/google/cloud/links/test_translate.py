@@ -17,7 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -35,6 +39,9 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
+
 GCP_LOCATION = "test-location"
 GCP_PROJECT_ID = "test-project"
 DATASET = "test-dataset"
@@ -43,7 +50,7 @@ MODEL = "test-model"
 
 class TestTranslationLegacyDatasetLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/sentences?project={GCP_PROJECT_ID}"
         link = TranslationLegacyDatasetLink()
         ti = create_task_instance_of_operator(
@@ -55,14 +62,30 @@ class TestTranslationLegacyDatasetLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
+
+        link.persist(
+            context={"ti": ti, "task": ti.task},
+            dataset_id=DATASET,
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
+        )
+
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
+                key="key",
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": DATASET,
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestTranslationDatasetListLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = f"{TRANSLATION_BASE_LINK}/datasets?project={GCP_PROJECT_ID}"
         link = TranslationDatasetListLink()
         ti = create_task_instance_of_operator(
@@ -73,14 +96,22 @@ class TestTranslationDatasetListLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, project_id=GCP_PROJECT_ID)
+        link.persist(context={"ti": ti, "task": ti.task}, project_id=GCP_PROJECT_ID)
+
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
+                key="key",
+                value={
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestTranslationLegacyModelLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = (
             f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
             f"evaluate;modelId={MODEL}?project={GCP_PROJECT_ID}"
@@ -96,20 +127,36 @@ class TestTranslationLegacyModelLink:
         )
         session.add(ti)
         session.commit()
+        task = mock.MagicMock()
+        task.extra_links_params = {
+            "dataset_id": DATASET,
+            "model_id": MODEL,
+            "project_id": GCP_PROJECT_ID,
+            "location": GCP_LOCATION,
+        }
         link.persist(
-            context={"ti": ti},
-            task_instance=ti.task,
+            context={"ti": ti, "task": task},
             dataset_id=DATASET,
             model_id=MODEL,
             project_id=GCP_PROJECT_ID,
         )
-        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+        if mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
+                key="key",
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": DATASET,
+                    "model_id": MODEL,
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
+        actual_url = link.get_link(operator=task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestTranslationLegacyModelTrainLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = (
             f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
             f"train?project={GCP_PROJECT_ID}"
@@ -125,10 +172,27 @@ class TestTranslationLegacyModelTrainLink:
         )
         session.add(ti)
         session.commit()
+        task = mock.MagicMock()
+        task.extra_links_params = {
+            "dataset_id": DATASET,
+            "project_id": GCP_PROJECT_ID,
+            "location": GCP_LOCATION,
+        }
         link.persist(
-            context={"ti": ti},
-            task_instance=ti.task,
+            context={"ti": ti, "task": task},
+            dataset_id=DATASET,
             project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
         )
-        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+
+        if mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
+                key="key",
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": ti.task.model["dataset_id"],
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
+        actual_url = link.get_link(operator=task, ti_key=ti.key)
         assert actual_url == expected_url

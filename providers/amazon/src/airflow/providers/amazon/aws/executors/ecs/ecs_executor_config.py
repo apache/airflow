@@ -72,7 +72,7 @@ def build_task_kwargs() -> dict:
         raise ValueError(
             "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
         )
-    elif "cluster" in task_kwargs and not (has_capacity_provider or has_launch_type):
+    if "cluster" in task_kwargs and not (has_capacity_provider or has_launch_type):
         # Default API behavior if neither is provided is to fall back on the default capacity
         # provider if it exists. Since it is not a required value, check if there is one
         # before using it, and if there is not then use the FARGATE launch_type as
@@ -101,14 +101,10 @@ def build_task_kwargs() -> dict:
     # The executor will overwrite the 'command' property during execution. Must always be the first container!
     task_kwargs["overrides"]["containerOverrides"][0]["command"] = []  # type: ignore
 
-    if any(
-        [
-            subnets := task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None),
-            security_groups := task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None),
-            # Surrounding parens are for the walrus operator to function correctly along with the None check
-            (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)) is not None,
-        ]
-    ):
+    subnets = task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None)
+    security_groups = task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None)
+    assign_public_ip = task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)
+    if subnets or security_groups or assign_public_ip != "False":
         network_config = prune_dict(
             {
                 "awsvpcConfiguration": {

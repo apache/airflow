@@ -23,6 +23,8 @@ import time
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
+from kubernetes import client, watch
+from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.exceptions import AirflowException
@@ -39,20 +41,19 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
     create_unique_id,
 )
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
-from kubernetes import client, watch
-from kubernetes.client.rest import ApiException
 
 if TYPE_CHECKING:
+    from kubernetes.client import Configuration, models as k8s
+
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
         KubernetesJobType,
         KubernetesResultsType,
         KubernetesWatchType,
     )
-    from kubernetes.client import Configuration, models as k8s
 
 
 class ResourceVersion(metaclass=Singleton):
@@ -109,8 +110,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         try:
             if self.namespace == ALL_NAMESPACES:
                 return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
-            else:
-                return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+            return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
         except ApiException as e:
             if str(e.status) == "410":  # Resource version is too old
                 if self.namespace == ALL_NAMESPACES:
@@ -120,8 +120,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 resource_version = pods.metadata.resource_version
                 query_kwargs["resource_version"] = resource_version
                 return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
-            else:
-                raise
+            raise
 
     def _run(
         self,
@@ -388,21 +387,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key, command, kube_executor_config, pod_template_file = next_job
 
         dag_id, task_id, run_id, try_number, map_index = key
-        ser_input = ""
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
-                # `executor_config` is a k8s.V1Pod object and we do not need to pass it to the
-                # execute_workload module. So, we exclude it from the serialisation process.
-                ser_input = workload.model_dump_json(exclude={"ti": {"executor_config"}})
-                command = [
-                    "python",
-                    "-m",
-                    "airflow.sdk.execution_time.execute_workload",
-                    "/tmp/execute/input.json",
-                ]
+                command = workload_to_command_args(workload)
             else:
                 raise ValueError(
                     f"KubernetesExecutor doesn't know how to handle workload of type: {type(command[0])}"
@@ -429,7 +419,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
             date=None,
             run_id=run_id,
             args=list(command),
-            content_json_for_volume=ser_input,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,
@@ -564,5 +553,4 @@ def get_base_pod_from_template(pod_template_file: str | None, kube_config: Any) 
     """
     if pod_template_file:
         return PodGenerator.deserialize_model_file(pod_template_file)
-    else:
-        return PodGenerator.deserialize_model_file(kube_config.pod_template_file)
+    return PodGenerator.deserialize_model_file(kube_config.pod_template_file)

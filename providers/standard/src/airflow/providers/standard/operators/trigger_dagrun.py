@@ -34,17 +34,15 @@ from airflow.exceptions import (
     DagNotFound,
     DagRunAlreadyExists,
 )
-from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models import BaseOperator
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.xcom import XCom
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.helpers import build_airflow_url_with_query
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
@@ -61,6 +59,24 @@ if TYPE_CHECKING:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+
+
+class DagIsPaused(AirflowException):
+    """Raise when a dag is paused and something tries to run it."""
+
+    def __init__(self, dag_id: str) -> None:
+        super().__init__(dag_id)
+        self.dag_id = dag_id
+
+    def __str__(self) -> str:
+        return f"Dag {self.dag_id} is paused"
+
 
 class TriggerDagRunLink(BaseOperatorLink):
     """
@@ -72,19 +88,25 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
         if TYPE_CHECKING:
             assert isinstance(operator, TriggerDagRunOperator)
 
-        if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
-            trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)
-        else:
-            trigger_dag_id = operator.trigger_dag_id
+        trigger_dag_id = operator.trigger_dag_id
+        if not AIRFLOW_V_3_0_PLUS:
+            from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+            if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+                trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)  # type: ignore[no-redef]
 
         # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.helpers import build_airflow_dagrun_url
+
+            return build_airflow_dagrun_url(dag_id=trigger_dag_id, run_id=triggered_dag_run_id)
+        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
         query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)
@@ -118,6 +140,7 @@ class TriggerDagRunOperator(BaseOperator):
         Default is ``[DagRunState.FAILED]``.
     :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a DAG run of the triggered
         DAG for the same logical date already exists.
+    :param fail_when_dag_is_paused: If the dag to trigger is paused, DagIsPaused will be raised.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
     """
@@ -140,13 +163,14 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_dag_id: str,
         trigger_run_id: str | None = None,
         conf: dict | None = None,
-        logical_date: str | datetime.datetime | None = None,
+        logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list[str | DagRunState] | None = None,
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
+        fail_when_dag_is_paused: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -161,49 +185,86 @@ class TriggerDagRunOperator(BaseOperator):
             self.allowed_states = [DagRunState(s) for s in allowed_states]
         else:
             self.allowed_states = [DagRunState.SUCCESS]
-        if failed_states or failed_states == []:
+        if failed_states is not None:
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
+        self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self._defer = deferrable
-
-        if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
-            type_name = type(logical_date).__name__
+        self.logical_date = logical_date
+        if logical_date is NOTSET:
+            self.logical_date = NOTSET
+        elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
+            self.logical_date = logical_date
+        else:
             raise TypeError(
-                f"Expected str or datetime.datetime type for parameter 'logical_date'. Got {type_name}"
+                f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
-        self.logical_date = logical_date
-
     def execute(self, context: Context):
-        if self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
-            parsed_logical_date = self.logical_date
-        else:
+        if self.logical_date is NOTSET:
+            # If no logical_date is provided we will set utcnow()
+            parsed_logical_date = timezone.utcnow()
+        elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
+            parsed_logical_date = self.logical_date  # type: ignore
+        elif isinstance(self.logical_date, str):
             parsed_logical_date = timezone.parse(self.logical_date)
 
         try:
             json.dumps(self.conf)
         except TypeError:
-            raise AirflowException("conf parameter should be JSON Serializable")
+            raise ValueError("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
         else:
-            run_id = DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL,
-                logical_date=parsed_logical_date,
-                run_after=parsed_logical_date or timezone.utcnow(),
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                run_id = DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL,
+                    logical_date=parsed_logical_date,
+                    run_after=parsed_logical_date or timezone.utcnow(),
+                )
+            else:
+                run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date or timezone.utcnow())  # type: ignore[misc,call-arg]
 
+        if self.fail_when_dag_is_paused:
+            dag_model = DagModel.get_current(self.trigger_dag_id)
+            if dag_model.is_paused:
+                if AIRFLOW_V_3_0_PLUS:
+                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+                raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
+
+        if AIRFLOW_V_3_0_PLUS:
+            self._trigger_dag_af_3(context=context, run_id=run_id, parsed_logical_date=parsed_logical_date)
+        else:
+            self._trigger_dag_af_2(context=context, run_id=run_id, parsed_logical_date=parsed_logical_date)
+
+    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
+        from airflow.exceptions import DagRunTriggerException
+
+        raise DagRunTriggerException(
+            trigger_dag_id=self.trigger_dag_id,
+            dag_run_id=run_id,
+            conf=self.conf,
+            logical_date=parsed_logical_date,
+            reset_dag_run=self.reset_dag_run,
+            skip_when_already_exists=self.skip_when_already_exists,
+            wait_for_completion=self.wait_for_completion,
+            allowed_states=self.allowed_states,
+            failed_states=self.failed_states,
+            poke_interval=self.poke_interval,
+            deferrable=self._defer,
+        )
+
+    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
-                logical_date=parsed_logical_date,
+                execution_date=parsed_logical_date,
                 replace_microseconds=False,
-                triggered_by=DagRunTriggeredByType.OPERATOR,
             )
 
         except DagRunAlreadyExists as e:
@@ -219,7 +280,7 @@ class TriggerDagRunOperator(BaseOperator):
                 # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(run_id=dag_run.run_id)
+                dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
                 if self.skip_when_already_exists:
                     raise AirflowSkipException(
@@ -240,6 +301,7 @@ class TriggerDagRunOperator(BaseOperator):
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
                         states=self.allowed_states + self.failed_states,
+                        execution_dates=[dag_run.logical_date],
                         run_ids=[run_id],
                         poll_interval=self.poke_interval,
                     ),
@@ -264,29 +326,66 @@ class TriggerDagRunOperator(BaseOperator):
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
 
-    @provide_session
-    def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
-        # This run_ids is parsed from the return trigger event
-        provided_run_id = event[1]["run_ids"][0]
-        try:
-            # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
-            dag_run = session.execute(
-                select(DagRun).where(DagRun.dag_id == self.trigger_dag_id, DagRun.run_id == provided_run_id)
-            ).scalar_one()
-        except NoResultFound:
+    def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
+        if AIRFLOW_V_3_0_PLUS:
+            self._trigger_dag_run_af_3_execute_complete(event=event)
+        else:
+            self._trigger_dag_run_af_2_execute_complete(event=event)
+
+    def _trigger_dag_run_af_3_execute_complete(self, event: tuple[str, dict[str, Any]]):
+        run_ids = event[1]["run_ids"]
+        event_data = event[1]
+        failed_run_id_conditions = []
+
+        for run_id in run_ids:
+            state = event_data.get(run_id)
+            if state in self.failed_states:
+                failed_run_id_conditions.append(run_id)
+                continue
+            if state in self.allowed_states:
+                self.log.info(
+                    "%s finished with allowed state %s for run_id %s",
+                    self.trigger_dag_id,
+                    state,
+                    run_id,
+                )
+
+        if failed_run_id_conditions:
             raise AirflowException(
-                f"No DAG run found for DAG {self.trigger_dag_id} and run ID {provided_run_id}"
+                f"{self.trigger_dag_id} failed with failed states {self.failed_states} for run_ids"
+                f" {failed_run_id_conditions}"
             )
 
-        state = dag_run.state
+    if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
 
-        if state in self.failed_states:
-            raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
-        if state in self.allowed_states:
-            self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
-            return
+        @provide_session
+        def _trigger_dag_run_af_2_execute_complete(
+            self, event: tuple[str, dict[str, Any]], session: Session = NEW_SESSION
+        ):
+            # This logical_date is parsed from the return trigger event
+            provided_logical_date = event[1]["execution_dates"][0]
+            try:
+                # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
+                dag_run = session.execute(
+                    select(DagRun).where(
+                        DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date
+                    )
+                ).scalar_one()
+            except NoResultFound:
+                raise AirflowException(
+                    f"No DAG run found for DAG {self.trigger_dag_id} and logical date {self.logical_date}"
+                )
 
-        raise AirflowException(
-            f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
-            f" or {self.allowed_states}"
-        )
+            state = dag_run.state
+
+            if state in self.failed_states:
+                raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
+            if state in self.allowed_states:
+                self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+                return
+
+            raise AirflowException(
+                f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
+                f" or {self.allowed_states}"
+            )

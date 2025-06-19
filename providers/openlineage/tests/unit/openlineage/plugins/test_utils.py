@@ -28,7 +28,7 @@ from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
-from airflow.models import DagModel
+from airflow.models import DAG, DagModel
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
@@ -43,7 +43,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_processing_engine_facet,
     is_operator_disabled,
 )
-from airflow.serialization.enums import DagAttributeTypes
+from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -51,7 +51,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -344,9 +344,8 @@ def test_does_not_include_full_task_info(mock_include_full_task_info):
     )
 
 
-@pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
-def test_serialize_timetable():
+def test_serialize_timetable_complex_with_alias():
     from airflow.providers.common.compat.assets import AssetAlias, AssetAll, AssetAny
     from airflow.timetables.simple import AssetTriggeredTimetable
 
@@ -405,12 +404,168 @@ def test_serialize_timetable():
     }
 
 
-@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
+def test_serialize_timetable_single_asset():
+    dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=Asset("a"))
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "asset_condition": {
+            "__type": DagAttributeTypes.ASSET,
+            "uri": "a",
+            "name": "a",
+            "group": "asset",
+            "extra": {},
+        }
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
+def test_serialize_timetable_list_of_assets():
+    dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=[Asset("a"), Asset("b")])
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "asset_condition": {
+            "__type": DagAttributeTypes.ASSET_ALL,
+            "objects": [
+                {"__type": DagAttributeTypes.ASSET, "uri": "a", "name": "a", "group": "asset", "extra": {}},
+                {"__type": DagAttributeTypes.ASSET, "uri": "b", "name": "b", "group": "asset", "extra": {}},
+            ],
+        }
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
+def test_serialize_timetable_with_complex_logical_condition():
+    dag = DAG(
+        dag_id="test",
+        start_date=datetime.datetime(2025, 1, 1),
+        schedule=(Asset("ds1", extra={"some_extra": 1}) | Asset("ds2"))
+        & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
+    )
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "asset_condition": {
+            "__type": DagAttributeTypes.ASSET_ALL,
+            "objects": [
+                {
+                    "__type": DagAttributeTypes.ASSET_ANY,
+                    "objects": [
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds1",
+                            "extra": {"some_extra": 1},
+                            "name": "ds1",
+                            "group": "asset",
+                        },
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds2",
+                            "extra": {},
+                            "name": "ds2",
+                            "group": "asset",
+                        },
+                    ],
+                },
+                {
+                    "__type": DagAttributeTypes.ASSET_ANY,
+                    "objects": [
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds3",
+                            "extra": {},
+                            "name": "ds3",
+                            "group": "asset",
+                        },
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds4",
+                            "extra": {"another_extra": 345},
+                            "name": "ds4",
+                            "group": "asset",
+                        },
+                    ],
+                },
+            ],
+        }
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
+def test_serialize_timetable_with_dataset_or_time_schedule():
+    from airflow.timetables.assets import AssetOrTimeSchedule
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+    dag = DAG(
+        dag_id="test",
+        start_date=datetime.datetime(2025, 1, 1),
+        schedule=AssetOrTimeSchedule(
+            timetable=CronTriggerTimetable("0 0 * 3 *", timezone="UTC"),
+            assets=(Asset("ds1", extra={"some_extra": 1}) | Asset("ds2"))
+            & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
+        ),
+    )
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "timetable": {
+            Encoding.TYPE: "airflow.timetables.trigger.CronTriggerTimetable",
+            Encoding.VAR: {
+                "expression": "0 0 * 3 *",
+                "timezone": "UTC",
+                "interval": 0.0,
+                "run_immediately": False,
+            },
+        },
+        "asset_condition": {
+            "__type": DagAttributeTypes.ASSET_ALL,
+            "objects": [
+                {
+                    "__type": DagAttributeTypes.ASSET_ANY,
+                    "objects": [
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds1",
+                            "extra": {"some_extra": 1},
+                            "name": "ds1",
+                            "group": "asset",
+                        },
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds2",
+                            "extra": {},
+                            "name": "ds2",
+                            "group": "asset",
+                        },
+                    ],
+                },
+                {
+                    "__type": DagAttributeTypes.ASSET_ANY,
+                    "objects": [
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds3",
+                            "extra": {},
+                            "name": "ds3",
+                            "group": "asset",
+                        },
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "uri": "ds4",
+                            "extra": {"another_extra": 345},
+                            "name": "ds4",
+                            "group": "asset",
+                        },
+                    ],
+                },
+            ],
+        },
+    }
+
+
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_0_PLUS,
     reason="This test checks serialization only in 2.10 conditions",
 )
-def test_serialize_timetable_2_10():
+def test_serialize_timetable_2_10_complex_with_alias():
     from airflow.providers.common.compat.assets import AssetAlias, AssetAll, AssetAny
     from airflow.timetables.simple import DatasetTriggeredTimetable
 
@@ -444,20 +599,113 @@ def test_serialize_timetable_2_10():
     }
 
 
-@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="This test checks serialization only in 2.9 conditions")
-def test_serialize_timetable_2_9():
-    dag = MagicMock()
-    dag.timetable.serialize.return_value = {}
-    dag.dataset_triggers = [Asset("a"), Asset("b")]
+@pytest.mark.skipif(
+    AIRFLOW_V_3_0_PLUS,
+    reason="This test checks serialization only in 2.10 conditions",
+)
+def test_serialize_timetable_2_10_single_asset():
+    dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=Asset("a"))
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "dataset_condition": {"__type": DagAttributeTypes.DATASET, "uri": "a", "extra": None}
+    }
+
+
+@pytest.mark.skipif(
+    AIRFLOW_V_3_0_PLUS,
+    reason="This test checks serialization only in 2.10 conditions",
+)
+def test_serialize_timetable_2_10_list_of_assets():
+    dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=[Asset("a"), Asset("b")])
     dag_info = DagInfo(dag)
     assert dag_info.timetable == {
         "dataset_condition": {
-            "__type": "dataset_all",
+            "__type": DagAttributeTypes.DATASET_ALL,
             "objects": [
-                {"__type": "dataset", "extra": None, "uri": "a"},
-                {"__type": "dataset", "extra": None, "uri": "b"},
+                {"__type": DagAttributeTypes.DATASET, "extra": None, "uri": "a"},
+                {"__type": DagAttributeTypes.DATASET, "extra": None, "uri": "b"},
             ],
         }
+    }
+
+
+@pytest.mark.skipif(
+    AIRFLOW_V_3_0_PLUS,
+    reason="This test checks serialization only in 2.10 conditions",
+)
+def test_serialize_timetable_2_10_with_complex_logical_condition():
+    dag = DAG(
+        dag_id="test",
+        start_date=datetime.datetime(2025, 1, 1),
+        schedule=(Asset("ds1", extra={"some_extra": 1}) | Asset("ds2"))
+        & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
+    )
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "dataset_condition": {
+            "__type": DagAttributeTypes.DATASET_ALL,
+            "objects": [
+                {
+                    "__type": DagAttributeTypes.DATASET_ANY,
+                    "objects": [
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds1", "extra": {"some_extra": 1}},
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds2", "extra": None},
+                    ],
+                },
+                {
+                    "__type": DagAttributeTypes.DATASET_ANY,
+                    "objects": [
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds3", "extra": None},
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds4", "extra": {"another_extra": 345}},
+                    ],
+                },
+            ],
+        }
+    }
+
+
+@pytest.mark.skipif(
+    AIRFLOW_V_3_0_PLUS,
+    reason="This test checks serialization only in 2.10 conditions",
+)
+def test_serialize_timetable_2_10_with_dataset_or_time_schedule():
+    from airflow.timetables.datasets import DatasetOrTimeSchedule
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+    dag = DAG(
+        dag_id="test",
+        start_date=datetime.datetime(2025, 1, 1),
+        schedule=DatasetOrTimeSchedule(
+            timetable=CronTriggerTimetable("0 0 * 3 *", timezone="UTC"),
+            datasets=(Asset("ds1", extra={"some_extra": 1}) | Asset("ds2"))
+            & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
+        ),
+    )
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "timetable": {
+            "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+            "__var": {"expression": "0 0 * 3 *", "timezone": "UTC", "interval": 0.0},
+        },
+        "dataset_condition": {
+            "__type": DagAttributeTypes.DATASET_ALL,
+            "objects": [
+                {
+                    "__type": DagAttributeTypes.DATASET_ANY,
+                    "objects": [
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds1", "extra": {"some_extra": 1}},
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds2", "extra": None},
+                    ],
+                },
+                {
+                    "__type": DagAttributeTypes.DATASET_ANY,
+                    "objects": [
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds3", "extra": None},
+                        {"__type": DagAttributeTypes.DATASET, "uri": "ds4", "extra": {"another_extra": 345}},
+                    ],
+                },
+            ],
+        },
     }
 
 

@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTuningOperator
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [

@@ -35,13 +35,14 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from google.api_core.exceptions import Conflict
+from google.cloud.exceptions import GoogleCloudError
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
-from google.api_core.exceptions import Conflict
-from google.cloud.exceptions import GoogleCloudError
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
@@ -144,7 +145,6 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket_name,
             project_id=self.project_id or hook.project_id,
         )
@@ -184,7 +184,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string
-        (e.g, ``'**/*/.json'``)
+        (e.g, ``'**/*.json'``)
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
@@ -194,7 +194,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
                 task_id="GCS_Files",
                 bucket="data",
                 prefix="sales/sales-2017/",
-                match_glob="**/*/.avro",
+                match_glob="**/*.avro",
                 gcp_conn_id=google_cloud_conn_id,
             )
     """
@@ -203,6 +203,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         "bucket",
         "prefix",
         "delimiter",
+        "match_glob",
         "impersonation_chain",
     )
 
@@ -258,7 +259,6 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
 
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket,
             project_id=hook.project_id,
         )
@@ -437,7 +437,6 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket,
             project_id=hook.project_id,
         )
@@ -520,7 +519,6 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=f"{self.bucket}/{self.object_name}",
             project_id=hook.project_id,
         )
@@ -629,7 +627,6 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
             FileDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 uri=f"{self.destination_bucket}/{self.destination_object}",
                 project_id=hook.project_id,
             )
@@ -827,7 +824,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.destination_bucket,
             project_id=destination_hook.project_id,
         )
@@ -1078,7 +1074,6 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self._get_uri(self.destination_bucket, self.destination_object),
             project_id=hook.project_id,
         )

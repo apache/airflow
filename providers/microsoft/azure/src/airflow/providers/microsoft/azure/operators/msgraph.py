@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from contextlib import suppress
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
@@ -38,8 +39,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from io import BytesIO
 
-    from kiota_abstractions.request_adapter import ResponseType
-    from kiota_abstractions.request_information import QueryParams
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
@@ -60,7 +59,16 @@ def execute_callable(
     message: str,
 ) -> Any:
     try:
-        return func(value, **context)  # type: ignore
+        with warnings.catch_warnings():
+            with suppress(AttributeError, ImportError):
+                from airflow.utils.context import (  # type: ignore[attr-defined]
+                    AirflowContextDeprecationWarning,
+                )
+
+                warnings.filterwarnings("ignore", category=AirflowContextDeprecationWarning)
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            warnings.simplefilter("ignore", category=UserWarning)
+            return func(value, **context)  # type: ignore
     except TypeError:
         warnings.warn(
             message,
@@ -118,11 +126,11 @@ class MSGraphAsyncOperator(BaseOperator):
         self,
         *,
         url: str,
-        response_type: ResponseType | None = None,
+        response_type: str | None = None,
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
@@ -218,8 +226,6 @@ class MSGraphAsyncOperator(BaseOperator):
 
                 self.log.debug("processed response: %s", result)
 
-                event["response"] = result
-
                 try:
                     self.trigger_next_link(
                         response=response, method_name=self.execute_complete.__name__, context=context
@@ -256,10 +262,8 @@ class MSGraphAsyncOperator(BaseOperator):
             if append_result_as_list_if_absent:
                 if isinstance(result, list):
                     return result
-                else:
-                    return [result]
-            else:
-                return result
+                return [result]
+            return result
         return results
 
     def pull_xcom(self, context: Context | dict[str, Any]) -> list:
@@ -297,7 +301,13 @@ class MSGraphAsyncOperator(BaseOperator):
     def push_xcom(self, context: Any, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
-            self.log.info("Pushing XCom with key '%s': %s", self.key, value)
+            self.log.info(
+                "Pushing XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                value,
+            )
             self.xcom_push(context=context, key=self.key, value=value)
 
     @staticmethod
@@ -319,7 +329,18 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
-            url, query_parameters = self.pagination_function(self, response, **dict(context.items()))  # type: ignore
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=DeprecationWarning)
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    url, query_parameters = self.pagination_function(self, response, **context)  # type: ignore
+            except TypeError:
+                warnings.warn(
+                    "pagination_function signature has changed, context parameter should be a kwargs argument!",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                url, query_parameters = self.pagination_function(self, response, context)  # type: ignore
 
             self.log.debug("url: %s", url)
             self.log.debug("query_parameters: %s", query_parameters)

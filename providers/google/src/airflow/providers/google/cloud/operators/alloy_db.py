@@ -21,7 +21,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud import alloydb_v1
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
@@ -31,17 +35,14 @@ from airflow.providers.google.cloud.links.alloy_db import (
     AlloyDBUsersLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud import alloydb_v1
 
 if TYPE_CHECKING:
     import proto
-
-    from airflow.utils.context import Context
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 class AlloyDBBaseOperator(GoogleCloudBaseOperator):
@@ -144,8 +145,7 @@ class AlloyDBWriteBaseOperator(AlloyDBBaseOperator):
         if self.validate_request:
             # Validation requests are only validated and aren't executed, thus no operation result is expected
             return None
-        else:
-            return self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        return self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
 
 
 class AlloyDBCreateClusterOperator(AlloyDBWriteBaseOperator):
@@ -228,15 +228,16 @@ class AlloyDBCreateClusterOperator(AlloyDBWriteBaseOperator):
             return result
         return None
 
-    def execute(self, context: Context) -> dict | None:
-        AlloyDBClusterLink.persist(
-            context=context,
-            task_instance=self,
-            location_id=self.location,
-            cluster_id=self.cluster_id,
-            project_id=self.project_id,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
 
+    def execute(self, context: Context) -> dict | None:
+        AlloyDBClusterLink.persist(context=context)
         if cluster := self._get_cluster():
             return cluster
 
@@ -334,14 +335,16 @@ class AlloyDBUpdateClusterOperator(AlloyDBWriteBaseOperator):
         self.update_mask = update_mask
         self.allow_missing = allow_missing
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBClusterLink.persist(
-            context=context,
-            task_instance=self,
-            location_id=self.location,
-            cluster_id=self.cluster_id,
-            project_id=self.project_id,
-        )
+        AlloyDBClusterLink.persist(context=context)
         if self.validate_request:
             self.log.info("Validating an Update AlloyDB cluster request.")
         else:
@@ -545,14 +548,16 @@ class AlloyDBCreateInstanceOperator(AlloyDBWriteBaseOperator):
             return result
         return None
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBClusterLink.persist(
-            context=context,
-            task_instance=self,
-            location_id=self.location,
-            cluster_id=self.cluster_id,
-            project_id=self.project_id,
-        )
+        AlloyDBClusterLink.persist(context=context)
         if instance := self._get_instance():
             return instance
 
@@ -654,14 +659,16 @@ class AlloyDBUpdateInstanceOperator(AlloyDBWriteBaseOperator):
         self.update_mask = update_mask
         self.allow_missing = allow_missing
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBClusterLink.persist(
-            context=context,
-            task_instance=self,
-            location_id=self.location,
-            cluster_id=self.cluster_id,
-            project_id=self.project_id,
-        )
+        AlloyDBClusterLink.persist(context=context)
         if self.validate_request:
             self.log.info("Validating an Update AlloyDB instance request.")
         else:
@@ -861,14 +868,16 @@ class AlloyDBCreateUserOperator(AlloyDBWriteBaseOperator):
             return result
         return None
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBUsersLink.persist(
-            context=context,
-            task_instance=self,
-            location_id=self.location,
-            cluster_id=self.cluster_id,
-            project_id=self.project_id,
-        )
+        AlloyDBUsersLink.persist(context=context)
         if (_user := self._get_user()) is not None:
             return _user
 
@@ -968,14 +977,16 @@ class AlloyDBUpdateUserOperator(AlloyDBWriteBaseOperator):
         self.update_mask = update_mask
         self.allow_missing = allow_missing
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBUsersLink.persist(
-            context=context,
-            task_instance=self,
-            location_id=self.location,
-            cluster_id=self.cluster_id,
-            project_id=self.project_id,
-        )
+        AlloyDBUsersLink.persist(context=context)
         if self.validate_request:
             self.log.info("Validating an Update AlloyDB user request.")
         else:
@@ -1159,12 +1170,14 @@ class AlloyDBCreateBackupOperator(AlloyDBWriteBaseOperator):
             return result
         return None
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBBackupsLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id,
-        )
+        AlloyDBBackupsLink.persist(context=context)
         if backup := self._get_backup():
             return backup
 
@@ -1259,12 +1272,14 @@ class AlloyDBUpdateBackupOperator(AlloyDBWriteBaseOperator):
         self.update_mask = update_mask
         self.allow_missing = allow_missing
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict | None:
-        AlloyDBBackupsLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id,
-        )
+        AlloyDBBackupsLink.persist(context=context)
         if self.validate_request:
             self.log.info("Validating an Update AlloyDB backup request.")
         else:

@@ -26,11 +26,10 @@ from airflow.providers.google.cloud.links.dataform import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
 
-from airflow.providers.google.cloud.hooks.dataform import DataformHook
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+    from airflow.utils.context import Context
+
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
@@ -42,6 +41,9 @@ from google.cloud.dataform_v1beta1.types import (
     Workspace,
     WriteFileResponse,
 )
+
+from airflow.providers.google.cloud.hooks.dataform import DataformHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 
 class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):
@@ -256,7 +258,6 @@ class DataformCreateWorkflowInvocationOperator(GoogleCloudBaseOperator):
         )
         workflow_invocation_id = result.name.split("/")[-1]
         DataformWorkflowInvocationLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,
@@ -345,6 +346,13 @@ class DataformGetWorkflowInvocationOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        DataformWorkflowInvocationLink.persist(
+            context=context,
+            project_id=self.project_id,
+            region=self.region,
+            repository_id=self.repository_id,
+            workflow_invocation_id=self.workflow_invocation_id,
+        )
         return WorkflowInvocation.to_dict(result)
 
 
@@ -410,7 +418,6 @@ class DataformQueryWorkflowInvocationActionsOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         DataformWorkflowInvocationLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,
@@ -491,6 +498,13 @@ class DataformCancelWorkflowInvocationOperator(GoogleCloudBaseOperator):
         hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        DataformWorkflowInvocationLink.persist(
+            context=context,
+            project_id=self.project_id,
+            region=self.region,
+            repository_id=self.repository_id,
+            workflow_invocation_id=self.workflow_invocation_id,
         )
         hook.cancel_workflow_invocation(
             project_id=self.project_id,
@@ -574,7 +588,6 @@ class DataformCreateRepositoryOperator(GoogleCloudBaseOperator):
         )
 
         DataformRepositoryLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,
@@ -733,7 +746,6 @@ class DataformCreateWorkspaceOperator(GoogleCloudBaseOperator):
         )
 
         DataformWorkspaceLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,

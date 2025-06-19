@@ -22,9 +22,18 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1739958314
-# note that those versions are maintained by release manager - do not update them manually
+source-date-epoch: 1749896002
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 9.9.0
+  - 9.8.0
+  - 9.7.0
+  - 9.6.1
+  - 9.6.0
+  - 9.5.0
   - 9.4.0
   - 9.2.0
   - 9.1.0
@@ -234,6 +243,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/sagemaker.rst
     tags: [aws]
+  - integration-name: Amazon SageMaker Unified Studio
+    external-doc-url: https://aws.amazon.com/sagemaker/unified-studio/
+    logo: /docs/integration-logos/Amazon-SageMaker_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sagemakerunifiedstudio.rst
+    tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
     logo: /docs/integration-logos/AWS-Secrets-Manager_light-bg@4x.png
@@ -402,6 +417,9 @@ operators:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.operators.sagemaker_unified_studio
   - integration-name: Amazon Simple Notification Service (SNS)
     python-modules:
       - airflow.providers.amazon.aws.operators.sns
@@ -485,6 +503,9 @@ sensors:
   - integration-name: Amazon Managed Service for Apache Flink
     python-modules:
       - airflow.providers.amazon.aws.sensors.kinesis_analytics
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.mwaa
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -500,6 +521,9 @@ sensors:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.sqs
@@ -624,6 +648,9 @@ hooks:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
@@ -683,6 +710,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.mwaa
   - integration-name: Amazon Managed Service for Apache Flink
     python-modules:
       - airflow.providers.amazon.aws.triggers.kinesis_analytics
@@ -696,6 +726,9 @@ triggers:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
@@ -730,7 +763,6 @@ triggers:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.triggers.dms
-
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -834,6 +866,7 @@ extra-links:
   - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
   - airflow.providers.amazon.aws.links.sagemaker.SageMakerTransformJobLink
+  - airflow.providers.amazon.aws.links.sagemaker_unified_studio.SageMakerUnifiedStudioLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink
   - airflow.providers.amazon.aws.links.comprehend.ComprehendPiiEntitiesDetectionLink
@@ -971,6 +1004,82 @@ config:
         type: string
         example: '{"Tags": [{"Key": "key", "Value": "value"}]}'
         default: ~
+
+  aws_lambda_executor:
+    description: |
+      This section only applies if you are using the AwsLambdaExecutor in
+      Airflow's ``[core.executor]`` configuration.
+      For more information see:
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda/client/invoke.html
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+      https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/executors/lambda-executor.html
+    options:
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the Lambda executor to make API calls.
+        version_added: "9.9.0"
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon Lambda is configured.
+        version_added: "9.9.0"
+        type: string
+        example: "us-east-1"
+        default: ~
+      check_health_on_startup:
+        description: |
+          Whether or not to check the Lambda Executor health on startup.
+        version_added: "9.9.0"
+        type: boolean
+        example: "True"
+        default: "True"
+      max_run_task_attempts:
+        description: |
+          The maximum number of times the Lambda Executor should attempt to start an Airflow task.
+        version_added: "9.9.0"
+        type: integer
+        example: "3"
+        default: "3"
+      queue_url:
+        description: |
+          The URL of the SQS queue to use for the Lambda executor. Required.
+          The Lambda executor will poll this queue for results of the lambda function's Airflow Task.
+        version_added: "9.9.0"
+        type: string
+        example: "airflow-lambda-executor-results-queue"
+        default: ~
+      dead_letter_queue_url:
+        description: |
+          The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor
+          will poll this queue for timeout/exception results of the lambda function. Required
+        version_added: "9.9.0"
+        type: string
+        example: "airflow-lambda-executor-dlq"
+        default: ~
+      function_name:
+        description: |
+          The name of the Lambda function to invoke. Required.
+        version_added: "9.9.0"
+        type: string
+        example: "airflow-lambda-executor-function"
+        default: ~
+      qualifier:
+        description: |
+          The version or alias of the Lambda function to invoke. If not specified, the latest version is used.
+        version_added: "9.9.0"
+        type: string
+        example: "1"
+        default: ~
+      end_wait_timeout:
+        description: |
+          The number of seconds to wait for all lambda executor invocations to complete when terminating the
+          executor/scheduler. Default of 0 means wait indefinitely.
+        version_added: "9.9.0"
+        type: integer
+        example: "500"
+        default: "0"
 
   aws_ecs_executor:
     description: |
@@ -1114,14 +1223,6 @@ config:
       ``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in
       Airflow's configuration.
     options:
-      enable:
-        description: |
-          AWS auth manager is not ready to be used. Turn on this flag to use it anyway.
-          Do that at your own risk since the AWS auth manager is not in an usable state.
-        version_added: 8.12.0
-        type: boolean
-        example: "True"
-        default: "False"
       conn_id:
         description: |
           The Airflow connection (i.e. credentials) used by the AWS auth manager to make API calls to AWS
@@ -1156,3 +1257,9 @@ config:
 
 executors:
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor
+
+auth-managers:
+  - airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager
+
+queues:
+  - airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider

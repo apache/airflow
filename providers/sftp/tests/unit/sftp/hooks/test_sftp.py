@@ -103,8 +103,25 @@ class TestSFTPHook:
         self.update_connection(self.old_login)
 
     def test_get_conn(self):
-        with self.hook.get_conn() as conn:
-            assert isinstance(conn, paramiko.SFTPClient)
+        output = self.hook.get_conn()
+        assert isinstance(output, paramiko.SFTPClient)
+        assert self.hook.conn is not None
+
+    def test_close_conn(self):
+        self.hook.conn = self.hook.get_conn()
+        assert self.hook.conn is not None
+        self.hook.close_conn()
+        assert self.hook.conn is None
+
+    def test_get_managed_conn(self):
+        with self.hook.get_managed_conn() as conn1:
+            assert isinstance(conn1, paramiko.SFTPClient)
+            with self.hook.get_managed_conn() as conn2:
+                assert conn1 == conn2
+                assert self.hook.get_conn_count() == 2
+            assert self.hook.get_conn_count() == 1
+        assert self.hook.get_conn_count() == 0
+        assert self.hook.conn is None
 
     @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
     def test_get_close_conn(self, mock_get_conn):
@@ -113,7 +130,7 @@ class TestSFTPHook:
         mock_ssh_client.open_sftp.return_value = mock_sftp_client
         mock_get_conn.return_value = mock_ssh_client
 
-        with SFTPHook().get_conn() as conn:
+        with SFTPHook().get_managed_conn() as conn:
             assert conn == mock_sftp_client
 
         mock_sftp_client.close.assert_called_once()
@@ -140,7 +157,7 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777 - umask
         umask = 0o022
-        with self.hook.get_conn() as conn:
+        with self.hook.get_managed_conn() as conn:
             output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
             assert output.st_mode & 0o777 == 0o777 - umask
 
@@ -151,7 +168,7 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777
         umask = 0o022
-        with self.hook.get_conn() as conn:
+        with self.hook.get_managed_conn() as conn:
             output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
             assert output.st_mode & 0o777 == 0o777 - umask
         # test directory already exists for code coverage, should not raise an exception
@@ -513,6 +530,23 @@ class TestSFTPHook:
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 
+    def test_store_and_retrieve_directory_concurrently(self):
+        stored_dir_name = "stored_dir"
+        self.hook.store_directory_concurrently(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+            local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
+        )
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name)
+        )
+        assert output == [TMP_FILE_FOR_TESTS]
+        retrieved_dir_name = "retrieved_dir"
+        self.hook.retrieve_directory_concurrently(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+            local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
+        )
+        assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+
     @patch("paramiko.SSHClient")
     @patch("paramiko.ProxyCommand")
     def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
@@ -531,7 +565,7 @@ class TestSFTPHook:
             host_proxy_cmd=host_proxy_cmd,
         )
 
-        with hook.get_conn():
+        with hook.get_managed_conn():
             mock_proxy_command.assert_called_once_with(host_proxy_cmd)
             mock_ssh_client.return_value.connect.assert_called_once_with(
                 hostname="example.com",
@@ -553,22 +587,19 @@ class MockSFTPClient:
     async def listdir(self, path: str):
         if path == "/path/does_not/exist/":
             raise SFTPNoSuchFile("File does not exist")
-        else:
-            return ["..", ".", "file"]
+        return ["..", ".", "file"]
 
     async def readdir(self, path: str):
         if path == "/path/does_not/exist/":
             raise SFTPNoSuchFile("File does not exist")
-        else:
-            return [SFTPName(".."), SFTPName("."), SFTPName("file")]
+        return [SFTPName(".."), SFTPName("."), SFTPName("file")]
 
     async def stat(self, path: str):
         if path == "/path/does_not/exist/":
             raise SFTPNoSuchFile("No files matching")
-        else:
-            sftp_obj = SFTPAttrs()
-            sftp_obj.mtime = 1667302566
-            return sftp_obj
+        sftp_obj = SFTPAttrs()
+        sftp_obj.mtime = 1667302566
+        return sftp_obj
 
 
 class MockSSHClient:

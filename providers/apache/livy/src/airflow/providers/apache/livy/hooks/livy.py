@@ -695,9 +695,8 @@ class LivyAsyncHook(HttpAsyncHook):
                 for log_line in log_lines:
                     self.log.info(log_line)
                 return log_lines
-            else:
-                self.log.info(result["response"])
-                return result["response"]
+            self.log.info(result["response"])
+            return result["response"]
 
     @staticmethod
     def _validate_session_id(session_id: int | str) -> None:

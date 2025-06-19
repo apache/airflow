@@ -375,7 +375,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f'Airflow task {airflow_keys[i]} failed due to {jobs[i]["statusReason"]}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]["jobId"]}. Rescheduling.'
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -384,7 +384,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f'Airflow task {airflow_keys[i]} failed due to {jobs[i]["statusReason"]}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]["jobId"]}. Rescheduling.'
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -607,6 +607,7 @@ class TestAwsBatchExecutor:
         }
         executor.batch.describe_jobs.return_value = {"jobs": [after_batch_job]}
 
+    @pytest.mark.skip(reason="Adopting task instances hasn't been ported over to Airflow 3 yet")
     def test_try_adopt_task_instances(self, mock_executor):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.batch.describe_jobs.return_value = {

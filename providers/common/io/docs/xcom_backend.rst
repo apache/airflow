@@ -37,6 +37,22 @@ So for example the following configuration will store anything above 1MB in S3 a
       xcom_objectstorage_threshold = 1048576
       xcom_objectstorage_compression = gzip
 
+Another example using the local filesystem::
+
+      [core]
+      xcom_backend = airflow.providers.common.io.xcom.backend.XComObjectStorageBackend
+
+      [common.io]
+      xcom_objectstorage_path = file://airflow/xcoms
+
+The local filesystem scheme can also be used as it's the same as file show above, see the `fsspec <https://github.com/fsspec/filesystem_spec/blob/f30bc759f30327dfb499f37e967648f175750fac/fsspec/implementations/local.py#L30>`_::
+
+      [core]
+      xcom_backend = airflow.providers.common.io.xcom.backend.XComObjectStorageBackend
+
+      [common.io]
+      xcom_objectstorage_path = local://airflow/xcoms
+
 .. note::
 
   Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip, gzip and bz2 work out of the box.

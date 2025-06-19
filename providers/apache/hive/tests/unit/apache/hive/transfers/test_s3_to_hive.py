@@ -172,17 +172,17 @@ class TestS3ToHiveTransfer:
 
     def test__match_headers(self):
         self.kwargs["field_dict"] = {"Sno": "BIGINT", "Some,Text": "STRING"}
-        assert S3ToHiveOperator(**self.kwargs)._match_headers(
-            ["Sno", "Some,Text"]
-        ), "Header row doesn't match expected value"
+        assert S3ToHiveOperator(**self.kwargs)._match_headers(["Sno", "Some,Text"]), (
+            "Header row doesn't match expected value"
+        )
         # Testing with different column order
-        assert not S3ToHiveOperator(**self.kwargs)._match_headers(
-            ["Some,Text", "Sno"]
-        ), "Header row doesn't match expected value"
+        assert not S3ToHiveOperator(**self.kwargs)._match_headers(["Some,Text", "Sno"]), (
+            "Header row doesn't match expected value"
+        )
         # Testing with extra column in header
-        assert not S3ToHiveOperator(**self.kwargs)._match_headers(
-            ["Sno", "Some,Text", "ExtraColumn"]
-        ), "Header row doesn't match expected value"
+        assert not S3ToHiveOperator(**self.kwargs)._match_headers(["Sno", "Some,Text", "ExtraColumn"]), (
+            "Header row doesn't match expected value"
+        )
 
     def test__delete_top_row_and_compress(self):
         s32hive = S3ToHiveOperator(**self.kwargs)

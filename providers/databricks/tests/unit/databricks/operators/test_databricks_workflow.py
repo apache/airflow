@@ -83,9 +83,9 @@ def test_create_workflow_json(mock_databricks_hook, context, mock_task_group):
     )
     operator.task_group = mock_task_group
 
-    task = MagicMock(spec=BaseOperator)
+    task = MagicMock(spec=BaseOperator, task_id="task_1")
     task._convert_to_databricks_workflow_task = MagicMock(return_value={})
-    operator.add_task(task)
+    operator.add_task(task.task_id, task)
 
     workflow_json = operator.create_workflow_json(context=context)
 
@@ -150,9 +150,9 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
         life_cycle_state=RunLifeCycleState.RUNNING.value
     )
 
-    task = MagicMock(spec=BaseOperator)
+    task = MagicMock(spec=BaseOperator, task_id="task_1")
     task._convert_to_databricks_workflow_task = MagicMock(return_value={})
-    operator.add_task(task)
+    operator.add_task(task.task_id, task)
 
     result = operator.execute(context)
 

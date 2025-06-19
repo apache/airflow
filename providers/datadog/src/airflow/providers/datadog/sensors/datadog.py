@@ -19,10 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
+from datadog import api
+
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 from airflow.sensors.base import BaseSensorOperator
-from datadog import api
 
 if TYPE_CHECKING:
     try:

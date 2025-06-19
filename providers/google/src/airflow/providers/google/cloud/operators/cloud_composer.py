@@ -19,7 +19,12 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.orchestration.airflow.service_v1 import ImageVersion
+from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -31,15 +36,12 @@ from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerExecutionTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from google.api_core.exceptions import AlreadyExists
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.orchestration.airflow.service_v1 import ImageVersion
-from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
 CLOUD_COMPOSER_DETAILS_LINK = (
@@ -55,25 +57,6 @@ class CloudComposerEnvironmentLink(BaseGoogleLink):
     key = "composer_conf"
     format_str = CLOUD_COMPOSER_DETAILS_LINK
 
-    @staticmethod
-    def persist(
-        operator_instance: (
-            CloudComposerCreateEnvironmentOperator
-            | CloudComposerUpdateEnvironmentOperator
-            | CloudComposerGetEnvironmentOperator
-        ),
-        context: Context,
-    ) -> None:
-        operator_instance.xcom_push(
-            context,
-            key=CloudComposerEnvironmentLink.key,
-            value={
-                "project_id": operator_instance.project_id,
-                "region": operator_instance.region,
-                "environment_id": operator_instance.environment_id,
-            },
-        )
-
 
 class CloudComposerEnvironmentsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Composer Environment Link."""
@@ -81,16 +64,6 @@ class CloudComposerEnvironmentsLink(BaseGoogleLink):
     name = "Cloud Composer Environment List"
     key = "composer_conf"
     format_str = CLOUD_COMPOSER_ENVIRONMENTS_LINK
-
-    @staticmethod
-    def persist(operator_instance: CloudComposerListEnvironmentsOperator, context: Context) -> None:
-        operator_instance.xcom_push(
-            context,
-            key=CloudComposerEnvironmentsLink.key,
-            value={
-                "project_id": operator_instance.project_id,
-            },
-        )
 
 
 class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
@@ -157,6 +130,14 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "region": self.region,
+            "environment_id": self.environment_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -169,7 +150,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         else:
             self.environment["name"] = name
 
-        CloudComposerEnvironmentLink.persist(operator_instance=self, context=context)
+        CloudComposerEnvironmentLink.persist(context=context)
         try:
             result = hook.create_environment(
                 project_id=self.project_id,
@@ -184,18 +165,17 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             if not self.deferrable:
                 environment = hook.wait_for_operation(timeout=self.timeout, operation=result)
                 return Environment.to_dict(environment)
-            else:
-                self.defer(
-                    trigger=CloudComposerExecutionTrigger(
-                        project_id=self.project_id,
-                        region=self.region,
-                        operation_name=result.operation.name,
-                        gcp_conn_id=self.gcp_conn_id,
-                        impersonation_chain=self.impersonation_chain,
-                        pooling_period_seconds=self.pooling_period_seconds,
-                    ),
-                    method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
-                )
+            self.defer(
+                trigger=CloudComposerExecutionTrigger(
+                    project_id=self.project_id,
+                    region=self.region,
+                    operation_name=result.operation.name,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    pooling_period_seconds=self.pooling_period_seconds,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
         except AlreadyExists:
             environment = hook.get_environment(
                 project_id=self.project_id,
@@ -223,8 +203,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             return Environment.to_dict(env)
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
 
 class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
@@ -370,6 +349,14 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "region": self.region,
+            "environment_id": self.environment_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -384,8 +371,7 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-
-        CloudComposerEnvironmentLink.persist(operator_instance=self, context=context)
+        CloudComposerEnvironmentLink.persist(context=context)
         return Environment.to_dict(result)
 
 
@@ -445,12 +431,17 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        CloudComposerEnvironmentsLink.persist(operator_instance=self, context=context)
         result = hook.list_environments(
             project_id=self.project_id,
             region=self.region,
@@ -532,6 +523,14 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "region": self.region,
+            "environment_id": self.environment_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -549,22 +548,21 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
 
-        CloudComposerEnvironmentLink.persist(operator_instance=self, context=context)
+        CloudComposerEnvironmentLink.persist(context=context)
         if not self.deferrable:
             environment = hook.wait_for_operation(timeout=self.timeout, operation=result)
             return Environment.to_dict(environment)
-        else:
-            self.defer(
-                trigger=CloudComposerExecutionTrigger(
-                    project_id=self.project_id,
-                    region=self.region,
-                    operation_name=result.operation.name,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    pooling_period_seconds=self.pooling_period_seconds,
-                ),
-                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
-            )
+        self.defer(
+            trigger=CloudComposerExecutionTrigger(
+                project_id=self.project_id,
+                region=self.region,
+                operation_name=result.operation.name,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                pooling_period_seconds=self.pooling_period_seconds,
+            ),
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+        )
 
     def execute_complete(self, context: Context, event: dict):
         if event["operation_done"]:
@@ -582,8 +580,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             return Environment.to_dict(env)
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
 
 class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):

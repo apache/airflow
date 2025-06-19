@@ -31,9 +31,6 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dlp import DlpServiceClient
 from google.cloud.dlp_v2.types import (
@@ -57,6 +54,10 @@ from google.cloud.dlp_v2.types import (
     StoredInfoTypeConfig,
 )
 from google.protobuf.field_mask_pb2 import FieldMask
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -267,7 +268,7 @@ class CloudDLPHook(GoogleBaseHook):
 
             if job.state == DlpJob.JobState.DONE:
                 return job
-            elif job.state in [
+            if job.state in [
                 DlpJob.JobState.PENDING,
                 DlpJob.JobState.RUNNING,
                 DlpJob.JobState.JOB_STATE_UNSPECIFIED,

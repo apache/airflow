@@ -18,8 +18,8 @@
 
 from __future__ import annotations
 
+import asyncio
 import enum
-import itertools
 import json
 import math
 import time
@@ -31,6 +31,9 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 import tenacity
+from kubernetes import client, watch
+from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from typing_extensions import Literal
@@ -41,16 +44,16 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
-from kubernetes import client, watch
-from kubernetes.client.rest import ApiException
-from kubernetes.stream import stream as kubernetes_stream
 
 if TYPE_CHECKING:
-    from urllib3.response import HTTPResponse
-
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
+    from kubernetes.client.models.v1_container_state import V1ContainerState
+    from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
+    from kubernetes.client.models.v1_object_reference import V1ObjectReference
     from kubernetes.client.models.v1_pod import V1Pod
+    from kubernetes.client.models.v1_pod_condition import V1PodCondition
+    from urllib3.response import HTTPResponse
 
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
@@ -120,9 +123,12 @@ class PodOperatorHookProtocol(Protocol):
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
     """Retrieve container status."""
     if pod and pod.status:
-        container_statuses = itertools.chain(
-            pod.status.container_statuses, pod.status.init_container_statuses
-        )
+        container_statuses = []
+        if pod.status.container_statuses:
+            container_statuses.extend(pod.status.container_statuses)
+        if pod.status.init_container_statuses:
+            container_statuses.extend(pod.status.init_container_statuses)
+
     else:
         container_statuses = None
 
@@ -373,31 +379,83 @@ class PodManager(LoggingMixin):
         """Launch the pod asynchronously."""
         return self.run_pod_async(pod)
 
-    def await_pod_start(
-        self, pod: V1Pod, startup_timeout: int = 120, startup_check_interval: int = 1
+    async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
+        """Read pod events and writes into log."""
+        self.keep_watching_for_events = True
+        num_events = 0
+        while self.keep_watching_for_events:
+            events = self.read_pod_events(pod)
+            for new_event in events.items[num_events:]:
+                involved_object: V1ObjectReference = new_event.involved_object
+                self.log.info(
+                    "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
+                )
+            num_events = len(events.items)
+            await asyncio.sleep(check_interval)
+
+    async def await_pod_start(
+        self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
     ) -> None:
         """
         Wait for the pod to reach phase other than ``Pending``.
 
         :param pod:
+        :param schedule_timeout: Timeout (in seconds) for pod stay in schedule state
+            (if pod is taking to long in schedule state, fails task)
         :param startup_timeout: Timeout (in seconds) for startup of the pod
-            (if pod is pending for too long, fails task)
-        :param startup_check_interval: Interval (in seconds) between checks
+            (if pod is pending for too long after being scheduled, fails task)
+        :param check_interval: Interval (in seconds) between checks
         :return:
         """
-        curr_time = time.time()
+        self.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+        pod_was_scheduled = False
+        start_check_time = time.time()
         while True:
             remote_pod = self.read_pod(pod)
-            if remote_pod.status.phase != PodPhase.PENDING:
+            pod_status = remote_pod.status
+            if pod_status.phase != PodPhase.PENDING:
+                self.keep_watching_for_events = False
+                self.log.info("::endgroup::")
                 break
-            self.log.warning("Pod not yet started: %s", pod.metadata.name)
-            if time.time() - curr_time >= startup_timeout:
-                msg = (
-                    f"Pod took longer than {startup_timeout} seconds to start. "
-                    "Check the pod events in kubernetes to determine why."
-                )
-                raise PodLaunchFailedException(msg)
-            time.sleep(startup_check_interval)
+
+            # Check for timeout
+            pod_conditions: list[V1PodCondition] = pod_status.conditions
+            if pod_conditions and any(
+                (condition.type == "PodScheduled" and condition.status == "True")
+                for condition in pod_conditions
+            ):
+                if not pod_was_scheduled:
+                    # POD was initially scheduled update timeout for getting POD launched
+                    pod_was_scheduled = True
+                    start_check_time = time.time()
+                    self.log.info("Waiting %ss to get the POD running...", startup_timeout)
+
+                if time.time() - start_check_time >= startup_timeout:
+                    self.log.info("::endgroup::")
+                    raise PodLaunchFailedException(
+                        f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
+                    )
+            else:
+                if time.time() - start_check_time >= schedule_timeout:
+                    self.log.info("::endgroup::")
+                    raise PodLaunchFailedException(
+                        f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
+                    )
+
+            # Check for general problems to terminate early - ErrImagePull
+            if pod_status.container_statuses:
+                for container_status in pod_status.container_statuses:
+                    container_state: V1ContainerState = container_status.state
+                    container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+                    if container_waiting:
+                        if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
+                            self.log.info("::endgroup::")
+                            raise PodLaunchFailedException(
+                                f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                                f"\n{container_waiting.message}"
+                            )
+
+            await asyncio.sleep(check_interval)
 
     def fetch_container_logs(
         self,
@@ -519,15 +577,14 @@ class PodManager(LoggingMixin):
                 return PodLoggingStatus(running=False, last_log_time=last_log_time)
             if not follow:
                 return PodLoggingStatus(running=True, last_log_time=last_log_time)
-            else:
-                # a timeout is a normal thing and we ignore it and resume following logs
-                if not isinstance(exc, TimeoutError):
-                    self.log.warning(
-                        "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
-                        pod.metadata.name,
-                        container_name,
-                    )
-                time.sleep(1)
+            # a timeout is a normal thing and we ignore it and resume following logs
+            if not isinstance(exc, TimeoutError):
+                self.log.warning(
+                    "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
+                    pod.metadata.name,
+                    container_name,
+                )
+            time.sleep(1)
 
     def _reconcile_requested_log_containers(
         self, requested: Iterable[str] | str | bool | None, actual: list[str], pod_name
@@ -620,12 +677,14 @@ class PodManager(LoggingMixin):
             pod_logging_statuses.append(status)
         return pod_logging_statuses
 
-    def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
+    def await_container_completion(self, pod: V1Pod, container_name: str, polling_time: float = 1) -> None:
         """
         Wait for the given container in the given pod to be completed.
 
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
+        :param polling_time: polling time between two container status checks.
+            Defaults to 1s.
         """
         while True:
             remote_pod = self.read_pod(pod)
@@ -633,7 +692,7 @@ class PodManager(LoggingMixin):
             if terminated:
                 break
             self.log.info("Waiting for container '%s' state to be completed", container_name)
-            time.sleep(1)
+            time.sleep(polling_time)
 
     def await_pod_completion(
         self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
@@ -667,7 +726,7 @@ class PodManager(LoggingMixin):
         if not sep:
             return None, line
         try:
-            last_log_time = cast(DateTime, pendulum.parse(timestamp))
+            last_log_time = cast("DateTime", pendulum.parse(timestamp))
         except ParserError:
             return None, line
         return last_log_time, message
@@ -779,6 +838,10 @@ class PodManager(LoggingMixin):
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container has started.")
                 break
+            if self.container_is_terminated(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+                raise AirflowException(
+                    "Xcom sidecar container is already terminated! Not possible to read xcom output of task."
+                )
             if (time.time() - last_log_time) >= log_interval:
                 self.log.warning(
                     "Still waiting for the xcom sidecar container to start. Elapsed time: %d seconds.",
@@ -806,26 +869,35 @@ class PodManager(LoggingMixin):
     )
     def extract_xcom_json(self, pod: V1Pod) -> str:
         """Retrieve XCom value and also check if xcom json is valid."""
+        command = (
+            f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+            f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+            f"else echo {EMPTY_XCOM_RESULT}; fi"
+        )
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
                 pod.metadata.name,
                 pod.metadata.namespace,
                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
-                command=["/bin/sh"],
-                stdin=True,
+                command=[
+                    "/bin/sh",
+                    "-c",
+                    command,
+                ],
+                stdin=False,
                 stdout=True,
                 stderr=True,
                 tty=False,
                 _preload_content=False,
             )
-        ) as resp:
-            result = self._exec_pod_command(
-                resp,
-                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
-                f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
-                f"else echo {EMPTY_XCOM_RESULT}; fi",
-            )
+        ) as client:
+            self.log.info("Running command... %s", command)
+            client.run_forever()
+            if client.peek_stderr():
+                stderr = client.read_stderr()
+                self.log.error("stderr from command: %s", stderr)
+            result = client.read_all()
             if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.

@@ -47,9 +47,9 @@ from airflow.providers.amazon.aws.triggers.dms import (
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ARN = "test_arn"
 
@@ -148,6 +148,27 @@ class TestDmsCreateTaskOperator:
         )
 
         validate_template_fields(op)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = DmsCreateTaskOperator(
+            task_id="dms_create_task_operator",
+            **self.TASK_DATA,
+            aws_conn_id=OVERWRITTEN_CONN,
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = DmsCreateTaskOperator(
+            task_id="dms_create_task_operator",
+            **self.TASK_DATA,
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
 class TestDmsDeleteTaskOperator:

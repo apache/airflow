@@ -24,6 +24,9 @@ is a managed service for Apache Airflow that lets you use your current, familiar
 your workflows. You gain improved scalability, availability, and security without the operational burden of managing
 underlying infrastructure.
 
+Note: Unlike Airflow's built-in operators, these operators are meant for interaction with external Airflow environments
+hosted on AWS MWAA.
+
 Prerequisite Tasks
 ------------------
 
@@ -45,18 +48,33 @@ Trigger a DAG run in an Amazon MWAA environment
 To trigger a DAG run in an Amazon MWAA environment you can use the
 :class:`~airflow.providers.amazon.aws.operators.mwaa.MwaaTriggerDagRunOperator`
 
-Note: Unlike :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`, this operator is capable of
-triggering a DAG in a separate Airflow environment as long as the environment with the DAG being triggered is running on
-AWS MWAA.
+In the following example, the task ``trigger_dag_run`` triggers a DAG run for the DAG ``hello_world`` in the environment
+``MyAirflowEnvironment`` and waits for the run to complete.
 
-In the following example, the task ``trigger_dag_run`` triggers a dag run for a DAG with with the ID ``hello_world`` in
-the environment ``MyAirflowEnvironment``.
-
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_mwaa.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_mwaa_trigger_dag_run]
     :end-before: [END howto_operator_mwaa_trigger_dag_run]
+
+Sensors
+-------
+
+.. _howto/sensor:MwaaDagRunSensor:
+
+Wait on the state of an AWS MWAA DAG Run
+========================================
+
+To wait for a DAG Run running on Amazon MWAA until it reaches one of the given states, you can use the
+:class:`~airflow.providers.amazon.aws.sensors.mwaa.MwaaDagRunSensor`
+
+In the following example, the task ``wait_for_dag_run`` waits for the DAG run created in the above task to complete.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_mwaa_dag_run]
+    :end-before: [END howto_sensor_mwaa_dag_run]
 
 References
 ----------

@@ -17,13 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import RunState
-from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
+from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
+from airflow.providers.databricks.triggers.databricks import (
+    DatabricksExecutionTrigger,
+    DatabricksSQLStatementExecutionTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import provide_session
 
@@ -38,6 +42,7 @@ POLLING_INTERVAL_SECONDS = 30
 RETRY_DELAY = 10
 RETRY_LIMIT = 3
 RUN_ID = 1
+STATEMENT_ID = "statement_id"
 TASK_RUN_ID1 = 11
 TASK_RUN_ID1_KEY = "first_task"
 TASK_RUN_ID2 = 22
@@ -246,6 +251,105 @@ class TestDatabricksExecutionTrigger:
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,
                     "errors": [],
+                }
+            )
+        mock_sleep.assert_called_once()
+        mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
+
+
+class TestDatabricksSQLStatementExecutionTrigger:
+    @provide_session
+    def setup_method(self, method, session=None):
+        self.end_time = time.time() + 60
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.login = LOGIN
+        conn.password = PASSWORD
+        conn.extra = None
+        session.commit()
+
+        self.trigger = DatabricksSQLStatementExecutionTrigger(
+            statement_id=STATEMENT_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            end_time=self.end_time,
+        )
+
+    def test_serialize(self):
+        assert self.trigger.serialize() == (
+            "airflow.providers.databricks.triggers.databricks.DatabricksSQLStatementExecutionTrigger",
+            {
+                "statement_id": STATEMENT_ID,
+                "databricks_conn_id": DEFAULT_CONN_ID,
+                "end_time": self.end_time,
+                "polling_period_seconds": POLLING_INTERVAL_SECONDS,
+                "retry_delay": 10,
+                "retry_limit": 3,
+                "retry_args": None,
+            },
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_sql_statement_state")
+    async def test_run_return_success(self, mock_a_get_sql_statement_state):
+        mock_a_get_sql_statement_state.return_value = SQLStatementState(state="SUCCEEDED")
+
+        trigger_event = self.trigger.run()
+        async for event in trigger_event:
+            assert event == TriggerEvent(
+                {
+                    "statement_id": STATEMENT_ID,
+                    "state": SQLStatementState(state="SUCCEEDED").to_json(),
+                    "error": {},
+                }
+            )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_sql_statement_state")
+    async def test_run_return_failure(self, mock_a_get_sql_statement_state):
+        mock_a_get_sql_statement_state.return_value = SQLStatementState(
+            state="FAILED",
+            error_code="500",
+            error_message="Something went wrong",
+        )
+
+        trigger_event = self.trigger.run()
+        async for event in trigger_event:
+            assert event == TriggerEvent(
+                {
+                    "statement_id": STATEMENT_ID,
+                    "state": SQLStatementState(
+                        state="FAILED",
+                        error_code="500",
+                        error_message="Something went wrong",
+                    ).to_json(),
+                    "error": {
+                        "error_code": "500",
+                        "error_message": "Something went wrong",
+                    },
+                }
+            )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_sql_statement_state")
+    async def test_sleep_between_retries(self, mock_a_get_sql_statement_state, mock_sleep):
+        mock_a_get_sql_statement_state.side_effect = [
+            SQLStatementState(
+                state="PENDING",
+            ),
+            SQLStatementState(
+                state="SUCCEEDED",
+            ),
+        ]
+
+        trigger_event = self.trigger.run()
+        async for event in trigger_event:
+            assert event == TriggerEvent(
+                {
+                    "statement_id": STATEMENT_ID,
+                    "state": SQLStatementState(state="SUCCEEDED").to_json(),
+                    "error": {},
                 }
             )
         mock_sleep.assert_called_once()

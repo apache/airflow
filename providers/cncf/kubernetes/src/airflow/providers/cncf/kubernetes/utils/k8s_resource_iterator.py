@@ -19,8 +19,9 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Callable
 
-from airflow.providers.cncf.kubernetes.utils.delete_from import FailToDeleteError
 from kubernetes.utils import FailToCreateError
+
+from airflow.providers.cncf.kubernetes.utils.delete_from import FailToDeleteError
 
 
 def k8s_resource_iterator(callback: Callable[[dict], None], resources: Iterator) -> None:

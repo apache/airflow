@@ -24,6 +24,10 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform_v1.types import BatchPredictionJob
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
@@ -33,14 +37,12 @@ from airflow.providers.google.cloud.links.vertex_ai import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.vertex_ai import CreateBatchPredictionJobTrigger
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import BatchPredictionJob as BatchPredictionJobObject, Model, explain
+
+    from airflow.utils.context import Context
 
 
 class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
@@ -229,6 +231,13 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         self.log.info("Creating Batch prediction job")
         batch_prediction_job: BatchPredictionJobObject = self.hook.submit_batch_prediction_job(
@@ -262,7 +271,8 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
 
         self.xcom_push(context, key="batch_prediction_job_id", value=batch_prediction_job_id)
         VertexAIBatchPredictionJobLink.persist(
-            context=context, task_instance=self, batch_prediction_job_id=batch_prediction_job_id
+            context=context,
+            batch_prediction_job_id=batch_prediction_job_id,
         )
 
         if self.deferrable:
@@ -425,6 +435,13 @@ class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -443,7 +460,8 @@ class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
             )
             self.log.info("Batch prediction job was gotten.")
             VertexAIBatchPredictionJobLink.persist(
-                context=context, task_instance=self, batch_prediction_job_id=self.batch_prediction_job
+                context=context,
+                batch_prediction_job_id=self.batch_prediction_job,
             )
             return BatchPredictionJob.to_dict(result)
         except NotFound:
@@ -515,6 +533,12 @@ class ListBatchPredictionJobsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -531,5 +555,5 @@ class ListBatchPredictionJobsOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIBatchPredictionJobListLink.persist(context=context, task_instance=self)
+        VertexAIBatchPredictionJobListLink.persist(context=context)
         return [BatchPredictionJob.to_dict(result) for result in results]

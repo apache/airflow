@@ -23,6 +23,11 @@ import uuid
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.workflows.executions_v1beta import Execution
+from google.cloud.workflows_v1beta import Workflow
+
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
 from airflow.providers.google.cloud.links.workflows import (
     WorkflowsExecutionLink,
@@ -31,15 +36,12 @@ from airflow.providers.google.cloud.links.workflows import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core.exceptions import AlreadyExists
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.workflows.executions_v1beta import Execution
-from google.cloud.workflows_v1beta import Workflow
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 from airflow.utils.hashlib_wrapper import md5
 
@@ -145,7 +147,6 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -233,7 +234,6 @@ class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -366,7 +366,6 @@ class WorkflowsListWorkflowsOperator(GoogleCloudBaseOperator):
 
         WorkflowsListOfWorkflowsLink.persist(
             context=context,
-            task_instance=self,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -432,7 +431,6 @@ class WorkflowsGetWorkflowOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -507,7 +505,6 @@ class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
 
         WorkflowsExecutionLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             execution_id=execution_id,
@@ -580,7 +577,6 @@ class WorkflowsCancelExecutionOperator(GoogleCloudBaseOperator):
 
         WorkflowsExecutionLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             execution_id=self.execution_id,
@@ -659,7 +655,6 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -735,7 +730,6 @@ class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):
 
         WorkflowsExecutionLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             execution_id=self.execution_id,

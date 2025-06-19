@@ -161,8 +161,7 @@ with DAG(
         task_id="delete_custom_training_job",
         training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_container_task', "
         "key='training_id') }}",
-        custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_container_task', "
-        "key='custom_job_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_container_task', key='custom_job_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

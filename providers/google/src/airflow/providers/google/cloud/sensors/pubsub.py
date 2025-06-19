@@ -23,13 +23,14 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
+from google.cloud import pubsub_v1
+from google.cloud.pubsub_v1.types import ReceivedMessage
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.sensors.base import BaseSensorOperator
-from google.cloud import pubsub_v1
-from google.cloud.pubsub_v1.types import ReceivedMessage
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -167,20 +168,19 @@ class PubSubPullSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
             return self._return_value
-        else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=PubsubPullTrigger(
-                    project_id=self.project_id,
-                    subscription=self.subscription,
-                    max_messages=self.max_messages,
-                    ack_messages=self.ack_messages,
-                    poke_interval=self.poke_interval,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                ),
-                method_name="execute_complete",
-            )
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=PubsubPullTrigger(
+                project_id=self.project_id,
+                subscription=self.subscription,
+                max_messages=self.max_messages,
+                ack_messages=self.ack_messages,
+                poke_interval=self.poke_interval,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]]) -> Any:
         """If messages_callback is provided, execute it; otherwise, return immediately with trigger event message."""

@@ -23,9 +23,10 @@ from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 from typing import Any
 
+from google.cloud.pubsub_v1.types import ReceivedMessage
+
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.pubsub_v1.types import ReceivedMessage
 
 
 class PubsubPullTrigger(BaseTrigger):

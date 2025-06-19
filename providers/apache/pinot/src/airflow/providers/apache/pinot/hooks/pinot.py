@@ -21,6 +21,7 @@ import os
 import subprocess
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote_plus
 
 from pinotdb import connect
 
@@ -74,6 +75,8 @@ class PinotAdminHook(BaseHook):
         conn = self.get_connection(conn_id)
         self.host = conn.host
         self.port = str(conn.port)
+        self.username = conn.login
+        self.password = conn.password
         if cmd_path != "pinot-admin.sh":
             raise RuntimeError(
                 "In version 4.0.0 of the PinotAdminHook the cmd_path has been hard-coded to"
@@ -99,6 +102,10 @@ class PinotAdminHook(BaseHook):
         :param with_exec: bool
         """
         cmd = ["AddSchema"]
+        if self.username:
+            cmd += ["-user", self.username]
+        if self.password:
+            cmd += ["-password", self.password]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-schemaFile", schema_file]
@@ -114,6 +121,10 @@ class PinotAdminHook(BaseHook):
         :param with_exec: bool
         """
         cmd = ["AddTable"]
+        if self.username:
+            cmd += ["-user", self.username]
+        if self.password:
+            cmd += ["-password", self.password]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-filePath", file_path]
@@ -144,6 +155,11 @@ class PinotAdminHook(BaseHook):
     ) -> Any:
         """Create Pinot segment by run CreateSegment command."""
         cmd = ["CreateSegment"]
+        if self.username:
+            cmd += ["-user", self.username]
+
+        if self.password:
+            cmd += ["-password", self.password]
 
         if generator_config_file:
             cmd += ["-generatorConfigFile", generator_config_file]
@@ -210,6 +226,10 @@ class PinotAdminHook(BaseHook):
         :return:
         """
         cmd = ["UploadSegment"]
+        if self.username:
+            cmd += ["-user", self.username]
+        if self.password:
+            cmd += ["-password", self.password]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-segmentDir", segment_dir]
@@ -277,6 +297,8 @@ class PinotDbApiHook(DbApiHook):
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
+            username=conn.login,
+            password=conn.password,
             path=conn.extra_dejson.get("endpoint", "/query/sql"),
             scheme=conn.extra_dejson.get("schema", "http"),
         )
@@ -291,7 +313,9 @@ class PinotDbApiHook(DbApiHook):
         """
         conn = self.get_connection(self.get_conn_id())
         host = conn.host
-        if conn.port is not None:
+        if conn.login and conn.password:
+            host = f"{quote_plus(conn.login)}:{quote_plus(conn.password)}@{host}"
+        if conn.port:
             host += f":{conn.port}"
         conn_type = conn.conn_type or "http"
         endpoint = conn.extra_dejson.get("endpoint", "query/sql")

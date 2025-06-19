@@ -33,8 +33,6 @@ from airflow.providers.standard.operators.python import PythonOperator
 default_args = {
     "owner": "airflow",
     "depend_on_past": False,
-    "email_on_failure": False,
-    "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
 }
@@ -167,8 +165,10 @@ with DAG(
     )
     # [END howto_operator_produce_to_topic]
 
-    t1.doc_md = "Takes a series of messages from a generator function and publishes"
-    "them to the `test_1` topic of our kafka cluster."
+    t1.doc_md = (
+        "Takes a series of messages from a generator function and publishes"
+        "them to the `test_1` topic of our kafka cluster."
+    )
 
     # [START howto_operator_consume_from_topic]
     t2 = ConsumeFromTopicOperator(
@@ -183,8 +183,10 @@ with DAG(
     )
     # [END howto_operator_consume_from_topic]
 
-    t2.doc_md = "Reads a series of messages from the `test_1` topic, and processes"
-    "them with a consumer function with a keyword argument."
+    t2.doc_md = (
+        "Reads a series of messages from the `test_1` topic, and processes"
+        "them with a consumer function with a keyword argument."
+    )
 
     t3 = ProduceToTopicOperator(
         kafka_config_id="t1-3",
@@ -193,8 +195,10 @@ with DAG(
         producer_function=producer_function,
     )
 
-    t3.doc_md = "Does the same thing as the t1 task, but passes the callable directly"
-    "instead of using the string notation."
+    t3.doc_md = (
+        "Does the same thing as the t1 task, but passes the callable directly"
+        "instead of using the string notation."
+    )
 
     t4 = ConsumeFromTopicOperator(
         kafka_config_id="t4",
@@ -216,8 +220,10 @@ with DAG(
         max_batch_size=10,
     )
 
-    t4.doc_md = "Does the same thing as the t2 task, but passes the callable directly"
-    "instead of using the string notation."
+    t4.doc_md = (
+        "Does the same thing as the t2 task, but passes the callable directly"
+        "instead of using the string notation."
+    )
 
     # [START howto_sensor_await_message]
     t5 = AwaitMessageSensor(
@@ -229,8 +235,10 @@ with DAG(
     )
     # [END howto_sensor_await_message]
 
-    t5.doc_md = "A deferrable task. Reads the topic `test_1` until a message with a value"
-    "divisible by 5 is encountered."
+    t5.doc_md = (
+        "A deferrable task. Reads the topic `test_1` until a message with a value"
+        "divisible by 5 is encountered."
+    )
 
     t6 = PythonOperator(task_id="hello_kafka", python_callable=hello_kafka)
 

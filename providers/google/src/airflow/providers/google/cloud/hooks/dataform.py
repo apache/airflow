@@ -20,8 +20,6 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataform_v1beta1 import DataformClient
 from google.cloud.dataform_v1beta1.types import (
@@ -32,6 +30,9 @@ from google.cloud.dataform_v1beta1.types import (
     Workspace,
     WriteFileResponse,
 )
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -452,8 +453,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "name": workspace_path,
@@ -495,8 +495,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -541,8 +540,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -586,8 +584,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -628,8 +625,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -670,8 +666,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,

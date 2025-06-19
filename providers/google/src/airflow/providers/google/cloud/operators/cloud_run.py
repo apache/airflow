@@ -21,18 +21,21 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import google.cloud.exceptions
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.run_v2 import Job, Service
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
+from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core import operation
     from google.cloud.run_v2.types import Execution
+
+    from airflow.utils.context import Context
 
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
@@ -246,7 +249,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param job_name: Required. The name of the job to update.
+    :param job_name: Required. The name of the job to execute.
     :param overrides: Optional map of override values.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param polling_period_seconds: Optional. Control the rate of the poll for the result of deferrable run.
@@ -263,7 +266,17 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run the operator in deferrable mode.
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
+    operator_extra_links = (CloudRunJobLoggingLink(),)
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+        "overrides",
+        "polling_period_seconds",
+        "timeout_seconds",
+    )
 
     def __init__(
         self,
@@ -301,24 +314,29 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if self.operation is None:
             raise AirflowException("Operation is None")
 
+        if self.operation.metadata.log_uri:
+            CloudRunJobLoggingLink.persist(
+                context=context,
+                log_uri=self.operation.metadata.log_uri,
+            )
+
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
             job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
             return Job.to_dict(job)
-        else:
-            self.defer(
-                trigger=CloudRunJobFinishedTrigger(
-                    operation_name=self.operation.operation.name,
-                    job_name=self.job_name,
-                    project_id=self.project_id,
-                    location=self.region,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    polling_period_seconds=self.polling_period_seconds,
-                ),
-                method_name="execute_complete",
-            )
+        self.defer(
+            trigger=CloudRunJobFinishedTrigger(
+                operation_name=self.operation.operation.name,
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.region,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                polling_period_seconds=self.polling_period_seconds,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict):
         status = event["status"]

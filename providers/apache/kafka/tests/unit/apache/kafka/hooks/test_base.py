@@ -56,7 +56,9 @@ class TestKafkaBaseHook:
         config = {"bootstrap.servers": MagicMock()}
         mock_get_connection.return_value.extra_dejson = config
         connection = hook.test_connection()
-        admin_client.assert_called_once_with(config, timeout=10)
+        admin_client.assert_called_once_with(config)
+        mock_admin_instance = admin_client.return_value
+        mock_admin_instance.list_topics.assert_called_once_with(timeout=TIMEOUT)
         assert connection == (True, "Connection successful.")
 
     @mock.patch(
@@ -68,7 +70,9 @@ class TestKafkaBaseHook:
         config = {"bootstrap.servers": MagicMock()}
         mock_get_connection.return_value.extra_dejson = config
         connection = hook.test_connection()
-        admin_client.assert_called_once_with(config, timeout=TIMEOUT)
+        admin_client.assert_called_once_with(config)
+        mock_admin_instance = admin_client.return_value
+        mock_admin_instance.list_topics.assert_called_once_with(timeout=TIMEOUT)
         assert connection == (False, "Failed to establish connection.")
 
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")

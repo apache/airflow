@@ -22,6 +22,7 @@ from unittest.mock import patch
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
 

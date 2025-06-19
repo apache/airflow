@@ -45,7 +45,7 @@ runs:
       shell: bash
       run: breeze ci free-space
       env:
-        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
+        AIRFLOW_ROOT_PATH: "${{ github.workspace }}"
     - name: "Get Python version"
       shell: bash
       run: >
@@ -56,4 +56,4 @@ runs:
       shell: bash
       run: breeze setup config --no-cheatsheet --no-asciiart
       env:
-        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
+        AIRFLOW_ROOT_PATH: "${{ github.workspace }}"

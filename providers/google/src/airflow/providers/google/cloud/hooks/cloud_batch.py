@@ -23,9 +23,6 @@ import time
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.cloud.batch import ListJobsRequest, ListTasksRequest
 from google.cloud.batch_v1 import (
     BatchServiceAsyncClient,
@@ -35,6 +32,10 @@ from google.cloud.batch_v1 import (
     JobStatus,
     Task,
 )
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -146,20 +147,18 @@ class CloudBatchHook(GoogleBaseHook):
                 status: JobStatus.State = job.status.state
                 if status == JobStatus.State.SUCCEEDED:
                     return job
-                elif status == JobStatus.State.FAILED:
+                if status == JobStatus.State.FAILED:
                     message = (
                         "Unexpected error in the operation: "
                         "Batch job with name {job_name} has failed its execution."
                     )
                     raise AirflowException(message)
-                elif status == JobStatus.State.DELETION_IN_PROGRESS:
+                if status == JobStatus.State.DELETION_IN_PROGRESS:
                     message = (
-                        "Unexpected error in the operation: "
-                        "Batch job with name {job_name} is being deleted."
+                        "Unexpected error in the operation: Batch job with name {job_name} is being deleted."
                     )
                     raise AirflowException(message)
-                else:
-                    time.sleep(polling_period_seconds)
+                time.sleep(polling_period_seconds)
             except Exception as e:
                 self.log.exception("Exception occurred while checking for job completion.")
                 raise e

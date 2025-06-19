@@ -23,13 +23,16 @@ import logging
 import logging.config
 from unittest.mock import MagicMock
 
+import pandas as pd
+import polars as pl
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook, resolve_dialects
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.common_sql import mock_db_hook
@@ -305,3 +308,21 @@ class TestDbApiHook:
     def test_uri_with_schema(self):
         dbapi_hook = mock_db_hook(DbApiHook, conn_params={"schema": "other_schema"})
         assert dbapi_hook.get_uri() == "//login:password@host:1234/other_schema"
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "df_type, expected_type",
+        [
+            ("test_default_df_type", pd.DataFrame),
+            ("pandas", pd.DataFrame),
+            ("polars", pl.DataFrame),
+        ],
+    )
+    def test_get_df_with_df_type(db, df_type, expected_type):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        if df_type == "test_default_df_type":
+            df = dbapi_hook.get_df("SQL")
+            assert isinstance(df, pd.DataFrame)
+        else:
+            df = dbapi_hook.get_df("SQL", df_type=df_type)
+            assert isinstance(df, expected_type)

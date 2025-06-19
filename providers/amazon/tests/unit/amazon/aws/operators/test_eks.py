@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+
 from unit.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
     POD_EXECUTION_ROLE_ARN,
@@ -337,6 +338,16 @@ class TestEksCreateClusterOperator:
         ):
             missing_fargate_pod_execution_role_arn.execute({})
 
+    def test_init_with_region(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+            m.operator = EksCreateClusterOperator(
+                task_id=TASK_ID,
+                **self.create_cluster_params,
+                compute=None,
+                region="us-east-2",
+            )
+        assert m.operator.region_name == "us-east-2"
+
     @mock.patch.object(EksHook, "create_cluster")
     def test_eks_create_cluster_short_circuit_early(self, mock_create_cluster, caplog):
         mock_create_cluster.return_value = None
@@ -367,9 +378,7 @@ class TestEksCreateClusterOperator:
 
     def test_template_fields(self):
         op = EksCreateClusterOperator(
-            task_id=TASK_ID,
-            **self.create_cluster_params,
-            compute="fargate",
+            task_id=TASK_ID, **self.create_cluster_params, compute="fargate", region_name="us-east-1"
         )
 
         validate_template_fields(op)
@@ -450,14 +459,23 @@ class TestEksCreateFargateProfileOperator:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute({})
-        assert isinstance(
-            exc.value.trigger, EksCreateFargateProfileTrigger
-        ), "Trigger is not a EksCreateFargateProfileTrigger"
+        assert isinstance(exc.value.trigger, EksCreateFargateProfileTrigger), (
+            "Trigger is not a EksCreateFargateProfileTrigger"
+        )
 
     def test_template_fields(self):
         op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
 
         validate_template_fields(op)
+
+    def test_init_with_region(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+            m.operator = EksCreateFargateProfileOperator(
+                task_id=TASK_ID,
+                **self.create_fargate_profile_params,
+                region="us-east-2",
+            )
+        assert m.operator.region_name == "us-east-2"
 
 
 class TestEksCreateNodegroupOperator:
@@ -556,6 +574,17 @@ class TestEksCreateNodegroupOperator:
 
         validate_template_fields(op)
 
+    def test_init_with_region(self):
+        op_kwargs = {**self.create_nodegroup_params}
+
+        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+            m.operator = EksCreateNodegroupOperator(
+                task_id=TASK_ID,
+                **op_kwargs,
+                region="us-east-2",
+            )
+        assert m.operator.region_name == "us-east-2"
+
 
 class TestEksDeleteClusterOperator:
     def setup_method(self) -> None:
@@ -598,6 +627,13 @@ class TestEksDeleteClusterOperator:
     def test_template_fields(self):
         validate_template_fields(self.delete_cluster_operator)
 
+    def test_init_with_region(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+            m.operator = EksDeleteClusterOperator(
+                task_id=TASK_ID, cluster_name=self.cluster_name, region="us-east-2"
+            )
+        assert m.operator.region_name == "us-east-2"
+
 
 class TestEksDeleteNodegroupOperator:
     def setup_method(self) -> None:
@@ -633,6 +669,16 @@ class TestEksDeleteNodegroupOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.delete_nodegroup_operator)
+
+    def test_init_with_region(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+            m.operator = EksDeleteNodegroupOperator(
+                task_id=TASK_ID,
+                cluster_name=self.cluster_name,
+                nodegroup_name=self.nodegroup_name,
+                region="us-east-2",
+            )
+        assert m.operator.region_name == "us-east-2"
 
 
 class TestEksDeleteFargateProfileOperator:
@@ -678,12 +724,22 @@ class TestEksDeleteFargateProfileOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             self.delete_fargate_profile_operator.execute({})
-        assert isinstance(
-            exc.value.trigger, EksDeleteFargateProfileTrigger
-        ), "Trigger is not a EksDeleteFargateProfileTrigger"
+        assert isinstance(exc.value.trigger, EksDeleteFargateProfileTrigger), (
+            "Trigger is not a EksDeleteFargateProfileTrigger"
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.delete_fargate_profile_operator)
+
+    def test_init_with_region(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+            m.operator = EksDeleteFargateProfileOperator(
+                task_id=TASK_ID,
+                cluster_name=self.cluster_name,
+                fargate_profile_name=self.fargate_profile_name,
+                region="us-east-2",
+            )
+        assert m.operator.region_name == "us-east-2"
 
 
 class TestEksPodOperator:
@@ -767,3 +823,27 @@ class TestEksPodOperator:
         )
 
         validate_template_fields(op)
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
+    def test_trigger_reentry(self, mock_generate_config_file, mock_k8s_pod_operator_trigger_reentry):
+        ti_context = mock.MagicMock(name="ti_context")
+        event = {"eks_cluster_name": "eks_cluster_name", "namespace": "namespace"}
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            # Delete the pod when it reaches its final state, or the execution is interrupted.
+            on_finish_action="delete_pod",
+        )
+        op.trigger_reentry(ti_context, event)
+        mock_k8s_pod_operator_trigger_reentry.assert_called_once_with(ti_context, event)
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name="eks_cluster_name", pod_namespace="namespace"
+        )
+        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file

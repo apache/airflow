@@ -19,14 +19,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest import mock
 
+import pytest
+
 from airflow import __version__
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
     lineage_parent_id,
+    lineage_root_run_id,
     lineage_run_id,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 _DAG_NAMESPACE = namespace()
 
@@ -51,18 +56,42 @@ def test_lineage_job_name():
 
 
 def test_lineage_run_id():
+    date = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)
+    dag_run = mock.MagicMock(run_id="run_id")
+    dag_run.logical_date = date
     task_instance = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
-        dag_run=mock.MagicMock(run_id="run_id"),
-        logical_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+        dag_run=dag_run,
+        logical_date=date,
         try_number=1,
     )
 
     call_result1 = lineage_run_id(task_instance)
     call_result2 = lineage_run_id(task_instance)
 
-    # random part value does not matter, it just have to be the same for the same TaskInstance
+    # random part value does not matter, it just has to be the same for the same TaskInstance
+    assert call_result1 == call_result2
+    # execution_date is used as most significant bits of UUID
+    assert call_result1.startswith("016f5e9e-c4c8-")
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
+def test_lineage_run_after_airflow_3():
+    dag_run = mock.MagicMock(run_id="run_id")
+    dag_run.run_after = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)
+    dag_run.logical_date = None
+    task_instance = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        dag_run=dag_run,
+        try_number=1,
+    )
+
+    call_result1 = lineage_run_id(task_instance)
+    call_result2 = lineage_run_id(task_instance)
+
+    # random part value does not matter, it just has to be the same for the same TaskInstance
     assert call_result1 == call_result2
     # execution_date is used as most significant bits of UUID
     assert call_result1.startswith("016f5e9e-c4c8-")
@@ -80,3 +109,24 @@ def test_lineage_parent_id(mock_run_id):
     actual = lineage_parent_id(task_instance)
     expected = f"{_DAG_NAMESPACE}/dag_id.task_id/run_id"
     assert actual == expected
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
+def test_lineage_root_run_id_with_runtime_task_instance(create_runtime_ti):
+    """Test lineage_root_run_id with real RuntimeTaskInstance object doesn't throw AttributeError."""
+    from airflow.sdk.bases.operator import BaseOperator
+
+    task = BaseOperator(task_id="test_task")
+
+    runtime_ti = create_runtime_ti(
+        task=task,
+        dag_id="test_dag",
+        run_id="test_run_id",
+    )
+
+    # Explicitly test that the function doesn't throw an AttributeError
+    # This was the original issue: AttributeError: 'RuntimeTaskInstance' object has no attribute 'dag_run'
+    try:
+        assert lineage_root_run_id(runtime_ti) is not None
+    except AttributeError as e:
+        pytest.fail(f"lineage_root_run_id should not throw AttributeError with RuntimeTaskInstance: {e}")

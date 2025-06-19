@@ -22,7 +22,12 @@ from collections.abc import Sequence
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable
 
-from airflow.decorators.base import DecoratedOperator, task_decorator_factory
+from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
+else:
+    from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -30,11 +35,11 @@ from airflow.providers.docker.operators.docker import DockerOperator
 if TYPE_CHECKING:
     from typing import Literal
 
-    from airflow.decorators.base import TaskDecorator
+    from airflow.sdk.bases.decorator import TaskDecorator
 
-    try:
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.context import Context
-    except ImportError:
+    else:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
 
@@ -132,8 +137,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
-                f"Unsupported serializer {serializer!r}. "
-                f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
+                f"Unsupported serializer {serializer!r}. Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
 
@@ -148,9 +152,10 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     def generate_command(self):
         return (
-            f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py",
-                                                     self.python_command)} &&"""
-            f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in", self.python_command)} &&'
+            f"""bash -cx  '{
+                _generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py", self.python_command)
+            } &&"""
+            f"{_generate_decode_command('__PYTHON_INPUT', '/tmp/script.in', self.python_command)} &&"
             f"{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out none /tmp/script.out'"
         )
 

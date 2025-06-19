@@ -38,12 +38,23 @@ from packaging.version import Version
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
-from airflow.providers.google.go_module_utils import init_module, install_dependencies
 
 if TYPE_CHECKING:
     import logging
 
 _APACHE_BEAM_VERSION_SCRIPT = "import apache_beam; print(apache_beam.__version__)"
+
+# Map defined with option names to flag names for boolean options
+# that have a destination(dest) in parser.add_argument() different
+# from the flag name and whose default value is `None`.
+# or other SDK flags that should allow false value
+_FLAG_THAT_SETS_FALSE_VALUE = {
+    "use_public_ips": "no_use_public_ips",
+}
+
+_FLAG_THAT_SETS_FALSE_VALUE_JAVA = {
+    "usePublicIps": "usePublicIps=false",  # Allow False flag value for Java SDK
+}
 
 
 class BeamRunnerType:
@@ -68,8 +79,10 @@ def beam_options_to_args(options: dict) -> list[str]:
     Return a formatted pipeline options from a dictionary of arguments.
 
     The logic of this method should be compatible with Apache Beam:
-    https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
-    apache_beam/options/pipeline_options.py#L230-L251
+    https://github.com/apache/beam/blob/77f57d1fc498592089e32701b45505bbdccccd47/sdks/python/
+    apache_beam/options/pipeline_options.py#L260-L268
+
+    WARNING: In case of amending please check the latest main branch implementation!
 
     :param options: Dictionary with options
     :return: List of arguments
@@ -79,12 +92,29 @@ def beam_options_to_args(options: dict) -> list[str]:
 
     args: list[str] = []
     for attr, value in options.items():
-        if value is None or (isinstance(value, bool) and value):
-            args.append(f"--{attr}")
-        elif isinstance(value, bool) and not value:
-            continue
+        if isinstance(value, bool):
+            if value:
+                args.append(f"--{attr}")
+            elif attr in _FLAG_THAT_SETS_FALSE_VALUE:
+                # Capture overriding flags, which have a different dest
+                # from the flag name defined in the parser.add_argument
+                # Eg: no_use_public_ips, which has the dest=use_public_ips
+                # different from flag name
+                flag_that_disables_the_option = _FLAG_THAT_SETS_FALSE_VALUE[attr]
+                args.append(f"--{flag_that_disables_the_option}")
+            elif attr in _FLAG_THAT_SETS_FALSE_VALUE_JAVA:
+                # Capture Java flags that should not be skipped by having
+                # False value
+                false_value_flag = _FLAG_THAT_SETS_FALSE_VALUE_JAVA[attr]
+                args.append(f"--{false_value_flag}")
         elif isinstance(value, list):
             args.extend([f"--{attr}={v}" for v in value])
+        elif isinstance(value, dict):
+            args.append(f"--{attr}={json.dumps(value)}")
+        elif value is None:
+            # explicitly skip None values,as later they might be passed as string 'None',
+            # and override value by default https://github.com/apache/beam/pull/24948
+            continue
         else:
             args.append(f"--{attr}={value}")
     return args
@@ -344,6 +374,16 @@ class BeamHook(BaseHook):
                 "You need to have Go installed to run beam go pipeline. See https://go.dev/doc/install "
                 "installation guide. If you are running airflow in Docker see more info at "
                 "'https://airflow.apache.org/docs/docker-stack/recipes.html'."
+            )
+
+        try:
+            from airflow.providers.google.go_module_utils import init_module, install_dependencies
+        except ImportError:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Failed to import apache-airflow-google-provider. To start a go pipeline, please install the"
+                " google provider."
             )
 
         if "labels" in variables:

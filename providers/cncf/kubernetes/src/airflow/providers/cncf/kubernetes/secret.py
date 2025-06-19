@@ -21,9 +21,10 @@ from __future__ import annotations
 import copy
 import uuid
 
+from kubernetes.client import models as k8s
+
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.k8s_model import K8SModel
-from kubernetes.client import models as k8s
 
 
 class Secret(K8SModel):

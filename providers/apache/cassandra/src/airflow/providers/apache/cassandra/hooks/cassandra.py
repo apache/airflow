@@ -22,8 +22,6 @@ from __future__ import annotations
 import re
 from typing import Any, Union
 
-from airflow.hooks.base import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster, Session
 from cassandra.policies import (
@@ -32,6 +30,9 @@ from cassandra.policies import (
     TokenAwarePolicy,
     WhiteListRoundRobinPolicy,
 )
+
+from airflow.hooks.base import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
 
@@ -189,8 +190,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     def _sanitize_input(input_string: str) -> str:
         if re.match(r"^\w+$", input_string):
             return input_string
-        else:
-            raise ValueError(f"Invalid input: {input_string}")
+        raise ValueError(f"Invalid input: {input_string}")
 
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """

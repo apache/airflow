@@ -66,7 +66,7 @@ To update dataset you can use
     available on the Vertex AI platform. Please use
     :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_update_dataset_operator]
@@ -128,7 +128,7 @@ and will be removed after 31.03.2024. Please use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator` instead.
 You can find example on how to use VertexAI operators here:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_get_model_operator]
@@ -142,7 +142,7 @@ and will be removed after 31.03.2024. Please use
 :class:`airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator` instead.
 You can find example on how to use VertexAI operators here:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_deploy_model_operator]
@@ -156,7 +156,7 @@ and will be removed after 31.03.2024. Please use
 :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator` instead.
 You can find example on how to use VertexAI operators here:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_model_operator]
@@ -180,19 +180,19 @@ For tables, video intelligence, vision and natural language you can use the foll
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`.
 You can find examples on how to use VertexAI operators here:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
@@ -215,7 +215,7 @@ and will be removed after 31.03.2024. Please use
 instead.
 You can find example on how to use VertexAI operators here:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_dataset_operator]
@@ -229,7 +229,7 @@ and will be removed after 31.03.2024. Please use
 :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.DeleteDatasetOperator` instead.
 You can find example on how to use VertexAI operators here:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_dataset_operator]

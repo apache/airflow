@@ -19,21 +19,79 @@
 
 from __future__ import annotations
 
+import base64
+import datetime
+import json
+import time
 from collections.abc import Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.auth.transport import requests as google_requests
+from google.cloud.managedkafka_v1 import Cluster, ConsumerGroup, ManagedKafkaClient, Topic, types
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.managedkafka_v1 import Cluster, ManagedKafkaClient, Topic, types
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
-    from google.cloud.managedkafka_v1.services.managed_kafka.pagers import ListClustersPager, ListTopicsPager
+    from google.auth.credentials import Credentials
+    from google.cloud.managedkafka_v1.services.managed_kafka.pagers import (
+        ListClustersPager,
+        ListConsumerGroupsPager,
+        ListTopicsPager,
+    )
     from google.protobuf.field_mask_pb2 import FieldMask
+
+
+class ManagedKafkaTokenProvider:
+    """Helper for providing authentication token for establishing connection via confluent to Apache Kafka cluster managed by Google Cloud."""
+
+    def __init__(
+        self,
+        credentials: Credentials,
+    ):
+        self._credentials = credentials
+        self._header = json.dumps(dict(typ="JWT", alg="GOOG_OAUTH2_TOKEN"))
+
+    def _valid_credentials(self):
+        if not self._credentials.valid:
+            self._credentials.refresh(google_requests.Request())
+            return self._credentials
+
+    def _get_jwt(self, credentials):
+        return json.dumps(
+            dict(
+                exp=credentials.expiry.timestamp(),
+                iss="Google",
+                iat=datetime.datetime.now(datetime.timezone.utc).timestamp(),
+                scope="kafka",
+                sub=credentials.service_account_email,
+            )
+        )
+
+    def _b64_encode(self, source):
+        return base64.urlsafe_b64encode(source.encode("utf-8")).decode("utf-8").rstrip("=")
+
+    def _get_kafka_access_token(self, credentials):
+        return ".".join(
+            [
+                self._b64_encode(self._header),
+                self._b64_encode(self._get_jwt(credentials)),
+                self._b64_encode(credentials.token),
+            ]
+        )
+
+    def confluent_token(self):
+        credentials = self._valid_credentials()
+
+        utc_expiry = credentials.expiry.replace(tzinfo=datetime.timezone.utc)
+        expiry_seconds = (utc_expiry - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+
+        return self._get_kafka_access_token(credentials), time.time() + expiry_seconds
 
 
 class ManagedKafkaHook(GoogleBaseHook):
@@ -61,6 +119,12 @@ class ManagedKafkaHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    def get_confluent_token(self, config_str: str):
+        """Get the authentication token for confluent client."""
+        token_provider = ManagedKafkaTokenProvider(credentials=self.get_credentials())
+        token = token_provider.confluent_token()
+        return token
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
@@ -473,6 +537,166 @@ class ManagedKafkaHook(GoogleBaseHook):
         name = client.topic_path(project_id, location, cluster_id, topic_id)
 
         client.delete_topic(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_consumer_groups(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> ListConsumerGroupsPager:
+        """
+        List the consumer groups in a given cluster.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose consumer groups are to be listed.
+        :param page_size: Optional. The maximum number of consumer groups to return. The service may return
+            fewer than this value. If unset or zero, all consumer groups for the parent is returned.
+        :param page_token: Optional. A page token, received from a previous ``ListConsumerGroups`` call.
+            Provide this to retrieve the subsequent page. When paginating, all other parameters provided to
+            ``ListConsumerGroups`` must match the call that provided the page token.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        parent = client.cluster_path(project_id, location, cluster_id)
+
+        result = client.list_consumer_groups(
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_consumer_group(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        consumer_group_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> types.ConsumerGroup:
+        """
+        Return the properties of a single consumer group.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose consumer group is to be returned.
+        :param consumer_group_id: Required. The ID of the consumer group whose configuration to return.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        name = client.consumer_group_path(project_id, location, cluster_id, consumer_group_id)
+
+        result = client.get_consumer_group(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_consumer_group(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        consumer_group_id: str,
+        consumer_group: types.ConsumerGroup | dict,
+        update_mask: FieldMask | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> types.ConsumerGroup:
+        """
+        Update the properties of a single consumer group.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose topic is to be updated.
+        :param consumer_group_id: Required. The ID of the consumer group whose configuration to update.
+        :param consumer_group: Required. The consumer_group to update. Its ``name`` field must be populated.
+        :param update_mask: Required. Field mask is used to specify the fields to be overwritten in the
+            ConsumerGroup resource by the update. The fields specified in the update_mask are relative to the
+            resource, not the full request. A field will be overwritten if it is in the mask.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        _consumer_group = (
+            deepcopy(consumer_group)
+            if isinstance(consumer_group, dict)
+            else ConsumerGroup.to_dict(consumer_group)
+        )
+        _consumer_group["name"] = client.consumer_group_path(
+            project_id, location, cluster_id, consumer_group_id
+        )
+
+        result = client.update_consumer_group(
+            request={
+                "update_mask": update_mask,
+                "consumer_group": _consumer_group,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_consumer_group(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        consumer_group_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Delete a single consumer group.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose consumer group is to be deleted.
+        :param consumer_group_id: Required. The ID of the consumer group to delete.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        name = client.consumer_group_path(project_id, location, cluster_id, consumer_group_id)
+
+        client.delete_consumer_group(
             request={
                 "name": name,
             },

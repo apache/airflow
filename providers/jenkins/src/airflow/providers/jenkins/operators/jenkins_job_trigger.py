@@ -26,13 +26,13 @@ from functools import cached_property
 from typing import Any, Union
 from urllib.error import HTTPError, URLError
 
+import jenkins
+from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-import jenkins
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from jenkins import Jenkins, JenkinsException
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = Union[str, dict, list, None]
@@ -64,10 +64,9 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Jenki
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
             raise JenkinsException(f"Error in request. Possibly authentication failed [{e.code}]: {e.reason}")
-        elif e.code == 404:
+        if e.code == 404:
             raise jenkins.NotFoundException("Requested item could not be found")
-        else:
-            raise
+        raise
     except socket.timeout as e:
         raise jenkins.TimeoutException(f"Error in request: {e}")
     except URLError as e:

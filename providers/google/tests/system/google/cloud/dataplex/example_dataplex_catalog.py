@@ -49,6 +49,7 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCatalogUpdateEntryTypeOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -268,8 +269,8 @@ with DAG(
     search_entry = DataplexCatalogSearchEntriesOperator(
         task_id="search_entry",
         project_id=PROJECT_ID,
-        location="global",
-        query="displayname:Display Name",
+        location=GCP_LOCATION,
+        query=f"name={ENTRY_NAME}",
     )
     # [END howto_operator_dataplex_catalog_search_entry]
 
@@ -325,15 +326,22 @@ with DAG(
     # [END howto_operator_dataplex_catalog_delete_entry]
 
     (
-        [
-            create_entry_group >> get_entry_group >> update_entry_group >> delete_entry >> delete_entry_group,
-            list_entry_group,
-            create_entry_type >> get_entry_type >> update_entry_type >> update_entry >> delete_entry_type,
-            list_entry_type,
-            create_aspect_type >> get_aspect_type >> update_aspect_type >> delete_aspect_type,
-            list_aspect_type >> list_entry,
-            create_entry_type >> create_entry >> [get_entry, lookup_entry, search_entry],
-        ]
+        create_entry_group
+        >> create_entry_type
+        >> create_aspect_type
+        >> create_entry
+        >> search_entry
+        >> [get_entry_group, get_entry_type, get_aspect_type, get_entry]
+        >> lookup_entry
+        >> [list_entry, list_entry_group, list_entry_type, list_aspect_type]
+        >> update_entry_group
+        >> update_entry_type
+        >> update_entry
+        >> update_aspect_type
+        >> delete_entry
+        >> delete_aspect_type
+        >> delete_entry_type
+        >> delete_entry_group
     )
 
     from tests_common.test_utils.watcher import watcher

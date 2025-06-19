@@ -20,14 +20,6 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any, Union
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    AzureIdentityCredentialAdapter,
-    add_managed_identity_connection_widgets,
-    get_field,
-    get_sync_default_azure_credential,
-)
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -38,6 +30,15 @@ from azure.storage.filedatalake import (
     DirectoryProperties,
     FileSystemClient,
     FileSystemProperties,
+)
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
 )
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
@@ -238,8 +239,7 @@ class AzureDataLakeHook(BaseHook):
         """
         if "*" in path:
             return self.get_conn().glob(path)
-        else:
-            return self.get_conn().walk(path)
+        return self.get_conn().walk(path)
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
         """
@@ -327,8 +327,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         prefix = "extra__adls__"
         if field_name.startswith("extra__"):
             raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix when using this method."
             )
         if field_name in extra_dict:
             return extra_dict[field_name] or None

@@ -32,15 +32,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Union
 
 from asgiref.sync import sync_to_async
-
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_connection_widgets,
-    get_async_default_azure_credential,
-    get_sync_default_azure_credential,
-    parse_blob_account_url,
-)
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
@@ -52,6 +43,15 @@ from azure.storage.blob.aio import (
     BlobClient as AsyncBlobClient,
     BlobServiceClient as AsyncBlobServiceClient,
     ContainerClient as AsyncContainerClient,
+)
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+    parse_blob_account_url,
 )
 
 if TYPE_CHECKING:
@@ -144,8 +144,7 @@ class WasbHook(BaseHook):
         prefix = "extra__wasb__"
         if field_name.startswith("extra__"):
             raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix when using this method."
             )
         if field_name in extra_dict:
             return extra_dict[field_name] or None
@@ -194,8 +193,7 @@ class WasbHook(BaseHook):
         if sas_token:
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
-            else:
-                return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
+            return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password

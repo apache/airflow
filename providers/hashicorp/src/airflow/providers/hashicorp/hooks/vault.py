@@ -85,6 +85,7 @@ class VaultHook(BaseHook):
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
           version defined in connection or ``2`` if not defined in connection.
     :param role_id: Role ID for ``aws_iam`` Authentication.
+    :param region: AWS region for STS API calls (for ``aws_iam`` auth_type).
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
@@ -113,6 +114,7 @@ class VaultHook(BaseHook):
         auth_mount_point: str | None = None,
         kv_engine_version: int | None = None,
         role_id: str | None = None,
+        region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = None,
         token_path: str | None = None,
@@ -151,6 +153,8 @@ class VaultHook(BaseHook):
         if auth_type == "aws_iam":
             if not role_id:
                 role_id = self.connection.extra_dejson.get("role_id")
+            if not region:
+                region = self.connection.extra_dejson.get("region")
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
@@ -210,6 +214,7 @@ class VaultHook(BaseHook):
             key_id=self.connection.login,
             secret_id=self.connection.password,
             role_id=role_id,
+            region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,

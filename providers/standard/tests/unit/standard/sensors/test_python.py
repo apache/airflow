@@ -25,13 +25,15 @@ import pytest
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sensors.base import PokeReturnValue
+
 from unit.standard.operators.test_python import BasePythonTest
 
 pytestmark = pytest.mark.db_test
 
 
 class TestPythonSensor(BasePythonTest):
-    opcls = PythonSensor
+    # TODO(kaxil) - this typing hint is fishy
+    opcls = PythonSensor  # type: ignore[assignment]
 
     def test_python_sensor_true(self):
         self.run_as_task(fn=lambda: True)

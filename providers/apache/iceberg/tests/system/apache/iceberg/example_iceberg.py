@@ -33,9 +33,6 @@ with DAG(
     default_args={
         "owner": "airflow",
         "depends_on_past": False,
-        "email": ["airflow@airflow.com"],
-        "email_on_failure": False,
-        "email_on_retry": False,
     },
     start_date=datetime(2021, 1, 1),
     schedule=timedelta(1),

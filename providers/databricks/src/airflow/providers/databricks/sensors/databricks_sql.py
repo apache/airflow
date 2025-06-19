@@ -25,7 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
 

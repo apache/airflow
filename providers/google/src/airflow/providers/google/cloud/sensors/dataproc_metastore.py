@@ -26,8 +26,9 @@ from airflow.providers.google.cloud.hooks.gcs import parse_json_from_gcs
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.operation import Operation
+
+    from airflow.utils.context import Context
 
 
 class MetastoreHivePartitionSensor(BaseSensorOperator):
@@ -111,7 +112,7 @@ class MetastoreHivePartitionSensor(BaseSensorOperator):
 
         # Extract actual query results
         result_base_uri = result_manifest_uri.rsplit("/", 1)[0]
-        results = (f"{result_base_uri}//{filename}" for filename in manifest.get("filenames", []))
+        results = (f"{result_base_uri}/{filename}" for filename in manifest.get("filenames", []))
         found_partitions = sum(
             len(
                 parse_json_from_gcs(

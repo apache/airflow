@@ -23,11 +23,11 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import pendulum
+from kubernetes.client.rest import ApiException
 from slugify import slugify
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
-from kubernetes.client.rest import ApiException
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -89,8 +89,7 @@ def create_unique_id(
     base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
     if unique:
         return add_unique_suffix(name=base_name, rand_len=8, max_len=max_length)
-    else:
-        return base_name
+    return base_name
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:

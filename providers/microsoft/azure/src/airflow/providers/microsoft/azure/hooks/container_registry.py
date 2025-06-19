@@ -22,14 +22,15 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
+from azure.mgmt.containerinstance.models import ImageRegistryCredential
+from azure.mgmt.containerregistry import ContainerRegistryManagementClient
+
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
-from azure.mgmt.containerinstance.models import ImageRegistryCredential
-from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
 
 class AzureContainerRegistryHook(BaseHook):

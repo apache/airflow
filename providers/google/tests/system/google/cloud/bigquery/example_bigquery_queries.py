@@ -40,6 +40,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -175,7 +176,7 @@ with DAG(
 
     get_data_result = BashOperator(
         task_id="get_data_result",
-        bash_command=f"echo {get_data.output}",
+        bash_command=f'echo "{get_data.output}"',
     )
 
     # [START howto_operator_bigquery_check]

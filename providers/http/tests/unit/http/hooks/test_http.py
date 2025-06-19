@@ -48,6 +48,10 @@ def aioresponse():
         yield async_response
 
 
+def get_airflow_dummy_connection(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test:8080/")
+
+
 def get_airflow_connection(conn_id: str = "http_default"):
     return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
 
@@ -294,6 +298,31 @@ class TestHttpHook:
             resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.status_code == 418
 
+    def test_post_request_raises_error_when_redirects_with_max_redirects_set_to_0(self, requests_mock):
+        requests_mock.post(
+            "http://test:8080/v1/test",
+            status_code=302,
+            headers={"Location": "http://test:8080/v1/redirected"},
+        )
+
+        requests_mock.post(
+            "http://test:8080/v1/redirected",
+            status_code=200,
+            text='{"message": "OK"}',
+        )
+
+        with mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_dummy_connection
+        ):
+            with pytest.raises(requests.exceptions.TooManyRedirects) as err:
+                self.post_hook.run("v1/test", extra_options={"max_redirects": 0})
+
+            assert str(err.value) == "Exceeded 0 redirects."
+            history = requests_mock.request_history
+            assert len(history) == 1
+            assert history[0].url == "http://test:8080/v1/test"
+            assert history[0].method == "POST"
+
     def test_post_request_do_not_raise_for_status_if_check_response_is_false_within_extra(
         self, requests_mock
     ):
@@ -371,6 +400,16 @@ class TestHttpHook:
         hook = HttpHook()
         hook.get_conn({})
         assert hook.base_url == "https://localhost"
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_https_connection_port(self, mock_get_connection):
+        conn = Connection(
+            conn_id="http_default", conn_type="http", host="https://localhost", schema="https", port=8080
+        )
+        mock_get_connection.return_value = conn
+        hook = HttpHook()
+        hook.get_conn({})
+        assert hook.base_url == "https://localhost:8080"
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_host_encoded_http_connection(self, mock_get_connection):
@@ -592,12 +631,12 @@ class TestHttpHook:
             custom_adapter = HTTPAdapter()
             hook = HttpHook(method="GET", adapter=custom_adapter)
             session = hook.get_conn()
-            assert isinstance(
-                session.adapters["http://"], type(custom_adapter)
-            ), "Custom HTTP adapter not correctly mounted"
-            assert isinstance(
-                session.adapters["https://"], type(custom_adapter)
-            ), "Custom HTTPS adapter not correctly mounted"
+            assert isinstance(session.adapters["http://"], type(custom_adapter)), (
+                "Custom HTTP adapter not correctly mounted"
+            )
+            assert isinstance(session.adapters["https://"], type(custom_adapter)), (
+                "Custom HTTPS adapter not correctly mounted"
+            )
 
     def test_process_extra_options_from_connection(self):
         extra_options = {}

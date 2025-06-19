@@ -17,35 +17,29 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class RdsBaseSensor(BaseSensorOperator):
+class RdsBaseSensor(AwsBaseSensor[RdsHook]):
     """Base operator that implements common functions for all sensors."""
 
+    aws_hook_class = RdsHook
     ui_color = "#ddbb77"
     ui_fgcolor = "#ffffff"
 
-    def __init__(
-        self, *args, aws_conn_id: str | None = "aws_conn_id", hook_params: dict | None = None, **kwargs
-    ):
+    def __init__(self, *args, hook_params: dict | None = None, **kwargs):
         self.hook_params = hook_params or {}
-        self.aws_conn_id = aws_conn_id
         self.target_statuses: list[str] = []
         super().__init__(*args, **kwargs)
-
-    @cached_property
-    def hook(self):
-        return RdsHook(aws_conn_id=self.aws_conn_id, **self.hook_params)
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):
@@ -59,9 +53,19 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
     :param db_type: Type of the DB - either "instance" or "cluster"
     :param db_snapshot_identifier: The identifier for the DB snapshot
     :param target_statuses: Target status of snapshot
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+         If this is ``None`` or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "db_snapshot_identifier",
         "target_statuses",
     )
@@ -72,10 +76,9 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         db_type: str,
         db_snapshot_identifier: str,
         target_statuses: list[str] | None = None,
-        aws_conn_id: str | None = "aws_conn_id",
         **kwargs,
     ):
-        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(**kwargs)
         self.db_type = RdsDbType(db_type)
         self.db_snapshot_identifier = db_snapshot_identifier
         self.target_statuses = target_statuses or ["available"]
@@ -104,11 +107,11 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
 
     :param export_task_identifier: A unique identifier for the snapshot export task.
     :param target_statuses: Target status of export task
+    :param error_statuses: Target error status of export task to fail the sensor
     """
 
-    template_fields: Sequence[str] = (
-        "export_task_identifier",
-        "target_statuses",
+    template_fields: Sequence[str] = aws_template_fields(
+        "export_task_identifier", "target_statuses", "error_statuses"
     )
 
     def __init__(
@@ -116,10 +119,10 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         *,
         export_task_identifier: str,
         target_statuses: list[str] | None = None,
-        aws_conn_id: str | None = "aws_default",
+        error_statuses: list[str] | None = None,
         **kwargs,
     ):
-        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(**kwargs)
 
         self.export_task_identifier = export_task_identifier
         self.target_statuses = target_statuses or [
@@ -129,6 +132,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
             "canceling",
             "canceled",
         ]
+        self.error_statuses = error_statuses or ["failed"]
 
     def poke(self, context: Context):
         self.log.info(
@@ -136,6 +140,11 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         )
         try:
             state = self.hook.get_export_task_state(self.export_task_identifier)
+            if state in self.error_statuses:
+                raise AirflowException(
+                    f"Export task {self.export_task_identifier} failed with status {state}"
+                )
+
         except AirflowNotFoundException:
             return False
         return state in self.target_statuses
@@ -154,7 +163,7 @@ class RdsDbSensor(RdsBaseSensor):
     :param target_statuses: Target status of DB
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "db_identifier",
         "db_type",
         "target_statuses",
@@ -166,10 +175,9 @@ class RdsDbSensor(RdsBaseSensor):
         db_identifier: str,
         db_type: RdsDbType | str = RdsDbType.INSTANCE,
         target_statuses: list[str] | None = None,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
-        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(**kwargs)
         self.db_identifier = db_identifier
         self.target_statuses = target_statuses or ["available"]
         self.db_type = db_type

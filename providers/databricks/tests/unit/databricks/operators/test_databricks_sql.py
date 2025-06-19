@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from databricks.sql.types import Row
 
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
 
 DATE = "2017-04-20"
@@ -307,3 +307,10 @@ def test_exec_write_file(
             return_last=return_last,
             split_statements=split_statements,
         )
+
+
+def test_hook_is_cached():
+    op = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 42")
+    hook = op.get_db_hook()
+    hook2 = op.get_db_hook()
+    assert hook is hook2

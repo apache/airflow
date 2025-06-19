@@ -43,6 +43,7 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteClusterOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -127,7 +128,7 @@ with DAG(
 
     delete_gke_cluster = GKEDeleteClusterOperator(
         task_id="delete_gke_cluster",
-        name=GKE_CLUSTER_NAME,
+        cluster_name=GKE_CLUSTER_NAME,
         project_id=PROJECT_ID,
         location=REGION,
         trigger_rule=TriggerRule.ALL_DONE,

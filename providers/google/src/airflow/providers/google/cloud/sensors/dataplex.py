@@ -23,8 +23,13 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
+
+from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.dataplex_v1.types import DataScanJob
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import (
@@ -33,9 +38,6 @@ from airflow.providers.google.cloud.hooks.dataplex import (
     DataplexHook,
 )
 from airflow.sensors.base import BaseSensorOperator
-from google.api_core.exceptions import GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.dataplex_v1.types import DataScanJob
 
 
 class TaskState:

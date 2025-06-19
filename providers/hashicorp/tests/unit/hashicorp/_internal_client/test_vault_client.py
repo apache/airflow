@@ -157,6 +157,30 @@ class TestVaultClient:
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_aws_iam_different_region(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="aws_iam",
+            role_id="role",
+            url="http://localhost:8180",
+            key_id="user",
+            secret_id="pass",
+            session=None,
+            region="us-east-2",
+        )
+        client = vault_client.client
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        client.auth.aws.iam_login.assert_called_with(
+            access_key="user",
+            secret_key="pass",
+            role="role",
+            region="us-east-2",
+        )
+        client.is_authenticated.assert_called_with()
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_azure(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -1035,6 +1059,76 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert secret == {"value": "world"}
         assert vault_client.kwargs["session"].verify == "/etc/ssl/certificates/ca-bundle.pem"
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point="secret", path="/path/to/secret"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_existing_key_v1_with_proxies_applied(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+            verify=False,
+            proxies={
+                "http": "http://10.10.1.10:3128",
+                "https": "http://10.10.1.10:1080",
+            },
+        )
+        secret = vault_client.get_secret(secret_path="/path/to/secret")
+        assert secret == {"value": "world"}
+        assert vault_client.kwargs["session"].proxies["http"] == "http://10.10.1.10:3128"
+        assert vault_client.kwargs["session"].proxies["https"] == "http://10.10.1.10:1080"
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point="secret", path="/path/to/secret"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_existing_key_v1_with_client_cert_applied(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+            verify=False,
+            cert=("/path/client.cert", "/path/client.key"),
+        )
+        secret = vault_client.get_secret(secret_path="/path/to/secret")
+        assert secret == {"value": "world"}
+        assert vault_client.kwargs["session"].cert == ("/path/client.cert", "/path/client.key")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="secret", path="/path/to/secret"
         )

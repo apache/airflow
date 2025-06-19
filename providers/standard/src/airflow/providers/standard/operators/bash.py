@@ -27,12 +27,15 @@ from typing import TYPE_CHECKING, Any, Callable, cast
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
-from airflow.utils.operator_helpers import context_to_airflow_vars
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import ArgNotSet
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import context_to_airflow_vars
+else:
+    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session as SASession
+    from airflow.utils.types import ArgNotSet
 
     try:
         from airflow.sdk.definitions.context import Context
@@ -182,42 +185,14 @@ class BashOperator(BaseOperator):
         self.cwd = cwd
         self.append_env = append_env
         self.output_processor = output_processor
-
-        # When using the @task.bash decorator, the Bash command is not known until the underlying Python
-        # callable is executed and therefore set to NOTSET initially. This flag is useful during execution to
-        # determine whether the bash_command value needs to re-rendered.
-        self._init_bash_command_not_set = isinstance(self.bash_command, ArgNotSet)
-
-        # Keep a copy of the original bash_command, without the Jinja template rendered.
-        # This is later used to determine if the bash_command is a script or an inline string command.
-        # We do this later, because the bash_command is not available in __init__ when using @task.bash.
-        self._unrendered_bash_command: str | ArgNotSet = bash_command
+        self._is_inline_cmd = None
+        if isinstance(bash_command, str):
+            self._is_inline_cmd = self._is_inline_command(bash_command=bash_command)
 
     @cached_property
     def subprocess_hook(self):
         """Returns hook for running the bash command."""
         return SubprocessHook()
-
-    # TODO: This should be replaced with Task SDK API call
-    @staticmethod
-    @provide_session
-    def refresh_bash_command(ti, session: SASession = NEW_SESSION) -> None:
-        """
-        Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
-
-        TaskInstance.get_rendered_template_fields() cannot be used because this will retrieve the
-        RenderedTaskInstanceFields from the metadatabase which doesn't have the runtime-evaluated bash_command
-        value.
-
-        :meta private:
-        """
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
-        """Update rendered task instance fields for cases where runtime evaluated, not templated."""
-
-        rtif = RenderedTaskInstanceFields(ti)
-        RenderedTaskInstanceFields.write(rtif, session=session)
-        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
     def get_env(self, context) -> dict:
         """Build the set of environment variables to be exposed for the bash command."""
@@ -247,26 +222,14 @@ class BashOperator(BaseOperator):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
 
-        # Because the bash_command value is evaluated at runtime using the @task.bash decorator, the
-        # RenderedTaskInstanceField data needs to be rewritten and the bash_command value re-rendered -- the
-        # latter because the returned command from the decorated callable could contain a Jinja expression.
-        # Both will ensure the correct Bash command is executed and that the Rendered Template view in the UI
-        # displays the executed command (otherwise it will display as an ArgNotSet type).
-        if self._init_bash_command_not_set:
-            is_inline_command = self._is_inline_command(bash_command=cast(str, self.bash_command))
-            ti = context["ti"]
-            self.refresh_bash_command(ti)
-        else:
-            is_inline_command = self._is_inline_command(bash_command=cast(str, self._unrendered_bash_command))
-
-        if is_inline_command:
+        if self._is_inline_cmd:
             result = self._run_inline_command(bash_path=bash_path, env=env)
         else:
             result = self._run_rendered_script_file(bash_path=bash_path, env=env)
 
         if result.exit_code in self.skip_on_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
-        elif result.exit_code != 0:
+        if result.exit_code != 0:
             raise AirflowException(
                 f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
             )
@@ -290,7 +253,7 @@ class BashOperator(BaseOperator):
         """
         with working_directory(cwd=self.cwd) as cwd:
             with tempfile.NamedTemporaryFile(mode="w", dir=cwd, suffix=".sh") as file:
-                file.write(cast(str, self.bash_command))
+                file.write(cast("str", self.bash_command))
                 file.flush()
 
                 bash_script = os.path.basename(file.name)

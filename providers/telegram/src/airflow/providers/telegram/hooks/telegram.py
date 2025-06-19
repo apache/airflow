@@ -22,9 +22,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import telegram
 import tenacity
 
-import telegram
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 

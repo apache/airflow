@@ -20,6 +20,15 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    pytest.skip(
+        "``airflow/providers/databricks/plugins/databricks_workflow.py`` is only compatible with Airflow 2.X.",
+        allow_module_level=True,
+    )
+
 from flask import url_for
 
 from airflow.exceptions import AirflowException
@@ -85,6 +94,36 @@ def test_repair_task(mock_databricks_hook):
     assert result == 200
     mock_hook_instance.get_latest_repair_id.assert_called_once_with(DATABRICKS_RUN_ID)
     mock_hook_instance.repair_run.assert_called_once()
+
+
+@patch("airflow.providers.databricks.plugins.databricks_workflow.DatabricksHook")
+def test_repair_task_with_params(mock_databricks_hook):
+    mock_hook_instance = mock_databricks_hook.return_value
+    mock_hook_instance.get_latest_repair_id.return_value = 100
+    mock_hook_instance.repair_run.return_value = 200
+    mock_hook_instance.get_run.return_value = {
+        "overriding_parameters": {
+            "key1": "value1",
+            "key2": "value2",
+        },
+    }
+
+    tasks_to_repair = ["task1", "task2"]
+    result = _repair_task(DATABRICKS_CONN_ID, DATABRICKS_RUN_ID, tasks_to_repair, LOG)
+
+    expected_payload = {
+        "run_id": DATABRICKS_RUN_ID,
+        "rerun_tasks": tasks_to_repair,
+        "latest_repair_id": 100,
+        "overriding_parameters": {
+            "key1": "value1",
+            "key2": "value2",
+        },
+    }
+    assert result == 200
+    mock_hook_instance.get_latest_repair_id.assert_called_once_with(DATABRICKS_RUN_ID)
+    mock_hook_instance.get_run.assert_called_once_with(DATABRICKS_RUN_ID)
+    mock_hook_instance.repair_run.assert_called_once_with(expected_payload)
 
 
 def test_get_launch_task_id_no_launch_task():
@@ -161,7 +200,7 @@ def test_workflow_job_run_link(app):
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom_result:
                 with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.airflow_app.dag_bag.get_dag"
+                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
                 ) as mock_get_dag:
                     mock_connection = Mock()
                     mock_connection.extra_dejson = {"host": "mockhost"}
@@ -202,7 +241,7 @@ def test_workflow_job_repair_single_failed_link(app):
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom_result:
                 with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.airflow_app.dag_bag.get_dag"
+                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
                 ) as mock_get_dag:
                     mock_get_task_instance.return_value = Mock(key=ti_key)
                     mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1)

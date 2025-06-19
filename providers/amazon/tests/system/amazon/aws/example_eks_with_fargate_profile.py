@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.eks import (
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksFargateProfileStateSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.k8s import get_describe_pod_operator
 

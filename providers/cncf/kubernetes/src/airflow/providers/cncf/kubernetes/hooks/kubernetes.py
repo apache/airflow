@@ -29,6 +29,9 @@ import aiofiles
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from kubernetes import client, config, utils, watch
+from kubernetes.client.models import V1Deployment
+from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
@@ -43,9 +46,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_running,
 )
 from airflow.utils import yaml
-from kubernetes import client, config, utils, watch
-from kubernetes.client.models import V1Deployment
-from kubernetes.config import ConfigException
 
 if TYPE_CHECKING:
     from kubernetes.client import V1JobList
@@ -140,7 +140,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def __init__(
         self,
-        conn_id: str | None = default_conn_name,
+        conn_id: str | None = None,
+        kubernetes_conn_id: str | None = default_conn_name,
         client_configuration: client.Configuration | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
@@ -149,7 +150,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         disable_tcp_keepalive: bool | None = None,
     ) -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = conn_id or kubernetes_conn_id
         self.client_configuration = client_configuration
         self.cluster_context = cluster_context
         self.config_file = config_file
@@ -177,8 +178,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)
-            else:
-                raise
+            raise
 
     @cached_property
     def conn_extras(self):
@@ -691,9 +691,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 and replicas == ready_replicas
             ):
                 return
-            else:
-                self.log.info("Waiting until Deployment will be ready...")
-                sleep(polling_period_seconds)
+            self.log.info("Waiting until Deployment will be ready...")
+            sleep(polling_period_seconds)
 
             _timeout -= polling_period_seconds
 
@@ -708,15 +707,23 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         return list(yaml.safe_load_all(response.text))
 
+    def test_connection(self):
+        try:
+            conn = self.get_conn()
+            version: client.VersionInfo = client.VersionApi(conn).get_code()
+            return True, f"Connection successful. Version Info: {version.to_dict()}"
+        except Exception as e:
+            return False, str(e)
+
 
 def _get_bool(val) -> bool | None:
     """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
-    elif isinstance(val, str):
+    if isinstance(val, str):
         if val.strip().lower() == "true":
             return True
-        elif val.strip().lower() == "false":
+        if val.strip().lower() == "false":
             return False
     return None
 

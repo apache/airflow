@@ -25,11 +25,11 @@ from datetime import datetime
 from typing import Any
 
 from dateutil import parser
+from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
 
 
 class CloudComposerExecutionTrigger(BaseTrigger):

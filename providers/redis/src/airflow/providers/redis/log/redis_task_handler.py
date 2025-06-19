@@ -23,12 +23,14 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.providers.redis.hooks.redis import RedisHook
+from airflow.providers.redis.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
     from redis import Redis
+
+    from airflow.models import TaskInstance
 
 
 class RedisTaskHandler(FileTaskHandler, LoggingMixin):
@@ -78,6 +80,8 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         log_str = b"\n".join(
             self.conn.lrange(self._render_filename(ti, try_number), start=0, end=-1)
         ).decode()
+        if AIRFLOW_V_3_0_PLUS:
+            log_str = [log_str]  # type: ignore[assignment]
         return log_str, {"end_of_log": True}
 
     def set_context(self, ti: TaskInstance, **kwargs) -> None:

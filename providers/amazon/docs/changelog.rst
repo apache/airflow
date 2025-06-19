@@ -26,6 +26,284 @@
 Changelog
 ---------
 
+9.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'MessageDeduplicationId' support to 'SnsPublishOperator' (#51383)``
+* ``Add support for RequestPay=requester option in Amazon S3's Operators, Sensors and Triggers (#51098)``
+* ``Add AWS Lambda Executor (#50516)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Removed unnecessary 'aws_conn_id' param from operators constructors (#51236)``
+* ``Fix EcsRunTaskOperator reattach (#51412)``
+* ``Fix EKS token generation (#51333)``
+* ``Fix 'EksPodOperator' in deferrable mode (#51255)``
+* ``Rds Operator pass custom conn_id to superclass (#51196)``
+* ``Fix remote logging CloudWatch handler initialization and stream name assignment (#51022)``
+* ``Check 'is_mapped' to prevent 'operator_extra_links' property failing for Airflow 3. #50932``
+* ``Fix aws_conn_id defaulting after dag.test was updated to use TaskSDK. (#50515)``
+* ``AWS ECS Executor. Assign public ip defaults false (#50713)``
+
+Misc
+~~~~
+
+* ``Remove unused entries from 'DagAccessEntity' (#51174)``
+* ``Update Redshift cluster operator and sensor to inherit AwsBaseOperator (#51129)``
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Move AWS auth dependencies to python3-saml extra (#50449)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Add missing 'param' for waiter_max_attempts in EMR operator docstring (#51676)``
+* ``Update comment in CloudWatchRemoteLogIO (#51092)``
+* ``Use explicit directives instead of implicit syntax (#50870)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bedrock_batch_inference' (#51413)``
+   * ``Fixed cross-merged tests that fail for Pytest 8.4.0 (#51366)``
+   * ``Allow test migration to pytest 8.4.0 (#51349)``
+   * ``Fix system test 'test_aws_auth_manager' (#51241)``
+   * ``Fix 'StopIteration' error in AWS System Test 'variable_fetcher' when using remote executor (#51127)``
+
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add in-memory buffer and gzip support in SqlToS3Operator (#50287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add Key to default meta keys in S3KeySensor (#50122)``
+
+Misc
+~~~~
+
+* ``Update Sagemaker Operators and Sensors to inherit Base AWS classes (#50321)``
+* ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Handle exception when building amazon documentation (#50417)``
+   * ``AWS System Test Context: Don't set env_id at parse time (#50571)``
+
+9.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Move SQS messaging from common.messaging to Amazon provider (#50057)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in emr sensor _hook_parameters (#49597)``
+* ``Update 'prune_logs' in Amazon provider package to support 'RuntimeTaskInstance' (#49363)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Update GlueJobOperator to inherit AWS base class (#49750)``
+* ``Amazon EMR Sensors/Operators inherit AWS Base Classes (#49486)``
+* ``Introduce lower bind to lxml as 5.4.0 (#49612)``
+* ``Remove Marshmallow from Core (#49388)``
+* ``Migrate 'HiveToDynamoDBOperator' and 'SqlToS3Operator' to use 'get_df' (#50126)``
+* ``add root parent information to OpenLineage events (#49237)``
+* ``Remove limits for aiobotocore limiting boto3 (#50285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Limit boto3 (#49939)" (#49948)``
+   * ``Refactor connection creation in system tests to use REST API instead (#49804)``
+   * ``Min provider version=2.10; use running_state freely (#49924)``
+   * ``Also limit botocore when upgrading to latest (#49962)``
+   * ``Add AWS auth manager to AWS provider.yaml (#49944)``
+   * ``Limit boto3 (#49939)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Replace chicken-egg providers with automated use of unreleased packages (#49799)``
+   * ``Fix AWS system test names (#49791)``
+   * ``Update 'secure' in AWS auth manager (#49751)``
+   * ``use NonNegativeInt for backfill_id (#49691)``
+   * ``Fix AWS auth manager (#49588)``
+   * ``Fix AWS auth manager system test (#49561)``
+   * ``Make AWS auth manager compatible with AF3 (#49419)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Use Label class from task sdk in providers (#49398)``
+   * ``Add Stop AutoML Job to the Sagemaker system test to clean up. (#49325)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Prepare ad hoc release for providers May 2025 (#50166)``
+
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'EksClusterStateSensor'. Save 'region' as attribute (#49138)``
+* ``Decrease default value of 'waiter_max_attempts' in 'MwaaTriggerDagRunOperator' (#49136)``
+* ``Increase default value of 'waiter_max_attempts' in 'BedrockBatchInferenceOperator' (#49090)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``Add base_url fallback for aws auth_manager (#49305)``
+* ``remove superfluous else block (#49199)``
+* ``AWS Batch Operators/Sensors inherit AWS Base classes (#49172)``
+* ``Help pip to find appropriate boto for aiobotocore (#49166)``
+* ``Update EKS Operators and Sensors to inherit AWS base classes (#48192)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Unpause DAG in AWS MWAA system test (#49145)``
+   * ``Fix AWS auth manager system test (#49072)``
+
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Bedrock Batch Inference Operator and accompanying parts (#48468)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle NoCredentialsError in waiter_with_logging.py (#48946)``
+* ``Bedrock Batch Inference - Trying to stop a completed job is a successful result (#48964)``
+* ``S3Hook: remove error return on inactivity period check (#48782)``
+
+Misc
+~~~~
+
+* ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
+* ``Fix typo in docstring for MwaaHook (#48980)``
+* ``Update Amazon RDS Operators and Sensors to inherit AWS Base classes (#48872)``
+* ``Change provider-specific dependencies to refer to providers (#48843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor AWS system tests to not use @task.branch (#48973)``
+   * ``Fix botocore version in Amazon provider docs to match 'pyproject.toml' (#48981)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Fix default base value (#49013)``
+
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a backup implementation in AWS MwaaHook for calling the MWAA API (#47035)``
+* ``Add AWS SageMaker Unified Studio Workflow Operator (#45726)``
+* ``Add error statuses check in RdsExportTaskExistenceSensor  (#46917)``
+* ``Common Message Queue (#46694)``
+* ``add startTime to paginator.paginate when fetching logs in GlueJobHook (#46950)``
+* ``Add MwaaDagRunSensor to Amazon Provider Package (#46945)``
+* ``Add wait/defer support - MwaaTriggerDagRunOperator (#47528)``
+* ``Add deferrable support for MwaaDagRunSensor (#47527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix aws trigger tests, use get_async_conn for mock object (#47515)``
+* ``fix: don't use blocking property access for async purposes (#47326)``
+* ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
+* ``Log state for EMR Containers sensor on failure (#47125)``
+* ``Don't expect default conns in S3ToRedshiftOperator (#48363)``
+* ``Don't expect default connections to be present in RedshiftToS3Operator (#47968)``
+* ``fix PosixPath not working with file create_asset in download_file of S3Hook (#47880)``
+* ``Fix Cloudwatch remote logging (#48774)``
+* ``Fix 'conf.get_boolean("api", "ssl_cert")' (#48465)``
+* ``Fix signature of 'BatchWaitersHook.get_waiter' not matching parent class (#48581)``
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Add some typing and require kwargs for auth manager (#47455)``
+* ``AIP-84 - Add Auth for Assets (#47136)``
+* ``Base AWS classes - S3 (#47321)``
+* ``Remove unused methods from auth managers (#47316)``
+* ``Move api-server to port 8080 (#47310)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Remove old UI and webserver (#46942)``
+* ``Don't remove log groups from example_glue.py (#47128)``
+* ``Move 'fastapi-api' command to 'api-server' (#47076)``
+* ``Remove '/webapp' prefix from new UI (#47041)``
+* ``Restricting moto 5.1.0 to fix ci (#47005)``
+* ``Bump minimum boto3 version to 1.37.0 (#48238)``
+* ``Move BaseNotifier to Task SDK (#48008)``
+* ``Updating EC2 Operators and Sensors with AWS Base classes (#47931)``
+* ``Bump mypy-boto3-appflow>=1.37.0 (#47912)``
+* ``Lower bind xmlsec dependency version (#47696)``
+* ``Clarify the Redshift delete cluster operator messaging. (#48652)``
+* ``Rework remote task log handling for the structlog era. (#48491)``
+* ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+* ``Cookies in non TLS mode (#48453)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add skipimport check for aiobotocore module in aws trigger tests (#47512)``
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Replace 'external_trigger' check with DagRunType (#45961)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Fix TestRdsCopyDbSnapshotOperator tests (#47006)``
+   * ``Fix new UI when running outside of breeze (#46991)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``(Re)move old dependencies from the old FAB UI (#48007)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Update example_s3 system test (#47974)``
+   * ``Set 'wait_for_completion' to True in example_mwaa system test (#47877)``
+   * ``Fix AWS auth manager system test (#47876)``
+   * ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Test 'MwaaHook''s IAM fallback in system test (#47759)``
+   * ``Update Dockerfile in aws execs docs (#47799)``
+   * ``Update AWS auth manager system test to handle new way of passing JWT token (#47794)``
+   * ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
+   * ``Set JWT token to localStorage from cookies (#47432)``
+   * ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
+   * ``AIP-84 Add Auth for DAG Versioning (#47553)``
+   * ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``
+   * ``AIP-84 Add Auth for backfill (#47482)``
+   * ``test(aws): Fix aws trigger tests, use get_async_conn for mock object (#47667)``
+   * ``Adding xmlsec pin in amazon provider (#47656)``
+   * ``Add 'get_additional_menu_items' in auth manager interface to extend the menu (#47468)``
+   * ``Use a single http tag to report the server's location to front end, not two (#47572)``
+   * ``AIP 84 - Add auth for asset alias (#47241)``
+   * ``Prepare docs for Mar 1st wave of providers (#47545)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Fix usage of mock_cmd in ECS executor unit tests (#48593)``
+   * ``Fix failing eks tests with new moto 5.1.2 (#48556)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+
 9.4.0
 .....
 
@@ -936,7 +1214,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Update http to s3 system test (#35711)``
 
 8.11.0

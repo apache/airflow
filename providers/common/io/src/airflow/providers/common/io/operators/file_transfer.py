@@ -20,12 +20,18 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.io.path import ObjectStoragePath
-from airflow.models import BaseOperator
+from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import ObjectStoragePath
+    from airflow.sdk.bases.operator import BaseOperator
+else:
+    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
+    from airflow.models import BaseOperator  # type: ignore[no-redef]
 
 
 class FileTransferOperator(BaseOperator):

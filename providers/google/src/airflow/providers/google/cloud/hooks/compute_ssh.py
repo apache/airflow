@@ -148,8 +148,7 @@ class ComputeEngineSSHHook(SSHHook):
             return ComputeEngineHook(
                 gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
             )
-        else:
-            return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
+        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
 
     def _load_connection_config(self):
         def _boolify(value):
@@ -158,7 +157,7 @@ class ComputeEngineSSHHook(SSHHook):
             if isinstance(value, str):
                 if value.lower() == "false":
                     return False
-                elif value.lower() == "true":
+                if value.lower() == "true":
                     return True
             return False
 

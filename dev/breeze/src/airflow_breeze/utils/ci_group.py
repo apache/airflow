@@ -30,6 +30,13 @@ if TYPE_CHECKING:
 _in_ci_group = False
 
 
+def in_github_actions() -> bool:
+    """
+    Check if the code is running in GitHub Actions.
+    """
+    return os.environ.get("GITHUB_ACTIONS", "false") == "true"
+
+
 @contextmanager
 def ci_group(
     title: str,
@@ -48,7 +55,7 @@ def ci_group(
     if _in_ci_group or skip_group_output():
         yield
         return
-    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+    if not in_github_actions():
         if not skip_printing_title:
             if message_type is not None:
                 get_console(output=output).print(f"\n[{message_type.value}]{title}\n")

@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
 from airflow.utils import db
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_hive_to_dynamodb"

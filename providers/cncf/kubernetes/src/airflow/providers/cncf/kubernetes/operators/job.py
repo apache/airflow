@@ -26,6 +26,10 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from kubernetes.client import BatchV1Api, models as k8s
+from kubernetes.client.api_client import ApiClient
+from kubernetes.client.rest import ApiException
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -40,9 +44,6 @@ from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
 from airflow.utils import yaml
 from airflow.utils.context import Context
-from kubernetes.client import BatchV1Api, models as k8s
-from kubernetes.client.api_client import ApiClient
-from kubernetes.client.rest import ApiException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -388,7 +389,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             return base_spec
         if not base_spec and client_spec:
             return client_spec
-        elif client_spec and base_spec:
+        if client_spec and base_spec:
             client_spec.template.spec = PodGenerator.reconcile_specs(
                 base_spec.template.spec, client_spec.template.spec
             )

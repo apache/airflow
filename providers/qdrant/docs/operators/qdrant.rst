@@ -33,7 +33,7 @@ the original text corresponding to the vectors that could be ingested into the d
 
 An example using the operator in this way:
 
-.. exampleinclude:: /../../providers/qdrant/tests/system/qdrant/example_dag_qdrant.py
+.. exampleinclude:: /../../qdrant/tests/system/qdrant/example_dag_qdrant.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qdrant_ingest]

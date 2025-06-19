@@ -23,6 +23,7 @@ from typing import Any, TypeVar
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
+from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -63,6 +64,7 @@ class AirbyteHook(BaseHook):
         conn_params["client_id"] = conn.login
         conn_params["client_secret"] = conn.password
         conn_params["token_url"] = conn.schema or "v1/applications/token"
+        conn_params["proxies"] = conn.extra_dejson.get("proxies", None)
 
         return conn_params
 
@@ -74,9 +76,15 @@ class AirbyteHook(BaseHook):
             token_url=self.conn["token_url"],
         )
 
+        client = None
+        if self.conn["proxies"]:
+            client = Session()
+            client.proxies = self.conn["proxies"]
+
         return AirbyteAPI(
             server_url=self.conn["host"],
             security=Security(client_credentials=credentials),
+            client=client,
         )
 
     @classmethod
@@ -147,10 +155,9 @@ class AirbyteHook(BaseHook):
                 break
             if state == JobStatusEnum.FAILED:
                 raise AirflowException(f"Job failed:\n{job}")
-            elif state == JobStatusEnum.CANCELLED:
+            if state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
-            else:
-                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
+            raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         try:
@@ -186,7 +193,6 @@ class AirbyteHook(BaseHook):
             health_check = self.airbyte_api.health.get_health_check()
             if health_check.status_code == 200:
                 return True, "Connection successfully tested"
-            else:
-                return False, str(health_check.raw_response)
+            return False, str(health_check.raw_response)
         except Exception as e:
             return False, str(e)

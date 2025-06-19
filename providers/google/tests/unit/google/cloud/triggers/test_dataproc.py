@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from asyncio import CancelledError, Future, sleep
 from unittest import mock
@@ -355,10 +356,8 @@ class TestDataprocClusterTrigger:
         await sleep(0)
         task.cancel()
 
-        try:
+        with contextlib.suppress(CancelledError):
             await task
-        except CancelledError:
-            pass
 
         assert mock_delete_cluster.call_count == 0
         mock_delete_cluster.assert_not_called()

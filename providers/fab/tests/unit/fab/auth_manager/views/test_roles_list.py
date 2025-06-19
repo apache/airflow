@@ -21,15 +21,24 @@ import pytest
 
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
+
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from unit.fab.auth_manager.views import _assert_dataset_deprecation_warning
-
-from tests_common.test_utils.www import client_with_login
+from unit.fab.utils import client_with_login
 
 
 @pytest.fixture(scope="module")
 def fab_app():
-    return application.create_app(enable_plugins=False)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        yield application.create_app(enable_plugins=False)
 
 
 @pytest.fixture(scope="module")

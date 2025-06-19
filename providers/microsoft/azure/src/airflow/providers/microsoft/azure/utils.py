@@ -21,13 +21,12 @@ import warnings
 from functools import partial, wraps
 from urllib.parse import urlparse, urlunparse
 
-from msrest.authentication import BasicTokenAuthentication
-
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline.transport import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+from msrest.authentication import BasicTokenAuthentication
 
 
 def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
@@ -78,8 +77,7 @@ def _get_default_azure_credential(
             workload_identity_tenant_id=workload_identity_tenant_id,
             additionally_allowed_tenants=[workload_identity_tenant_id],
         )
-    else:
-        return credential_cls()
+    return credential_cls()
 
 
 get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(

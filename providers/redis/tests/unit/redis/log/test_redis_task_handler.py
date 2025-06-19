@@ -51,7 +51,12 @@ class TestRedisTaskHandler:
                 run_type="scheduled",
             )
         else:
-            dag_run = DagRun(dag_id=dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                execution_date=date,
+                run_id="test",
+                run_type="scheduled",
+            )
 
         dag_run.set_state(State.RUNNING)
         with create_session() as session:
@@ -105,5 +110,8 @@ class TestRedisTaskHandler:
             lrange.return_value = [b"Line 1", b"Line 2"]
             logs = handler.read(ti)
 
-        assert logs == ([[("", "Line 1\nLine 2")]], [{"end_of_log": True}])
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == (["Line 1\nLine 2"], {"end_of_log": True})
+        else:
+            assert logs == ([[("", "Line 1\nLine 2")]], [{"end_of_log": True}])
         lrange.assert_called_once_with(key, start=0, end=-1)

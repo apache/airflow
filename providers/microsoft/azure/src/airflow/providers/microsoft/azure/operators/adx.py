@@ -28,8 +28,9 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from azure.kusto.data._models import KustoResultTable
+
+    from airflow.utils.context import Context
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):
@@ -80,5 +81,4 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         # TODO: Remove this after minimum Airflow version is 3.0
         if conf.getboolean("core", "enable_xcom_pickling", fallback=False):
             return response.primary_results[0]
-        else:
-            return str(response.primary_results[0])
+        return str(response.primary_results[0])

@@ -22,10 +22,11 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -36,32 +37,10 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core.retry import exponential_sleep_generator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-class DataFusionPipelineLinkHelper:
-    """
-    Helper class for Pipeline links.
-
-    .. warning::
-        This class is deprecated. Consider using ``resource_path_to_dict()`` instead.
-    """
-
-    @staticmethod
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="airflow.providers.google.cloud.utils.helpers.resource_path_to_dict",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_project_id(instance):
-        instance = instance["name"]
-        project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
-        return project_id
 
 
 class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
@@ -132,10 +111,9 @@ class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
         project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
             instance_name=self.instance_name,
-            location=self.location,
+            region=self.location,
         )
 
 
@@ -290,10 +268,9 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
         project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
             instance_name=self.instance_name,
-            location=self.location,
+            region=self.location,
         )
         return instance
 
@@ -379,10 +356,9 @@ class CloudDataFusionUpdateInstanceOperator(GoogleCloudBaseOperator):
         project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
             instance_name=self.instance_name,
-            location=self.location,
+            region=self.location,
         )
 
 
@@ -450,10 +426,9 @@ class CloudDataFusionGetInstanceOperator(GoogleCloudBaseOperator):
         project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
             instance_name=self.instance_name,
-            location=self.location,
+            region=self.location,
         )
         return instance
 
@@ -540,7 +515,6 @@ class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
         )
         DataFusionPipelineLink.persist(
             context=context,
-            task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
             namespace=self.namespace,
@@ -714,7 +688,6 @@ class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
 
         DataFusionPipelinesLink.persist(
             context=context,
-            task_instance=self,
             uri=service_endpoint,
             namespace=self.namespace,
         )
@@ -834,7 +807,6 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
 
         DataFusionPipelineLink.persist(
             context=context,
-            task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
             namespace=self.namespace,
@@ -964,7 +936,6 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
 
         DataFusionPipelineLink.persist(
             context=context,
-            task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
             namespace=self.namespace,

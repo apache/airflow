@@ -42,7 +42,7 @@ To get more information about this operator visit:
 
 Example usage:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_redshift_s3_transfers.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_redshift_s3_transfers.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_redshift_to_s3]

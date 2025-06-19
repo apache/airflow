@@ -696,9 +696,9 @@ class TestSparkSubmitHook:
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "will-override"
-        assert (
-            not mock_create_keytab_path_from_base64_keytab.called
-        ), "Should not call _create_keytab_path_from_base64_keytab"
+        assert not mock_create_keytab_path_from_base64_keytab.called, (
+            "Should not call _create_keytab_path_from_base64_keytab"
+        )
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
@@ -780,8 +780,7 @@ class TestSparkSubmitHook:
             "pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42",
             "creation time: 2018-03-05T10:26:55Z",
             "service account name: spark",
-            "volumes: spark-init-properties, download-jars-volume,"
-            "download-files-volume, spark-token-2vmlm",
+            "volumes: spark-init-properties, download-jars-volume,download-files-volume, spark-token-2vmlm",
             "node name: N/A",
             "start time: N/A",
             "container images: N/A",
@@ -873,8 +872,7 @@ class TestSparkSubmitHook:
         # Given
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
         log_lines = [
-            "curl: Failed to connect to http://spark-standalone-master:6066"
-            "This is an invalid Spark response",
+            "curl: Failed to connect to http://spark-standalone-master:6066This is an invalid Spark response",
             "Timed out",
         ]
         # When
@@ -984,8 +982,7 @@ class TestSparkSubmitHook:
             "pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42",
             "creation time: 2018-03-05T10:26:55Z",
             "service account name: spark",
-            "volumes: spark-init-properties, download-jars-volume,"
-            "download-files-volume, spark-token-2vmlm",
+            "volumes: spark-init-properties, download-jars-volume,download-files-volume, spark-token-2vmlm",
             "node name: N/A",
             "start time: N/A",
             "container images: N/A",
