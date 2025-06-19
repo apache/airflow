@@ -125,6 +125,17 @@ class TestCommandFactory:
         with open(temp_file, "w") as f:
             f.write(dedent(file_content))
 
+    def teardown_method(self):
+        """
+        Remove the temporary file after the test.
+        """
+        try:
+            import os
+
+            os.remove("test_command.py")
+        except FileNotFoundError:
+            pass
+
     def test_command_factory(self, no_op_method, test_args):
         """
         Test the command factory.

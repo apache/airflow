@@ -196,10 +196,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
+            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
             r"^chart",
+            r"^task-sdk/docs/",
             r"^task-sdk/src/",
             r"^airflow-ctl/src/",
             r"^airflow-core/tests/system",
@@ -1193,6 +1195,8 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
+        if any(file.startswith("task-sdk/src/") for file in self._files):
+            packages.append("task-sdk")
         if providers_affected:
             for provider in providers_affected:
                 packages.append(provider.replace("-", "."))
@@ -1241,7 +1245,8 @@ class SelectiveChecks:
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
             or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            pre_commits_to_skip.add("ts-compile-format-lint-ui")
+            pre_commits_to_skip.add("ts-compile-lint-ui")
+            pre_commits_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
         if not self._matching_files(FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
             pre_commits_to_skip.add("flynt")
         if not self._matching_files(
@@ -1456,6 +1461,7 @@ class SelectiveChecks:
                         return True
                     line_counter += 1
             line_counter += 1
+        return None
 
     def _caplog_exists_in_added_lines(self) -> bool:
         """
@@ -1464,7 +1470,7 @@ class SelectiveChecks:
         :return: True if caplog is used in added lines else False
         """
         lines = run_command(
-            ["git", "diff", f"{self._commit_ref}"],
+            ["git", "diff", f"{self._commit_ref}^"],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
@@ -1475,7 +1481,7 @@ class SelectiveChecks:
             return False
 
         added_caplog_lines = [
-            line.lstrip().lstrip("+ ") for line in lines.stdout.split("\n") if line.lstrip().startswith("+ ")
+            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
         ]
         return self._find_caplog_in_def(added_lines=added_caplog_lines)
 

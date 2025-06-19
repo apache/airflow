@@ -22,6 +22,7 @@
     "githubRepo": "GitHub 저장소",
     "restApiReference": "REST API 참조"
   },
+  "duration": "지속 시간",
   "logout": "로그아웃",
   "nav": {
     "admin": "관리자",
@@ -31,6 +32,7 @@
     "home": "홈",
     "plugins": "플러그인"
   },
+  "noItemsFound": "{{modelName}} 을(를) 찾을 수 없음",
   "pools": {
     "deferred": "연기됨",
     "open": "열림",
@@ -61,7 +63,6 @@
   "taskInstance_one": "작업 인스턴스",
   "taskInstance_other": "작업 인스턴스들",
   "timeRange": {
-    "duration": "지속 시간",
     "last12Hours": "지난 12 시간",
     "last24Hours": "지난 24 시간",
     "lastHour": "지난 1시간",

@@ -49,7 +49,8 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    # replace hash with version once PR #103 merged comes in a release
+    rev: fd3fbe825390abc682953165e9aa58f5f1bf7339
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -171,13 +172,10 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.service$|\.tf$|Dockerfile.*$
-  # https://github.com/Lucas-C/pre-commit-hooks/pull/103
-  - repo: https://github.com/ashb/pre-commit-hooks
-    rev: 36ddb15cd7a607003b06bf11c28045c91ea97dc0
-    hooks:
       - id: insert-license
         name: Add license for all Go files
         types: [go]
+        exclude: mocks/.*\.go$
         args:
           - --comment-style
           - "|//|"
@@ -193,13 +191,6 @@ repos:
         entry: ./scripts/ci/pre_commit/check_min_python_version.py
         language: python
         additional_dependencies: ['rich>=12.4.4']
-        require_serial: true
-      - id: check-imports-in-providers
-        name: Check imports in providers
-        entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
-        language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.11.2']
-        files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
@@ -242,7 +233,8 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
-        additional_dependencies: ['libcst>=1.1.0,!=1.8.0']
+        # libcst 1.8.1 doesn't include typing-extensions which is needed for Python 3.9
+        additional_dependencies: ['libcst>=1.1.0,!=1.8.0,!=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
@@ -271,7 +263,13 @@ repos:
         exclude: ^providers/ssh/docs/connections/ssh\.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^airflow-core/docs/img/.*\.dot|^airflow-core/docs/img/.*\.sha256|.*/dist/.*|LICENSES-ui\.txt$
+        exclude: >
+          (?x)
+          ^airflow-core/docs/img/.*\.dot|
+          ^airflow-core/docs/img/.*\.sha256|
+          .*/dist/.*|
+          LICENSES-ui\.txt$|
+          .*/openapi-gen/.*
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
       - id: check-executables-have-shebangs
@@ -283,7 +281,11 @@ repos:
           ^scripts/ci/docker-compose/gremlin/.
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^airflow-core/docs/img/.*\.dot$|^dev/breeze/doc/images/output.*$
+        exclude: >
+          (?x)
+          ^airflow-core/docs/img/.*\.dot$|
+          ^dev/breeze/doc/images/output.*$|
+          ^.*/openapi-gen/.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
         args:
@@ -354,6 +356,7 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/fr/|
           ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -416,7 +419,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.11.2']
+        additional_dependencies: ['ruff==0.11.13']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -426,14 +429,14 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.11.2']
+        additional_dependencies: ['ruff==0.11.13']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*|\.go$|/go\.(mod|sum)$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -632,7 +635,9 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
@@ -654,6 +659,7 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine\.py$|
+          ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/cli/definition.py|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos\.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm\.py$|
           ^airflow-core/docs/.*commits\.rst$|
@@ -883,7 +889,6 @@ repos:
       - id: compile-fab-assets
         name: Compile FAB provider assets
         language: node
-        'types_or': [javascript, ts, tsx]
         files: ^providers/fab/.*/www/
         entry: ./scripts/ci/pre_commit/compile_fab_assets.py
         pass_filenames: false
@@ -1266,6 +1271,14 @@ repos:
         files:
           ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: go-mockery
+        name: Generate mocks for go
+        entry: -w /src/go-sdk vektra/mockery:3
+        files: ^go-sdk/
+        exclude: mocks/.*\.go$
+        types: [go]
+        pass_filenames: false
+        language: docker_image
       - id: gofmt
         name: Format go code
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots
@@ -1273,18 +1286,48 @@ repos:
         files: ^go-sdk/
         types: [go]
         language: golang
-        env:
-          - GOPROXY=direct
       - id: gci
         name: Consistent import ordering for Go files
         # Since this is invoked from the root folder, not go-sdk/, gci can't auto-detect the prefix
-        entry: gci write -s standard -s default -s "prefix(github.com/apache/airflow)"
+        entry: gci write --skip-generated -s standard -s default -s "prefix(github.com/apache/airflow)"
         additional_dependencies: [github.com/daixiang0/gci@v0.13.6]
         files: ^go-sdk/
         types: [go]
         language: golang
-        env:
-          - GOPROXY=direct
+      - id: ts-compile-lint-ui
+        name: Compile / format / lint UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        files: |
+          (?x)
+          ^airflow-core/src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+        exclude: |
+          (?x)
+          ^airflow-core/src/airflow/ui/node-modules/.*|
+          ^airflow-core/src/airflow/ui/.pnpm-store
+        entry: ./scripts/ci/pre_commit/ts_compile_lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
+      - id: ts-compile-lint-simple-auth-manager-ui
+        name: Compile / format / lint simple auth manager UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        files: |
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+        exclude: |
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/node-modules/.*|
+          ^airflow-core/src/airflow/api_fastapi/.pnpm-store
+        entry: ./scripts/ci/pre_commit/ts_compile_lint_simple_auth_manager_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1400,19 +1443,13 @@ repos:
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
-      - id: ts-compile-format-lint-ui
-        name: Compile / format / lint UI
-        description: TS types generation / ESLint / Prettier new UI files
-        language: node
-        types_or: [javascript, ts, tsx, yaml, css, json]
-        files: |
-          (?x)
-          ^airflow-core/src/airflow/ui/|
-          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
-        entry: ./scripts/ci/pre_commit/compile_lint_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
+      - id: check-i18n-json
+        name: Check i18n files validity
+        description: Check i18n files are valid json and have no TODOs
+        language: python
+        files: ^airflow-core/src/airflow/ui/src/i18n/locales/.*\.json
+        entry: ./scripts/ci/pre_commit/check_i18n_json.py
+        additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
@@ -1476,4 +1513,11 @@ repos:
         files:
           ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'argcomplete>=1.10']
+      - id: check-imports-in-providers
+        name: Check imports in providers
+        entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'ruff==0.11.13']
+        files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
+        require_serial: true
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

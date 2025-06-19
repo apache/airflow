@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add MaxComputeSQLOperator, MaxComputeHook and AlibabaBaseHook to Alibaba Provider (#50178)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MaxComputeSQLOperator Argument  (#51513)``
+* ``Fix inconsistent conn_name_attr (#51112)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.0
 .....
 

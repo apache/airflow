@@ -98,6 +98,13 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
   {{- end }}
+  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  - name: AIRFLOW__API_AUTH__JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "jwt_secret" . }}
+        key: jwt-secret
+  {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
@@ -394,6 +401,10 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "fernet_key_secret" -}}
   {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+{{- end }}
+
+{{- define "jwt_secret" -}}
+  {{- default (printf "%s-jwt-secret" .Release.Name) .Values.jwtSecretName }}
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}

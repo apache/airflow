@@ -752,6 +752,7 @@ jobs:
       distribution-name: "task-sdk"
       distribution-cmd-format: "prepare-task-sdk-distributions"
       test-type: "task-sdk-tests"
+      use-local-venv: 'false'
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -785,6 +786,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.24
+          cache-dependency-path: go-sdk/go.sum
 
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
@@ -796,7 +798,7 @@ jobs:
   tests-airflow-ctl:
     name: "Airflow CTL tests"
     uses: ./.github/workflows/airflow-distributions-tests.yml
-    needs: [build-info, build-ci-images]
+    needs: [build-info]
     permissions:
       contents: read
       packages: read
@@ -810,6 +812,7 @@ jobs:
       distribution-name: "airflow-ctl"
       distribution-cmd-format: "prepare-airflow-ctl-distributions"
       test-type: "airflow-ctl-tests"
+      use-local-venv: 'true'
     if: >
       ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&

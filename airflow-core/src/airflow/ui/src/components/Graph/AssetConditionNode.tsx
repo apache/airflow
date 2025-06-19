@@ -18,26 +18,31 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { TbLogicAnd, TbLogicOr } from "react-icons/tb";
 
 import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
 
-export const AssetConditionNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "asset-condition">>) => (
-  <NodeWrapper>
-    <Box
-      bg="bg"
-      borderRadius={4}
-      borderWidth={1}
-      height={`${data.height}px`}
-      title={data.assetCondition === "and-gate" ? "All" : "Any"}
-      width={`${data.width}px`}
-    >
-      {data.assetCondition === "or-gate" ? (
-        <TbLogicOr size={`${data.height}px`} />
-      ) : (
-        <TbLogicAnd size={`${data.height}px`} />
-      )}
-    </Box>
-  </NodeWrapper>
-);
+export const AssetConditionNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "asset-condition">>) => {
+  const { t: translate } = useTranslation("common");
+
+  return (
+    <NodeWrapper>
+      <Box
+        bg="bg"
+        borderRadius={4}
+        borderWidth={1}
+        height={`${data.height}px`}
+        title={data.assetCondition === "and-gate" ? translate("expression.all") : translate("expression.any")}
+        width={`${data.width}px`}
+      >
+        {data.assetCondition === "or-gate" ? (
+          <TbLogicOr size={`${data.height}px`} />
+        ) : (
+          <TbLogicAnd size={`${data.height}px`} />
+        )}
+      </Box>
+    </NodeWrapper>
+  );
+};

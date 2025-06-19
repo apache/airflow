@@ -79,13 +79,13 @@ const createColumns = (
         <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
       </Link>
     ),
-    header: () => translate("list.columns.dagId"),
+    header: () => translate("dagId"),
   },
   {
     accessorKey: "timetable_description",
     cell: ({ row: { original } }) => <Schedule dag={original} />,
     enableSorting: false,
-    header: () => translate("list.columns.schedule"),
+    header: () => translate("dagDetails.schedule"),
   },
   {
     accessorKey: "next_dagrun",
@@ -96,7 +96,7 @@ const createColumns = (
           runAfter={original.next_dagrun_run_after as string}
         />
       ) : undefined,
-    header: () => translate("list.columns.nextDagRun"),
+    header: () => translate("dagDetails.nextRun"),
   },
   {
     accessorKey: "last_run_start_date",
@@ -114,7 +114,7 @@ const createColumns = (
           </RouterLink>
         </Link>
       ) : undefined,
-    header: () => translate("list.columns.lastDagRun"),
+    header: () => translate("dagDetails.latestRun"),
   },
   {
     accessorKey: "tags",
@@ -124,7 +124,7 @@ const createColumns = (
       },
     }) => <DagTags hideIcon tags={tags} />,
     enableSorting: false,
-    header: () => translate("list.columns.tags"),
+    header: () => translate("dagDetails.tags"),
   },
   {
     accessorKey: "trigger",
@@ -160,7 +160,7 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 const DAGS_LIST_DISPLAY = "dags_list_display";
 
 export const DagsList = () => {
-  const { t: translate } = useTranslation(["dags", "common"]);
+  const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
@@ -210,12 +210,12 @@ export const DagsList = () => {
     paused = false;
   }
 
-  const { data, error, isLoading } = useDags(dagRunsLimit, {
+  const { data, error, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
+    dagRunsLimit,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    onlyActive: true,
     orderBy,
     paused,
     tags: selectedTags,
@@ -242,13 +242,13 @@ export const DagsList = () => {
           buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder={translate("list.searchPlaceholder")}
+          placeHolder={translate("dags:search.dags")}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {`${data.total_entries} ${data.total_entries === 1 ? translate("common:dag_one") : translate("common:dag_other")}`}
+              {`${data?.total_entries ?? 0} ${(data?.total_entries ?? 0) === 1 ? translate("dag_one") : translate("dag_other")}`}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
@@ -262,15 +262,15 @@ export const DagsList = () => {
         <DataTable
           cardDef={cardDef}
           columns={columns}
-          data={data.dags}
+          data={data?.dags ?? []}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:dag_one")}
+          modelName={translate("dag_one")}
           onStateChange={setTableURLState}
           skeletonCount={display === "card" ? 5 : undefined}
-          total={data.total_entries}
+          total={data?.total_entries ?? 0}
         />
       </Box>
     </DagsLayout>

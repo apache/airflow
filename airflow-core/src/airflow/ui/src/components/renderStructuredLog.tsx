@@ -17,6 +17,7 @@
  * under the License.
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage } from "openapi/requests/types.gen";
@@ -45,6 +46,7 @@ type RenderStructuredLogProps = {
   logLink: string;
   logMessage: string | StructuredLogMessage;
   sourceFilters?: Array<string>;
+  translate: TFunction;
 };
 
 const addLinks = (line: string) => {
@@ -94,6 +96,7 @@ export const renderStructuredLog = ({
   logLink,
   logMessage,
   sourceFilters,
+  translate,
 }: RenderStructuredLogProps) => {
   if (typeof logMessage === "string") {
     return (
@@ -124,25 +127,6 @@ export const renderStructuredLog = ({
     return "";
   }
 
-  elements.push(
-    <RouterLink
-      id={index.toString()}
-      key={`line_${index}`}
-      style={{
-        display: "inline-block",
-        marginRight: "10px",
-        paddingRight: "5px",
-        textAlign: "right",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        width: "3em",
-      }}
-      to={`${logLink}#${index}`}
-    >
-      {index}
-    </RouterLink>,
-  );
-
   if (Boolean(timestamp)) {
     elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
   }
@@ -169,26 +153,27 @@ export const renderStructuredLog = ({
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => (
         <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
-          File <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>, line{" "}
-          {frame.lineno} in {frame.name}
+          {translate("components:logs.file")}{" "}
+          <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
+          {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
         </chakra.p>
       ));
 
       return (
-        <details key={error.exc_type} open={true} style={{ marginLeft: "20em" }}>
-          <summary data-testid={`summary-${error.exc_type}`}>
+        <chakra.details key={error.exc_type} ms="20em" open={true}>
+          <chakra.summary data-testid={`summary-${error.exc_type}`}>
             <chakra.span color="fg.info" cursor="pointer">
               {error.exc_type}: {error.exc_value}
             </chakra.span>
-          </summary>
+          </chakra.summary>
           {errorLines}
-        </details>
+        </chakra.details>
       );
     });
   }
 
   elements.push(
-    <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
+    <chakra.span className="event" key={2} whiteSpace="pre-wrap">
       {addLinks(event)}
     </chakra.span>,
   );
@@ -205,14 +190,33 @@ export const renderStructuredLog = ({
   }
 
   elements.push(
-    <chakra.span className="event" key={3} style={{ whiteSpace: "pre-wrap" }}>
+    <chakra.span className="event" key={3} whiteSpace="pre-wrap">
       {details}
     </chakra.span>,
   );
 
   return (
-    <chakra.div key={index} lineHeight={1.5}>
-      {elements}
+    <chakra.div display="flex" key={index} lineHeight={1.5}>
+      <RouterLink
+        id={index.toString()}
+        key={`line_${index}`}
+        style={{
+          display: "inline-block",
+          flexShrink: 0,
+          marginInlineEnd: "10px",
+          paddingInlineEnd: "5px",
+          textAlign: "end",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          width: "3em",
+        }}
+        to={`${logLink}#${index}`}
+      >
+        {index}
+      </RouterLink>
+      <chakra.span overflow="auto" whiteSpace="pre-wrap" width="100%">
+        {elements}
+      </chakra.span>
     </chakra.div>
   );
 };
