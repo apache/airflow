@@ -16,19 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-from uuid import UUID
+from datetime import datetime
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class FetchInteractiveResponsePayload(BaseModel):
-    """Schema for fetching an InteractiveResponse for a specific task instance."""
+class AddInteractiveResponsePayload(BaseModel):
+    """Schema for adding an InteractiveResponse for a specific Task Instance."""
 
-    ti_id: UUID
+    content: str
 
 
 class InteractiveResponse(BaseModel):
-    """Response for InteractiveResponse."""
+    """Schema for added InteractiveResponse."""
 
-    ti_id: UUID
-    content: str | None
+    ti_id: str
+    content: str
+    created_at: datetime
