@@ -301,7 +301,7 @@ class TestSmtpHook:
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
 
     @patch("smtplib.SMTP")
-    def test_send_mime_noauth(self, mock_smtp):
+    def test_send_mime_noauth(self, mock_smtp, create_connection_without_db):
         mock_smtp.return_value = Mock()
         conn = Connection(
             conn_id="smtp_noauth",
@@ -312,7 +312,7 @@ class TestSmtpHook:
             port=587,
             extra=json.dumps(dict(disable_ssl=True, from_email="from")),
         )
-        create_session(conn)
+        create_connection_without_db(conn)
         with SmtpHook(smtp_conn_id="smtp_noauth") as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
