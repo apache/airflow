@@ -47,8 +47,10 @@ class TestDbtCloudJobRunSensor:
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
-        conn = Connection(conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=ACCOUNT_ID, password=TOKEN)
-
+        # Connection
+        conn = Connection(
+            conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=str(ACCOUNT_ID), password=TOKEN
+        )
         create_connection_without_db(conn)
 
     def setup_class(self):

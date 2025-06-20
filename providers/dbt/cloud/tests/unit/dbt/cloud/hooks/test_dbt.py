@@ -158,7 +158,7 @@ class TestDbtCloudHook:
         account_id_conn = Connection(
             conn_id=ACCOUNT_ID_CONN,
             conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
+            login=str(DEFAULT_ACCOUNT_ID),
             password=TOKEN,
         )
 
@@ -173,7 +173,7 @@ class TestDbtCloudHook:
         host_conn = Connection(
             conn_id=SINGLE_TENANT_CONN,
             conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
+            login=str(DEFAULT_ACCOUNT_ID),
             password=TOKEN,
             host=SINGLE_TENANT_DOMAIN,
         )
@@ -182,7 +182,7 @@ class TestDbtCloudHook:
         proxy_conn = Connection(
             conn_id=PROXY_CONN,
             conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
+            login=str(DEFAULT_ACCOUNT_ID),
             password=TOKEN,
             host=SINGLE_TENANT_DOMAIN,
             extra=EXTRA_PROXIES,
