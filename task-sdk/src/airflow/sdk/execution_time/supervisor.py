@@ -749,7 +749,7 @@ class WatchedSubprocess:
             # to EOF case
             try:
                 need_more = socket_handler(key.fileobj)
-            except (BrokenPipeError, ConnectionResetError):
+            except (BrokenPipeError, ConnectionResetError, OSError):
                 need_more = False
 
             # If the handler signals that the file object is no longer needed (EOF, closed, etc.)

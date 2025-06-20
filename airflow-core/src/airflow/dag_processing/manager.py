@@ -351,9 +351,9 @@ class DagFileProcessorManager(LoggingMixin):
                 # if new files found in dag dir, add them
                 self.add_files_to_queue(known_files=known_files)
 
-            self._start_new_processes()
-
             self._service_processor_sockets(timeout=poll_time)
+
+            self._start_new_processes()
 
             self._collect_results()
 
@@ -396,7 +396,7 @@ class DagFileProcessorManager(LoggingMixin):
             # to EOF case
             try:
                 need_more = socket_handler(key.fileobj)
-            except (BrokenPipeError, ConnectionResetError):
+            except (BrokenPipeError, ConnectionResetError, OSError):
                 need_more = False
             if not need_more:
                 sock: socket = key.fileobj  # type: ignore[assignment]
