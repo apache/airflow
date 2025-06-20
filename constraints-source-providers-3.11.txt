@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-20T07:50:17.206108
+# This constraints file was automatically generated on 2025-06-20T13:59:47.491689
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -608,7 +608,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.14.1
-sqlalchemy-spanner==1.13.0
+sqlalchemy-spanner==1.13.1
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
