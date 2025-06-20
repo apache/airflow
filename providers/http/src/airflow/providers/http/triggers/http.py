@@ -33,6 +33,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from requests.auth import AuthBase
 
 
 class HttpTrigger(BaseTrigger):
@@ -66,11 +67,22 @@ class HttpTrigger(BaseTrigger):
         super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method
-        self.auth_type = auth_type
+        self.auth_type = self._resolve_auth_type(auth_type)
         self.endpoint = endpoint
         self.headers = headers
         self.data = data
         self.extra_options = extra_options
+
+    def _resolve_auth_type(self, auth_type: type[AuthBase] | str | None) -> type[AuthBase] | None:
+        if auth_type is None or not isinstance(auth_type, str):
+            return auth_type
+
+        try:
+            module_path, class_name = auth_type.rsplit(".", 1)
+            module = __import__(module_path, fromlist=[class_name])
+            return getattr(module, class_name)
+        except (ValueError, ImportError, AttributeError) as e:
+            raise ImportError(f"Cannot import auth_type: {auth_type}") from e
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -79,13 +91,24 @@ class HttpTrigger(BaseTrigger):
             {
                 "http_conn_id": self.http_conn_id,
                 "method": self.method,
-                "auth_type": self.auth_type,
+                "auth_type": self._serialize_auth_type(),
                 "endpoint": self.endpoint,
                 "headers": self.headers,
                 "data": self.data,
                 "extra_options": self.extra_options,
             },
         )
+
+    def _serialize_auth_type(self) -> str | None:
+        """
+        Serialize auth_type to string representation for trigger serialization.
+
+        Returns:
+            String representation of the auth_type class or None
+        """
+        if self.auth_type is None:
+            return None
+        return f"{self.auth_type.__module__}.{self.auth_type.__qualname__}"
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via a http hook."""
