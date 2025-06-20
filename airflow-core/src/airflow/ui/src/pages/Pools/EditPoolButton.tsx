@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Heading, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
@@ -31,6 +32,7 @@ type Props = {
 };
 
 const EditPoolButton = ({ pool }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const initialPoolValue: PoolBody = {
     description: pool.description ?? "",
@@ -50,19 +52,19 @@ const EditPoolButton = ({ pool }: Props) => {
   return (
     <>
       <ActionButton
-        actionName="Edit Pool"
+        actionName={translate("pools.edit")}
         icon={<FiEdit />}
         onClick={() => {
           onOpen();
         }}
-        text="Edit Pool"
+        text={translate("pools.edit")}
         withText={false}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Edit Pool</Heading>
+            <Heading size="xl">{translate("pools.edit")}</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />

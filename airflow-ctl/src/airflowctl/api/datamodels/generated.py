@@ -468,6 +468,17 @@ class DagWarningType(str, Enum):
     NON_EXISTENT_POOL = "non-existent pool"
 
 
+class DeadlineAlertResponse(BaseModel):
+    """
+    Deadline alert serializer for responses.
+    """
+
+    reference: Annotated[str, Field(title="Reference")]
+    interval: Annotated[timedelta, Field(title="Interval")]
+    callback: Annotated[str, Field(title="Callback")]
+    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -754,6 +765,20 @@ class TaskDependencyResponse(BaseModel):
     reason: Annotated[str, Field(title="Reason")]
 
 
+class TaskInletAssetReference(BaseModel):
+    """
+    Task inlet reference serializer for assets.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    created_at: Annotated[datetime, Field(title="Created At")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+
+
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -1028,8 +1053,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
+    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None
 
@@ -1215,6 +1241,7 @@ class DAGDetailsResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1271,6 +1298,7 @@ class DAGResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]

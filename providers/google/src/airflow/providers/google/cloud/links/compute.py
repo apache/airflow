@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 COMPUTE_BASE_LINK = "https://console.cloud.google.com/compute"
 COMPUTE_LINK = (
@@ -44,24 +38,6 @@ class ComputeInstanceDetailsLink(BaseGoogleLink):
     key = "compute_instance_details"
     format_str = COMPUTE_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        location_id: str,
-        resource_id: str | None,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=ComputeInstanceDetailsLink.key,
-            value={
-                "location_id": location_id,
-                "resource_id": resource_id,
-                "project_id": project_id,
-            },
-        )
-
 
 class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
     """Helper class for constructing Compute Instance Template details Link."""
@@ -70,22 +46,6 @@ class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
     key = "compute_instance_template_details"
     format_str = COMPUTE_TEMPLATE_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        resource_id: str | None,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=ComputeInstanceTemplateDetailsLink.key,
-            value={
-                "resource_id": resource_id,
-                "project_id": project_id,
-            },
-        )
-
 
 class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
     """Helper class for constructing Compute Instance Group Manager details Link."""
@@ -93,21 +53,3 @@ class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
     name = "Compute Instance Group Manager"
     key = "compute_instance_group_manager_details"
     format_str = COMPUTE_GROUP_MANAGER_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        location_id: str,
-        resource_id: str | None,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=ComputeInstanceGroupManagerDetailsLink.key,
-            value={
-                "location_id": location_id,
-                "resource_id": resource_id,
-                "project_id": project_id,
-            },
-        )

@@ -44,6 +44,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
+    BulkResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -125,8 +126,9 @@ class TestAssetsOperations:
         extra={"extra": "extra"},
         created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        consuming_dags=[],
+        scheduled_dags=[],
         producing_tasks=[],
+        consuming_tasks=[],
         aliases=[],
         group="group",
     )
@@ -1054,9 +1056,10 @@ class TestVariablesOperations:
             )
         ]
     )
-    variable_bulk_response = BulkActionResponse(
-        success=[key],
-        errors=[],
+    variable_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[key], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
