@@ -1277,7 +1277,7 @@ repos:
         types: [go]
         pass_filenames: false
         language: docker_image
-      - id: go-tidy
+      - id: go-mod-tidy
         name: Run go mod tidy
         entry: bash -c "cd go-sdk && go mod tidy"
         files: ^go-sdk/
