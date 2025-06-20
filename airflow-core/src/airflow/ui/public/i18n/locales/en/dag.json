@@ -47,6 +47,7 @@
   "panel": {
     "buttons": {
       "options": "Options",
+      "showGantt": "Show Gantt",
       "showGraph": "Show Graph",
       "showGrid": "Show Grid"
     },

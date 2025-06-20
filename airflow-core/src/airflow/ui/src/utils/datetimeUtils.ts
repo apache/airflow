@@ -49,7 +49,7 @@ export const getDuration = (startDate?: string | null, endDate?: string | null) 
 };
 
 export const formatDate = (
-  date: string | null | undefined,
+  date: number | string | null | undefined,
   timezone: string,
   format: string = "YYYY-MM-DD HH:mm:ss",
 ) => {

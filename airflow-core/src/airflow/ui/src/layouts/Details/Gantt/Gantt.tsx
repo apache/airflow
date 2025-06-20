@@ -60,17 +60,21 @@ ChartJS.register(
   TimeScale,
 );
 
-const CHART_PADDING = 38;
+type Props = {
+  readonly limit: number;
+};
+
+const CHART_PADDING = 36;
 const CHART_ROW_HEIGHT = 20;
 
-export const Gantt = () => {
+export const Gantt = ({ limit }: Props) => {
   const { groupId: selectedGroupId, runId, taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
   const ref = useRef();
 
-  const { data: gridData, isLoading } = useGrid();
+  const { data: gridData, isLoading } = useGrid(limit);
 
   const { flatNodes } = useMemo(
     () => flattenNodes(gridData === undefined ? [] : gridData.structure.nodes, openGroupIds),
@@ -99,9 +103,10 @@ export const Gantt = () => {
   }));
 
   const fixedHeight = data.length * CHART_ROW_HEIGHT + CHART_PADDING;
+  const selectedId = selectedTaskId ?? selectedGroupId;
 
   return (
-    <Box height={`${fixedHeight}px`} mt={0.5}>
+    <Box height={`${fixedHeight}px`} minW="300px" mt={36} w="100%">
       <Bar
         data={{
           datasets: [
@@ -118,13 +123,15 @@ export const Gantt = () => {
         }}
         datasetIdKey="id"
         options={{
-          animation: false,
+          animation: {
+            duration: 100,
+          },
           indexAxis: "y",
           maintainAspectRatio: false,
           plugins: {
             annotation: {
               annotations:
-                selectedTaskId === undefined && selectedGroupId === undefined
+                selectedId === undefined
                   ? []
                   : [
                       {
@@ -135,14 +142,8 @@ export const Gantt = () => {
                         type: "box",
                         xMax: "max",
                         xMin: "min",
-                        yMax:
-                          selectedTaskId === undefined
-                            ? data.findIndex((dataItem) => dataItem.y === selectedGroupId) + 0.5
-                            : data.findIndex((dataItem) => dataItem.y === selectedTaskId) + 0.5,
-                        yMin:
-                          selectedTaskId === undefined
-                            ? data.findIndex((dataItem) => dataItem.y === selectedGroupId) - 0.5
-                            : data.findIndex((dataItem) => dataItem.y === selectedTaskId) - 0.5,
+                        yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
+                        yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
                       },
                     ],
             },
@@ -181,10 +182,10 @@ export const Gantt = () => {
               stacked: true,
               ticks: {
                 align: "start",
-                callback: (value) => formatDate(value.toString(), selectedTimezone, "HH:mm:ss"),
-                maxRotation: 12,
+                callback: (value) => formatDate(value, selectedTimezone, "HH:mm:ss"),
+                maxRotation: 10,
                 maxTicksLimit: 8,
-                minRotation: 12,
+                minRotation: 10,
               },
               type: "time",
             },
