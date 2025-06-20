@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -51,7 +52,17 @@ BUNDLE_NAME = "dag_maker"
 @pytest.fixture(scope="class")
 @provide_session
 def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
+    orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
+    session.merge(orm_dag_bundle)
+    session.flush()
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        bundle_name=BUNDLE_NAME,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id1",
+        is_paused=False,
+    )
+
     session.add(dag_model)
     session.commit()
     return dag_model
@@ -60,7 +71,16 @@ def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
 @pytest.fixture(scope="class")
 @provide_session
 def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
+    orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
+    session.merge(orm_dag_bundle)
+    session.flush()
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        bundle_name=BUNDLE_NAME,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id4",
+        is_paused=False,
+    )
     session.add(dag_model)
     session.commit()
     return dag_model

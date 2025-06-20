@@ -438,10 +438,13 @@ class TestGetAssets(TestAssets):
         assert expected_assets == asset_urls
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "testing"
+
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -453,9 +456,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
@@ -473,12 +476,15 @@ class TestGetAssets(TestAssets):
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
         self, test_client, dag_ids, uri_pattern, expected_num, session
     ):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "testing"
+
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -490,9 +496,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
