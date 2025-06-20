@@ -630,7 +630,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("xcom result file is empty.")
             return None
 
-        self.log.info("xcom result: \n%s", result)
+        self.log.debug("xcom result: \n%s", result)
         return json.loads(result)
 
     def execute(self, context: Context):

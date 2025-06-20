@@ -355,6 +355,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
     :param deferrable: Run operator in the deferrable mode.
+    :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
@@ -381,6 +382,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        snowflake_api_retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id
@@ -390,6 +392,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
         self.execute_async = False
+        self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
         self.query_ids: list[str] = []
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
@@ -412,6 +415,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             token_life_time=self.token_life_time,
             token_renewal_delta=self.token_renewal_delta,
             deferrable=self.deferrable,
+            api_retry_args=self.snowflake_api_retry_args,
             **self.hook_params,
         )
 

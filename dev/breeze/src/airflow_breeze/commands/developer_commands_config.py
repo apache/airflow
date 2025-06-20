@@ -149,6 +149,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-extras",
                 "--airflow-skip-constraints",
                 "--clean-airflow-installation",
+                "--force-lowest-dependencies",
+                "--test-type",
                 "--excluded-providers",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",

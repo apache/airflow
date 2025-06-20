@@ -56,7 +56,9 @@ class TestDbtCloudJobRunSensor:
         )
 
         # Connection
-        conn = Connection(conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=ACCOUNT_ID, password=TOKEN)
+        conn = Connection(
+            conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=str(ACCOUNT_ID), password=TOKEN
+        )
 
         db.merge_conn(conn)
 

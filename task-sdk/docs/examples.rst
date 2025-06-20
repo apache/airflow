@@ -18,16 +18,8 @@
 Examples
 ========
 
-Basic Examples
---------------
-
-Define a basic DAG and task in just a few lines of Python:
-
-.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_simplest_dag.py
-   :language: python
-   :start-after: [START simplest_dag]
-   :end-before: [END simplest_dag]
-   :caption: Simplest DAG with :func:`@dag <airflow.sdk.dag>` and :func:`@task <airflow.sdk.task>`
+.. note:: For a minimal quick start, see the `Getting Started <../index.rst#getting-started>`_ section.
+  (Includes a simplest DAG example for first-time users.)
 
 Key Concepts
 ------------
@@ -84,3 +76,61 @@ Assets
    :start-after: [START example_asset_alias]
    :end-before: [END example_asset_alias]
    :caption: Defining asset aliases with :class:`AssetAlias <airflow.sdk.AssetAlias>`.
+
+TaskFlow API Tutorial
+---------------------
+
+This section provides a concise, code-first view. For the full tutorial and context,
+see the `core TaskFlow tutorial <../../airflow-core/docs/tutorial/taskflow.rst>`_.
+
+Step 1: Define the DAG
+----------------------
+
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+   :language: python
+   :start-after: [START instantiate_dag]
+   :end-before: [END instantiate_dag]
+   :caption: Defining the DAG with the :func:`@dag <airflow.sdk.dag>` decorator
+
+Step 2: Write your Tasks
+------------------------
+
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+   :language: python
+   :dedent: 4
+   :start-after: [START extract]
+   :end-before: [END extract]
+   :caption: Extract task to load data
+
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+   :language: python
+   :dedent: 4
+   :start-after: [START transform]
+   :end-before: [END transform]
+   :caption: Transform task to process data
+
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+   :language: python
+   :dedent: 4
+   :start-after: [START load]
+   :end-before: [END load]
+   :caption: Load task to output results
+
+Step 3: Build the Flow
+----------------------
+
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+   :language: python
+   :dedent: 4
+   :start-after: [START main_flow]
+   :end-before: [END main_flow]
+   :caption: Connecting tasks by invoking them like normal Python functions
+
+Step 4: Invoke the DAG
+----------------------
+
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+   :language: python
+   :start-after: [START dag_invocation]
+   :end-before: [END dag_invocation]
+   :caption: Registering the DAG by calling the decorated function

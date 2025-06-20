@@ -20,16 +20,26 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 from httpx import URL
-from platformdirs import user_config_path
 
 from airflowctl.api.client import Client, ClientKind, Credentials
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import AirflowCtlNotFoundException
+
+
+@pytest.fixture(autouse=True)
+def unique_config_dir():
+    temp_dir = tempfile.mkdtemp()
+    try:
+        with patch.dict(os.environ, {"AIRFLOW_HOME": temp_dir}, clear=True):
+            yield
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 class TestClient:
@@ -92,8 +102,6 @@ class TestClient:
 
 
 class TestCredentials:
-    default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE"})
     @patch("airflowctl.api.client.keyring")
@@ -106,8 +114,9 @@ class TestCredentials:
         )
         credentials.save()
 
-        assert os.path.exists(self.default_config_dir)
-        with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        assert os.path.exists(config_dir)
+        with open(os.path.join(config_dir, f"{env}.json")) as f:
             credentials = Credentials(client_kind=cli_client).load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
@@ -125,7 +134,8 @@ class TestCredentials:
             api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env, client_kind=cli_client
         )
         credentials.save()
-        with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        with open(os.path.join(config_dir, f"{env}.json")) as f:
             credentials = Credentials(client_kind=cli_client).load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
@@ -146,9 +156,10 @@ class TestCredentials:
     @patch("airflowctl.api.client.keyring")
     def test_load_no_credentials(self, mock_keyring):
         cli_client = ClientKind.CLI
-        if os.path.exists(self.default_config_dir):
-            shutil.rmtree(self.default_config_dir)
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        if os.path.exists(config_dir):
+            shutil.rmtree(config_dir)
         with pytest.raises(AirflowCtlNotFoundException):
             Credentials(client_kind=cli_client).load()
 
-        assert not os.path.exists(self.default_config_dir)
+        assert not os.path.exists(config_dir)

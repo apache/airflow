@@ -54,8 +54,8 @@ if __name__ == "__main__":
     if any("/openapi/" in file for file in original_files):
         run_command(["pnpm", "codegen"], cwd=dir)
     if all_non_yaml_files:
-        run_command(["pnpm", "prettier", "--write", *all_non_yaml_files], cwd=dir)
         run_command(["pnpm", "eslint", "--fix", *all_non_yaml_files], cwd=dir)
+        run_command(["pnpm", "prettier", "--write", *all_non_yaml_files], cwd=dir)
     if all_ts_files:
         with temporary_tsc_project(dir / "tsconfig.app.json", all_ts_files) as tsc_project:
             run_command(["pnpm", "tsc", "--p", tsc_project.name], cwd=dir)

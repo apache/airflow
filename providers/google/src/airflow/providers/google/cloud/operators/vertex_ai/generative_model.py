@@ -22,7 +22,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
+from google.api_core import exceptions
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
+    ExperimentRunHook,
+    GenerativeModelHook,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
@@ -580,3 +586,68 @@ class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
         self.log.info("Cached Content Response: %s", cached_content_text)
 
         return cached_content_text
+
+
+class DeleteExperimentRunOperator(GoogleCloudBaseOperator):
+    """
+    Use the Rapid Evaluation API to evaluate a model.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param experiment_name: Required. The name of the evaluation experiment.
+    :param experiment_run_name: Required. The specific run name or ID for this experiment.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "experiment_name",
+        "experiment_run_name",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        experiment_name: str,
+        experiment_run_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.experiment_name = experiment_name
+        self.experiment_run_name = experiment_run_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> None:
+        self.hook = ExperimentRunHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        try:
+            self.hook.delete_experiment_run(
+                project_id=self.project_id,
+                location=self.location,
+                experiment_name=self.experiment_name,
+                experiment_run_name=self.experiment_run_name,
+            )
+        except exceptions.NotFound:
+            raise AirflowException(f"Experiment Run with name {self.experiment_run_name} not found")
+
+        self.log.info("Deleted experiment run: %s", self.experiment_run_name)

@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.17.0 (2025-06-20)
+Airflow Helm Chart 1.17.0 (2025-06-21)
 --------------------------------------
 
 Significant Changes
@@ -54,6 +54,9 @@ Bug Fixes
 - Add the dag processor ServiceAccount to SecurityContextConstraints role binding (#51080)
 - Generate JWT secret during HELM install (#49923)
 - Always deploy JWT secret (#51799)
+- Add missing ``workers.kerberosInitContainer`` configuration in values (#51405)
+- Truncate the executor label length (#51817)
+- Fix execution_api_server_url when base_url has a subpath (#51454)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^

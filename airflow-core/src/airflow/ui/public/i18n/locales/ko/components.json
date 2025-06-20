@@ -1,0 +1,131 @@
+{
+  "backfill": {
+    "affected_one": "1개의 실행이 트리거됩니다.",
+    "affected_other": "{{count}}개의 실행이 트리거됩니다.",
+    "affectedNone": "선택한 조건과 일치하는 실행이 없습니다.",
+    "backwards": "거꾸로 실행",
+    "dateRange": "날짜 범위",
+    "dateRangeFrom": "시작",
+    "dateRangeTo": "종료",
+    "errorStartDateBeforeEndDate": "시작일은 종료일보다 빨라야 합니다.",
+    "maxRuns": "최대 활성 실행 수",
+    "reprocessBehavior": "재처리 동작",
+    "run": "백필 실행",
+    "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
+    "selectLabel": "백필",
+    "title": "백필 실행",
+    "toaster": {
+      "success": {
+        "description": "백필 작업이 성공적으로 트리거되었습니다.",
+        "title": "백필 생성됨"
+      }
+    },
+    "tooltip": "백필에는 일정이 필요합니다.",
+    "unpause": "트리거 시 {{dag_display_name}} 일시 중지 해제",
+    "validation": {
+      "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",
+      "startBeforeEnd": "데이터 구간 시작일은 데이터 구간 종료일보다 작거나 같아야 합니다."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "백필 진행 중",
+    "cancel": "백필 취소",
+    "pause": "백필 일시 중지",
+    "unpause": "백필 일시 중지 해제"
+  },
+  "clipboard": {
+    "copy": "복사"
+  },
+  "close": "닫기",
+  "configForm": {
+    "advancedOptions": "고급 옵션",
+    "configJson": "구성 JSON",
+    "invalidJson": "잘못된 JSON 형식: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "오류 1개",
+    "errorAndWarning": "오류 1개 및 {{warningText}}",
+    "warning_one": "경고 1개",
+    "warning_other": "경고 {{count}}개"
+  },
+  "durationChart": {
+    "duration": "기간 (초)",
+    "lastDagRun_one": "마지막 Dag 실행",
+    "lastDagRun_other": "마지막 {{count}}개 Dag 실행",
+    "lastTaskInstance_one": "마지막 작업 인스턴스",
+    "lastTaskInstance_other": "마지막 {{count}}개 작업 인스턴스",
+    "queuedDuration": "대기열 대기 시간",
+    "runAfter": "실행 후",
+    "runDuration": "실행 기간"
+  },
+  "fileUpload": {
+    "files_other": "{{count}}개 파일"
+  },
+  "flexibleForm": {
+    "placeholder": "값 선택",
+    "placeholderArray": "각 문자열을 새 줄에 입력하세요.",
+    "placeholderExamples": "입력하여 옵션 보기",
+    "placeholderMulti": "하나 또는 여러 값 선택",
+    "validationErrorArrayNotArray": "값은 배열이어야 합니다.",
+    "validationErrorArrayNotNumbers": "배열의 모든 요소는 숫자여야 합니다.",
+    "validationErrorArrayNotObject": "배열의 모든 요소는 객체여야 합니다.",
+    "validationErrorRequired": "이 필드는 필수입니다."
+  },
+  "graph": {
+    "directionDown": "위에서 아래로",
+    "directionLeft": "오른쪽에서 왼쪽으로",
+    "directionRight": "왼쪽에서 오른쪽으로",
+    "directionUp": "아래에서 위로",
+    "downloadImage": "그래프 이미지 다운로드",
+    "downloadImageError": "그래프 이미지를 다운로드하지 못했습니다.",
+    "downloadImageErrorTitle": "다운로드 실패",
+    "otherDagRuns": "+다른 Dag 실행",
+    "taskCount_one": "{{count}}개 작업",
+    "taskCount_other": "{{count}}개 작업",
+    "taskGroup": "작업 그룹"
+  },
+  "limitedList": "+{{count}}개 더 보기",
+  "logs": {
+    "file": "파일",
+    "location": "{{name}}의 {{line}}번째 줄"
+  },
+  "reparseDag": "Dag 재구문 분석",
+  "sortedAscending": "오름차순 정렬됨",
+  "sortedDescending": "내림차순 정렬됨",
+  "sortedUnsorted": "정렬되지 않음",
+  "taskTries": "작업 시도 횟수",
+  "toggleCardView": "카드 보기 표시",
+  "toggleTableView": "테이블 보기 표시",
+  "triggerDag": {
+    "button": "트리거",
+    "loading": "DAG 정보 로드 중...",
+    "loadingFailed": "DAG 정보를 로드하지 못했습니다. 다시 시도해주세요.",
+    "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
+    "selectDescription": "이 Dag을(를) 단일 실행 트리거",
+    "selectLabel": "단일 실행",
+    "title": "Dag 트리거",
+    "toaster": {
+      "success": {
+        "description": "Dag 실행이 성공적으로 트리거되었습니다.",
+        "title": "Dag 실행 트리거됨"
+      }
+    },
+    "unpause": "트리거 시 {{dagDisplayName}} 일시 중지 해제"
+  },
+  "trimText": {
+    "details": "세부 정보",
+    "empty": "비어 있음",
+    "noContent": "내용 없음."
+  },
+  "versionDetails": {
+    "bundleLink": "번들 링크",
+    "bundleName": "번들 이름",
+    "bundleVersion": "번들 버전",
+    "createdAt": "생성 시간",
+    "versionId": "버전 ID"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag 버전",
+    "versionCode": "v{{versionCode}}"
+  }
+}

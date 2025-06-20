@@ -33,6 +33,7 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
     CreateCachedContentOperator,
+    DeleteExperimentRunOperator,
     GenerateFromCachedContentOperator,
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
@@ -238,6 +239,16 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
+    # [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
+    delete_experiment_run = DeleteExperimentRunOperator(
+        task_id="delete_experiment_run_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        experiment_name=EXPERIMENT_NAME,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+    )
+    # [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
+
     # [START how_to_cloud_vertex_ai_create_cached_content_operator]
     create_cached_content_task = CreateCachedContentOperator(
         task_id="create_cached_content_task",
@@ -264,6 +275,7 @@ with DAG(
     # [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
 
     create_cached_content_task >> generate_from_cached_content_task
+    run_evaluation_task >> delete_experiment_run
 
     from tests_common.test_utils.watcher import watcher
 

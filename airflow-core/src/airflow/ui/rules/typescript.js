@@ -38,6 +38,7 @@ export const typescriptNamespace = "@typescript-eslint";
  * @see [@typescript-eslint/eslint-plugin](https://typescript-eslint.io/rules/)
  */
 export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
+  files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
   languageOptions: {
     parser: typescriptParser,
     parserOptions: {

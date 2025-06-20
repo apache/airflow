@@ -94,7 +94,9 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    ResendLoggingFD,
     RetryTask,
+    SentFDs,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -114,6 +116,11 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.secrets_masker import mask_secret
+
+try:
+    from socket import send_fds
+except ImportError:
+    send_fds = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -1218,6 +1225,12 @@ class ActivitySubprocess(WatchedSubprocess):
             inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
             resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
             dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, ResendLoggingFD):
+            # We need special handling here!
+            if send_fds is not None:
+                self._send_new_log_fd(req_id)
+                # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
+                return
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1231,6 +1244,31 @@ class ActivitySubprocess(WatchedSubprocess):
             return
 
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
+    def _send_new_log_fd(self, req_id: int) -> None:
+        if send_fds is None:
+            raise RuntimeError("send_fds is not available on this platform")
+        child_logs, read_logs = socketpair()
+
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        if self.subprocess_logs_to_stdout:
+            target_loggers += (log,)
+
+        self.selector.register(
+            read_logs,
+            selectors.EVENT_READ,
+            make_buffered_socket_reader(
+                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+            ),
+        )
+        # We don't explicitly close the old log socket, that will get handled for us if/when the other end is
+        # closed (such as `sudo` would do for us automatically.) This also means that this feature _can_ be
+        # used outside of a exec context if it is useful, as we can then have multiple things sending us logs,
+        # such as the task process and it's launched subprocess.
+
+        frame = _ResponseFrame(id=req_id, body=SentFDs(fds=[child_logs.fileno()]).model_dump())
+        send_fds(self.stdin, [frame.as_bytes()], [child_logs.fileno()])
+        child_logs.close()  # Close this end now.
 
 
 def in_process_api_server():

@@ -32,6 +32,59 @@ The Task API however does not provide a means to get the `ExecuteTaskWorkload` t
 
 Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow go to be interpreted) all tasks must be a) compiled in to the binary, and b) "registered" inside the worker process in order to be executed.
 
+## Quick Testing Setup
+
+The Go SDK currently works with Airflow's Celery Executor setup. Here's how to get started:
+
+### Prerequisites
+
+- Go 1.21 or later
+- Docker and Docker Compose (for Breeze)
+- Redis (for Celery broker)
+
+### Step 1: Start Airflow with Celery Executor
+
+Start Breeze with Celery executor:
+
+```bash
+breeze start-airflow --backend postgres --executor CeleryExecutor --load-example-dags
+```
+
+This will start:
+
+- Airflow API Server on `http://localhost:28080`
+- Celery workers (we will not utilise this)
+- Redis broker on `localhost:26379`
+- Loads the example DAGs
+
+### Step 2: Stop the Celery Worker
+
+We want to run the go workers instead of running the Celery ones. So in `breeze`, press CTRL+C to
+stop the Celery workers.
+
+### Step 3: Run the Go SDK Worker
+
+From the `go-sdk` directory, run the example worker:
+
+```bash
+go run ./example/main.go run \
+  --broker-address=localhost:26379 \
+  --queues default \
+  --execution-api-url http://localhost:28080/execution
+```
+
+**Parameters explained:**
+
+- `--broker-address=localhost:26379`: Redis broker address (default Celery broker)
+- `--queues default`: Queue name where Celery enqueues tasks
+- `--execution-api-url http://localhost:28080/execution`: Airflow's Task Execution API endpoint
+
+### Step 4: Submit a Test Task
+
+You can submit tasks through the Airflow UI for dag_id: `tutorial_dag`. The Go worker will pick up tasks from the Celery queue and execute them using the Task Execution Interface.
+
+Observe the logs in the terminal where you run the test task.
+
 ## Current state
 
 This SDK currently will:

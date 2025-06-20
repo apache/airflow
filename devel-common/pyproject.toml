@@ -143,6 +143,11 @@ dependencies = [
     "blinker>=1.7.0",
     "beautifulsoup4>=4.7.1",
 ]
+"sqlalchemy" = [
+    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    "sqlalchemy-jsonfield>=1.0",
+    "sqlalchemy-utils>=0.41.2",
+]
 "basic" = [
     "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
 ]
@@ -150,7 +155,7 @@ dependencies = [
     "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"
 ]
 "all" = [
-    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry]",
+    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry,sqlalchemy]",
 ]
 
 [dependency-groups]

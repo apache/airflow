@@ -33,6 +33,7 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "structlog>=25.2.0",
     "uuid6>=2024.7.10",
+    "eval-type-backport>=0.2.0; python_version == '3.9'",
 ]
 
 classifiers = [

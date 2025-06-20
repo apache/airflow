@@ -40,7 +40,9 @@ from rich.table import Table
 click.rich_click.MAX_WIDTH = 120
 click.rich_click.USE_RICH_MARKUP = True
 
-LOCALES_DIR = Path(__file__).parent / "locales"
+LOCALES_DIR = (
+    Path(__file__).parents[2] / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
+)
 
 
 class LocaleSummary(NamedTuple):

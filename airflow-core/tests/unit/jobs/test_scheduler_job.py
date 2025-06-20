@@ -3393,7 +3393,6 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
         self.job_runner._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
@@ -3410,7 +3409,7 @@ class TestSchedulerJob:
 
         # Now let's say the DAG got updated (new task got added)
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(dag=dag, bundle_name="dag_maker", session=session)
         session.commit()
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
@@ -5630,7 +5629,7 @@ class TestSchedulerJob:
         assert len(tis) == 1
 
         BashOperator(task_id="dummy2", dag=dag, bash_command="echo test")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(dag=dag, bundle_name="dag_maker", session=session)
         session.commit()
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()

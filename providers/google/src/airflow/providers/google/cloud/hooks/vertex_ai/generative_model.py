@@ -24,6 +24,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import vertexai
+from google.cloud import aiplatform
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.preview.caching import CachedContent
@@ -359,3 +360,32 @@ class GenerativeModelHook(GoogleBaseHook):
         )
 
         return response.text
+
+
+class ExperimentRunHook(GoogleBaseHook):
+    """Use the Vertex AI SDK for Python to create and manage your experiment runs."""
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_experiment_run(
+        self,
+        experiment_run_name: str,
+        experiment_name: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        delete_backing_tensorboard_run: bool = False,
+    ) -> None:
+        """
+        Delete experiment run from the experiment.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param experiment_name: Required. The name of the evaluation experiment.
+        :param experiment_run_name: Required. The specific run name or ID for this experiment.
+        :param delete_backing_tensorboard_run: Whether to delete the backing Vertex AI TensorBoard run
+            that stores time series metrics for this run.
+        """
+        self.log.info("Next experiment run will be deleted: %s", experiment_run_name)
+        experiment_run = aiplatform.ExperimentRun(
+            run_name=experiment_run_name, experiment=experiment_name, project=project_id, location=location
+        )
+        experiment_run.delete(delete_backing_tensorboard_run=delete_backing_tensorboard_run)
