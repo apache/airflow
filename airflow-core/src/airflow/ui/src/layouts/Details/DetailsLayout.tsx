@@ -130,7 +130,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 h="100%"
                 justifyContent="center"
                 position="relative"
-                w={2}
+                w={0.5}
               >
                 <IconButton
                   aria-label="Collapse details panel"
