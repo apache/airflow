@@ -26,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import DagRun
-from airflow.models.deadline import Deadline, _fetch_from_db
+from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
@@ -91,7 +91,8 @@ class TestDeadline:
             dagrun_id=dagrun.id,
         )
 
-        Deadline.add_deadline(deadline_orm)
+        session.add(deadline_orm)
+        session.flush()
 
         assert session.query(Deadline).count() == 1
 
@@ -245,7 +246,7 @@ class TestCalculatedDeadlineDatabaseCalls:
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), None, id="fixed_deadline"),
         ],
     )
-    def test_deadline_database_integration(self, reference, expected_column):
+    def test_deadline_database_integration(self, reference, expected_column, session):
         """
         Test database integration for all deadline types.
 
@@ -260,10 +261,65 @@ class TestCalculatedDeadlineDatabaseCalls:
             mock_fetch.return_value = DEFAULT_DATE
 
             if expected_column is not None:
-                result = reference.evaluate_with(interval=interval, **conditions)
-                mock_fetch.assert_called_once_with(expected_column, **conditions)
+                result = reference.evaluate_with(session=session, interval=interval, **conditions)
+                mock_fetch.assert_called_once_with(expected_column, session=session, **conditions)
             else:
-                result = reference.evaluate_with(interval=interval)
+                result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
 
             assert result == DEFAULT_DATE + interval
+
+
+class TestDeadlineReference:
+    """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""
+
+    DEFAULT_INTERVAL = timedelta(hours=1)
+    DEFAULT_ARGS = {"interval": DEFAULT_INTERVAL}
+
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    @pytest.mark.db_test
+    def test_deadline_evaluate_with(self, reference, session):
+        """Test that all deadline types evaluate correctly with their required conditions."""
+        conditions = {
+            "dag_id": DAG_ID,
+            "unexpected": "param",  # Add an unexpected parameter.
+            "extra": "kwarg",  # Add another unexpected parameter.
+        }
+
+        with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
+            mock_evaluate.return_value = DEFAULT_DATE
+
+            if reference.required_kwargs:
+                result = reference.evaluate_with(**self.DEFAULT_ARGS, session=session, **conditions)
+            else:
+                result = reference.evaluate_with(**self.DEFAULT_ARGS, session=session)
+
+            # Verify only expected kwargs are passed through.
+            expected_kwargs = {k: conditions[k] for k in reference.required_kwargs if k in conditions}
+            expected_kwargs["session"] = session
+            mock_evaluate.assert_called_once_with(**expected_kwargs)
+            assert result == DEFAULT_DATE + self.DEFAULT_INTERVAL
+
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    def test_deadline_missing_required_kwargs(self, reference, session):
+        """Test that deadlines raise appropriate errors for missing required parameters."""
+        if reference.required_kwargs:
+            with pytest.raises(ValueError) as e:
+                reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
+            expected_error = f"{reference.__class__.__name__} is missing required parameters: dag_id"
+            assert expected_error in str(e)
+        else:
+            # Let the lack of an exception here effectively assert that no exception is raised.
+            reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
+
+    def test_deadline_reference_creation(self):
+        """Test that DeadlineReference provides consistent interface and types."""
+        fixed_reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
+        assert isinstance(fixed_reference, ReferenceModels.FixedDatetimeDeadline)
+        assert fixed_reference._datetime == DEFAULT_DATE
+
+        logical_date_reference = DeadlineReference.DAGRUN_LOGICAL_DATE
+        assert isinstance(logical_date_reference, ReferenceModels.DagRunLogicalDateDeadline)
+
+        queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
+        assert isinstance(queued_reference, ReferenceModels.DagRunQueuedAtDeadline)

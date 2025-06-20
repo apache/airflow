@@ -1623,9 +1623,10 @@ class DAG(TaskSDKDag, LoggingMixin):
         )
 
         if dag_deadline := self.get_dagrun_creation_deadlines():
-            Deadline.add_deadline(
+            session.add(
                 Deadline(
                     deadline_time=dag_deadline.reference.evaluate_with(
+                        session=session,
                         interval=dag_deadline.interval,
                         dag_id=self.dag_id,
                     ),
@@ -2049,7 +2050,7 @@ class DagModel(Base):
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
-        self._deadline = None if value is None else value.serialize_deadline_alert()
+        self._deadline = value if isinstance(value, dict) else value.serialize_deadline_alert()
 
     @property
     def timezone(self):

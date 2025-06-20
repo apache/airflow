@@ -1286,33 +1286,6 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
-    def test_dagrun_queued_at_deadline(self, dag_maker, session):
-        interval = datetime.timedelta(hours=1)
-        with dag_maker(
-            dag_id="test_queued_deadline",
-            schedule=datetime.timedelta(days=1),
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.DAGRUN_QUEUED_AT,
-                interval=interval,
-                callback=test_callback_for_deadline,
-            ),
-        ) as dag:
-            ...
-        # Create the DAG run first without any deadline.
-        dag_run = dag_maker.create_dagrun()
-        dag_run = session.merge(dag_run)
-        dag_run.dag = dag
-        assert not dag_run.deadlines  # No deadline should exist yet.
-
-        # Now set the state to QUEUED which will trigger the deadline evaluation.
-        dag_run.set_state(DagRunState.QUEUED)
-        session.flush()
-
-        # Refresh from DB to ensure we see the new deadline
-        dag_run = session.get(DagRun, dag_run.id)
-        assert len(dag_run.deadlines) == 1
-        assert dag_run.deadlines[0].deadline_time == dag_run.queued_at + interval
-
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
