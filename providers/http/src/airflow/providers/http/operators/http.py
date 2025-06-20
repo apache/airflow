@@ -29,7 +29,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -222,7 +222,7 @@ class HttpOperator(BaseOperator):
         self.defer(
             trigger=HttpTrigger(
                 http_conn_id=self.http_conn_id,
-                auth_type=self._resolve_auth_type(),
+                auth_type=serialize_auth_type(self._resolve_auth_type()),
                 method=self.method,
                 endpoint=self.endpoint,
                 headers=self.headers,
@@ -239,8 +239,7 @@ class HttpOperator(BaseOperator):
         If auth_type is not explicitly set, attempt to infer it from the connection
         configuration. For connections with login/password, default to BasicAuth.
 
-        Returns:
-            The resolved authentication type class, or None if no auth is needed.
+        :return: The resolved authentication type class, or None if no auth is needed.
         """
         if self.auth_type is not None:
             return self.auth_type
@@ -314,7 +313,7 @@ class HttpOperator(BaseOperator):
             self.defer(
                 trigger=HttpTrigger(
                     http_conn_id=self.http_conn_id,
-                    auth_type=self.auth_type,
+                    auth_type=serialize_auth_type(self._resolve_auth_type()),
                     method=self.method,
                     **self._merge_next_page_parameters(next_page_params),
                 ),
