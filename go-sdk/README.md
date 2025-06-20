@@ -57,7 +57,12 @@ This will start:
 - Redis broker on `localhost:26379`
 - Loads the example DAGs
 
-### Step 2: Run the Go SDK Worker
+### Step 2: Stop the Celery Worker
+
+We want to run the go workers instead of running the Celery ones. So in `breeze`, press CTRL+C to
+stop the Celery workers.
+
+### Step 3: Run the Go SDK Worker
 
 From the `go-sdk` directory, run the example worker:
 
@@ -74,7 +79,7 @@ go run ./example/main.go run \
 - `--queues default`: Queue name where Celery enqueues tasks
 - `--execution-api-url http://localhost:28080/execution`: Airflow's Task Execution API endpoint
 
-### Step 3: Submit a Test Task
+### Step 4: Submit a Test Task
 
 You can submit tasks through the Airflow UI for dag_id: `tutorial_dag`. The Go worker will pick up tasks from the Celery queue and execute them using the Task Execution Interface.
 
