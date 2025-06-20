@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-20T14:11:02.024572
+# This constraints file was automatically generated on 2025-06-20T20:03:28.629872
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -101,7 +101,6 @@ anyio==4.9.0
 apache-airflow-providers-airbyte==5.2.0
 apache-airflow-providers-alibaba==3.2.0
 apache-airflow-providers-amazon==9.9.0
-apache-airflow-providers-apache-beam==6.1.0
 apache-airflow-providers-apache-cassandra==3.8.0
 apache-airflow-providers-apache-drill==3.1.0
 apache-airflow-providers-apache-druid==4.2.0
@@ -127,7 +126,6 @@ apache-airflow-providers-cncf-kubernetes==10.6.0
 apache-airflow-providers-cohere==1.5.1
 apache-airflow-providers-common-compat==1.7.1
 apache-airflow-providers-common-io==1.6.0
-apache-airflow-providers-common-messaging==1.0.2
 apache-airflow-providers-common-sql==1.27.2
 apache-airflow-providers-databricks==7.5.0
 apache-airflow-providers-datadog==3.9.0
@@ -193,7 +191,7 @@ apache-airflow-providers-weaviate==3.2.0
 apache-airflow-providers-yandex==4.1.0
 apache-airflow-providers-ydb==2.2.0
 apache-airflow-providers-zendesk==4.10.0
-apache-beam==2.59.0
+apache-beam==2.65.0
 apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
@@ -268,7 +266,7 @@ click-plugins==1.1.1
 click-repl==0.3.0
 click==8.2.1
 clickclick==20.10.2
-cloudpickle==2.2.1
+cloudpickle==3.1.1
 cohere==5.15.0
 colorama==0.4.6
 colorful==0.5.6
@@ -339,7 +337,7 @@ google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.97.0
+google-cloud-aiplatform==1.98.0
 google-cloud-alloydb==0.4.7
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -397,7 +395,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.73.0
+grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.16.0
@@ -476,7 +474,7 @@ libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.8.0
+looker-sdk==25.10.0
 lxml==5.3.2
 lz4==4.4.4
 markdown-it-py==3.0.0
@@ -525,7 +523,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.88.0
+openai==1.89.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-20T14:06:38.412083
+# This constraints file was automatically generated on 2025-06-20T19:59:10.141121
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -128,7 +128,6 @@ apache-airflow-providers-cncf-kubernetes==10.6.0
 apache-airflow-providers-cohere==1.5.1
 apache-airflow-providers-common-compat==1.7.1
 apache-airflow-providers-common-io==1.6.0
-apache-airflow-providers-common-messaging==1.0.2
 apache-airflow-providers-common-sql==1.27.2
 apache-airflow-providers-databricks==7.5.0
 apache-airflow-providers-datadog==3.9.0
@@ -344,7 +343,7 @@ google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.97.0
+google-cloud-aiplatform==1.98.0
 google-cloud-alloydb==0.4.7
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -480,7 +479,7 @@ libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.8.0
+looker-sdk==25.10.0
 lxml==5.3.2
 lz4==4.4.4
 markdown-it-py==3.0.0
@@ -529,7 +528,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.88.0
+openai==1.89.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
