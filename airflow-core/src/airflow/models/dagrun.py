@@ -1352,7 +1352,6 @@ class DagRun(Base, LoggingMixin):
 
     def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
-
         task_instances = self.get_task_instances()
 
         # Identify the most relevant task instance
@@ -1385,14 +1384,16 @@ class DagRun(Base, LoggingMixin):
 
         # Add task-level metadata if available
         if last_relevant_ti:
-            context.update({
-                "task_instance": last_relevant_ti,
-                "ti": last_relevant_ti,
-                "try_number": last_relevant_ti.try_number,
-                "max_tries": last_relevant_ti.max_tries,
-                "log_url": last_relevant_ti.log_url,
-                "mark_success_url": last_relevant_ti.mark_success_url,
-            })
+            context.update(
+                {
+                    "task_instance": last_relevant_ti,
+                    "ti": last_relevant_ti,
+                    "try_number": last_relevant_ti.try_number,
+                    "max_tries": last_relevant_ti.max_tries,
+                    "log_url": last_relevant_ti.log_url,
+                    "mark_success_url": last_relevant_ti.mark_success_url,
+                }
+            )
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:
