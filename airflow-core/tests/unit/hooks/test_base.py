@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
 
 from airflow.exceptions import AirflowNotFoundException
@@ -27,14 +25,6 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
 
 from tests_common.test_utils.config import conf_vars
-
-
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
 
 
 class TestBaseHook:
@@ -62,18 +52,18 @@ class TestBaseHook:
             extra='{"extra_key": "extra_value"}',
         )
 
-        mock_supervisor_comms.get_message.return_value = conn
+        mock_supervisor_comms.send.return_value = conn
 
         hook = BaseHook(logger_name="")
         hook.get_connection(conn_id="test_conn")
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=GetConnection(conn_id="test_conn"), log=mock.ANY
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetConnection(conn_id="test_conn"),
         )
 
     def test_get_connection_not_found(self, mock_supervisor_comms):
         conn_id = "test_conn"
         hook = BaseHook()
-        mock_supervisor_comms.get_message.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
 
         with pytest.raises(AirflowNotFoundException, match=rf".*{conn_id}.*"):
             hook.get_connection(conn_id=conn_id)
@@ -93,5 +83,4 @@ class TestBaseHook:
 
             assert retrieved_conn.conn_id == "CONN_A"
 
-            mock_supervisor_comms.send_request.assert_not_called()
-            mock_supervisor_comms.get_message.assert_not_called()
+            mock_supervisor_comms.send.assert_not_called()
