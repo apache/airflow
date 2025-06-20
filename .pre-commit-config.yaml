@@ -356,6 +356,7 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/fr/|
           ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -435,7 +436,7 @@ repos:
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*|\.go$|/go\.(mod|sum)$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -1278,6 +1279,13 @@ repos:
         types: [go]
         pass_filenames: false
         language: docker_image
+      - id: go-tidy
+        name: Run go mod tidy
+        entry: bash -c "cd go-sdk && go mod tidy"
+        files: ^go-sdk/
+        exclude: mocks/.*\.go$
+        pass_filenames: false
+        language: system
       - id: gofmt
         name: Format go code
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots
