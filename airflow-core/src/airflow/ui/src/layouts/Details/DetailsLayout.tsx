@@ -93,7 +93,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             right={0}
             size="sm"
             top="50%"
-            transform="translateY(-50%)"
             zIndex={10}
           >
             <FaChevronLeft />
