@@ -47,6 +47,18 @@ Make sure your Teradata Airflow connection is defined with the required fields:
 
 You can define a remote host with a separate SSH connection using the ``ssh_conn_id``.
 
+.. note::
+
+   For improved security, it is **highly recommended** to use
+   **private key-based SSH authentication** (SSH key pairs) instead of username/password
+   for the SSH connection.
+
+   This avoids password exposure, enables seamless automated execution, and enhances security.
+
+   See the Airflow SSH Connection documentation for details on configuring SSH keys:
+   https://airflow.apache.org/docs/apache-airflow/stable/howto/connection/ssh.html
+
+
 To execute arbitrary SQL or BTEQ commands in a Teradata database, use the
 :class:`~airflow.providers.teradata.operators.bteq.BteqOperator`.
 

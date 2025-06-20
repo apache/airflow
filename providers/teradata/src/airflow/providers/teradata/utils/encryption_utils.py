@@ -58,6 +58,9 @@ def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_co
         f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{quoted_password} -in {remote_enc_file} | "
         + bteq_command_str
     )
+    # Clear password to prevent lingering sensitive data
+    password = None
+    quoted_password = None
     stdin, stdout, stderr = ssh_client.exec_command(decrypt_cmd)
     # Wait for command to finish
     exit_status = stdout.channel.recv_exit_status()

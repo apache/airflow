@@ -180,6 +180,7 @@ class BteqHook(TtuHook):
                     )
 
                     failure_message = None
+                    password = None  # Clear sensitive data
 
                     if "Failure" in stderr or "Error" in stderr:
                         failure_message = stderr
