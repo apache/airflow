@@ -37,14 +37,14 @@
 
 # Translation Owners (i18n)
 # Note: Non committer engaged translators are listed in comments prevent making file syntax invalid
-# See: https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/ui/src/i18n/README.md#43-engaged-translator
-airflow-core/src/airflow/ui/src/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
-airflow-core/src/airflow/ui/src/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
-airflow-core/src/airflow/ui/src/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
-airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # + @DjVinnii
-airflow-core/src/airflow/ui/src/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
-airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
-airflow-core/src/airflow/ui/src/i18n/locales/fr/ @pierrejeambrun @vincbeck
+# See: https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/ui/public/i18n/README.md#43-engaged-translator
+airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
+airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
+airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
+airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
+airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
+airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
+airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck

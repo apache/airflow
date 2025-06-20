@@ -355,9 +355,7 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/fr/|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
@@ -637,7 +635,7 @@ repos:
           (?x)
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/de/README\.md$|
+          ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
@@ -1454,7 +1452,7 @@ repos:
         name: Check i18n files validity
         description: Check i18n files are valid json and have no TODOs
         language: python
-        files: ^airflow-core/src/airflow/ui/src/i18n/locales/.*\.json
+        files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json
         entry: ./scripts/ci/pre_commit/check_i18n_json.py
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
