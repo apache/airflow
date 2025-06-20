@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-19T19:51:33.701601
+# This constraints file was automatically generated on 2025-06-20T07:50:16.969641
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -94,7 +94,7 @@ asyncssh==2.21.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.4
 attrs==25.3.0
-aws-sam-translator==1.98.0
+aws-sam-translator==1.99.0
 aws-xray-sdk==2.14.0
 awswrangler==3.11.0
 azure-batch==14.2.0
@@ -142,7 +142,7 @@ celery==5.5.3
 certifi==2025.6.15
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.36.0
+cfn-lint==1.36.1
 chardet==5.2.0
 charset-normalizer==3.4.2
 checksumdir==1.2.0
@@ -219,7 +219,7 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.0
 google-api-core==2.25.1
-google-api-python-client==2.172.0
+google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
@@ -407,7 +407,7 @@ networkx==3.5
 nh3==0.2.21
 nodeenv==1.9.1
 numpy==1.26.4
-oauthlib==3.3.0
+oauthlib==3.3.1
 objsize==0.7.1
 openai==1.88.0
 openapi-schema-validator==0.6.3
