@@ -1340,7 +1340,9 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({DEFAULT_PYTHON_MAJOR_MINOR_VERSION: ["cloudant"]}),
+            "excluded-providers-as-string": json.dumps(
+                {DEFAULT_PYTHON_MAJOR_MINOR_VERSION: ["cloudant", "tableau"]}
+            ),
         },
         str(stderr),
     )

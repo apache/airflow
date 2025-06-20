@@ -35,7 +35,7 @@ There are two ways to connect to Tableau using Airflow.
 2. Use a `Token Authentication
    <https://tableau.github.io/server-client-python/docs/api-ref#personalaccesstokenauth-class>`_
    i.e. add a ``token_name`` and ``personal_access_token`` to the Airflow connection (deprecated).
-3. Use `JSOn Web Token (JWT) Authentication
+3. Use `JSON Web Token (JWT) Authentication
    <https://tableau.github.io/server-client-python/docs/sign-in-out.html#sign-in-with-json-web-token-jwt>`_
    i.e add a ``jwt_file`` or a ``jwt_token`` to the Airflow connection extras.
 
