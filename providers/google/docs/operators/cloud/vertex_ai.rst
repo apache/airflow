@@ -741,6 +741,18 @@ To update cluster you can use
     :start-after: [START how_to_cloud_vertex_ai_update_ray_cluster_operator]
     :end-before: [END how_to_cloud_vertex_ai_update_ray_cluster_operator]
 
+Interacting with experiment run
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To delete experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
+
 Reference
 ^^^^^^^^^
 
