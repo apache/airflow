@@ -74,7 +74,11 @@ class TestGitDagBundle:
 
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
+    def setup_connections(self, create_connection_without_db, request):
+        # Skip setup for tests that need to create their own connections
+        if request.function.__name__ in ["test_view_url", "test_view_url_subdir"]:
+            return
+
         create_connection_without_db(
             Connection(
                 conn_id="git_default",
