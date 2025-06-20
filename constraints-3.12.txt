@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-19T11:40:30.693151
+# This constraints file was automatically generated on 2025-06-20T21:13:43.909581
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ GitPython==3.1.44
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.8.1
+Markdown==3.8.2
 MarkupSafe==3.0.2
 PyAthena==3.14.1
 PyGithub==2.6.1
@@ -208,7 +208,7 @@ asyncssh==2.21.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.4
 attrs==25.3.0
-aws-sam-translator==1.98.0
+aws-sam-translator==1.99.0
 aws-xray-sdk==2.14.0
 awswrangler==3.11.0
 azure-batch==14.2.0
@@ -256,7 +256,7 @@ celery==5.5.3
 certifi==2025.6.15
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.36.0
+cfn-lint==1.36.1
 chardet==5.2.0
 charset-normalizer==3.4.2
 checksumdir==1.2.0
@@ -332,11 +332,11 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.0
 google-api-core==2.25.1
-google-api-python-client==2.172.0
+google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.97.0
+google-cloud-aiplatform==1.98.0
 google-cloud-alloydb==0.4.7
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -471,7 +471,7 @@ libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.8.0
+looker-sdk==25.10.0
 lxml==5.4.0
 lz4==4.4.4
 markdown-it-py==3.0.0
@@ -518,9 +518,9 @@ networkx==3.5
 nh3==0.2.21
 nodeenv==1.9.1
 numpy==1.26.4
-oauthlib==3.3.0
+oauthlib==3.3.1
 objsize==0.7.1
-openai==1.88.0
+openai==1.90.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -717,7 +717,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.14.1
-sqlalchemy-spanner==1.13.0
+sqlalchemy-spanner==1.13.1
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
