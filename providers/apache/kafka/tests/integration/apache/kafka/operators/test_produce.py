@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 
 import pytest
 from confluent_kafka import Consumer
@@ -39,12 +40,13 @@ class TestProduceToTopic:
     test ProduceToTopicOperator
     """
 
-    @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
-        group = "operator.producer.test.integration.test_1"
-        create_connection_without_db(
-            Connection(
-                conn_id="kafka_default",
+    def setup_method(self):
+        """Set up connections for each test method."""
+        # Create separate connections for each test
+        for num in (1, 2):
+            group = f"operator.producer.test.integration.test_{num}"
+            conn = Connection(
+                conn_id=f"kafka_default_test_{num}",
                 conn_type="kafka",
                 extra=json.dumps(
                     {
@@ -55,7 +57,10 @@ class TestProduceToTopic:
                     }
                 ),
             )
-        )
+
+            # Set environment variable directly (like create_connection_without_db does)
+            env_var_name = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+            os.environ[env_var_name] = conn.get_uri()
 
     def test_producer_operator_test_1(self):
         GROUP = "operator.producer.test.integration.test_1"
