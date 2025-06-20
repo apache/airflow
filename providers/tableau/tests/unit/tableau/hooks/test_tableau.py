@@ -16,17 +16,30 @@
 # under the License.
 from __future__ import annotations
 
+# mypy: disable-error-code=name-defined
 import json
+import sys
 import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow import configuration, models
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.utils import db
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test]
+
+if sys.version_info < (3, 10):
+    pytestmark.append(
+        pytest.mark.skip(
+            f"Skipping {__name__} as the Tableau provider is not supported on Python 3.9, see #51756."
+        )
+    )
+else:
+    from airflow.providers.tableau.hooks.tableau import (
+        TableauHook,  # type: ignore
+        TableauJobFinishCode,  # type: ignore
+    )
 
 
 class TestTableauHook:
