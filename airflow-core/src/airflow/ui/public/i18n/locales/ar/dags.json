@@ -52,18 +52,18 @@
       "downstream": "المهام اللاحقة",
       "existingTasks": "مسح المهام الحالية",
       "future": "المستقبل",
-        "onlyFailed": "مسح المهام الفاشلة فقط",
-        "past": "الماضي",
-        "queueNew": "إضافة مهام جديدة للانتظار",
-            "upstream": "المهام السابقة"
+      "onlyFailed": "مسح المهام الفاشلة فقط",
+      "past": "الماضي",
+      "queueNew": "إضافة مهام جديدة للانتظار",
+      "upstream": "المهام السابقة"
     }
   },
   "search": {
-     "advanced": "بحث متقدم",
-     "clear": " مسح",
-     "dags": "ابحث عن Dags",
-     "hotkey": "+K",
-     "tasks": "ابحث عن مهام"
+    "advanced": "بحث متقدم",
+    "clear": " مسح",
+    "dags": "ابحث عن Dags",
+    "hotkey": "+K",
+    "tasks": "ابحث عن مهام"
   },
   "sort": {
     "displayName": {
