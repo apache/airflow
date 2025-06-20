@@ -56,6 +56,7 @@ class TestTelegramHook:
                 conn_id="telegram_default",
                 conn_type="http",
                 password=TELEGRAM_TOKEN,
+                host=None,
             )
         )
         create_connection_without_db(
@@ -71,7 +72,7 @@ class TestTelegramHook:
         hook = TelegramHook()
 
         assert hook.token == TELEGRAM_TOKEN
-        assert hook.chat_id is None
+        assert not hook.chat_id
 
     def test_should_raise_exception_if_conn_id_doesnt_exist(self):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
