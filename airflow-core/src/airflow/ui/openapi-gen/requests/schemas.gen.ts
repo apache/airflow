@@ -6028,66 +6028,85 @@ export const $BaseNodeResponse = {
 } as const;
 
 export const $ConfigResponse = {
-    properties: {
-        page_size: {
-            type: 'integer',
-            title: 'Page Size'
-        },
-        auto_refresh_interval: {
-            type: 'integer',
-            title: 'Auto Refresh Interval'
-        },
-        hide_paused_dags_by_default: {
-            type: 'boolean',
-            title: 'Hide Paused Dags By Default'
-        },
-        instance_name: {
-            type: 'string',
-            title: 'Instance Name'
-        },
-        enable_swagger_ui: {
-            type: 'boolean',
-            title: 'Enable Swagger Ui'
-        },
-        require_confirmation_dag_change: {
-            type: 'boolean',
-            title: 'Require Confirmation Dag Change'
-        },
-        default_wrap: {
-            type: 'boolean',
-            title: 'Default Wrap'
-        },
-        test_connection: {
-            type: 'string',
-            title: 'Test Connection'
-        },
-        dashboard_alert: {
-            items: {
-                '$ref': '#/components/schemas/UIAlert'
-            },
-            type: 'array',
-            title: 'Dashboard Alert'
-        },
-        show_external_log_redirect: {
-            type: 'boolean',
-            title: 'Show External Log Redirect'
-        },
-        external_log_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'External Log Name'
-        }
+  properties: {
+    page_size: {
+      type: "integer",
+      title: "Page Size",
     },
-    type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect'],
-    title: 'ConfigResponse',
-    description: 'configuration serializer.'
+    auto_refresh_interval: {
+      type: "integer",
+      title: "Auto Refresh Interval",
+    },
+    hide_paused_dags_by_default: {
+      type: "boolean",
+      title: "Hide Paused Dags By Default",
+    },
+    instance_name: {
+      type: "string",
+      title: "Instance Name",
+    },
+    enable_swagger_ui: {
+      type: "boolean",
+      title: "Enable Swagger Ui",
+    },
+    require_confirmation_dag_change: {
+      type: "boolean",
+      title: "Require Confirmation Dag Change",
+    },
+    default_wrap: {
+      type: "boolean",
+      title: "Default Wrap",
+    },
+    test_connection: {
+      type: "string",
+      title: "Test Connection",
+    },
+    dashboard_alert: {
+      items: {
+        $ref: "#/components/schemas/UIAlert",
+      },
+      type: "array",
+      title: "Dashboard Alert",
+    },
+    show_external_log_redirect: {
+      type: "boolean",
+      title: "Show External Log Redirect",
+    },
+    external_log_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Log Name",
+    },
+    plugins_extra_menu_items: {
+      items: {
+        $ref: "#/components/schemas/AppBuilderMenuItemResponse",
+      },
+      type: "array",
+      title: "Plugins Extra Menu Items",
+      default: [],
+    },
+  },
+  type: "object",
+  required: [
+    "page_size",
+    "auto_refresh_interval",
+    "hide_paused_dags_by_default",
+    "instance_name",
+    "enable_swagger_ui",
+    "require_confirmation_dag_change",
+    "default_wrap",
+    "test_connection",
+    "dashboard_alert",
+    "show_external_log_redirect",
+  ],
+  title: "ConfigResponse",
+  description: "configuration serializer.",
 } as const;
 
 export const $ConnectionHookFieldBehavior = {

@@ -22,15 +22,15 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
-  const { data } = usePluginServiceGetPlugins();
+  const { data } = useConfig("plugins_extra_menu_items");
 
   const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
   const iframePlugins =
