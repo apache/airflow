@@ -1351,7 +1351,7 @@ class DagRun(Base, LoggingMixin):
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
-        """Handle DAG-level callbacks (on_success_callback, on_failure_callback) with enriched context."""
+        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
 
         task_instances = self.get_task_instances()
 
