@@ -301,6 +301,7 @@ class TestDeadlineReference:
             assert result == DEFAULT_DATE + self.DEFAULT_INTERVAL
 
     @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    @pytest.mark.db_test
     def test_deadline_missing_required_kwargs(self, reference, session):
         """Test that deadlines raise appropriate errors for missing required parameters."""
         if reference.required_kwargs:
