@@ -276,7 +276,11 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 )
 
             for task_id, _ in matched_task_keys:
-                existing_task_instance = self.session.scalar(select(TI).where(TI.task_id == task_id).limit(1))
+                existing_task_instance = self.session.scalar(
+                    select(TI)
+                    .where(TI.task_id == task_id, TI.dag_id == self.dag_id, TI.run_id == self.dag_run_id)
+                    .limit(1)
+                )
                 if existing_task_instance:
                     self.session.delete(existing_task_instance)
                     results.success.append(task_id)
