@@ -66,6 +66,8 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
     :param iam_role_arn: AWS IAM ARN for Glue Job Execution. If set `iam_role_name` must equal None.
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param wait_for_completion: Whether to wait for job run completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -259,7 +261,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
 
         if validated_event["status"] != "success":
             raise AirflowException(f"Error in glue job: {validated_event}")
-        return validated_event["value"]
+        return validated_event["run_id"]
 
     def on_kill(self):
         """Cancel the running AWS Glue Job."""
