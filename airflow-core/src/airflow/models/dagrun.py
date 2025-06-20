@@ -1351,22 +1351,58 @@ class DagRun(Base, LoggingMixin):
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
-        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
+        """Handle DAG-level callbacks (on_success_callback, on_failure_callback) with enriched context."""
+
+        task_instances = self.get_task_instances()
+
+        # Identify the most relevant task instance
+        last_relevant_ti = None
+        if not success:
+            failed_tis = [ti for ti in task_instances if ti.state in State.failed_states and ti.end_date]
+            failed_tis.sort(key=lambda x: x.end_date, reverse=True)
+            last_relevant_ti = failed_tis[0] if failed_tis else None
+        else:
+            success_tis = [ti for ti in task_instances if ti.state in State.success_states and ti.end_date]
+            success_tis.sort(key=lambda x: x.end_date, reverse=True)
+            last_relevant_ti = success_tis[0] if success_tis else None
+
+        # Enrich DAG-level callback context
         context: Context = {  # type: ignore[assignment]
             "dag": dag,
             "run_id": str(self.run_id),
+            "execution_date": self.logical_date,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "data_interval_start": self.data_interval_start,
+            "data_interval_end": self.data_interval_end,
             "reason": reason,
+            "run_duration": (
+                (self.end_date - self.start_date).total_seconds()
+                if self.start_date and self.end_date
+                else None
+            ),
         }
+
+        # Add task-level metadata if available
+        if last_relevant_ti:
+            context.update({
+                "task_instance": last_relevant_ti,
+                "ti": last_relevant_ti,
+                "try_number": last_relevant_ti.try_number,
+                "max_tries": last_relevant_ti.max_tries,
+                "log_url": last_relevant_ti.log_url,
+                "mark_success_url": last_relevant_ti.mark_success_url,
+            })
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:
-            self.log.warning("Callback requested, but dag didn't have any for DAG: %s.", dag.dag_id)
+            self.log.warning("Callback requested, but DAG didn't have any for DAG: %s.", dag.dag_id)
             return
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
 
         for callback in callbacks:
             self.log.info(
-                "Executing on_%s dag callback: %s",
+                "Executing on_%s DAG callback: %s",
                 "success" if success else "failure",
                 callback.__name__ if hasattr(callback, "__name__") else repr(callback),
             )
@@ -2041,4 +2077,6 @@ class DagRunNote(Base):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
+        return prefix + ">"
+
         return prefix + ">"
