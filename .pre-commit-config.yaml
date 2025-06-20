@@ -1279,6 +1279,13 @@ repos:
         types: [go]
         pass_filenames: false
         language: docker_image
+      - id: go-tidy
+        name: Run go mod tidy
+        entry: bash -c "cd go-sdk && go mod tidy"
+        files: ^go-sdk/
+        exclude: mocks/.*\.go$
+        pass_filenames: false
+        language: system
       - id: gofmt
         name: Format go code
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots
