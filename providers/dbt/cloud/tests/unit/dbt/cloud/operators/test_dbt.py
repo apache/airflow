@@ -102,7 +102,7 @@ def setup_module():
     conn_account_id = Connection(
         conn_id=ACCOUNT_ID_CONN,
         conn_type=DbtCloudHook.conn_type,
-        login=DEFAULT_ACCOUNT_ID,
+        login=str(DEFAULT_ACCOUNT_ID),
         password=TOKEN,
     )
 
