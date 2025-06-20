@@ -35,8 +35,9 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal
 import attrs
 import lazy_object_proxy
 import structlog
-from pydantic import AwareDatetime, ConfigDict, Field, JsonValue
+from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
@@ -69,7 +70,9 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     InactiveAssetsResult,
     RescheduleTask,
+    ResendLoggingFD,
     RetryTask,
+    SentFDs,
     SetRenderedFields,
     SkipDownstreamTasks,
     StartupDetails,
@@ -97,6 +100,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
+from airflow.utils.platform import getuser
 from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -642,6 +646,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+
 # State machine!
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
@@ -651,13 +656,30 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
-    msg = SUPERVISOR_COMMS._get_response()
+    log = structlog.get_logger(logger_name="task")
+
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+        # entrypoint of re-exec process
+        msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
+
+        logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
+        if isinstance(logs, SentFDs):
+            from airflow.sdk.log import configure_logging
+
+            log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
+            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+        else:
+            print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
+
+        # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
+        # on stdout
+        log.debug("Using serialized startup message from environment", msg=msg)
+    else:
+        # normal entry point
+        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
 
     if not isinstance(msg, StartupDetails):
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-
-    log = structlog.get_logger(logger_name="task")
-
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -676,6 +698,34 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         ti = parse(msg, log)
         ti.log_url = get_log_url_from_ti(ti)
     log.debug("DAG file parsed", file=msg.dag_rel_path)
+
+    run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
+        "core", "default_impersonation", fallback=None
+    )
+
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
+        # enters here for re-exec process
+        os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
+        # store startup message in environment for re-exec process
+        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
+        os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
+
+        # Import main directly from the module instead of re-executing the file.
+        # This ensures that when other parts modules import
+        # airflow.sdk.execution_time.task_runner, they get the same module instance
+        # with the properly initialized SUPERVISOR_COMMS global variable.
+        # If we re-executed the module with `python -m`, it would load as __main__ and future
+        # imports would get a fresh copy without the initialized globals.
+        rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+        cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
+        log.info(
+            "Running command",
+            command=cmd,
+        )
+        os.execvp("sudo", cmd)
+
+        # ideally, we should never reach here, but if we do, we should return None, None, None
+        return None, None, None
 
     return ti, ti.get_template_context(), log
 

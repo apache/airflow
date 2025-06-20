@@ -74,6 +74,13 @@ class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
         if not self.zone:
             raise AirflowException("The required parameter 'zone' is missing")
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location_id": self.zone,
+            "resource_id": self.resource_id,
+        }
+
     def execute(self, context: Context):
         pass
 
@@ -225,9 +232,6 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             self.log.info("The %s Instance already exists", self.resource_id)
             ComputeInstanceDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                location_id=self.zone,
-                resource_id=self.resource_id,
                 project_id=self.project_id or hook.project_id,
             )
             return Instance.to_dict(existing_instance)
@@ -247,9 +251,6 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         )
         ComputeInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(new_instance)
@@ -397,9 +398,6 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             self.log.info("The %s Instance already exists", self.resource_id)
             ComputeInstanceDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                location_id=self.zone,
-                resource_id=self.resource_id,
                 project_id=self.project_id or hook.project_id,
             )
             return Instance.to_dict(existing_instance)
@@ -420,9 +418,6 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         )
         ComputeInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(new_instance_from_template)
@@ -598,9 +593,6 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         )
         ComputeInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         hook.start_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
@@ -659,9 +651,6 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         )
         ComputeInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         hook.stop_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
@@ -764,9 +753,6 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         self._validate_all_body_fields()
         ComputeInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         hook.set_machine_type(
@@ -972,8 +958,6 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
             self.log.info("The %s Template already exists.", existing_template)
             ComputeInstanceTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                resource_id=self.resource_id,
                 project_id=self.project_id or hook.project_id,
             )
             return InstanceTemplate.to_dict(existing_template)
@@ -991,8 +975,6 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         )
         ComputeInstanceTemplateDetailsLink.persist(
             context=context,
-            task_instance=self,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return InstanceTemplate.to_dict(new_template)
@@ -1238,7 +1220,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             )
             ComputeInstanceTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 resource_id=self.body_patch["name"],
                 project_id=self.project_id or hook.project_id,
             )
@@ -1259,7 +1240,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         )
         ComputeInstanceTemplateDetailsLink.persist(
             context=context,
-            task_instance=self,
             resource_id=self.body_patch["name"],
             project_id=self.project_id or hook.project_id,
         )
@@ -1390,9 +1370,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             self.log.info("Calling patch instance template with updated body: %s", patch_body)
             ComputeInstanceGroupManagerDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                location_id=self.zone,
-                resource_id=self.resource_id,
                 project_id=self.project_id or hook.project_id,
             )
             return hook.patch_instance_group_manager(
@@ -1405,9 +1382,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         # Idempotence achieved
         ComputeInstanceGroupManagerDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return True
@@ -1552,10 +1526,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)
             ComputeInstanceGroupManagerDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                resource_id=self.resource_id,
                 project_id=self.project_id or hook.project_id,
-                location_id=self.zone,
             )
             return InstanceGroupManager.to_dict(existing_instance_group_manager)
         self._field_sanitizer.sanitize(self.body)
@@ -1574,9 +1545,6 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         )
         ComputeInstanceGroupManagerDetailsLink.persist(
             context=context,
-            task_instance=self,
-            location_id=self.zone,
-            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return InstanceGroupManager.to_dict(new_instance_group_manager)

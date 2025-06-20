@@ -64,7 +64,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -1114,6 +1114,22 @@ class TestDagInfoAirflow3:
             ),
         )
 
+        timetable = {
+            "event_dates": [
+                "2025-03-03T08:27:00-06:00",
+                "2025-03-17T08:27:00-05:00",
+                "2025-03-22T20:50:00-05:00",
+            ],
+            "restrict_to_events": False,
+        }
+        if AIRFLOW_V_3_1_PLUS:
+            timetable.update(
+                {
+                    "_summary": "My Team's Baseball Games",
+                    "description": "My Team's Baseball Games",
+                }
+            )
+            timetable["description"] = "My Team's Baseball Games"
         result = DagInfo(dag)
         assert dict(result) == {
             "dag_id": "dag_id",
@@ -1123,14 +1139,7 @@ class TestDagInfoAirflow3:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
-            "timetable": {
-                "event_dates": [
-                    "2025-03-03T08:27:00-06:00",
-                    "2025-03-17T08:27:00-05:00",
-                    "2025-03-22T20:50:00-05:00",
-                ],
-                "restrict_to_events": False,
-            },
+            "timetable": timetable,
             "timetable_summary": "My Team's Baseball Games",
         }
 

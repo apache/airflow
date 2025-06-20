@@ -54,7 +54,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, Union, overload
 from uuid import UUID
 
 import attrs
@@ -89,6 +89,12 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
+
+try:
+    from socket import recv_fds
+except ImportError:
+    # Available on Unix and Windows (so "everywhere") but lets be safe
+    recv_fds = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -180,10 +186,29 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         bytes = frame.as_bytes()
 
         self.socket.sendall(bytes)
+        if isinstance(msg, ResendLoggingFD):
+            if recv_fds is None:
+                return None
+            # We need special handling here! The server can't send us the fd number, as the number on the
+            # supervisor will be different to in this process, so we have to mutate the message ourselves here.
+            frame, fds = self._read_frame(maxfds=1)
+            resp = self._from_frame(frame)
+            if TYPE_CHECKING:
+                assert isinstance(resp, SentFDs)
+            resp.fds = fds
+            # Since we know this is an expliclt SendFDs, and since this class is generic SendFDs might not
+            # always be in the return type union
+            return resp  # type: ignore[return-value]
 
         return self._get_response()
 
-    def _read_frame(self):
+    @overload
+    def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
+
+    @overload
+    def _read_frame(self, maxfds: int) -> tuple[_ResponseFrame, list[int]]: ...
+
+    def _read_frame(self, maxfds: int | None = None) -> tuple[_ResponseFrame, list[int]] | _ResponseFrame:
         """
         Get a message from the parent.
 
@@ -191,7 +216,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         if self.socket:
             self.socket.setblocking(True)
-        len_bytes = self.socket.recv(4)
+        fds = None
+        if maxfds:
+            len_bytes, fds, flag, address = recv_fds(self.socket, 4, maxfds)
+        else:
+            len_bytes = self.socket.recv(4)
 
         if len_bytes == b"":
             raise EOFError("Request socket closed before length")
@@ -207,7 +236,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         if nread == 0:
             raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
 
-        return self.resp_decoder.decode(buffer)
+        resp = self.resp_decoder.decode(buffer)
+        if maxfds:
+            return resp, fds or []
+        return resp
 
     def _from_frame(self, frame) -> ReceiveMsgType | None:
         from airflow.sdk.exceptions import AirflowRuntimeError
@@ -520,6 +552,11 @@ class OKResponse(BaseModel):
     type: Literal["OKResponse"] = "OKResponse"
 
 
+class SentFDs(BaseModel):
+    type: Literal["SentFDs"] = "SentFDs"
+    fds: list[int]
+
+
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -529,6 +566,7 @@ ToTask = Annotated[
         DRCount,
         ErrorResponse,
         PrevSuccessfulDagRunResult,
+        SentFDs,
         StartupDetails,
         TaskRescheduleStartDate,
         TICount,
@@ -710,6 +748,10 @@ class DeleteVariable(BaseModel):
     type: Literal["DeleteVariable"] = "DeleteVariable"
 
 
+class ResendLoggingFD(BaseModel):
+    type: Literal["ResendLoggingFD"] = "ResendLoggingFD"
+
+
 class SetRenderedFields(BaseModel):
     """Payload for setting RTIF for a task instance."""
 
@@ -829,6 +871,7 @@ ToSupervisor = Annotated[
         TaskState,
         TriggerDagRun,
         DeleteVariable,
+        ResendLoggingFD,
     ],
     Field(discriminator="type"),
 ]

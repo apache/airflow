@@ -20,6 +20,14 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import arAdmin from "./locales/ar/admin.json";
+import arAssets from "./locales/ar/assets.json";
+import arBrowse from "./locales/ar/browse.json";
+import arCommon from "./locales/ar/common.json";
+import arComponents from "./locales/ar/components.json";
+import arDag from "./locales/ar/dag.json";
+import arDags from "./locales/ar/dags.json";
+import arDashboard from "./locales/ar/dashboard.json";
 import deAdmin from "./locales/de/admin.json";
 import deAssets from "./locales/de/assets.json";
 import deBrowse from "./locales/de/browse.json";
@@ -36,12 +44,21 @@ import enComponents from "./locales/en/components.json";
 import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import frAdmin from "./locales/fr/admin.json";
+import frAssets from "./locales/fr/assets.json";
+import frBrowse from "./locales/fr/browse.json";
+import frCommon from "./locales/fr/common.json";
+import frComponents from "./locales/fr/components.json";
+import frDag from "./locales/fr/dag.json";
+import frDags from "./locales/fr/dags.json";
+import frDashboard from "./locales/fr/dashboard.json";
 import heAdmin from "./locales/he/admin.json";
 import heAsset from "./locales/he/assets.json";
 import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
 import heComponents from "./locales/he/components.json";
 import heDag from "./locales/he/dag.json";
+import heDags from "./locales/he/dags.json";
 import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
@@ -68,6 +85,7 @@ import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 // import Backend from 'i18next-http-backend';
 
 export const supportedLanguages = [
+  { code: "ar", flag: "🇸🇦", name: "العربية" },
   { code: "de", flag: "🇩🇪", name: "Deutsch" },
   { code: "en", flag: "🇺🇸", name: "English" },
   { code: "he", flag: "🇮🇱", name: "עברית" },
@@ -75,12 +93,23 @@ export const supportedLanguages = [
   { code: "nl", flag: "🇳🇱", name: "Nederlands" },
   { code: "pl", flag: "🇵🇱", name: "Polski" },
   { code: "zh-TW", flag: "🇹🇼", name: "繁體中文" },
+  { code: "fr", flag: "🇫🇷", name: "Français" },
 ] as const;
 
 export const defaultLanguage = "en";
 export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets"] as const;
 
 const resources = {
+  ar: {
+    admin: arAdmin,
+    assets: arAssets,
+    browse: arBrowse,
+    common: arCommon,
+    components: arComponents,
+    dag: arDag,
+    dags: arDags,
+    dashboard: arDashboard,
+  },
   de: {
     admin: deAdmin,
     assets: deAssets,
@@ -101,6 +130,16 @@ const resources = {
     dags: enDags,
     dashboard: enDashboard,
   },
+  fr: {
+    admin: frAdmin,
+    assets: frAssets,
+    browse: frBrowse,
+    common: frCommon,
+    components: frComponents,
+    dag: frDag,
+    dags: frDags,
+    dashboard: frDashboard,
+  },
   he: {
     admin: heAdmin,
     assets: heAsset,
@@ -108,6 +147,7 @@ const resources = {
     common: heCommon,
     components: heComponents,
     dag: heDag,
+    dags: heDags,
     dashboard: heDashboard,
   },
   ko: {

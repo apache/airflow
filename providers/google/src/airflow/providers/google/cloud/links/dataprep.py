@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 BASE_LINK = "https://clouddataprep.com"
 DATAPREP_FLOW_LINK = BASE_LINK + "/flows/{flow_id}?projectId={project_id}"
@@ -35,14 +30,6 @@ class DataprepFlowLink(BaseGoogleLink):
     key = "dataprep_flow_page"
     format_str = DATAPREP_FLOW_LINK
 
-    @staticmethod
-    def persist(context: Context, task_instance, project_id: str, flow_id: int):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprepFlowLink.key,
-            value={"project_id": project_id, "flow_id": flow_id},
-        )
-
 
 class DataprepJobGroupLink(BaseGoogleLink):
     """Helper class for constructing Dataprep job group link."""
@@ -50,14 +37,3 @@ class DataprepJobGroupLink(BaseGoogleLink):
     name = "Job group details page"
     key = "dataprep_job_group_page"
     format_str = DATAPREP_JOB_GROUP_LINK
-
-    @staticmethod
-    def persist(context: Context, task_instance, project_id: str, job_group_id: int):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprepJobGroupLink.key,
-            value={
-                "project_id": project_id,
-                "job_group_id": job_group_id,
-            },
-        )
