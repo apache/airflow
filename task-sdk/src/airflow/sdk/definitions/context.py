@@ -89,7 +89,6 @@ class Context(TypedDict, total=False):
     mark_success_url: str
 
 
-
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
