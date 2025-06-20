@@ -110,7 +110,7 @@ PRE_COMMIT_LIST = [
     "generate-tasksdk-datamodels",
     "generate-volumes-for-sources",
     "go-mockery",
-    "go-tidy",
+    "go-mod-tidy",
     "gofmt",
     "identity",
     "insert-license",
