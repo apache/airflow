@@ -248,7 +248,7 @@ metadata:
                 "3.0.0",
                 None,
                 None,
-                "http://release-name-api-server:8080/execution",
+                "http://release-name-api-server:8080/execution/",
             ),
             (
                 "2.9.0",
@@ -260,13 +260,13 @@ metadata:
                 "3.0.0",
                 "http://example.com",
                 None,
-                "http://release-name-api-server:8080/execution",
+                "http://release-name-api-server:8080/execution/",
             ),
             (
                 "3.0.0",
                 "http://example.com/airflow",
                 None,
-                "http://release-name-api-server:8080/airflow/execution",
+                "http://release-name-api-server:8080/airflow/execution/",
             ),
             (
                 "3.0.0",
@@ -291,14 +291,13 @@ metadata:
             show_only=["templates/configmaps/configmap.yaml"],
         )
 
-        # config is the jmespath search for the data["airflow.cfg"] in the configmap
-        config = jmespath.search('data.["airflow.cfg"]', configmap[0])
+        config = jmespath.search('data."airflow.cfg"', configmap[0])
         assert config is not None, "Configmap data for airflow.cfg should not be None"
         assert len(config) > 0, "Configmap data for airflow.cfg should not be empty"
 
         if expected_execution_url is not None:
-            assert f"\nexecution_api_server_url = {expected_execution_url}" in config[0]
+            assert f"\nexecution_api_server_url = {expected_execution_url}\n" in config
         else:
-            assert "execution_api_server_url" not in config[0], (
+            assert "execution_api_server_url" not in config, (
                 "execution_api_server_url should not be set for Airflow 2.x versions"
             )
