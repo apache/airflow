@@ -266,11 +266,20 @@ class Connection(Base, LoggingMixin):
 
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
+            # If the protocol in host matches the connection type, don't add it again
+            if protocol == self.conn_type:
+                host_to_use = self.host
+                protocol_to_add = None
+            else:
+                # Different protocol, add it to the URI
+                host_to_use = host
+                protocol_to_add = protocol
         else:
-            protocol, host = None, self.host
+            host_to_use = self.host
+            protocol_to_add = None
 
-        if protocol:
-            uri += f"{protocol}://"
+        if protocol_to_add:
+            uri += f"{protocol_to_add}://"
 
         authority_block = ""
         if self.login is not None:
@@ -285,8 +294,8 @@ class Connection(Base, LoggingMixin):
             uri += authority_block
 
         host_block = ""
-        if host:
-            host_block += quote(host, safe="")
+        if host_to_use:
+            host_block += quote(host_to_use, safe="")
 
         if self.port:
             if host_block == "" and authority_block == "":
