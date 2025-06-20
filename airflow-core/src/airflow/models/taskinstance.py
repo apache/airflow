@@ -2485,6 +2485,19 @@ class TaskInstance(Base, LoggingMixin):
             }
         )
 
+    @classmethod
+    def get_current_max_mapping(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int:
+        return max(
+            session.scalar(
+                select(func.max(TaskInstance.map_index)).where(
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.run_id == run_id,
+                )
+            ),
+            0,
+        )
+
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""

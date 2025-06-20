@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Sized
+from collections.abc import Generator, Iterable, Mapping, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
+
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -57,8 +59,13 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, SchedulerXComArg))
 
 
+class ExpandInput(LoggingMixin):
+    def resolve(self, context: Mapping[str, Any], session: Session):
+        raise NotImplementedError()
+
+
 @attrs.define
-class SchedulerDictOfListsExpandInput:
+class SchedulerDictOfListsExpandInput(ExpandInput):
     value: dict
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
@@ -110,9 +117,26 @@ class SchedulerDictOfListsExpandInput:
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
+    def resolve(
+        self, context: Mapping[str, Any], session: Session
+    ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
+        value = (
+            self.value.resolve(context, session) if _needs_run_time_resolution(self.value) else self.value
+        )
+
+        self.log.debug("resolved value: %s", value)
+
+        for key, item in value.items():
+            result = item.resolve(context, session) if _needs_run_time_resolution(item) else item
+
+            for index, sub_item in enumerate(result):
+                yield {key: sub_item}
+
+        return []
+
 
 @attrs.define
-class SchedulerListOfDictsExpandInput:
+class SchedulerListOfDictsExpandInput(ExpandInput):
     value: list
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
@@ -131,6 +155,22 @@ class SchedulerListOfDictsExpandInput:
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
+
+    def resolve(
+        self, context: Mapping[str, Any], session: Session
+    ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
+        value = self.value.resolve(context, session) if _needs_run_time_resolution(self.value) else self.value
+
+        self.log.debug("resolved value: %s", value)
+
+        for index, entry in enumerate(value):
+            for key, item in entry.items():
+                if _needs_run_time_resolution(item):
+                    entry[key] = item.resolve(context, session)
+
+            yield entry
+
+        return []
 
 
 _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
