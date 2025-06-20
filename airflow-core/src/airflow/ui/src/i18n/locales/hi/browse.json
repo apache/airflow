@@ -1,0 +1,23 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "सभी अतिरिक्त JSON संक्षिप्त करें",
+      "expandAllExtra": "सभी अतिरिक्त JSON विस्तार करें"
+    },
+    "columns": {
+      "event": "इवेंट",
+      "extra": "अतिरिक्त",
+      "user": "उपयोगकर्ता",
+      "when": "कब"
+    },
+    "title": "ऑडिट लॉग"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "डैग",
+      "key": "कुंजी",
+      "value": "मान"
+    },
+    "title": "एक्सकॉम"
+  }
+}
