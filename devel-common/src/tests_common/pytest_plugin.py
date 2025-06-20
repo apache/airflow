@@ -2505,6 +2505,6 @@ def create_connection_without_db(monkeypatch):
         """Create connection using environment variable."""
 
         env_var_name = f"AIRFLOW_CONN_{connection.conn_id.upper()}"
-        monkeypatch.setenv(env_var_name, connection.get_uri())
+        monkeypatch.setenv(env_var_name, connection.as_json())
 
     return _create_conn
