@@ -207,7 +207,13 @@ def get_all_dependent_tables(root_table: str, session: Session) -> list[dict]:
 
 
 def _do_delete(
-    *, query: Query, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *,
+    query: Query,
+    orm_model: Base,
+    skip_archive: bool,
+    session: Session,
+    batch_size: int | None,
+    skip_delete: bool = False,
 ) -> None:
     import itertools
     import re
@@ -268,9 +274,13 @@ def _do_delete(
                 delete = source_table.delete().where(
                     and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
                 )
+            if skip_delete:
+                print(f"Skipping deletion for FK table {orm_model.name}; relying on ON DELETE CASCADE.")
+                return
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
             session.commit()
+
         except BaseException as e:
             raise e
         finally:
@@ -396,7 +406,7 @@ def _cleanup_table(
     if dry_run:
         print(f"Performing dry run for table {orm_model.name}")
 
-    def _cleanup_single_table(model, recency_col, keep_last_args=None):
+    def _cleanup_single_table(model, recency_col, keep_last_args=None, skip_delete=False):
         print(f"Checking table {model.name}")
         query = _build_query(
             orm_model=model,
@@ -417,6 +427,7 @@ def _cleanup_table(
                 skip_archive=skip_archive,
                 session=session,
                 batch_size=batch_size,
+                skip_delete=skip_delete,
             )
 
     #  Get all recursive dependencies including children-of-children
@@ -433,7 +444,7 @@ def _cleanup_table(
         model = metadata.tables[table_name]
         recency_col_name = config_dict[model.name].recency_column_name
         recency_col = column(recency_col_name)
-        _cleanup_single_table(model, recency_col)
+        _cleanup_single_table(model, recency_col, skip_delete=True)
 
     # Cleanup original table
     _cleanup_single_table(
