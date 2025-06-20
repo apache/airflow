@@ -1,0 +1,110 @@
+{
+  "allRuns": "모든 실행",
+  "blockingDeps": {
+    "dependency": "종속성",
+    "reason": "이유",
+    "title": "작업 스케줄링을 막는 종속성"
+  },
+  "code": {
+    "bundleUrl": "번들 URL",
+    "noCode": "코드를 찾을 수 없습니다.",
+    "parsedAt": "구문 분석 시간:"
+  },
+  "extraLinks": "추가 링크",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "최신 버전으로 재설정",
+      "toggleGroup": "그룹 토글"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Dag 문서"
+    }
+  },
+  "logs": {
+    "noTryNumber": "시도 횟수 없음",
+    "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "실패한 실행",
+      "failedRun_other": "실패한 실행",
+      "failedTask_one": "실패한 작업",
+      "failedTask_other": "실패한 작업",
+      "failedTaskInstance_one": "실패한 작업 인스턴스",
+      "failedTaskInstance_other": "실패한 작업 인스턴스"
+    },
+    "charts": {
+      "assetEvent_one": "생성된 에셋 이벤트",
+      "assetEvent_other": "생성된 에셋 이벤트"
+    },
+    "failedLogs": {
+      "title": "최근 실패한 작업 로그",
+      "viewFullLogs": "전체 로그 보기"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "옵션",
+      "showGraph": "그래프 보기",
+      "showGrid": "그리드 보기"
+    },
+    "dagRuns": {
+      "label": "Dag 실행 수"
+    },
+    "dependencies": {
+      "label": "종속성",
+      "options": {
+        "allDagDependencies": "모든 Dag 종속성",
+        "externalConditions": "외부 조건",
+        "onlyTasks": "작업만"
+      },
+      "placeholder": "종속성"
+    },
+    "graphDirection": {
+      "label": "그래프 방향"
+    }
+  },
+  "paramsFailed": "매개변수 로드 실패",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag 구문 분석 요청에 실패했습니다. 처리되지 않은 보류 중인 구문 분석 요청이 있을 수 있습니다.",
+        "title": "Dag 재구문 분석 실패"
+      },
+      "success": {
+        "description": "Dag이(가) 곧 재구문 분석될 예정입니다.",
+        "title": "재구문 분석 요청이 성공적으로 제출되었습니다."
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "에셋 이벤트",
+    "auditLog": "감사 로그",
+    "backfills": "백필",
+    "code": "코드",
+    "details": "세부 정보",
+    "logs": "로그",
+    "mappedTaskInstances_one": "작업 인스턴스 [{{count}}]",
+    "mappedTaskInstances_other": "작업 인스턴스 [{{count}}]",
+    "overview": "개요",
+    "renderedTemplates": "렌더링된 템플릿",
+    "runs": "실행",
+    "taskInstances": "작업 인스턴스",
+    "tasks": "작업",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "모든 작업 그룹 접기",
+    "expandAll": "모든 작업 그룹 확장"
+  },
+  "taskLogs": {
+    "allLogLevels": "모든 로그 레벨",
+    "allSources": "모든 소스",
+    "fullscreen": {
+      "button": "전체 화면",
+      "tooltip": "전체 화면을 보려면 {{hotkey}}를 누르세요."
+    }
+  }
+}
