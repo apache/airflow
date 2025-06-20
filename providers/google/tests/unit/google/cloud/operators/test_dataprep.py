@@ -120,7 +120,6 @@ class TestDataprepGetJobGroupOperator:
         if provide_project_id:
             link_mock.persist.assert_called_with(
                 context=context,
-                task_instance=op,
                 project_id=project_id,
                 job_group_id=JOB_ID,
             )
@@ -228,7 +227,6 @@ class TestDataprepCopyFlowOperatorTest:
         if provide_project_id:
             link_mock.persist.assert_called_with(
                 context=context,
-                task_instance=op,
                 project_id=project_id,
                 flow_id=NEW_FLOW_ID,
             )

@@ -134,7 +134,6 @@ class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
         transfer_config = _get_transfer_config_details(response.name)
         BigQueryDataTransferConfigLink.persist(
             context=context,
-            task_instance=self,
             region=transfer_config["region"],
             config_id=transfer_config["config_id"],
             project_id=transfer_config["project_id"],
@@ -329,7 +328,6 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         transfer_config = _get_transfer_config_details(response.runs[0].name)
         BigQueryDataTransferConfigLink.persist(
             context=context,
-            task_instance=self,
             region=transfer_config["region"],
             config_id=transfer_config["config_id"],
             project_id=transfer_config["project_id"],

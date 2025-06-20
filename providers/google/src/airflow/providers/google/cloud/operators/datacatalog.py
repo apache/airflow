@@ -166,7 +166,6 @@ class CloudDataCatalogCreateEntryOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="entry_id", value=entry_id)
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=self.entry_id,
             entry_group_id=self.entry_group,
             location_id=self.location,
@@ -287,7 +286,6 @@ class CloudDataCatalogCreateEntryGroupOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="entry_group_id", value=entry_group_id)
         DataCatalogEntryGroupLink.persist(
             context=context,
-            task_instance=self,
             entry_group_id=self.entry_group_id,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -430,7 +428,6 @@ class CloudDataCatalogCreateTagOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="tag_id", value=tag_id)
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=self.entry,
             entry_group_id=self.entry_group,
             location_id=self.location,
@@ -548,7 +545,6 @@ class CloudDataCatalogCreateTagTemplateOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="tag_template_id", value=tag_template)
         DataCatalogTagTemplateLink.persist(
             context=context,
-            task_instance=self,
             tag_template_id=self.tag_template_id,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -675,7 +671,6 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="tag_template_field_id", value=self.tag_template_field_id)
         DataCatalogTagTemplateLink.persist(
             context=context,
-            task_instance=self,
             tag_template_id=self.tag_template,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -1242,7 +1237,6 @@ class CloudDataCatalogGetEntryOperator(GoogleCloudBaseOperator):
         )
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=self.entry,
             entry_group_id=self.entry_group,
             location_id=self.location,
@@ -1344,7 +1338,6 @@ class CloudDataCatalogGetEntryGroupOperator(GoogleCloudBaseOperator):
         )
         DataCatalogEntryGroupLink.persist(
             context=context,
-            task_instance=self,
             entry_group_id=self.entry_group,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -1437,7 +1430,6 @@ class CloudDataCatalogGetTagTemplateOperator(GoogleCloudBaseOperator):
         )
         DataCatalogTagTemplateLink.persist(
             context=context,
-            task_instance=self,
             tag_template_id=self.tag_template,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -1543,7 +1535,6 @@ class CloudDataCatalogListTagsOperator(GoogleCloudBaseOperator):
         )
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=self.entry,
             entry_group_id=self.entry_group,
             location_id=self.location,
@@ -1641,7 +1632,6 @@ class CloudDataCatalogLookupEntryOperator(GoogleCloudBaseOperator):
         project_id, location_id, entry_group_id, entry_id = result.name.split("/")[1::2]
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=entry_id,
             entry_group_id=entry_group_id,
             location_id=location_id,
@@ -1747,7 +1737,6 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(GoogleCloudBaseOperator):
         )
         DataCatalogTagTemplateLink.persist(
             context=context,
-            task_instance=self,
             tag_template_id=self.tag_template,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -1980,7 +1969,6 @@ class CloudDataCatalogUpdateEntryOperator(GoogleCloudBaseOperator):
         location_id, entry_group_id, entry_id = result.name.split("/")[3::2]
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=self.entry_id or entry_id,
             entry_group_id=self.entry_group or entry_group_id,
             location_id=self.location or location_id,
@@ -2101,7 +2089,6 @@ class CloudDataCatalogUpdateTagOperator(GoogleCloudBaseOperator):
         location_id, entry_group_id, entry_id = result.name.split("/")[3:8:2]
         DataCatalogEntryLink.persist(
             context=context,
-            task_instance=self,
             entry_id=self.entry or entry_id,
             entry_group_id=self.entry_group or entry_group_id,
             location_id=self.location or location_id,
@@ -2218,7 +2205,6 @@ class CloudDataCatalogUpdateTagTemplateOperator(GoogleCloudBaseOperator):
         location_id, tag_template_id = result.name.split("/")[3::2]
         DataCatalogTagTemplateLink.persist(
             context=context,
-            task_instance=self,
             tag_template_id=self.tag_template_id or tag_template_id,
             location_id=self.location or location_id,
             project_id=self.project_id or hook.project_id,
@@ -2346,7 +2332,6 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(GoogleCloudBaseOperator):
         location_id, tag_template_id = result.name.split("/")[3:6:2]
         DataCatalogTagTemplateLink.persist(
             context=context,
-            task_instance=self,
             tag_template_id=self.tag_template or tag_template_id,
             location_id=self.location or location_id,
             project_id=self.project_id or hook.project_id,
