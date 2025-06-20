@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-19T14:00:15.059088
+# This constraints file was automatically generated on 2025-06-19T19:55:20.173006
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -48,7 +48,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Js2Py==0.74
 Mako==1.3.10
-Markdown==3.8.1
+Markdown==3.8.2
 MarkupSafe==3.0.2
 PyAthena==3.14.1
 PyGithub==2.6.1
@@ -341,7 +341,7 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.0
 google-api-core==2.25.1
-google-api-python-client==2.172.0
+google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
@@ -704,7 +704,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.15.0
-snowflake-snowpark-python==1.32.0
+snowflake-snowpark-python==1.33.0
 snowflake-sqlalchemy==1.7.4
 sortedcontainers==2.4.0
 soupsieve==2.7
