@@ -1,19 +1,19 @@
 {
-  "columns":{
+  "columns": {
     "description": "Description",
     "key": "Clé",
     "name": "Nom",
     "value": "Valeur"
   },
-  "config":{
-    "columns":{
+  "config": {
+    "columns": {
       "section": "Section"
     },
     "title": "Configuration d'Airflow"
   },
-  "connections":{
-    "add":"Ajouter une Connexion",
-    "columns":{
+  "connections": {
+    "add": "Ajouter une Connexion",
+    "columns": {
       "connectionId": "ID de la connexion",
       "connectionType": "Type de la connexion",
       "host": "Hôte",
@@ -21,7 +21,7 @@
     },
     "connection_one": "Connexion",
     "connection_other": "Connexions",
-    "delete":{
+    "delete": {
       "deleteConnection_one": "Supprimer 1 connexion",
       "deleteConnection_other": "Supprimer {{count}} connexions",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la connexion suivante :",
@@ -29,7 +29,7 @@
       "title": "Supprimer la Connexion"
     },
     "edit": "Modifier la Connexion",
-    "form":{
+    "form": {
       "connectionIdRequired": "L'ID de la connexion est requis",
       "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
       "connectionTypeRequired": "Le type de la connexion est requis",
@@ -55,9 +55,9 @@
       }
     }
   },
-  "deleteActions":{
+  "deleteActions": {
     "button": "Supprimer",
-    "modal":{
+    "modal": {
       "confirmButton": "Oui, Supprimer",
       "secondConfirmMessage": "Cette action est irréversible.",
       "thirdConfirmMessage": " Êtes-vous sûr de vouloir continuer ?"
@@ -65,7 +65,7 @@
     "selected": "Sélectionné",
     "tooltip": "Supprimer les connexions sélectionnées"
   },
-  "formActions":{
+  "formActions": {
     "reset": "Réinitialiser",
     "save": "Sauvegarder"
   },
@@ -80,7 +80,7 @@
   "pools": {
     "add": "Ajouter un Pool",
     "deferredSlotsIncluded": "Slots Différés Inclus",
-    "delete":{
+    "delete": {
       "title": "Supprimer le Pool",
       "warning": "Cela supprimera toutes les métadonnées liées au pool et peut affecter les tâches utilisant ce pool."
     },
@@ -122,7 +122,7 @@
       "title": "Supprimer la Variable",
       "tooltip": "Supprimer les variables sélectionnées"
     },
-    "edit":  "Modifier la Variable",
+    "edit": "Modifier la Variable",
     "export": "Exporter",
     "exportTooltip": "Exporter les variables sélectionnées",
     "form": {

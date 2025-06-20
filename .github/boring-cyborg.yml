@@ -348,34 +348,34 @@ labelPRBasedOnFilePath:
     - airflow-core/src/airflow/ui/**/*
 
   area:translations:
-    - airflow-core/src/airflow/ui/src/i18n/**/*
+    - airflow-core/src/airflow/ui/public/i18n/**/*
 
   translation:default:
-    - airflow-core/src/airflow/ui/src/i18n/locales/en/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/en/*
 
   translation:ar:
-    - airflow-core/src/airflow/ui/src/i18n/locales/ar/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/ar/*
 
   translation:de:
-    - airflow-core/src/airflow/ui/src/i18n/locales/de/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/de/*
 
   translation:fr:
-    - airflow-core/src/airflow/ui/src/i18n/locales/fr/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/fr/*
 
   translation:he:
-    - airflow-core/src/airflow/ui/src/i18n/locales/he/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/he/*
 
   translation:ko:
-    - airflow-core/src/airflow/ui/src/i18n/locales/ko/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/ko/*
 
   translation:nl:
-    - airflow-core/src/airflow/ui/src/i18n/locales/nl/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/nl/*
 
   translation:pl:
-    - airflow-core/src/airflow/ui/src/i18n/locales/pl/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/pl/*
 
   translation:zh-TW:
-    - airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/*
 
   area:CLI:
     - airflow-core/src/airflow/cli/**/*.py
