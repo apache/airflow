@@ -38,7 +38,7 @@ metadata:
   {{- end }}
 {{- $Global := . }}
 data:
-  {{- $config := merge .Values.config ( dict "core" dict ) }}
+  {{- $config := deepCopy .Values.config | merge (dict "core" dict) }}
   {{/*- Set a default for core.execution_api_server_url pointing to the api-server service if it's not set -*/}}
   {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
     {{- $basePath := "" -}}
