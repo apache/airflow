@@ -227,6 +227,65 @@ class TestGCSDeleteObjectsOperator:
         assert all(element in lineage.inputs for element in expected_inputs)
         assert all(element in expected_inputs for element in lineage.inputs)
 
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_parallel_delete_successful(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID,
+            bucket_name=TEST_BUCKET,
+            objects=MOCK_FILES[:3],
+            parallel_deletion=True,
+            parallel_workers=2,
+        )
+
+        operator.execute(None)
+
+        mock_hook.return_value.delete.assert_has_calls(
+            [
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
+            ],
+            any_order=True,
+        )
+        assert mock_hook.return_value.delete.call_count == 3
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_parallel_delete_with_failures(self, mock_hook):
+        def delete_side_effect(bucket_name, object_name):
+            if object_name == MOCK_FILES[1]:
+                raise Exception("Simulated delete failure")
+
+        mock_hook.return_value.delete.side_effect = delete_side_effect
+
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID,
+            bucket_name=TEST_BUCKET,
+            objects=MOCK_FILES[:3],
+            parallel_deletion=True,
+            parallel_workers=3,
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to delete the following objects") as ex_info:
+            operator.execute(None)
+
+        assert MOCK_FILES[1] in str(ex_info.value)
+
+        assert mock_hook.return_value.delete.call_count == 3
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_parallel_delete_empty_list(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID,
+            bucket_name=TEST_BUCKET,
+            objects=[],
+            parallel_deletion=True,
+            parallel_workers=2,
+        )
+
+        operator.execute(None)
+
+        mock_hook.return_value.delete.assert_not_called()
+
 
 class TestGoogleCloudStorageListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
