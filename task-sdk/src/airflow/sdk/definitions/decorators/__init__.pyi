@@ -27,6 +27,7 @@ from typing import Any, Callable, TypeVar, overload
 from docker.types import Mount
 from kubernetes.client import models as k8s
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.sdk.bases.decorator import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.sdk.definitions.dag import dag
@@ -101,11 +102,13 @@ class TaskDecoratorCollection:
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         pip_install_options: list[str] | None = None,
+        expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
-        show_return_value_in_logs: bool = True,
+        string_args: Iterable[str] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         **kwargs,
@@ -221,15 +224,20 @@ class TaskDecoratorCollection:
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
         requirements: None | Iterable[str] | str = None,
+        string_args: Iterable[str] | None = None,
         python_version: None | str | int | float = None,
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         pip_install_options: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
+        expect_airflow: bool = True,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -507,6 +515,7 @@ class TaskDecoratorCollection:
         image: str | None = None,
         name: str | None = None,
         random_name_suffix: bool = ...,
+        cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
         volume_mounts: list[k8s.V1VolumeMount] | None = None,
@@ -520,6 +529,7 @@ class TaskDecoratorCollection:
         reattach_on_restart: bool = ...,
         startup_timeout_seconds: int = ...,
         startup_check_interval_seconds: int = ...,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
         container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
@@ -530,6 +540,7 @@ class TaskDecoratorCollection:
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -553,13 +564,20 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
         base_container_status_polling_interval: float = ...,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         deferrable: bool = ...,
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
         on_finish_action: str = ...,
+        is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = ...,
         active_deadline_seconds: int | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
@@ -666,6 +684,7 @@ class TaskDecoratorCollection:
         :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
             in V1PodSpec.
         :param progress_callback: Callback function for receiving k8s container logs.
+        :param trigger_kwargs: additional keyword parameters passed to the trigger
         """
     @overload
     def kubernetes(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -849,6 +868,8 @@ class TaskDecoratorCollection:
         mode: str = ...,
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
+        silent_fail: bool = False,
+        never_fail: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """
@@ -873,6 +894,13 @@ class TaskDecoratorCollection:
         :param exponential_backoff: allow progressive longer waits between
             pokes by using exponential backoff algorithm
         :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
+        :param silent_fail: If true, and poke method raises an exception different from
+            AirflowSensorTimeout, AirflowTaskTimeout, AirflowSkipException
+            and AirflowFailException, the sensor will log the error and continue
+            its execution. Otherwise, the sensor task fails, and it can be retried
+            based on the provided `retries` parameter.
+        :param never_fail: If true, and poke method raises an exception, sensor will be skipped.
+           Mutually exclusive with soft_fail.
         """
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
