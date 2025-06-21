@@ -45,10 +45,13 @@ def get_provider_info():
                     "airflow.providers.teradata.operators.teradata",
                     "airflow.providers.teradata.operators.teradata_compute_cluster",
                 ],
-            }
+            },
+            {"integration-name": "Bteq", "python-modules": ["airflow.providers.teradata.operators.bteq"]},
         ],
         "hooks": [
-            {"integration-name": "Teradata", "python-modules": ["airflow.providers.teradata.hooks.teradata"]}
+            {"integration-name": "Teradata", "python-modules": ["airflow.providers.teradata.hooks.teradata"]},
+            {"integration-name": "Ttu", "python-modules": ["airflow.providers.teradata.hooks.ttu"]},
+            {"integration-name": "Bteq", "python-modules": ["airflow.providers.teradata.hooks.bteq"]},
         ],
         "transfers": [
             {

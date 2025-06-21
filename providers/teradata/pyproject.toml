@@ -72,6 +72,9 @@ dependencies = [
 "amazon" = [
     "apache-airflow-providers-amazon",
 ]
+"ssh" = [
+    "apache-airflow-providers-ssh"
+]
 
 [dependency-groups]
 dev = [
@@ -81,6 +84,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-ssh",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 

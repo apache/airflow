@@ -1,0 +1,15 @@
+.LOGON {{params.host}}/{{params.username}},{{params.password}}
+.IF ERRORCODE <> 0 THEN .QUIT 8
+.SET WIDTH 500
+.SET SESSION CHARSET 'ASCII'
+DATABASE {{params.DATABASE_NAME}};
+CREATE SET TABLE {{params.TABLE_NAME}} (
+    emp_id INT,
+    emp_name VARCHAR(100),
+    dept VARCHAR(50)
+    ) PRIMARY INDEX (emp_id);
+INSERT INTO {{params.TABLE_NAME}} VALUES (1, 'John Doe', 'IT');
+INSERT INTO {{params.TABLE_NAME}} VALUES (2, 'Jane Smith', 'HR');
+DROP TABLE {{params.TABLE_NAME}};
+.LOGOFF
+.quit 0
