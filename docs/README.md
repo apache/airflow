@@ -59,7 +59,7 @@ Documentation for a general overview and summaries not connected with any specif
 # Architecture of documentation for Airflow
 
 Building documentation for Airflow is optimized for speed and for the convenience workflows of the release
-managers and committers who publish and fix the documentation - that's why it's a little complex, as we have 
+managers and committers who publish and fix the documentation - that's why it's a little complex, as we have
 multiple repositories and multiple sources of documentation involved.
 
 There are a few repositories under `apache` organization that are used to build the documentation for Airflow:
