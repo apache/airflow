@@ -94,7 +94,7 @@ class ApprovalOperator(InteractiveOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         user_response = self.get_user_response(event)
-        if user_response != "Approve" or user_response != "Reject":
+        if user_response != "Approve" and user_response != "Reject":
             # TODO: update message
             raise ValueError("")
         return super().execute_complete(context, event)
