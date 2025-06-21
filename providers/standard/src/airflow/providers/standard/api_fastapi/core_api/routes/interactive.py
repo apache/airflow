@@ -69,7 +69,9 @@ def write_response(
             },
         )
 
-    existing_response = select(InteractiveResponseModel).where(ti_id=ti_id_str)
+    existing_response = session.scalar(
+        select(InteractiveResponseModel).where(InteractiveResponseModel.ti_id == ti_id_str)
+    )
     if existing_response:
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"Interactive Response exists for task task_instance id {ti_id_str}"
