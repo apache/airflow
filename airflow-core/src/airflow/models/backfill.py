@@ -445,7 +445,7 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
-    triggering_user: str,
+    triggering_user: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
 ) -> Backfill | None:
     from airflow.models import DagModel
