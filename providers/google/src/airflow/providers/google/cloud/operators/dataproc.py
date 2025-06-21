@@ -74,6 +74,20 @@ if TYPE_CHECKING:
 
     from airflow.utils.context import Context
 
+try:
+    from airflow.triggers.base import StartTriggerArgs
+except ImportError:
+    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    @dataclass
+    class StartTriggerArgs:  # type: ignore[no-redef]
+        """Arguments required for start task execution from triggerer."""
+
+        trigger_cls: str
+        next_method: str
+        trigger_kwargs: dict[str, Any] | None = None
+        next_kwargs: dict[str, Any] | None = None
+        timeout: timedelta | None = None
+
 
 class PreemptibilityType(Enum):
     """Contains possible Type values of Preemptibility applicable for every secondary worker of Cluster."""
@@ -1831,6 +1845,15 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
 
     operator_extra_links = (DataprocJobLink(),)
 
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger",
+        trigger_kwargs={},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
+
     def __init__(
         self,
         *,
@@ -1845,6 +1868,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        start_from_trigger: bool = False,
         polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: int | None = None,
@@ -1877,6 +1901,16 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.wait_timeout = wait_timeout
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
+        self.start_trigger_args.trigger_kwargs = {
+            "project_id": self.project_id,
+            "region": self.region,
+            "job": self.job,
+            "request_id": self.request_id,
+            "retry": self.retry,
+            "timeout": self.timeout,
+            "metadata": self.metadata,
+        }
+        self.start_from_trigger = start_from_trigger
 
     def execute(self, context: Context):
         self.log.info("Submitting job")
