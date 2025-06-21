@@ -14,6 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#    "rich>=12.4.4",
+#    "diagrams>=0.23.4",
+# ]
+# ///
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,11 +33,13 @@ from rich.console import Console
 
 MY_DIR = Path(__file__).parent
 MY_FILENAME = Path(__file__).with_suffix("").name
-PYTHON_MULTIPROCESS_LOGO = MY_DIR.parents[1] / "diagrams" / "python_multiprocess_logo.png"
-PACKAGES_IMAGE = MY_DIR.parents[1] / "diagrams" / "packages.png"
-DATABASE_IMAGE = MY_DIR.parents[1] / "diagrams" / "database.png"
-MULTIPLE_FILES_IMAGE = MY_DIR.parents[1] / "diagrams" / "multiple_files.png"
-CONFIG_FILE = MY_DIR.parents[1] / "diagrams" / "config_file.png"
+AIRFLOW_SOURCES_ROOT = MY_DIR.parents[2]
+DIAGRAMS_DIR = AIRFLOW_SOURCES_ROOT / "devel-common" / "src" / "docs" / "diagrams"
+PYTHON_MULTIPROCESS_LOGO = DIAGRAMS_DIR / "python_multiprocess_logo.png"
+PACKAGES_IMAGE = DIAGRAMS_DIR / "packages.png"
+DATABASE_IMAGE = DIAGRAMS_DIR / "database.png"
+MULTIPLE_FILES_IMAGE = DIAGRAMS_DIR / "multiple_files.png"
+CONFIG_FILE = DIAGRAMS_DIR / "config_file.png"
 
 console = Console(width=400, color_system="standard")
 
@@ -77,8 +86,6 @@ def generate_dag_processor_airflow_diagram():
                 "Common\nOrganization\nPlugins &\nPackages", PACKAGES_IMAGE.as_posix()
             )
 
-            organization_config_file = Custom("Config\nFile\nCommon\nOrganization", CONFIG_FILE.as_posix())
-
             internal_api = Custom("Task SDK\nGRPC API", PYTHON_MULTIPROCESS_LOGO.as_posix())
             (
                 internal_api
@@ -104,7 +111,7 @@ def generate_dag_processor_airflow_diagram():
         )
 
         deployment_manager_1 = User("Deployment\nManager\nTeam 1")
-        dag_author_1 = User("DAG Author\nTeamt 1")
+        dag_author_1 = User("DAG Author\nTeam 1")
 
         with Cluster("Team 1 Airflow Deployment", graph_attr={"bgcolor": "#AAAABB", "fontsize": "22"}):
             with Cluster("No DB access"):
@@ -113,9 +120,8 @@ def generate_dag_processor_airflow_diagram():
                     triggerer_1 = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 with Cluster("Parsing"):
                     dag_processors_1 = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                dag_files_1 = Custom("DAGS/Team 1", MULTIPLE_FILES_IMAGE.as_posix())
+                dag_files_1 = Custom("DAG Bundles\nTeam 1", MULTIPLE_FILES_IMAGE.as_posix())
                 plugins_and_packages_1 = Custom("Plugins\n& Packages\nTenant 1", PACKAGES_IMAGE.as_posix())
-                config_file_1 = Custom("Config\nFile\nTeam 1", CONFIG_FILE.as_posix())
         operations_user_1 = User("Operations User\nTeam 1")
 
         deployment_manager_2 = User("Deployment\nManager\nTeam 2")
@@ -128,9 +134,8 @@ def generate_dag_processor_airflow_diagram():
                     triggerer_2 = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 with Cluster("Parsing"):
                     dag_processors_2 = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                dag_files_2 = Custom("DAGS/Team 2", MULTIPLE_FILES_IMAGE.as_posix())
+                dag_files_2 = Custom("DAG Bundles\nTeam 2", MULTIPLE_FILES_IMAGE.as_posix())
                 plugins_and_packages_2 = Custom("Plugins\n& Packages\nTeam 2", PACKAGES_IMAGE.as_posix())
-                config_file_2 = Custom("Config\nFile\nTeam 2", CONFIG_FILE.as_posix())
         operations_user_2 = User("Operations User\nTeam 2")
 
         (
@@ -154,12 +159,6 @@ def generate_dag_processor_airflow_diagram():
             >> plugins_and_packages_1
         )
 
-        (
-            deployment_manager_1
-            >> Edge(color="blue", style="dashed", reverse=False, label="configure\n\n")
-            >> config_file_1
-        )
-
         dag_author_2 >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n") >> dag_files_2
         (
             deployment_manager_2
@@ -168,20 +167,8 @@ def generate_dag_processor_airflow_diagram():
         )
 
         (
-            deployment_manager_2
-            >> Edge(color="blue", style="solid", reverse=False, label="configure\n\n")
-            >> config_file_2
-        )
-
-        (
             organization_plugins_and_packages
             - Edge(color="blue", style="solid", reverse=True, label="install\n\n")
-            - organization_deployment_manager
-        )
-
-        (
-            organization_config_file
-            - Edge(color="blue", style="solid", reverse=True, label="configure\n\n")
             - organization_deployment_manager
         )
 
@@ -237,7 +224,6 @@ def generate_dag_processor_airflow_diagram():
         dag_files_2 >> Edge(color="brown", style="solid", label="sync\n\n") >> triggerer_2
 
         # This is for better layout. Invisible edges are used to align the nodes better
-        schedulers - Edge(style="invis") - organization_config_file
         schedulers - Edge(style="invis") - organization_plugins_and_packages
         metadata_db - Edge(style="invis") - executor_1
         metadata_db - Edge(style="invis") - executor_2
