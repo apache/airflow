@@ -20,7 +20,8 @@
 name: 'Recheck old bug reports'
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '0 7 * * *'
+    # reduce scheduled github actions in fork to once a year
+    - cron: '0 0 31 12 *'
 permissions:
   # All other permissions are set to none
   issues: write

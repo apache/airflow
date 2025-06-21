@@ -24,7 +24,8 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]
   schedule:
-    - cron: '0 2 * * *'
+    # reduce scheduled github actions in fork to once a year
+    - cron: '0 0 31 12 *'
 
 permissions:
   contents: read

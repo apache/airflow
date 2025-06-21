@@ -19,7 +19,8 @@
 name: Tests ARM
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 3,9,15,21 * * *'
+    # reduce scheduled github actions in fork to once a year
+    - cron: '0 0 31 12 *'
   push:
     branches:
       - v[0-9]+-[0-9]+-test
