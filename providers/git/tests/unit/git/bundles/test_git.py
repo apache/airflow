@@ -32,7 +32,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
-from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
@@ -73,16 +72,21 @@ class TestGitDagBundle:
     def teardown_class(cls) -> None:
         clear_db_connections()
 
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db, request):
+        # Skip setup for tests that need to create their own connections
+        if request.function.__name__ in ["test_view_url", "test_view_url_subdir"]:
+            return
+
+        create_connection_without_db(
             Connection(
                 conn_id="git_default",
                 host="git@github.com:apache/airflow.git",
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_HTTPS,
                 host=AIRFLOW_HTTPS_URL,
@@ -90,7 +94,7 @@ class TestGitDagBundle:
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_NO_REPO_URL,
                 conn_type="git",

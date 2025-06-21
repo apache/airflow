@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 import pytest
@@ -29,7 +30,6 @@ from airflow.models import Connection
 
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.utils import db
 
 log = logging.getLogger(__name__)
 
@@ -58,22 +58,25 @@ class TestConsumeFromTopic:
     """
 
     def setup_method(self):
+        """Set up connections for each test method."""
+        # Create separate connections for each test
         for num in (1, 2, 3):
-            db.merge_conn(
-                Connection(
-                    conn_id=f"operator.consumer.test.integration.test_{num}",
-                    conn_type="kafka",
-                    extra=json.dumps(
-                        {
-                            "socket.timeout.ms": 10,
-                            "bootstrap.servers": "broker:29092",
-                            "group.id": f"operator.consumer.test.integration.test_{num}",
-                            "enable.auto.commit": False,
-                            "auto.offset.reset": "beginning",
-                        }
-                    ),
-                )
+            conn = Connection(
+                conn_id=f"operator.consumer.test.integration.test_{num}",
+                conn_type="kafka",
+                extra=json.dumps(
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "broker:29092",
+                        "group.id": f"operator.consumer.test.integration.test_{num}",
+                        "enable.auto.commit": False,
+                        "auto.offset.reset": "beginning",
+                    }
+                ),
             )
+
+            env_var_name = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+            os.environ[env_var_name] = conn.get_uri()
 
     def test_consumer_operator_test_1(self):
         """test consumer works with string import"""

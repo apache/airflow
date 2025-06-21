@@ -36,7 +36,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     TokenAuth,
     fallback_to_default_account,
 )
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -151,7 +151,9 @@ class TestDbtCloudJobRunStatus:
 
 
 class TestDbtCloudHook:
-    def setup_class(self):
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         # Connection with ``account_id`` specified
         account_id_conn = Connection(
             conn_id=ACCOUNT_ID_CONN,
@@ -186,10 +188,10 @@ class TestDbtCloudHook:
             extra=EXTRA_PROXIES,
         )
 
-        db.merge_conn(account_id_conn)
-        db.merge_conn(no_account_id_conn)
-        db.merge_conn(host_conn)
-        db.merge_conn(proxy_conn)
+        create_connection_without_db(account_id_conn)
+        create_connection_without_db(no_account_id_conn)
+        create_connection_without_db(host_conn)
+        create_connection_without_db(proxy_conn)
 
     @pytest.mark.parametrize(
         argnames="conn_id, url",

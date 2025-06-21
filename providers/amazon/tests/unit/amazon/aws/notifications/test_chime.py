@@ -25,15 +25,15 @@ from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 from airflow.providers.amazon.aws.notifications.chime import ChimeNotifier, send_chime_notification
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
 
 
 class TestChimeNotifier:
     # Chime webhooks can't really have a default connection, so we need to create one for tests.
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="default-chime-webhook",
                 conn_type="chime",
