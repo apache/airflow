@@ -378,6 +378,8 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
 )
 def cli(language: str | None = None, add_missing: bool = False):
     if add_missing:
+        if not language:
+            raise ValueError("--language is required when passing --add_missing")
         locale_path = LOCALES_DIR / language
         locale_path.mkdir(exist_ok=True)
     locale_files = get_locale_files()
