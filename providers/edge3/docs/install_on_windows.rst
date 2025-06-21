@@ -49,6 +49,12 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
 .. code-block:: bash
 
     @echo off
+    REM For versions 3.0.0 or later
+    set AIRFLOW__API_AUTH__JWT_SECRET=<matching the api-server...>
+    REM for versions earlier than 3.0.0
+    set AIRFLOW__CORE__INTERNAL_API_SECRET_KEY=<use this as configured centrally in api-server...>
+
+    REM For all versions
     set AIRFLOW__CORE__DAGS_FOLDER=dags
     set AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs
     set AIRFLOW__EDGE__API_URL=https://your-hostname-and-port/edge_worker/v1/rpcapi
