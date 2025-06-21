@@ -46,7 +46,6 @@ standard_provider_verison = "1.3.0"
 
 
 def upgrade() -> None:
-    breakpoint()
     op.create_table(
         "interactive_response",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
