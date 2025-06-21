@@ -60,6 +60,11 @@ versions:
   - 2.0.0
   - 1.0.0
 
+excluded-python-versions:
+  # To use JWT authentication with Tableau, we need tableauserverclient>=0.27,
+  # which is only available for python>=3.10
+  - "3.9"
+
 integrations:
   - integration-name: Tableau
     external-doc-url: https://www.tableau.com/

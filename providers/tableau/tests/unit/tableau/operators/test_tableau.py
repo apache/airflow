@@ -16,13 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
-from airflow.providers.tableau.operators.tableau import TableauOperator
+
+if sys.version_info < (3, 10):
+    pytestmark = pytest.mark.skip(
+        "Skipping this test file: Tableau provider not supported on Python < 3.10, see #51756."
+    )
+else:
+    from airflow.providers.tableau.operators.tableau import TableauOperator
 
 
 class TestTableauOperator:
