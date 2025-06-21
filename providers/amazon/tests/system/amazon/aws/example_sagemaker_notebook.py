@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
+import packaging.version
+
+from airflow import __version__ as airflow_version
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateNotebookOperator,
     SageMakerDeleteNotebookOperator,
@@ -27,6 +29,18 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStopNotebookOperator,
 )
 
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if packaging.version.parse(
+        packaging.version.parse(airflow_version).base_version
+    ) > packaging.version.parse("2.10.0"):
+        from airflow.sdk import DAG, chain
+    else:
+        # Airflow 2.10 compat
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_sagemaker_notebook"

@@ -20,13 +20,13 @@ import datetime as dt
 import json
 import random
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
+import packaging.version
 
-from airflow import DAG, settings
-from airflow.decorators import task, task_group
+from airflow import __version__ as airflow_version, settings
 from airflow.models import Connection
-from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.operators.kinesis_analytics import (
     KinesisAnalyticsV2CreateApplicationOperator,
@@ -42,6 +42,21 @@ from airflow.providers.amazon.aws.sensors.kinesis_analytics import (
     KinesisAnalyticsV2StopApplicationCompletedSensor,
 )
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
+
+if TYPE_CHECKING:
+    from airflow.decorators import task, task_group
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if packaging.version.parse(
+        packaging.version.parse(airflow_version).base_version
+    ) > packaging.version.parse("2.10.0"):
+        from airflow.sdk import DAG, chain, task, task_group
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task, task_group
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

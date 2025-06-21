@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
+import packaging.version
+
+from airflow import __version__ as airflow_version
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCancelExportTaskOperator,
@@ -32,6 +33,21 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.rds import RdsExportTaskExistenceSensor, RdsSnapshotExistenceSensor
+
+if TYPE_CHECKING:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if packaging.version.parse(
+        packaging.version.parse(airflow_version).base_version
+    ) > packaging.version.parse("2.10.0"):
+        from airflow.sdk import DAG, chain, task
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
