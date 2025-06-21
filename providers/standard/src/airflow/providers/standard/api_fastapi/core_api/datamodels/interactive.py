@@ -24,5 +24,12 @@ from airflow.api_fastapi.core_api.base import BaseModel
 class AddInteractiveResponsePayload(BaseModel):
     """Schema for adding an InteractiveResponse for a specific Task Instance."""
 
-    ti_id: UUID
-    content_to_add: str
+    content: str
+
+
+class InteractiveResponse(BaseModel):
+    """Schema for added InteractiveResponse."""
+
+    ti_id: str
+    content: str
+    created_at: datetime
