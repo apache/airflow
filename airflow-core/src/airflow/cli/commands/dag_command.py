@@ -36,7 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
@@ -68,12 +68,17 @@ def dag_trigger(args) -> None:
     """Create a dag run for the specified dag."""
     api_client = get_current_api_client()
     try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s", e)
+        user = None
+    try:
         message = api_client.trigger_dag(
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
             logical_date=args.logical_date,
-            triggering_user=getuser(),
+            triggering_user=user,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
