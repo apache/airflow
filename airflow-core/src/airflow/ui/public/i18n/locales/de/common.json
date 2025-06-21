@@ -54,7 +54,8 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
-    "triggeredBy": "Angestoßen von"
+    "triggeredWith": "Angestoßen von",
+    "triggeredByUser": "Benutzer der ausgelöst hat"
   },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",

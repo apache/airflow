@@ -41,7 +41,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 else:
     from airflow.decorators import setup, task as task_decorator, teardown
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
@@ -486,7 +486,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         v3_kwargs = (
             {
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
                 "logical_date": DEFAULT_DATE,
             }
             if AIRFLOW_V_3_0_PLUS
@@ -560,7 +560,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         v3_kwargs = (
             {
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
                 "logical_date": DEFAULT_DATE,
             }
             if AIRFLOW_V_3_0_PLUS

@@ -2394,15 +2394,26 @@ export const $DAGRunResponse = {
         state: {
             '$ref': '#/components/schemas/DagRunState'
         },
-        triggered_by: {
+        triggered_with: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/DagRunTriggeredByType'
+                    '$ref': '#/components/schemas/DagRunTriggeredWithType'
                 },
                 {
                     type: 'null'
                 }
             ]
+        },
+        triggered_by: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Triggered By'
         },
         conf: {
             anyOf: [
@@ -2451,7 +2462,7 @@ export const $DAGRunResponse = {
         }
     },
     type: 'object',
-    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
+    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_with', 'triggered_by', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
     title: 'DAGRunResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -2860,10 +2871,10 @@ so please ensure that their values always match the ones with the
 same name in TaskInstanceState.`
 } as const;
 
-export const $DagRunTriggeredByType = {
+export const $DagRunTriggeredWithType = {
     type: 'string',
     enum: ['cli', 'operator', 'rest_api', 'ui', 'test', 'timetable', 'asset', 'backfill'],
-    title: 'DagRunTriggeredByType',
+    title: 'DagRunTriggeredWithType',
     description: 'Class with TriggeredBy types for DagRun.'
 } as const;
 

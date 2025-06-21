@@ -45,7 +45,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
@@ -101,7 +101,7 @@ class TestCliTasks:
             logical_date=DEFAULT_DATE,
             data_interval=data_interval,
             run_after=DEFAULT_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
     @classmethod
@@ -357,7 +357,7 @@ class TestCliTasks:
             data_interval=data_interval,
             run_after=default_date2,
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.CLI,
+            triggered_with=DagRunTriggeredWithType.CLI,
         )
         ti2 = TaskInstance(task2, run_id=dagrun.run_id)
         ti2.set_state(State.SUCCESS)
@@ -441,7 +441,7 @@ class TestLogsfromTaskRunCommand:
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         self.tis = self.dr.get_task_instances()
         assert len(self.tis) == 1

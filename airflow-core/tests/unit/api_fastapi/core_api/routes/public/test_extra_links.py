@@ -36,7 +36,7 @@ from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 
 pytestmark = pytest.mark.db_test
 
@@ -106,7 +106,7 @@ class TestGetExtraLinks:
             state=DagRunState.SUCCESS,
             data_interval=(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
             run_after=timezone.datetime(2020, 1, 2),
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
     def teardown_method(self) -> None:

@@ -39,7 +39,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG
     from airflow.timetables.trigger import DeltaTriggerTimetable
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 
 pytestmark = pytest.mark.db_test
 
@@ -100,7 +100,7 @@ class TestLatestOnlyOperator:
             downstream_task2.set_upstream(downstream_task)
             downstream_task3.set_upstream(downstream_task)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_with_kwargs = {"triggered_with": DagRunTriggeredWithType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         dr0 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -108,7 +108,7 @@ class TestLatestOnlyOperator:
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
+            **triggered_with_kwargs,
         )
 
         dr1 = dag_maker.create_dagrun(
@@ -117,7 +117,7 @@ class TestLatestOnlyOperator:
             logical_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
             data_interval=DataInterval(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12)),
-            **triggered_by_kwargs,
+            **triggered_with_kwargs,
         )
 
         dr2 = dag_maker.create_dagrun(
@@ -126,7 +126,7 @@ class TestLatestOnlyOperator:
             logical_date=END_DATE,
             state=State.RUNNING,
             data_interval=DataInterval(END_DATE + INTERVAL, END_DATE + INTERVAL),
-            **triggered_by_kwargs,
+            **triggered_with_kwargs,
         )
 
         if AIRFLOW_V_3_0_1:
@@ -221,7 +221,7 @@ class TestLatestOnlyOperator:
             downstream_task.set_upstream(latest_task)
             downstream_task2.set_upstream(downstream_task)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_with_kwargs = {"triggered_with": DagRunTriggeredWithType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -229,7 +229,7 @@ class TestLatestOnlyOperator:
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
+            **triggered_with_kwargs,
         )
 
         logical_date = timezone.datetime(2016, 1, 1, 12)
@@ -239,7 +239,7 @@ class TestLatestOnlyOperator:
             logical_date=logical_date,
             state=State.RUNNING,
             data_interval=DataInterval(logical_date, logical_date),
-            **triggered_by_kwargs,
+            **triggered_with_kwargs,
         )
 
         dag_maker.create_dagrun(
@@ -248,7 +248,7 @@ class TestLatestOnlyOperator:
             logical_date=END_DATE,
             state=State.RUNNING,
             data_interval=DataInterval(END_DATE, END_DATE),
-            **triggered_by_kwargs,
+            **triggered_with_kwargs,
         )
 
         latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)

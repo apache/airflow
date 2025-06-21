@@ -121,7 +121,11 @@ export const Details = () => {
           </Table.Cell>
         </Table.Row>
         <Table.Row>
-          <Table.Cell>{translate("dagRun.triggeredBy")}</Table.Cell>
+          <Table.Cell>{translate("dagRun.triggeredWith")}</Table.Cell>
+          <Table.Cell>{dagRun.triggered_with}</Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.triggeedByUser")}</Table.Cell>
           <Table.Cell>{dagRun.triggered_by}</Table.Cell>
         </Table.Row>
         {dagRun.bundle_version !== null && (

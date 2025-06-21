@@ -46,7 +46,7 @@ from airflow.sdk.execution_time import comms
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.config import conf_vars, env_vars
 
@@ -111,7 +111,7 @@ class TestDagFileProcessor:
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 run_after=DEFAULT_DATE,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
                 session=session,
             )
             task = dag.get_task(task_id="run_this_first")

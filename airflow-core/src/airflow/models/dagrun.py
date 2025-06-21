@@ -90,7 +90,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, nulls_first, wit
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import NOTSET, DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -159,9 +159,13 @@ class DagRun(Base, LoggingMixin):
     run_id = Column(StringID(), nullable=False)
     creating_job_id = Column(Integer)
     run_type = Column(String(50), nullable=False)
-    triggered_by = Column(
-        Enum(DagRunTriggeredByType, native_enum=False, length=50)
+    triggered_with = Column(
+        Enum(DagRunTriggeredWithType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
+    triggered_by = Column(
+        String(512),
+        nullable=True,
+    )  # The user that triggered the DagRun, if applicable
     conf = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
@@ -302,7 +306,8 @@ class DagRun(Base, LoggingMixin):
         run_type: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
-        triggered_by: DagRunTriggeredByType | None = None,
+        triggered_with: DagRunTriggeredWithType | None = None,
+        triggered_by: str | None = None,
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
     ):
@@ -332,6 +337,7 @@ class DagRun(Base, LoggingMixin):
         self.creating_job_id = creating_job_id
         self.backfill_id = backfill_id
         self.clear_number = 0
+        self.triggered_with = triggered_with
         self.triggered_by = triggered_by
         self.scheduled_by_job_id = None
         self.context_carrier = {}

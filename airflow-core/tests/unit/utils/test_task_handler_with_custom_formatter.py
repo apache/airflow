@@ -34,7 +34,7 @@ from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 
 pytestmark = pytest.mark.db_test
 
@@ -66,13 +66,13 @@ def custom_task_log_handler_config():
 def task_instance(dag_maker):
     with dag_maker(DAG_ID, start_date=DEFAULT_DATE, serialized=True) as dag:
         task = EmptyOperator(task_id=TASK_ID)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_with_kwargs = {"triggered_with": DagRunTriggeredWithType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag_maker.create_dagrun(
         state=DagRunState.RUNNING,
         logical_date=DEFAULT_DATE,
         run_type=DagRunType.MANUAL,
         data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-        **triggered_by_kwargs,
+        **triggered_with_kwargs,
     )
     ti = TaskInstance(task=task, run_id=dagrun.run_id)
     ti.log.disabled = False

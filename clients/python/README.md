@@ -514,7 +514,7 @@ Class | Method | HTTP request | Description
  - [DagProcessorInfoResponse](docs/DagProcessorInfoResponse.md)
  - [DagRunAssetReference](docs/DagRunAssetReference.md)
  - [DagRunState](docs/DagRunState.md)
- - [DagRunTriggeredByType](docs/DagRunTriggeredByType.md)
+ - [DagRunTriggeredWithType](docs/DagRunTriggeredWithType.md)
  - [DagRunType](docs/DagRunType.md)
  - [DagScheduleAssetReference](docs/DagScheduleAssetReference.md)
  - [DagStatsCollectionResponse](docs/DagStatsCollectionResponse.md)

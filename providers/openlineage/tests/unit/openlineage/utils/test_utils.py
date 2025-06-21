@@ -1385,7 +1385,7 @@ class TestDagInfoAirflow3:
 @patch.object(DagRun, "dag_versions", new_callable=PropertyMock)
 def test_dagrun_info_af3(mocked_dag_versions):
     from airflow.models.dag_version import DagVersion
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 
     date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
     dv1 = DagVersion()
@@ -1408,7 +1408,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
         run_type=DagRunType.MANUAL,
         creating_job_id=123,
         data_interval=(date, date),
-        triggered_by=DagRunTriggeredByType.UI,
+        triggered_with=DagRunTriggeredWithType.UI,
         backfill_id=999,
         bundle_version="bundle_version",
     )

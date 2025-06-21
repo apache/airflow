@@ -24,7 +24,7 @@ import httpx
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredWithType
 
 
 class Client:
@@ -36,11 +36,18 @@ class Client:
             self._session.auth = auth
 
     def trigger_dag(
-        self, dag_id, run_id=None, conf=None, logical_date=None, replace_microseconds=True
+        self,
+        dag_id,
+        run_id=None,
+        conf=None,
+        logical_date=None,
+        triggered_by=None,
+        replace_microseconds=True,
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
-            triggered_by=DagRunTriggeredByType.CLI,
+            triggered_with=DagRunTriggeredWithType.CLI,
+            triggered_by=triggered_by,
             run_id=run_id,
             conf=conf,
             logical_date=logical_date,
@@ -59,6 +66,7 @@ class Client:
                 "run_type": dag_run.run_type,
                 "start_date": dag_run.start_date,
                 "state": dag_run.state,
+                "triggered_by": dag_run.triggered_by,
             }
         return dag_run
 

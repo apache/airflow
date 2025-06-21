@@ -29,7 +29,7 @@ from operator import attrgetter
 import rich_click as click
 
 from airflow.jobs.job import run_job
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredWithType
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -175,7 +175,7 @@ def create_dag_runs(dag, num_runs, session):
             data_interval=(logical_date, logical_date),
             run_after=logical_date,
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
             state=DagRunState.RUNNING,
             start_date=timezone.utcnow(),
             session=session,

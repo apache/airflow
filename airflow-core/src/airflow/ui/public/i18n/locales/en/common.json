@@ -54,7 +54,8 @@
     "runAfter": "Run After",
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
-    "triggeredBy": "Triggered By"
+    "triggeredWith": "Triggered With",
+    "triggeredByUser": "Triggering User"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",

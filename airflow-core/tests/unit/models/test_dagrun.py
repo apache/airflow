@@ -52,7 +52,7 @@ from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
@@ -128,7 +128,7 @@ class TestDagRun:
             run_after=data_interval.end,
             start_date=now,
             state=state,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
             session=session,
         )
 
@@ -1059,7 +1059,7 @@ class TestDagRun:
             run_after=DEFAULT_DATE,
             start_date=DEFAULT_DATE if state == DagRunState.RUNNING else None,
             session=session,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
         if state == DagRunState.RUNNING:
@@ -1140,7 +1140,7 @@ class TestDagRun:
                 data_interval=dag.infer_automated_data_interval(dag.start_date),
                 run_after=dag.start_date,
                 start_date=dag.start_date,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
                 session=session,
             )
             ti = dag_run.get_task_instance(dag_task.task_id, session)

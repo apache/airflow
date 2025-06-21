@@ -27,7 +27,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.logs import check_last_log
@@ -80,7 +80,7 @@ class TestDagEndpoint:
             start_date=DAG3_START_DATE_1,
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
         dagrun_success = DagRun(
@@ -90,7 +90,7 @@ class TestDagEndpoint:
             start_date=DAG3_START_DATE_2,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
         session.add(dag_model)

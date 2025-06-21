@@ -103,7 +103,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, with_row_locks
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     from pydantic import NonNegativeInt
@@ -248,7 +248,8 @@ def _create_orm_dagrun(
     run_type: DagRunType,
     creating_job_id: int | None,
     backfill_id: NonNegativeInt | None,
-    triggered_by: DagRunTriggeredByType,
+    triggered_with: DagRunTriggeredWithType,
+    triggered_by: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -268,6 +269,7 @@ def _create_orm_dagrun(
         run_type=run_type,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
+        triggered_with=triggered_with,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
         bundle_version=bundle_version,
@@ -1533,7 +1535,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         run_after: datetime,
         conf: dict | None = None,
         run_type: DagRunType,
-        triggered_by: DagRunTriggeredByType,
+        triggered_with: DagRunTriggeredWithType,
+        triggered_by: str | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
@@ -1543,10 +1546,16 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Create a run for this DAG to run its tasks.
 
-        :param start_date: the date this dag run should be evaluated
+        :param run_id: ID of the dag_run
+        :param logical_date: date of execution
+        :param run_after: the datetime before which dag won't run
         :param conf: Dict containing configuration/parameters to pass to the DAG
+        :param triggered_with: the entity which triggers the dag_run
+        :param triggered_by: the user name who triggers the dag_run
+        :param start_date: the date this dag run should be evaluated
         :param creating_job_id: ID of the job creating this DagRun
         :param backfill_id: ID of the backfill run if one exists
+        :param session: Unused. Only added in compatibility with database isolation mode
         :return: The created DAG run.
 
         :meta private:
@@ -1606,6 +1615,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             run_type=run_type,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
+            triggered_with=triggered_with,
             triggered_by=triggered_by,
             session=session,
         )
@@ -2294,7 +2304,8 @@ def _get_or_create_dagrun(
     data_interval: tuple[datetime, datetime] | None,
     run_after: datetime,
     conf: dict | None,
-    triggered_by: DagRunTriggeredByType,
+    triggered_with: DagRunTriggeredWithType,
+    triggered_by: str | None,
     start_date: datetime,
     session: Session,
 ) -> DagRun:
@@ -2308,7 +2319,8 @@ def _get_or_create_dagrun(
     :param start_date: Start date of new run.
     :param logical_date: Logical date for finding an existing run.
     :param run_id: Run ID for the new DAG run.
-    :param triggered_by: the entity which triggers the dag_run
+    :param triggered_with: the entity which triggers the dag_run
+    :param triggered_by: the user name who triggers the dag_run
 
     :return: The newly created DAG run.
     """
@@ -2326,6 +2338,7 @@ def _get_or_create_dagrun(
         conf=conf,
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
+        triggered_with=triggered_with,
         triggered_by=triggered_by,
         start_date=start_date or logical_date,
         session=session,

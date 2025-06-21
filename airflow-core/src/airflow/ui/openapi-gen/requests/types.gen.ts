@@ -634,7 +634,8 @@ export type DAGRunResponse = {
     last_scheduling_decision: string | null;
     run_type: DagRunType;
     state: DagRunState;
-    triggered_by: DagRunTriggeredByType | null;
+    triggered_with: DagRunTriggeredWithType | null;
+    triggered_by: string | null;
     conf: {
     [key: string]: unknown;
 } | null;
@@ -741,7 +742,7 @@ export type DagRunState = 'queued' | 'running' | 'success' | 'failed';
 /**
  * Class with TriggeredBy types for DagRun.
  */
-export type DagRunTriggeredByType = 'cli' | 'operator' | 'rest_api' | 'ui' | 'test' | 'timetable' | 'asset' | 'backfill';
+export type DagRunTriggeredWithType = 'cli' | 'operator' | 'rest_api' | 'ui' | 'test' | 'timetable' | 'asset' | 'backfill';
 
 /**
  * Class with DagRun types.

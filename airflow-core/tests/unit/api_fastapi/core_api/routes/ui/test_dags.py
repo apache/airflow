@@ -24,7 +24,7 @@ import pytest
 from airflow.models import DagRun
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG1_ID,
@@ -55,7 +55,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     logical_date=start_date,
                     run_after=start_date,
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
-                    triggered_by=DagRunTriggeredByType.TEST,
+                    triggered_with=DagRunTriggeredWithType.TEST,
                 )
                 dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
                 session.add(dag_run)

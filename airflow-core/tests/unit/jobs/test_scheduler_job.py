@@ -78,7 +78,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count
@@ -168,7 +168,7 @@ def create_dagrun(session):
             run_type=run_type,
             state=state,
             start_date=start_date,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
     return _create_dagrun
@@ -2852,7 +2852,7 @@ class TestSchedulerJob:
 
             for _ in ti_states:
                 my_task()
-        dr = dag_maker.create_dagrun(state="running", triggered_by=DagRunTriggeredByType.TIMETABLE)
+        dr = dag_maker.create_dagrun(state="running", triggered_with=DagRunTriggeredWithType.TIMETABLE)
         for idx, state in enumerate(ti_states):
             dr.task_instances[idx].state = state
         session.commit()
@@ -2921,7 +2921,7 @@ class TestSchedulerJob:
             data_interval_end = DEFAULT_DATE + timedelta(days=1)
             dag.create_dagrun(
                 state="success",
-                triggered_by=DagRunTriggeredByType.TIMETABLE,
+                triggered_with=DagRunTriggeredWithType.TIMETABLE,
                 run_id="abc123",
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.BACKFILL_JOB,
@@ -3168,7 +3168,7 @@ class TestSchedulerJob:
                     data_interval=next_info.data_interval,
                     run_after=next_info.run_after,
                     state=DagRunState.RUNNING,
-                    triggered_by=DagRunTriggeredByType.TEST,
+                    triggered_with=DagRunTriggeredWithType.TEST,
                     session=session,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
@@ -4294,7 +4294,7 @@ class TestSchedulerJob:
             session=session,
             data_interval=data_interval,
             run_after=DEFAULT_LOGICAL_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         assert dr is not None
         # Run DAG.bulk_write_to_db -- this is run when in DagFileProcessor.process_file
@@ -4381,7 +4381,7 @@ class TestSchedulerJob:
             session=session,
             data_interval=data_interval,
             run_after=DEFAULT_LOGICAL_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
         run1_ti = run1.get_task_instance(task1.task_id, session)
@@ -4396,7 +4396,7 @@ class TestSchedulerJob:
             session=session,
             data_interval=data_interval,
             run_after=logical_date_2,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
         scheduler_job = Job(executor=self.null_exec)
@@ -4715,6 +4715,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
+            triggered_by="test_user",
             dag_run_conf={},
         )
         dag1_running_count = (
@@ -4819,6 +4820,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
+            triggered_by="test_user",
             dag_run_conf={},
         )
 
@@ -4894,6 +4896,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
+            triggered_by="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5009,6 +5012,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
+            triggered_by="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5115,6 +5119,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
+            triggered_by="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5263,6 +5268,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
+            triggered_by="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -6081,7 +6087,7 @@ class TestSchedulerJob:
             logical_date=logical_date,
             data_interval=data_interval,
             run_after=data_interval,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
         executor = LocalExecutor()
@@ -6622,7 +6628,7 @@ class TestSchedulerJobQueriesCount:
                     run_id=f"{DagRunType.MANUAL.value}__{i}",
                     run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
                     run_type=DagRunType.MANUAL,
-                    triggered_by=DagRunTriggeredByType.TEST,
+                    triggered_with=DagRunTriggeredWithType.TEST,
                 )
                 dagruns.append(dr)
                 for ti in dr.get_task_instances():
@@ -6735,6 +6741,7 @@ def test_mark_backfills_completed(dag_maker, session):
         to_date=pendulum.parse("2021-01-03"),
         max_active_runs=10,
         reverse=False,
+        triggered_by="test_user",
         dag_run_conf={},
     )
     session.expunge_all()

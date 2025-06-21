@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable unicorn/no-null */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
@@ -50,7 +49,7 @@ export const handlers: Array<HttpHandler> = [
           run_type: "manual",
           start_date: "2025-01-13T04:33:58.496197Z",
           state: "success",
-          triggered_by: "rest_api",
+          triggered_with: "rest_api",
         },
       ],
       max_active_runs: 16,
@@ -86,7 +85,7 @@ export const handlers: Array<HttpHandler> = [
           run_type: "manual",
           start_date: "2025-01-13T04:33:58.496197Z",
           state: "success",
-          triggered_by: "rest_api",
+          triggered_with: "rest_api",
         },
       ],
       max_active_runs: 16,

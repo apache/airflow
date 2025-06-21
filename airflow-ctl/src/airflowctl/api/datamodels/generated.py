@@ -384,7 +384,7 @@ class DagRunState(str, Enum):
     FAILED = "failed"
 
 
-class DagRunTriggeredByType(str, Enum):
+class DagRunTriggeredWithType(str, Enum):
     """
     Class with TriggeredBy types for DagRun.
     """
@@ -1349,7 +1349,8 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: Annotated[datetime | None, Field(title="Last Scheduling Decision")] = None
     run_type: DagRunType
     state: DagRunState
-    triggered_by: DagRunTriggeredByType | None = None
+    triggered_with: DagRunTriggeredWithType | None = None
+    triggered_by: Annotated[str | None, Field(title="Triggered By")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]

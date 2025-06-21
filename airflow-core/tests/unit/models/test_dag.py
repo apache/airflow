@@ -81,7 +81,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
@@ -164,7 +164,7 @@ def _create_dagrun(
         run_type=run_type,
         state=state,
         start_date=start_date,
-        triggered_by=DagRunTriggeredByType.TEST,
+        triggered_with=DagRunTriggeredWithType.TEST,
         **kwargs,
     )
 
@@ -345,7 +345,7 @@ class TestDag:
                 data_interval=None,
                 run_after=None,
                 session=session,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
             )
             dagrun.start_date = dagrun.run_after = dagrun.logical_date = BASE_DATE + timedelta(hours=delta_h)
             return dagrun
@@ -547,7 +547,7 @@ class TestDag:
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             run_after=DEFAULT_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         assert dagrun is not None
 
@@ -776,7 +776,7 @@ class TestDag:
             session=session,
             data_interval=(model.next_dagrun, model.next_dagrun),
             run_after=model.next_dagrun_create_after,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         assert dr is not None
         DAG.bulk_write_to_db("testing", None, [dag])
@@ -947,7 +947,7 @@ class TestDag:
                 state=State.FAILED,
                 data_interval=(logical_date, logical_date),
                 run_after=logical_date,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
                 session=session,
             )
             ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
@@ -1019,7 +1019,7 @@ class TestDag:
             state=State.RUNNING,
             data_interval=(TEST_DATE, TEST_DATE),
             run_after=TEST_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         assert dag_run is not None
         assert dag.dag_id == dag_run.dag_id
@@ -1058,7 +1058,7 @@ class TestDag:
                 session=session,
                 data_interval=(when, when),
                 run_after=when,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
             )
 
             # should not raise any exception
@@ -1094,7 +1094,7 @@ class TestDag:
                 session=session,
                 data_interval=(TEST_DATE, TEST_DATE),
                 run_after=TEST_DATE,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
             )
             dag._remove_task(task_removed.task_id)
             tis = dag_run.get_task_instances(session=session)
@@ -1322,7 +1322,7 @@ class TestDag:
             run_type=DagRunType.MANUAL,
             state=State.NONE,
             creating_job_id=job_id,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         assert dr.creating_job_id == job_id
 
@@ -1606,7 +1606,7 @@ my_postgres_conn:
             state=DagRunState.RUNNING,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            # triggered_by=DagRunTriggeredByType.TEST,
+            # triggered_with=DagRunTriggeredWithType.TEST,
             session=session,
         )
 
@@ -1966,7 +1966,7 @@ my_postgres_conn:
                 logical_date=TEST_DATE,
                 data_interval=(TEST_DATE, TEST_DATE),
                 run_after=TEST_DATE,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
             )
 
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
@@ -1981,7 +1981,7 @@ my_postgres_conn:
                 conf={"param1": None},
                 data_interval=(TEST_DATE, TEST_DATE),
                 run_after=TEST_DATE,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
             )
 
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
@@ -1993,7 +1993,7 @@ my_postgres_conn:
             conf={"param1": "hello"},
             data_interval=(TEST_DATE, TEST_DATE),
             run_after=TEST_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
 
     def test_dag_owner_links(self):
@@ -2474,7 +2474,7 @@ class TestQueries:
                 logical_date=TEST_DATE,
                 data_interval=(TEST_DATE, TEST_DATE),
                 run_after=TEST_DATE,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
             )
 
 
@@ -2996,7 +2996,7 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             run_after=DEFAULT_DATE,
             state=DagRunState.QUEUED,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
@@ -3536,7 +3536,7 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
         run_id="abcoercuhcrh",
         run_after=pendulum.now(),
         run_type="manual",
-        triggered_by=DagRunTriggeredByType.TEST,
+        triggered_with=DagRunTriggeredWithType.TEST,
         state=None,
     )
 
