@@ -54,12 +54,11 @@ def test_plugin_active():
 
         rep = EdgeExecutorPlugin()
         assert EDGE_EXECUTOR_ACTIVE
+        assert len(rep.appbuilder_views) == 2
         if AIRFLOW_V_3_0_PLUS:
-            assert len(rep.appbuilder_views) == 0
-            assert len(rep.flask_blueprints) == 0
+            assert len(rep.flask_blueprints) == 1
             assert len(rep.fastapi_apps) == 1
         else:
-            assert len(rep.appbuilder_views) == 2
             assert len(rep.flask_blueprints) == 2
 
 
@@ -74,7 +73,6 @@ def test_plugin_is_airflow_plugin(plugin):
     assert isinstance(plugin, AirflowPlugin)
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Plugin endpoint is not used in Airflow 3.0+")
 @pytest.mark.parametrize(
     "initial_comment, expected_comment",
     [
