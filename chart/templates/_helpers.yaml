@@ -593,13 +593,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
   readOnly: True
 {{- end }}
 
+{{- define "airflow_api_server_config_path" -}}
+  {{- printf "%s/webserver_config.py" .Values.airflowHome | quote }}
+{{- end }}
+
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-api-server-config" .Release.Name) .Values.apiServer.apiServerConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}
 - name: api-server-config
-  mountPath: {{ template "airflow_webserver_config_path" . }}
+  mountPath: {{ template "airflow_api_server_config_path" . }}
   subPath: webserver_config.py
   readOnly: True
 {{- end }}
