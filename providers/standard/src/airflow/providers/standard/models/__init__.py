@@ -40,10 +40,8 @@ class InteractiveResponseModel(Base):
     __table_args__ = (
         ForeignKeyConstraint(
             (ti_id,),
-            [
-                "task_instance.id",
-            ],
-            name="task_instance_note_ti_fkey",
+            ("task_instance.id",),
+            name="interactive_response_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
