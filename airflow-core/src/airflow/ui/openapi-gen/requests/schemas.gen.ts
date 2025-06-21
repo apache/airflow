@@ -578,6 +578,9 @@ export const $BulkBody_BulkTaskInstanceBody_ = {
                     },
                     {
                         '$ref': '#/components/schemas/BulkDeleteAction_BulkTaskInstanceBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteWithEntityAction_BulkTaskInstanceBody_'
                     }
                 ]
             },
@@ -604,6 +607,9 @@ export const $BulkBody_ConnectionBody_ = {
                     },
                     {
                         '$ref': '#/components/schemas/BulkDeleteAction_ConnectionBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteWithEntityAction_ConnectionBody_'
                     }
                 ]
             },
@@ -630,6 +636,9 @@ export const $BulkBody_PoolBody_ = {
                     },
                     {
                         '$ref': '#/components/schemas/BulkDeleteAction_PoolBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteWithEntityAction_PoolBody_'
                     }
                 ]
             },
@@ -656,6 +665,9 @@ export const $BulkBody_VariableBody_ = {
                     },
                     {
                         '$ref': '#/components/schemas/BulkDeleteAction_VariableBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteWithEntityAction_VariableBody_'
                     }
                 ]
             },
@@ -885,6 +897,114 @@ export const $BulkDeleteAction_VariableBody_ = {
     title: 'BulkDeleteAction[VariableBody]'
 } as const;
 
+export const $BulkDeleteWithEntityAction_BulkTaskInstanceBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete_with_entity',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkTaskInstanceBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteWithEntityAction[BulkTaskInstanceBody]'
+} as const;
+
+export const $BulkDeleteWithEntityAction_ConnectionBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete_with_entity',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/ConnectionBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteWithEntityAction[ConnectionBody]'
+} as const;
+
+export const $BulkDeleteWithEntityAction_PoolBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete_with_entity',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/PoolBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteWithEntityAction[PoolBody]'
+} as const;
+
+export const $BulkDeleteWithEntityAction_VariableBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete_with_entity',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/VariableBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteWithEntityAction[VariableBody]'
+} as const;
+
 export const $BulkResponse = {
     properties: {
         create: {
@@ -910,6 +1030,17 @@ export const $BulkResponse = {
             description: 'Details of the bulk update operation, including successful keys and errors.'
         },
         delete: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/BulkActionResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Details of the bulk delete operation, including successful keys and errors.'
+        },
+        delete_with_entity: {
             anyOf: [
                 {
                     '$ref': '#/components/schemas/BulkActionResponse'
