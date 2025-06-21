@@ -427,11 +427,11 @@ class TestVaultHook:
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
 
-    @mock.patch("googleapiclient.discovery.build")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("googleapiclient.discovery.build")
     def test_gcp_init_params(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes, mock_build):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -475,7 +475,8 @@ class TestVaultHook:
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         test_client.auth.gcp.login.assert_called_with(
-            credentials="credentials",
+            role="role",
+            jwt="mocked_jwt"
         )
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
@@ -484,13 +485,25 @@ class TestVaultHook:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_gcp_dejson(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes):
+    @mock.patch("googleapiclient.discovery.build")
+    def test_gcp_dejson(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes, mock_build):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
         mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
+
+        # Mock googleapiclient.discovery.build chain
+        mock_service = MagicMock()
+        mock_projects = MagicMock()
+        mock_service_accounts = MagicMock()
+        mock_sign_jwt = MagicMock()
+        mock_sign_jwt.execute.return_value = {"signedJwt": "mocked_jwt"}
+        mock_service_accounts.signJwt.return_value = mock_sign_jwt
+        mock_projects.serviceAccounts.return_value = mock_service_accounts
+        mock_service.projects.return_value = mock_projects
+        mock_build.return_value = mock_service
 
         connection_dict = {
             "auth_type": "gcp",
@@ -515,7 +528,8 @@ class TestVaultHook:
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         test_client.auth.gcp.login.assert_called_with(
-            credentials="credentials",
+            role="role",
+            jwt="mocked_jwt"
         )
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
@@ -524,7 +538,8 @@ class TestVaultHook:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_gcp_dict_dejson(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes):
+    @mock.patch("googleapiclient.discovery.build")
+    def test_gcp_dict_dejson(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes, mock_build):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection()
@@ -532,6 +547,17 @@ class TestVaultHook:
         mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
 
+        # Mock googleapiclient.discovery.build chain
+        mock_service = MagicMock()
+        mock_projects = MagicMock()
+        mock_service_accounts = MagicMock()
+        mock_sign_jwt = MagicMock()
+        mock_sign_jwt.execute.return_value = {"signedJwt": "mocked_jwt"}
+        mock_service_accounts.signJwt.return_value = mock_sign_jwt
+        mock_projects.serviceAccounts.return_value = mock_service_accounts
+        mock_service.projects.return_value = mock_projects
+        mock_build.return_value = mock_service
+        
         connection_dict = {
             "auth_type": "gcp",
             "gcp_keyfile_dict": '{"key": "value"}',
@@ -555,7 +581,8 @@ class TestVaultHook:
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         test_client.auth.gcp.login.assert_called_with(
-            credentials="credentials",
+            role="role",
+            jwt="mocked_jwt"
         )
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
