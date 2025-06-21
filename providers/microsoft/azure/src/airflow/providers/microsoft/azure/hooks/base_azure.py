@@ -41,7 +41,7 @@ class AzureBaseHook(BaseHook):
         which refers to the information to connect to the service.
     """
 
-    conn_name_attr = "azure_conn_id"
+    conn_name_attr = "conn_id"
     default_conn_name = "azure_default"
     conn_type = "azure"
     hook_name = "Azure"
