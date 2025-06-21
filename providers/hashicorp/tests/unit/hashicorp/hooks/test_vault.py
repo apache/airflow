@@ -432,7 +432,7 @@ class TestVaultHook:
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_init_params(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes, mock_build):
+    def test_gcp_init_params(self, mock_build, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection()
@@ -486,7 +486,7 @@ class TestVaultHook:
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_dejson(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes, mock_build):
+    def test_gcp_dejson(self, mock_build, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection()
@@ -539,7 +539,7 @@ class TestVaultHook:
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_dict_dejson(self, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes, mock_build):
+    def test_gcp_dict_dejson(self, mock_build, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection()

@@ -407,7 +407,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     def test_gcp_dict(
-        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_open
+        self, mock_open, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_google_build
     ):
         # Mock the content of the file 'path.json'
         mock_file = mock.MagicMock()
