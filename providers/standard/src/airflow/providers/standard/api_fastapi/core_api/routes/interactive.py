@@ -42,7 +42,13 @@ log = structlog.get_logger(__name__)
 
 @interactive_router.post(
     "/{task_instance_id}/response",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
 )
 def write_response(
     task_instance_id: UUID,
