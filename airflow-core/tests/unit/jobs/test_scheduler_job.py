@@ -70,6 +70,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -2407,11 +2408,8 @@ class TestSchedulerJob:
 
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker):
         """
-        Test if a a dagrun will not be scheduled if max_dag_runs
+        Test if a dagrun will not be scheduled if max_dag_runs
         has been reached and dagrun_timeout is not reached
-
-        Test if a a dagrun would be scheduled if max_dag_runs has
-        been reached but dagrun_timeout is also reached
         """
         with dag_maker(
             dag_id="test_scheduler_verify_max_active_runs_and_dagrun_timeout",
@@ -2472,9 +2470,46 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_callback_for_deadline(self):
+        """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+        pass
+
+    def test_dagrun_queued_at_deadline(self, dag_maker, session):
+        interval = datetime.timedelta(hours=1)
+        with dag_maker(
+            dag_id="test_queued_deadline",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=interval,
+                callback=self.test_callback_for_deadline,
+            ),
+        ) as dag:
+            ...
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        session = settings.Session()
+        orm_dag = session.get(DagModel, dag.dag_id)
+        assert orm_dag is not None
+
+        # Create the DAG run
+        self.job_runner._create_dag_runs([orm_dag], session)
+        dag_run = DagRun.find(dag_id=dag.dag_id, session=session)[0]
+        assert len(dag_run.deadlines) == 0  # No deadline should exist yet.
+
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        session.expire_all()  # Expire the cache so the next find() gets the new data.
+        dag_run = DagRun.find(dag_id=dag.dag_id, session=session)[0]
+
+        assert len(dag_run.deadlines) == 1
+        assert dag_run.deadlines[0].deadline_time == dag_run.queued_at + interval
+
     def test_dagrun_timeout_fails_run(self, dag_maker):
         """
-        Test if a a dagrun will be set failed if timeout, even without max_active_runs
+        Test if a dagrun will be set failed if timeout, even without max_active_runs
         """
         session = settings.Session()
         with dag_maker(
