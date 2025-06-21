@@ -27,6 +27,7 @@ from structlog.contextvars import bind_contextvars
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.models import InteractiveResponseModel
 
