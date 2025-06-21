@@ -184,7 +184,7 @@ published as the official website. This includes any changes to `.htaccess` of t
 
 Such a main build also publishes the latest "sphinx-airflow-theme" package to GitHub so that the next build
 of documentation can automatically pick it up from there. This means that if you want to make changes to
-`javascript` or `css` that are part of the theme, you need to do it in `ariflow-site` repository and
+`javascript` or `css` that are part of the theme, you need to do it in `airflow-site` repository and
 merge it to `main` branch in order to be able to run the documentation build in `apache-airflow` repository
 and pick up the latest version of the theme.
 
@@ -193,7 +193,7 @@ The version of sphinx theme is fixed in both repositories:
 * https://github.com/apache/airflow-site/blob/main/sphinx_airflow_theme/sphinx_airflow_theme/__init__.py#L21
 * https://github.com/apache/airflow/blob/main/devel-common/pyproject.toml#L77 in "docs" section
 
-In case of bigger changes to the theme, we can first iterate on the website and merge a new theme version, 
+In case of bigger changes to the theme, we can first iterate on the website and merge a new theme version,
 and only after that can we switch to the new version of the theme.
 
 
@@ -205,7 +205,7 @@ bad links or when we change some of the structure in the documentation. This can
 
 1. Get the latest version of the documentation from S3 to `airflow-site-archive` repository using
    `Sync S3 to GitHub` workflow. This will download the latest version of the documentation from S3 to
-   `airflow-site-archive` repository (this should normally be not needed, if automated synchronization works).
+   `airflow-site-archive` repository (this should normally not be needed, if automated synchronization works).
 2. Make the changes to the documentation in `airflow-site-archive` repository. This can be done using any
    text editor, script, etc. Those files are generated as `html` files and are not meant to be regenerated,
    they should be modified as `html` files in-place
@@ -264,8 +264,8 @@ you to publish documentation without having S3 credentials.
 The process is as follows:
 
 1. Run `Sync s3 to GitHub` workflow in `apache-airflow-site-archive` repository. This will download the
-   latest version of the documentation from S3 to `airflow-site-archive` repository (this should normally be
-   not needed, if automated synchronization works).
+   latest version of the documentation from S3 to `airflow-site-archive` repository (this should normally not
+   be needed, if automated synchronization works).
 2. Checkout the `apache-airflow-site-archive` repository and create a branch for your changes.
 3. Build documentation locally in `apache-airflow` repo with any cherry-picks and modifications you need, and
    publish the docs to the checked out `airflow-site-archive` branch.
