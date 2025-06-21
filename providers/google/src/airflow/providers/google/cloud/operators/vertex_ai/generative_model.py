@@ -44,7 +44,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
     :param location: Required. The ID of the Google Cloud location that the
         service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Vertex AI PaLM API, in order to elicit a specific response (templated).
+        to the Vertex AI Generative Model API, in order to elicit a specific response (templated).
     :param pretrained_model: Required. Model, optimized for performing text embeddings.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -112,10 +112,9 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
     :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
     :param system_instruction: Optional. An instruction given to the model to guide its behavior.
-    :param pretrained_model: Required. Model,
-        supporting prompts with text-only input, including natural language
-        tasks, multi-turn text and code chat, and code generation. It can
-        output text and code.
+    :param pretrained_model: Required. The name of the model to use for content generation,
+        which can be a text-only or multimodal model. For example, `gemini-pro` or
+        `gemini-pro-vision`.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
