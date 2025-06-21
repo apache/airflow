@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from unittest import mock
-from unittest.mock import PropertyMock, mock_open, patch
+from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import pytest
 from hvac.exceptions import VaultError
