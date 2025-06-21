@@ -281,8 +281,7 @@ class TestDagFileProcessor:
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
-            from airflow.hooks.base import BaseHook
-            from airflow.sdk import DAG
+            from airflow.sdk import DAG, BaseHook
 
             with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
                 ...
@@ -311,8 +310,7 @@ class TestDagFileProcessor:
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
-            from airflow.hooks.base import BaseHook
-            from airflow.sdk import DAG
+            from airflow.sdk import DAG, BaseHook
 
             with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
                 ...

@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
-from airflow.hooks.base import BaseHook
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk import BaseHook
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
 
 from tests_common.test_utils.config import conf_vars
@@ -30,7 +29,7 @@ from tests_common.test_utils.config import conf_vars
 class TestBaseHook:
     def test_hook_has_default_logger_name(self):
         hook = BaseHook()
-        assert hook.log.name == "airflow.task.hooks.airflow.hooks.base.BaseHook"
+        assert hook.log.name == "airflow.task.hooks.airflow.sdk.bases.hook.BaseHook"
 
     def test_custom_logger_name_is_correctly_set(self):
         hook = BaseHook(logger_name="airflow.custom.logger")
@@ -65,7 +64,7 @@ class TestBaseHook:
         hook = BaseHook()
         mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
 
-        with pytest.raises(AirflowNotFoundException, match=rf".*{conn_id}.*"):
+        with pytest.raises(AirflowRuntimeError, match="CONNECTION_NOT_FOUND"):
             hook.get_connection(conn_id=conn_id)
 
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):

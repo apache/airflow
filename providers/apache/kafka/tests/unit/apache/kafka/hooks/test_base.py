@@ -38,20 +38,20 @@ TIMEOUT = 10
 
 
 class TestKafkaBaseHook:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_get_conn(self, mock_get_connection, hook):
         config = {"bootstrap.servers": MagicMock()}
         mock_get_connection.return_value.extra_dejson = config
         assert hook.get_conn == config
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_get_conn_value_error(self, mock_get_connection, hook):
         mock_get_connection.return_value.extra_dejson = {}
         with pytest.raises(ValueError, match="must be provided"):
             hook.get_conn()
 
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_test_connection(self, mock_get_connection, admin_client, hook):
         config = {"bootstrap.servers": MagicMock()}
         mock_get_connection.return_value.extra_dejson = config
@@ -65,7 +65,7 @@ class TestKafkaBaseHook:
         "airflow.providers.apache.kafka.hooks.base.AdminClient",
         return_value=MagicMock(list_topics=MagicMock(return_value=[])),
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_test_connection_no_topics(self, mock_get_connection, admin_client, hook):
         config = {"bootstrap.servers": MagicMock()}
         mock_get_connection.return_value.extra_dejson = config
@@ -76,7 +76,7 @@ class TestKafkaBaseHook:
         assert connection == (False, "Failed to establish connection.")
 
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_test_connection_exception(self, mock_get_connection, admin_client, hook):
         config = {"bootstrap.servers": MagicMock()}
         mock_get_connection.return_value.extra_dejson = config

@@ -54,7 +54,7 @@ class TestOpenSearchHook:
         with pytest.raises(AirflowException, match="must include one of either a query or a document id"):
             hook.delete(index_name="test_index")
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_hook_param_bool(self, mock_get_connection):
         mock_conn = Connection(
             conn_id="opensearch_default", extra={"use_ssl": "True", "verify_certs": "True"}

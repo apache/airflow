@@ -49,7 +49,7 @@ URL_WRITE_SETTINGS = URL_BASE + "/v4/writeSettings"
 
 class TestGoogleDataprepHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
         self._imported_dataset_id = 12345
@@ -602,7 +602,7 @@ class TestGoogleDataprepFlowPathHooks:
                 "description": "Test description",
             }
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
 

@@ -40,9 +40,13 @@ from airflow.exceptions import (
     AirflowOptionalProviderFeatureException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:

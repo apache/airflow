@@ -35,8 +35,12 @@ import asyncssh
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from paramiko import SSHClient

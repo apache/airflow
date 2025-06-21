@@ -88,7 +88,7 @@ class TestHttpHook:
         requests_mock.get(
             "http://test:8080/v1/test", status_code=200, text='{"status":{"status": 200}}', reason="OK"
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             resp = self.get_hook.run("v1/test")
             assert resp.text == '{"status":{"status": 200}}'
 
@@ -103,7 +103,7 @@ class TestHttpHook:
         )
 
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             expected_url = "http://test.com:1234/some/endpoint"
             for endpoint in ["some/endpoint", "/some/endpoint"]:
@@ -124,7 +124,7 @@ class TestHttpHook:
             reason="Bad request",
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             resp = self.get_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.text == '{"status":{"status": 404}}'
 
@@ -139,12 +139,12 @@ class TestHttpHook:
             reason="Bad request",
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             resp = self.get_hook.run("v1/test")
             assert resp.text == '{"status":{"status": 404}}'
 
     def test_hook_contains_header_from_extra_field(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
@@ -152,7 +152,7 @@ class TestHttpHook:
 
     def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -169,7 +169,7 @@ class TestHttpHook:
         airflow_connection = get_airflow_connection_with_extra(
             extra={"bearer": "test", "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -184,7 +184,7 @@ class TestHttpHook:
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -201,7 +201,7 @@ class TestHttpHook:
         airflow_connection = get_airflow_connection_with_extra(
             extra={"bearer": "test", "cert": "cert.crt", "stream": True}
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -216,7 +216,7 @@ class TestHttpHook:
 
     def test_hook_ignore_trust_env_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "trust_env": False})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
@@ -240,7 +240,7 @@ class TestHttpHook:
         )
 
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             data = "test params"
             with contextlib.suppress(MissingSchema, InvalidURL):
@@ -261,7 +261,7 @@ class TestHttpHook:
         assert conn.headers.get("bearer") is None
 
     def test_hooks_header_from_extra_is_overridden(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
             assert conn.headers.get("bearer") == "newT0k3n"
 
@@ -270,7 +270,7 @@ class TestHttpHook:
             "http://test:8080/v1/test", status_code=200, text='{"status":{"status": 200}}', reason="OK"
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             resp = self.post_hook.run("v1/test")
             assert resp.status_code == 200
 
@@ -282,7 +282,7 @@ class TestHttpHook:
             reason="I'm a teapot",
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             with pytest.raises(AirflowException):
                 self.post_hook.run("v1/test")
 
@@ -294,7 +294,7 @@ class TestHttpHook:
             reason="I'm a teapot",
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.status_code == 418
 
@@ -312,7 +312,7 @@ class TestHttpHook:
         )
 
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_dummy_connection
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_dummy_connection
         ):
             with pytest.raises(requests.exceptions.TooManyRedirects) as err:
                 self.post_hook.run("v1/test", extra_options={"max_redirects": 0})
@@ -336,7 +336,7 @@ class TestHttpHook:
             reason="I'm a teapot",
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             resp = self.post_hook.run("v1/test")
             assert resp.status_code == 418
 
@@ -367,7 +367,7 @@ class TestHttpHook:
             retry=tenacity.retry_if_exception_type(Exception),
             reraise=True,
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             response = self.get_hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
             assert isinstance(response, requests.Response)
 
@@ -379,7 +379,9 @@ class TestHttpHook:
         with mock.patch(
             "airflow.providers.http.hooks.http.HttpHook.run_and_check", side_effect=run_and_return
         ):
-            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            with mock.patch(
+                "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection
+            ):
                 prepared_request = self.get_hook.run("v1/test", headers={"some_other_header": "test"})
                 actual = dict(prepared_request.headers)
                 assert actual.get("bearer") == "test"
@@ -448,14 +450,14 @@ class TestHttpHook:
 
         requests_mock.request(method=method, url="//test:8080/v1/test", additional_matcher=match_obj1)
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             # will raise NoMockAddress exception if obj1 != request.json()
             HttpHook(method=method).run("v1/test", json=obj1)
 
     @mock.patch("requests.Session.send")
     def test_verify_set_to_true_by_default(self, mock_session_send):
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             self.get_hook.run("/some/endpoint")
             mock_session_send.assert_called_once_with(
@@ -472,7 +474,7 @@ class TestHttpHook:
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
     def test_requests_ca_bundle_env_var(self, mock_session_send):
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             self.get_hook.run("/some/endpoint")
 
@@ -490,7 +492,7 @@ class TestHttpHook:
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
     def test_verify_respects_requests_ca_bundle_env_var(self, mock_session_send):
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             self.get_hook.run("/some/endpoint", extra_options={"verify": True})
 
@@ -508,7 +510,7 @@ class TestHttpHook:
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
     def test_verify_false_parameter_overwrites_set_requests_ca_bundle_env_var(self, mock_session_send):
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             self.get_hook.run("/some/endpoint", extra_options={"verify": False})
 
@@ -524,7 +526,7 @@ class TestHttpHook:
 
     def test_connection_success(self, requests_mock):
         requests_mock.get("http://test:8080", status_code=200, json={"status": {"status": 200}}, reason="OK")
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             status, msg = self.get_hook.test_connection()
             assert status is True
             assert msg == "Connection successfully tested"
@@ -533,14 +535,14 @@ class TestHttpHook:
         requests_mock.get(
             "http://test:8080", status_code=500, json={"message": "internal server error"}, reason="NOT_OK"
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             status, msg = self.get_hook.test_connection()
             assert status is False
             assert msg == "500:NOT_OK"
 
     @mock.patch("requests.auth.AuthBase.__init__")
     def test_loginless_custom_auth_initialized_with_no_args(self, auth):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             auth.return_value = None
             hook = HttpHook("GET", "http_default", AuthBase)
             hook.get_conn()
@@ -548,7 +550,7 @@ class TestHttpHook:
 
     @mock.patch("requests.auth.AuthBase.__init__")
     def test_loginless_custom_auth_initialized_with_args(self, auth):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             auth.return_value = None
             auth_with_args = functools.partial(AuthBase, "test_arg")
             hook = HttpHook("GET", "http_default", auth_with_args)
@@ -558,7 +560,7 @@ class TestHttpHook:
     @mock.patch("requests.auth.HTTPBasicAuth.__init__")
     def test_login_password_basic_auth_initialized(self, auth):
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            "airflow.sdk.bases.hook.BaseHook.get_connection",
             side_effect=get_airflow_connection_with_login_and_password,
         ):
             auth.return_value = None
@@ -568,7 +570,7 @@ class TestHttpHook:
 
     @mock.patch("requests.auth.HTTPBasicAuth.__init__")
     def test_default_auth_not_initialized(self, auth):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             auth.return_value = None
             hook = HttpHook("GET", "http_default")
             hook.get_conn()
@@ -577,7 +579,7 @@ class TestHttpHook:
     def test_keep_alive_enabled(self):
         with (
             mock.patch(
-                "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+                "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
             ),
             mock.patch(
                 "requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send"
@@ -596,7 +598,7 @@ class TestHttpHook:
     def test_keep_alive_disabled(self):
         with (
             mock.patch(
-                "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+                "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
             ),
             mock.patch(
                 "requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send"
@@ -626,7 +628,7 @@ class TestHttpHook:
 
     def test_custom_adapter(self):
         with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+            "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             custom_adapter = HTTPAdapter()
             hook = HttpHook(method="GET", adapter=custom_adapter)
@@ -730,7 +732,9 @@ class TestHttpAsyncHook:
                 reason="OK",
             )
 
-            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            with mock.patch(
+                "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection
+            ):
                 async with aiohttp.ClientSession() as session:
                     resp = await hook.run(session=session, endpoint="v1/test")
                     assert resp.status == 200
@@ -748,7 +752,9 @@ class TestHttpAsyncHook:
                 reason="I am teapot",
             )
 
-            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            with mock.patch(
+                "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection
+            ):
                 async with aiohttp.ClientSession() as session:
                     with pytest.raises(AirflowException):
                         await hook.run(session=session, endpoint="v1/test")
@@ -767,7 +773,9 @@ class TestHttpAsyncHook:
                 reason="OK",
             )
 
-            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            with mock.patch(
+                "airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection
+            ):
                 hook = HttpAsyncHook()
                 with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                     async with aiohttp.ClientSession() as session:
@@ -797,7 +805,7 @@ class TestHttpAsyncHook:
             }
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=airflow_connection):
             hook = HttpAsyncHook()
 
             with aioresponses() as m:
@@ -827,7 +835,7 @@ class TestHttpAsyncHook:
     async def test_build_request_url_from_connection(self):
         conn = get_airflow_connection()
         schema = conn.schema or "http"  # default to http
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection):
             hook = HttpAsyncHook()
 
             with aioresponses() as m:
@@ -856,7 +864,7 @@ class TestHttpAsyncHook:
             )
 
             with (
-                mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_empty_conn),
+                mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_empty_conn),
                 mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function,
             ):
                 async with aiohttp.ClientSession() as session:

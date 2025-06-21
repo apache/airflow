@@ -38,7 +38,7 @@ class TestSambaHook:
             SambaHook("non-existed-connection-id")
 
     @mock.patch("smbclient.register_session")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_context_manager(self, get_conn_mock, register_session):
         CONNECTION = Connection(
             host="ip",
@@ -94,7 +94,7 @@ class TestSambaHook:
             "walk",
         ],
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_method(self, get_conn_mock, name):
         CONNECTION = Connection(
             host="ip",
@@ -147,7 +147,7 @@ class TestSambaHook:
             ("start/path/without/slash", "//ip/share/start/path/without/slash"),
         ],
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test__join_path(self, get_conn_mock, path, full_path):
         CONNECTION = Connection(
             host="ip",

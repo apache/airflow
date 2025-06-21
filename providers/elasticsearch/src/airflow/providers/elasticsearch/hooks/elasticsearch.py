@@ -25,8 +25,12 @@ from urllib import parse
 
 from elasticsearch import Elasticsearch
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
