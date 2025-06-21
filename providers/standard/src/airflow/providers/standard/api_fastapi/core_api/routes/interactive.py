@@ -54,7 +54,7 @@ def write_response(
     task_instance_id: UUID,
     add_response_payload: AddInteractiveResponsePayload,
     session: SessionDep,
-) -> None:
+) -> InteractiveResponse:
     """Write an InteractiveResponse."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
