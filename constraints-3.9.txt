@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-21T07:57:15.817693
+# This constraints file was automatically generated on 2025-06-21T13:57:43.887844
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -57,7 +57,7 @@ PyJWT==2.10.1
 PyMySQL==1.1.1
 PyNaCl==1.5.0
 PyYAML==6.0.2
-Pygments==2.19.1
+Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
