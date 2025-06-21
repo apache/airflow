@@ -268,8 +268,19 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
-                self.log.info("Deleting spark job: %s", pod.metadata.name.replace("-driver", ""))
-                self.launcher.delete_spark_job(pod.metadata.name.replace("-driver", ""))
+                pod_name = pod.metadata.name.replace("-driver", "")
+                self.log.info("Deleting spark job: %s", pod_name)
+
+                # because of self.launcher is defined in execute method it does not exist for
+                # deferrable mode and for this reason launcher should be defined one more time
+                launcher = CustomObjectLauncher(
+                    name=pod_name,
+                    namespace=pod.metadata.namespace,
+                    kube_client=self.client,
+                    custom_obj_api=self.custom_obj_api,
+                    template_body=self.template_body,
+                )
+                launcher.delete_spark_job(pod_name)
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
