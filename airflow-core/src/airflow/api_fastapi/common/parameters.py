@@ -610,7 +610,7 @@ def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | N
         return None
 
     try:
-        return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
+        return [None if s in ("no_status", "none", None) else TaskInstanceState(s) for s in states]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
