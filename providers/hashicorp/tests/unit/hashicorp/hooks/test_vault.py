@@ -427,6 +427,7 @@ class TestVaultHook:
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
 
+
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -451,8 +452,11 @@ class TestVaultHook:
             "session": None,
         }
 
-        test_hook = VaultHook(**kwargs)
-        test_client = test_hook.get_conn()
+        with patch("builtins.open", mock_open(read_data='{"client_email": "service_account_email"}')) as mock_file:
+            test_hook = VaultHook(**kwargs)
+            test_client = test_hook.get_conn()
+            mock_file.assert_called_with("path.json", "r")
+
         mock_get_connection.assert_called_with("vault_conn_id")
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
