@@ -65,10 +65,10 @@ multiple repositories and multiple sources of documentation involved.
 There are a few repositories under `apache` organization that are used to build the documentation for Airflow:
 
 * `apache-airflow` - the repository with the code and the documentation sources for Airflow distributions,
-   provider distributions, provider's summary, and docker summary: [apache-airflow](https://github.com/apache/airflow).
+   provider distributions, providers' summary, and docker summary: [apache-airflow](https://github.com/apache/airflow).
    From here, we publish the documentation to an S3 bucket where the documentation is hosted.
 * `airflow-site` - the repository with the website theme and content where we keep sources of the website
-   structure, navigation, and theme for the website [airflow-site](https://github.com/apache/airflow). From here,
+   structure, navigation, and theme for the website [airflow-site](https://github.com/apache/airflow-site). From here,
    we publish the website to the ASF servers so they are published as the [official website](https://airflow.apache.org)
 * `airflow-site-archive` - here we keep the archived historical versions of the generated documentation
    of all the documentation packages that we keep on S3. This repository is automatically synchronized from
@@ -164,8 +164,8 @@ This workflow also invalidates cache in Fastly that Apache Software Foundation u
 so you should always run it after you modify the documentation for the website. Other than that Fastly is
 configured with 3600 seconds TTL - which means that changes will propagate to the website in ~1 hour.
 
-Shortly after the workflow succeeds and documentation is published, in the live bucket, the `airflow-site-archive`
-repository is automatically synchronized with the live S3 bucket. TO-DO: IMPLEMENT THIS, FOR NOW IT HAS
+Shortly after the workflow succeeds and documentation is published, in the live bucket, the [airflow-site-archive](https://github.com/apache/airflow-site-archive)
+repository is automatically synchronized with the live S3 bucket. TODO: IMPLEMENT THIS, FOR NOW IT HAS
 TO BE MANUALLY SYNCHRONIZED VIA [Sync s3 to GitHub](https://github.com/apache/airflow-site-archive/actions/workflows/s3-to-github.yml)
 workflow in `airflow-site-archive` repository. The `airflow-site-archive` essentially keeps the history of
 snapshots of the `live` documentation.
@@ -193,8 +193,8 @@ The version of sphinx theme is fixed in both repositories:
 * https://github.com/apache/airflow-site/blob/main/sphinx_airflow_theme/sphinx_airflow_theme/__init__.py#L21
 * https://github.com/apache/airflow/blob/main/devel-common/pyproject.toml#L77 in "docs" section
 
-In case of bigger changes to the theme, we can first iterate on the website and merge a new theme version, and only after that can we switch to the new
-version of the theme.
+In case of bigger changes to the theme, we can first iterate on the website and merge a new theme version, 
+and only after that can we switch to the new version of the theme.
 
 
 # Fixing historical documentation
@@ -207,7 +207,7 @@ bad links or when we change some of the structure in the documentation. This can
    `Sync S3 to GitHub` workflow. This will download the latest version of the documentation from S3 to
    `airflow-site-archive` repository (this should normally be not needed, if automated synchronization works).
 2. Make the changes to the documentation in `airflow-site-archive` repository. This can be done using any
-   text editor, scripts, etc. Those files are generated as `html` files and are not meant to be regenerated,
+   text editor, script, etc. Those files are generated as `html` files and are not meant to be regenerated,
    they should be modified as `html` files in-place
 3. Commit the changes to `airflow-site-archive` repository and push them to `some` branch of the repository.
 4. Run `Sync GitHub to S3` workflow in `airflow-site-archive` repository. This will upload the modified
@@ -236,7 +236,7 @@ In such a case, the release manager or a committer can build and publish documen
 they configure AWS credentials to be able to upload files to S3. You can ask in
 the #internal-airflow-ci-cd channel on Airflow Slack to get your AWS credentials configured.
 
-You can check out locally a version of airflow repo that you need and apply any cherry-picks you need before
+You can checkout locally a version of airflow repo that you need and apply any cherry-picks you need before
 running publishing.
 
 This is done using breeze. You also need to have AWS CLI installed and configured credentials to be able
@@ -266,7 +266,7 @@ The process is as follows:
 1. Run `Sync s3 to GitHub` workflow in `apache-airflow-site-archive` repository. This will download the
    latest version of the documentation from S3 to `airflow-site-archive` repository (this should normally be
    not needed, if automated synchronization works).
-2. Check out the `apache-airflow-site-archive` repository and create a branch for your changes.
+2. Checkout the `apache-airflow-site-archive` repository and create a branch for your changes.
 3. Build documentation locally in `apache-airflow` repo with any cherry-picks and modifications you need, and
    publish the docs to the checked out `airflow-site-archive` branch.
 
