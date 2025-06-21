@@ -53,16 +53,21 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return buf.getvalue().hex().decode("utf-8"), qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: object) -> pd.DataFrame:
+def deserialize(cls: type, version: int, data: object) -> pd.DataFrame:
     if version > __version__:
-        raise TypeError(f"serialized {version} of {classname} > {__version__}")
+        raise TypeError(f"serialized {version} of {qualname(cls)} > {__version__}")
 
-    from pyarrow import parquet as pq
+    import pandas as pd
+
+    if cls is not pd.DataFrame:
+        raise TypeError(f"do not know how to deserialize {qualname(cls)}")
 
     if not isinstance(data, str):
-        raise TypeError(f"serialized {classname} has wrong data type {type(data)}")
+        raise TypeError(f"serialized {qualname(cls)} has wrong data type {type(data)}")
 
     from io import BytesIO
+
+    from pyarrow import parquet as pq
 
     with BytesIO(bytes.fromhex(data)) as buf:
         df = pq.read_table(buf).to_pandas()
