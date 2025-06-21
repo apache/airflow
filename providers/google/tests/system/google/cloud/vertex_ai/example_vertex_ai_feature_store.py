@@ -23,30 +23,134 @@ Example Airflow DAG for Google Vertex AI Feature Store operations.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from google.cloud.aiplatform_v1beta1 import FeatureOnlineStore, FeatureView, FeatureViewDataKey
 
 from airflow import DAG
+from airflow.providers.google.cloud.operators.bigquery import (
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateTableOperator,
+    BigQueryDeleteDatasetOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.feature_store import (
+    CreateFeatureOnlineStoreOperator,
+    CreateFeatureViewOperator,
+    DeleteFeatureOnlineStoreOperator,
+    DeleteFeatureViewOperator,
+    FetchFeatureValuesOperator,
+    GetFeatureOnlineStoreOperator,
     GetFeatureViewSyncOperator,
     SyncFeatureViewOperator,
 )
 from airflow.providers.google.cloud.sensors.vertex_ai.feature_store import FeatureViewSyncSensor
+from airflow.utils.trigger_rule import TriggerRule
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "vertex_ai_feature_store_dag"
 REGION = "us-central1"
 
-FEATURE_ONLINE_STORE_ID = "my_feature_online_store_unique"
-FEATURE_VIEW_ID = "feature_view_publications"
+BQ_LOCATION = "US"
+BQ_DATASET_ID = "bq_ds_featurestore_demo"
+BQ_VIEW_ID = "product_features_view"
+BQ_VIEW_FQN = f"{PROJECT_ID}.{BQ_DATASET_ID}.{BQ_VIEW_ID}"
+
+FEATURE_ONLINE_STORE_ID = f"my_feature_online_store_unique_{ENV_ID}"
+FEATURE_VIEW_ID = "feature_view_product"
+FEATURE_VIEW_DATA_KEY = {"key": "28098"}
+
+FEATURE_EXTRACT_QUERY = """
+       WITH
+        product_order_agg AS (
+          SELECT cast(product_id as string) as entity_id,
+            countif(status in ("Shipped", "Complete")) as good_order_count,
+            countif(status in ("Returned", "Cancelled")) as bad_order_count
+          FROM `bigquery-public-data.thelook_ecommerce.order_items`
+          WHERE
+            timestamp_trunc(created_at, day) >= timestamp_trunc(timestamp_sub(CURRENT_TIMESTAMP(), interval 30 day), day) and
+            timestamp_trunc(created_at, day) < timestamp_trunc(CURRENT_TIMESTAMP(), day)
+          group by 1
+          order by entity_id),
+        product_basic AS (
+          SELECT cast(id as string) AS entity_id,
+            lower(name) as name,
+            lower(category) as category,
+            lower(brand) as brand,
+            cost,
+            retail_price
+          FROM   bigquery-public-data.thelook_ecommerce.products)
+       SELECT *, current_timestamp() as feature_timestamp
+       FROM product_basic
+       LEFT OUTER JOIN product_order_agg
+       USING (entity_id)
+       """
+
 
 with DAG(
     dag_id=DAG_ID,
     description="Sample DAG with Vertex AI Feature Store operations.",
     schedule="@once",
-    start_date=datetime(2024, 1, 1),
+    start_date=datetime(2025, 6, 1),
     catchup=False,
     tags=["example", "vertex_ai", "feature_store"],
 ) as dag:
+    create_bq_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_bq_dataset",
+        dataset_id=BQ_DATASET_ID,
+        project_id=PROJECT_ID,
+        location=BQ_LOCATION,
+    )
+
+    create_bq_table_view = BigQueryCreateTableOperator(
+        task_id="create_bq_table_view",
+        project_id=PROJECT_ID,
+        location=BQ_LOCATION,
+        dataset_id=BQ_DATASET_ID,
+        table_id=BQ_VIEW_ID,
+        table_resource={
+            "view": {
+                "query": FEATURE_EXTRACT_QUERY,
+                "useLegacySql": False,
+            }
+        },
+    )
+    # [START how_to_cloud_vertex_ai_create_feature_online_store_operator]
+    create_feature_online_store = CreateFeatureOnlineStoreOperator(
+        task_id="create_feature_online_store",
+        project_id=PROJECT_ID,
+        location=REGION,
+        feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+        feature_online_store=FeatureOnlineStore(optimized=FeatureOnlineStore.Optimized()),
+    )
+    # [END how_to_cloud_vertex_ai_create_feature_online_store_operator]
+
+    # [START how_to_cloud_vertex_ai_create_feature_view_store_operator]
+    create_feature_view = CreateFeatureViewOperator(
+        task_id="create_feature_view",
+        project_id=PROJECT_ID,
+        location=REGION,
+        feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+        feature_view_id=FEATURE_VIEW_ID,
+        feature_view=FeatureView(
+            big_query_source=FeatureView.BigQuerySource(
+                uri=f"bq://{BQ_VIEW_FQN}",
+                entity_id_columns=["entity_id"],
+            ),
+            sync_config=FeatureView.SyncConfig(cron="TZ=America/Los_Angeles 56 * * * *"),
+        ),
+    )
+    # [END how_to_cloud_vertex_ai_create_feature_view_store_operator]
+
+    # [START how_to_cloud_vertex_ai_get_feature_online_store_operator]
+    get_feature_online_store = GetFeatureOnlineStoreOperator(
+        task_id="get_feature_online_store",
+        project_id=PROJECT_ID,
+        location=REGION,
+        feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+    )
+    # [END how_to_cloud_vertex_ai_get_feature_online_store_operator]
+
     # [START how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
     sync_task = SyncFeatureViewOperator(
         task_id="sync_task",
@@ -63,7 +167,7 @@ with DAG(
         location=REGION,
         feature_view_sync_name="{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value')}}",
         poke_interval=60,  # Check every minute
-        timeout=600,  # Timeout after 10 minutes
+        timeout=1200,  # Timeout after 20 minutes
         mode="reschedule",
     )
     # [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
@@ -76,7 +180,62 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
 
-    sync_task >> wait_for_sync >> get_task
+    # [START how_to_cloud_vertex_ai_fetch_feature_values_operator]
+    fetch_feature_data = FetchFeatureValuesOperator(
+        task_id="fetch_feature_data",
+        project_id=PROJECT_ID,
+        location=REGION,
+        feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+        feature_view_id=FEATURE_VIEW_ID,
+        data_key=FeatureViewDataKey(FEATURE_VIEW_DATA_KEY),
+        retries=3,
+        retry_delay=timedelta(minutes=3),
+    )
+    # [END how_to_cloud_vertex_ai_fetch_feature_values_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_feature_view_operator]
+    delete_feature_view = DeleteFeatureViewOperator(
+        task_id="delete_feature_view",
+        project_id=PROJECT_ID,
+        location=REGION,
+        feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+        feature_view_id=FEATURE_VIEW_ID,
+    )
+    # [END how_to_cloud_vertex_ai_delete_feature_view_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_feature_online_store_operator]
+    delete_feature_online_store = DeleteFeatureOnlineStoreOperator(
+        task_id="delete_feature_online_store",
+        project_id=PROJECT_ID,
+        location=REGION,
+        feature_online_store_id=FEATURE_ONLINE_STORE_ID,
+    )
+    # [END how_to_cloud_vertex_ai_delete_feature_online_store_operator]
+
+    delete_bq_dataset = BigQueryDeleteDatasetOperator(
+        task_id="delete_bq_dataset",
+        dataset_id=BQ_DATASET_ID,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    # TEST SETUP
+    (
+        create_bq_dataset
+        >> create_bq_table_view
+        # TEST BODY
+        >> create_feature_online_store
+        >> get_feature_online_store
+        >> create_feature_view
+        >> sync_task
+        >> wait_for_sync
+        >> get_task
+        >> fetch_feature_data
+        # TEST TEARDOWN
+        >> delete_feature_view
+        >> delete_feature_online_store
+        >> delete_bq_dataset
+    )
 
     from tests_common.test_utils.watcher import watcher
 
