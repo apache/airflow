@@ -83,7 +83,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Box flex={1} minH={0}>
         {isRightPanelCollapsed ? (
           <IconButton
-            aria-label="Show details panel"
+            aria-label={translate("common:showDetailsPanel")}
             bg="bg.surface"
             borderRadius="full"
             boxShadow="md"
@@ -133,7 +133,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 w={0.5}
               >
                 <IconButton
-                  aria-label="Collapse details panel"
+                  aria-label={translate("common:collapseDetailsPanel")}
                   bg="bg.surface"
                   borderRadius="full"
                   boxShadow="md"
