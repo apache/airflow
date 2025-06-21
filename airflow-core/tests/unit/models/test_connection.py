@@ -261,7 +261,7 @@ class TestConnection:
             # same protocol to type
             ("http", "http://host"),
             # different protocol to type
-            ("https", "http://host"),
+            ("spark", "k8s://100.68.0.1:443"),
         ],
     )
     def test_connection_uri_recovery(self, conn_type, host):
