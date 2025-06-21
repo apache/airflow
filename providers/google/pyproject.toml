@@ -80,7 +80,7 @@ dependencies = [
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
     "google-cloud-aiplatform[evaluation,ray]>=1.73.0;python_version < '3.12'",
     "google-cloud-aiplatform[evaluation]>=1.73.0;python_version >= '3.12'",
-    "ray[default]>=2.42.0 ; python_version >= '3.12'",
+    "ray[default]>=2.42.0 ; python_version >= '3.12' and python_version < '3.13'",
     "google-cloud-bigquery-storage>=2.31.0; python_version >= '3.12'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
