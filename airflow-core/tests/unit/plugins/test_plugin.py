@@ -102,12 +102,14 @@ middleware_with_metadata = {
     "name": "Name of the Middleware",
 }
 
-iframe_view_with_metadata = {
+external_view_with_metadata = {
     "name": "Test IFrame Plugin",
-    "src": "https://www.google.com",
+    "href": "https://www.google.com",
     "icon": "https://example.com/icon.svg",
-    "url_route": "/test_iframe_plugin",
+    "dark_mode_icon": "https://example.com/dark_icon.svg",
+    "url_route": "test_iframe_plugin",
     "destination": "nav",
+    "category": "browse",
 }
 
 
@@ -128,7 +130,7 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     fastapi_apps = [app_with_metadata]
     fastapi_root_middlewares = [middleware_with_metadata]
-    iframe_views = [iframe_view_with_metadata]
+    external_views = [external_view_with_metadata]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [
