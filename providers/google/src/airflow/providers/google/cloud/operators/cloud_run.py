@@ -27,7 +27,7 @@ from google.cloud.run_v2 import Job, Service
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
-from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
+from airflow.providers.google.cloud.links.cloud_run import CloudRunJobExecutionLink, CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 
@@ -266,7 +266,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run the operator in deferrable mode.
     """
 
-    operator_extra_links = (CloudRunJobLoggingLink(),)
+    operator_extra_links = (CloudRunJobExecutionLink(), CloudRunJobLoggingLink())
     template_fields = (
         "project_id",
         "region",
@@ -307,6 +307,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
+
         self.operation = hook.execute_job(
             region=self.region, project_id=self.project_id, job_name=self.job_name, overrides=self.overrides
         )
@@ -318,6 +319,15 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             CloudRunJobLoggingLink.persist(
                 context=context,
                 log_uri=self.operation.metadata.log_uri,
+            )
+
+        if self.operation.metadata.name:
+            CloudRunJobExecutionLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=self.project_id,
+                region=self.region,
+                execution_name=self.operation.metadata.name.split("/")[-1],
             )
 
         if not self.deferrable:
