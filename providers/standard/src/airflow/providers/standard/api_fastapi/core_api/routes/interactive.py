@@ -52,7 +52,7 @@ log = structlog.get_logger(__name__)
 )
 def write_response(
     task_instance_id: UUID,
-    content: str,
+    add_response_payload: AddInteractiveResponsePayload,
     session: SessionDep,
 ) -> None:
     """Write an InteractiveResponse."""
