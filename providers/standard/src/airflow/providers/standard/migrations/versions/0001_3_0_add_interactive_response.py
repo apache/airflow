@@ -53,13 +53,8 @@ def upgrade() -> None:
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
         sa.ForeignKeyConstraint(
-            ["dag_id", "task_id", "run_id", "map_index"],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
+            ["ti_id"],
+            ["task_instance.id"],
             name="interactive_response_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
