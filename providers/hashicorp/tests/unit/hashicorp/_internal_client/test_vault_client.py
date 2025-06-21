@@ -16,19 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import time
 from unittest import mock
 from unittest.mock import mock_open, patch
 
 import pytest
-import json
-import time
 from hvac.exceptions import InvalidPath, VaultError
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
-import googleapiclient.discovery
 
 
 class TestVaultClient:
@@ -401,20 +400,16 @@ class TestVaultClient:
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
-    @mock.patch("builtins.open", create=True)
+    @mock.patch(
+        "builtins.open", new_callable=mock_open, read_data='{"client_email": "service_account_email"}'
+    )
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     def test_gcp_dict(
-        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_open
+        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_file
     ):
-        # Mock the content of the file 'path.json'
-        mock_file = mock.MagicMock()
-        mock_file.read.return_value = '{"client_email": "service_account_email"}'
-        mock_open.return_value.__enter__.return_value = mock_file
-
-        # Mock the content of the keyfile dict
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
@@ -432,7 +427,7 @@ class TestVaultClient:
 
         vault_client = _VaultClient(
             auth_type="gcp",
-            gcp_keyfile_dict={"key": "value"},
+            gcp_keyfile_dict={"client_email": "service_account_email"},
             gcp_scopes="scope1,scope2",
             role_id="role",
             url="http://localhost:8180",
@@ -459,7 +454,7 @@ class TestVaultClient:
         mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
-            key_path=None, keyfile_dict={"key": "value"}, scopes=["scope1", "scope2"]
+            key_path=None, keyfile_dict={"client_email": "service_account_email"}, scopes=["scope1", "scope2"]
         )
         # Extract the arguments passed to the mocked signJwt API
         args, kwargs = mock_sign_jwt.call_args

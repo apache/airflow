@@ -316,13 +316,18 @@ class _VaultClient(LoggingMixin):
             key_path=self.gcp_key_path, keyfile_dict=self.gcp_keyfile_dict, scopes=scopes
         )
 
-        import time
         import json
+        import time
+
         import googleapiclient
 
-        with open(self.gcp_key_path, "r") as f:
-            creds = json.load(f)
-            service_account = creds["client_email"]
+        if self.gcp_keyfile_dict:
+            creds = self.gcp_keyfile_dict
+        elif self.gcp_key_path:
+            with open(self.gcp_key_path) as f:
+                creds = json.load(f)
+
+        service_account = creds["client_email"]
 
         # Generate a payload for subsequent "signJwt()" call
         # Reference: https://googleapis.dev/python/google-auth/latest/reference/google.auth.jwt.html#google.auth.jwt.Credentials
