@@ -713,11 +713,11 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
 
     async def _aread_frame(self):
         len_bytes = await self._async_reader.readexactly(4)
-        len = int.from_bytes(len_bytes, byteorder="big")
-        if len >= 2**32:
-            raise OverflowError(f"Refusing to receive messages larger than 4GiB {len=}")
+        length = int.from_bytes(len_bytes, byteorder="big")
+        if length >= 2**32:
+            raise OverflowError(f"Refusing to receive messages larger than 4GiB {length=}")
 
-        buffer = await self._async_reader.readexactly(len)
+        buffer = await self._async_reader.readexactly(length)
         return self.resp_decoder.decode(buffer)
 
     async def _aget_response(self, expect_id: int) -> ToTriggerRunner | None:
