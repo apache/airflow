@@ -29,6 +29,10 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.standard.api_fastapi.core_api.datamodels.interactive import (
+    AddInteractiveResponsePayload,
+    InteractiveResponse,
+)
 from airflow.providers.standard.models import InteractiveResponseModel
 
 interactive_router = AirflowRouter(tags=["InteractiveResponse"], prefix="/interactive")
