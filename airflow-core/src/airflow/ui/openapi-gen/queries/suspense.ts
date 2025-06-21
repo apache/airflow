@@ -1259,3 +1259,68 @@ export const useGridServiceGridDataSuspense = <TData = Common.GridServiceGridDat
   runType?: string[];
   state?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }, queryKey), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) as TData, ...options });
+/**
+* Get Dag Structure
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.offset
+* @param data.limit
+* @param data.orderBy
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @returns GridNodeResponse Successful Response
+* @throws ApiError
+*/
+export const useGridServiceGetDagStructureSuspense = <TData = Common.GridServiceGetDagStructureDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }, queryKey), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) as TData, ...options });
+/**
+* Get Grid Runs
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.offset
+* @param data.limit
+* @param data.orderBy
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @returns GridRunsResponse Successful Response
+* @throws ApiError
+*/
+export const useGridServiceGetGridRunsSuspense = <TData = Common.GridServiceGetGridRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }, queryKey), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) as TData, ...options });
+/**
+* Get Grid Ti Summaries
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runId
+* @returns GridTISummaries Successful Response
+* @throws ApiError
+*/
+export const useGridServiceGetGridTiSummariesSuspense = <TData = Common.GridServiceGetGridTiSummariesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runId }: {
+  dagId: string;
+  runId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }, queryKey), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) as TData, ...options });
+/**
+* Get Latest Run
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useGridServiceGetLatestRunSuspense = <TData = Common.GridServiceGetLatestRunDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
+  dagId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }, queryKey), queryFn: () => GridService.getLatestRun({ dagId }) as TData, ...options });

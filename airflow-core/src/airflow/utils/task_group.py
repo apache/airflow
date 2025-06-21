@@ -94,3 +94,44 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "children": children,
         "type": "task",
     }
+
+
+def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
+    """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    if isinstance(task := task_item_or_group, AbstractOperator):
+        is_mapped = None
+        if isinstance(task, MappedOperator) or parent_group_is_mapped:
+            is_mapped = True
+        setup_teardown_type = None
+        if task.is_setup is True:
+            setup_teardown_type = "setup"
+        elif task.is_teardown is True:
+            setup_teardown_type = "teardown"
+        return {
+            "id": task.task_id,
+            "label": task.label,
+            "is_mapped": is_mapped,
+            "children": None,
+            "setup_teardown_type": setup_teardown_type,
+        }
+
+    task_group = task_item_or_group
+    task_group_sort = get_task_group_children_getter()
+    is_mapped_group = isinstance(task_group, MappedTaskGroup)
+    children = [
+        task_group_to_dict_grid(x, parent_group_is_mapped=parent_group_is_mapped or is_mapped_group)
+        for x in task_group_sort(task_group)
+    ]
+
+    return {
+        "id": task_group.group_id,
+        "label": task_group.label,
+        # todo: it's weird that we look at whether it's mapped task group to set
+        #  the is_mapped attribute on task nodes. and weird that we propagate.
+        #  maybe there's a cleaner / more direct way to signal this
+        "is_mapped": is_mapped_group or None,
+        "children": children or None,
+    }

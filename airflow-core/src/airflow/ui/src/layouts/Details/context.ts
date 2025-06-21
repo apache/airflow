@@ -16,10 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { AiOutlineGroup } from "react-icons/ai";
+import { createContext } from "react";
 
-import { HeaderCard } from "src/components/HeaderCard";
-
-export const GroupTaskHeader = ({ title }: { readonly title: string }) => (
-  <HeaderCard icon={<AiOutlineGroup />} stats={[]} title={title} />
-);
+export const HasActiveRunContext = createContext({ hasActiveRun: true, setHasActiveRun: () => {} });

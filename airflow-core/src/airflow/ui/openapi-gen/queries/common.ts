@@ -669,6 +669,41 @@ export const UseGridServiceGridDataKeyFn = ({ dagId, includeDownstream, includeU
   runType?: string[];
   state?: string[];
 }, queryKey?: Array<unknown>) => [useGridServiceGridDataKey, ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }])];
+export type GridServiceGetDagStructureDefaultResponse = Awaited<ReturnType<typeof GridService.getDagStructure>>;
+export type GridServiceGetDagStructureQueryResult<TData = GridServiceGetDagStructureDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetDagStructureKey = "GridServiceGetDagStructure";
+export const UseGridServiceGetDagStructureKeyFn = ({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetDagStructureKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }])];
+export type GridServiceGetGridRunsDefaultResponse = Awaited<ReturnType<typeof GridService.getGridRuns>>;
+export type GridServiceGetGridRunsQueryResult<TData = GridServiceGetGridRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetGridRunsKey = "GridServiceGetGridRuns";
+export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }])];
+export type GridServiceGetGridTiSummariesDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummaries>>;
+export type GridServiceGetGridTiSummariesQueryResult<TData = GridServiceGetGridTiSummariesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetGridTiSummariesKey = "GridServiceGetGridTiSummaries";
+export const UseGridServiceGetGridTiSummariesKeyFn = ({ dagId, runId }: {
+  dagId: string;
+  runId: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesKey, ...(queryKey ?? [{ dagId, runId }])];
+export type GridServiceGetLatestRunDefaultResponse = Awaited<ReturnType<typeof GridService.getLatestRun>>;
+export type GridServiceGetLatestRunQueryResult<TData = GridServiceGetLatestRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetLatestRunKey = "GridServiceGetLatestRun";
+export const UseGridServiceGetLatestRunKeyFn = ({ dagId }: {
+  dagId: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetLatestRunKey, ...(queryKey ?? [{ dagId }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<typeof AssetService.createAssetEvent>>;
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;

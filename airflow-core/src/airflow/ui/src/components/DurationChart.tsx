@@ -34,7 +34,7 @@ import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
 
 ChartJS.register(
@@ -54,7 +54,7 @@ const average = (ctx: PartialEventContext, index: number) => {
   return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
 };
 
-type RunResponse = DAGRunResponse | TaskInstanceResponse;
+type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
 const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
 
@@ -115,7 +115,7 @@ export const DurationChart = ({
               data: entries.map((entry: RunResponse) => {
                 switch (kind) {
                   case "Dag Run": {
-                    const run = entry as DAGRunResponse;
+                    const run = entry as GridRunsResponse;
 
                     return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
                       ? Number(getDuration(run.queued_at, run.start_date))
@@ -158,18 +158,19 @@ export const DurationChart = ({
               return;
             }
 
-            const entry = entries[element.index];
-            const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
-
             switch (kind) {
               case "Dag Run": {
+                const entry = entries[element.index] as GridRunsResponse | undefined;
+                const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
+
                 navigate(baseUrl);
                 break;
               }
               case "Task Instance": {
-                const taskInstance = entry as TaskInstanceResponse;
+                const entry = entries[element.index] as TaskInstanceResponse | undefined;
+                const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
 
-                navigate(`${baseUrl}/tasks/${taskInstance.task_id}`);
+                navigate(`${baseUrl}/tasks/${entry?.task_id}`);
                 break;
               }
               default:
