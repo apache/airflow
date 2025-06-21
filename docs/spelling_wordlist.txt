@@ -1154,6 +1154,7 @@ mssql
 mTLS
 mtls
 muldelete
+multimodal
 Multinamespace
 mutex
 mv
