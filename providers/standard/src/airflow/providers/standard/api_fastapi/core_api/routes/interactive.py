@@ -78,5 +78,22 @@ def write_response(
             f"Interactive Response exists for task task_instance id {ti_id_str}",
         )
 
-    interactive_response = InteractiveResponseModel(content=content, task_instance=ti, ti_id=ti_id_str)
-    session.add(interactive_response)
+    try:
+        from airflow.utils import timezone
+
+        interactive_response_model = InteractiveResponseModel(
+            id=1,
+            ti_id=ti_id_str,
+            content=add_response_payload.content,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(interactive_response_model)
+        session.commit()
+    except Exception as e:
+        return f"Are you a mdfk {e}"
+    ret = InteractiveResponse(
+        ti_id=interactive_response_model.ti_id,
+        created_at=interactive_response_model.created_at,
+        content=interactive_response_model.content,
+    )
+    return ret
