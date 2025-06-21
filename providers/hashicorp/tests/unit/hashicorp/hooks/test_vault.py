@@ -488,6 +488,7 @@ class TestVaultHook:
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "session": None,
+            "role_id": "role",
         }
 
         test_hook = VaultHook(**kwargs)
