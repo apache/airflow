@@ -41,7 +41,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
@@ -246,6 +246,8 @@ def check_if_object_exist(
                 return num_errors
         else:
             raise RuntimeError(f"Wrong enum {object_type}???")
+    except AirflowOptionalProviderFeatureException as e:
+        console.print(f"[yellow]Skipping {object_name} check as it is optional feature[/]:", e)
     except Exception as e:
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "

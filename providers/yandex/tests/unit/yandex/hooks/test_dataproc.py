@@ -21,10 +21,10 @@ from unittest import mock
 
 import pytest
 
-yandexlcloud = pytest.importorskip("yandexcloud")
+pytest.importorskip("yandexcloud")
 
-from airflow.models import Connection  # noqa: E402
-from airflow.providers.yandex.hooks.dataproc import DataprocHook  # noqa: E402
+from airflow.models import Connection
+from airflow.providers.yandex.hooks.dataproc import DataprocHook
 
 # Airflow connection with type "yandexcloud" must be created
 CONNECTION_ID = "yandexcloud_default"

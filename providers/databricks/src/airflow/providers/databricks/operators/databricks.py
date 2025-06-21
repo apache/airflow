@@ -35,14 +35,6 @@ from airflow.providers.databricks.hooks.databricks import (
     RunLifeCycleState,
     RunState,
 )
-from airflow.providers.databricks.operators.databricks_workflow import (
-    DatabricksWorkflowTaskGroup,
-    WorkflowRunMetadata,
-)
-from airflow.providers.databricks.plugins.databricks_workflow import (
-    WorkflowJobRepairSingleTaskLink,
-    WorkflowJobRunLink,
-)
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
 )
@@ -52,6 +44,9 @@ from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.databricks.operators.databricks_workflow import (
+        DatabricksWorkflowTaskGroup,
+    )
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
@@ -1195,6 +1190,11 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         workflow_run_metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ):
+        from airflow.providers.databricks.plugins.databricks_workflow import (
+            WorkflowJobRepairSingleTaskLink,
+            WorkflowJobRunLink,
+        )
+
         self.caller = caller
         self.databricks_conn_id = databricks_conn_id
         self._databricks_task_key = databricks_task_key
@@ -1417,6 +1417,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
+        from airflow.providers.databricks.operators.databricks_workflow import WorkflowRunMetadata
+
         if self._databricks_workflow_task_group:
             # If we are in a DatabricksWorkflowTaskGroup, we should have an upstream task launched.
             if not self.workflow_run_metadata:
