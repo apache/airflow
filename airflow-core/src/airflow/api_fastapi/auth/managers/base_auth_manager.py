@@ -132,7 +132,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def refresh_token(self, token: str) -> str | None:
+    def refresh_token(self, refresh_token: str) -> dict | None:
         """
         Refresh the JWT token.
 
