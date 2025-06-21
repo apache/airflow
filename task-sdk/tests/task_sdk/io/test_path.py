@@ -27,7 +27,9 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
+from airflow.models.connection import Connection
 from airflow.sdk import Asset, ObjectStoragePath
+from airflow.sdk.execution_time.secrets_masker import SecretsMasker
 from airflow.sdk.io import attach
 from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
 from airflow.utils.module_loading import qualname
@@ -180,6 +182,27 @@ class TestRemotePath:
         assert o.container == bucket
         assert o.key == key
         assert o.protocol == protocol
+
+
+class TestConnPath:
+    def test_connection_inferred_protocol(self):
+        conn = Connection(
+            conn_id="my_conn", conn_type="objectstore", extra='{"provider": "gcs", "base_path": "base_dir"}'
+        )
+
+        with mock.patch(
+            "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=SecretsMasker()
+        ):
+            o = ObjectStoragePath.from_conn(conn, "hello.txt")
+            assert o.protocol == "gcs"
+            assert o.container == "my_conn@base_dir"
+            assert o.key == "hello.txt"
+
+    def test_connection_inferred_protocol_invalid_type(self):
+        conn = Connection(conn_id="invalid", conn_type="mysql", extra="{}")
+
+        with pytest.raises(ValueError, match="Unsupported connection type for object storage: mysql"):
+            ObjectStoragePath.from_conn(conn, "hello.txt")
 
 
 class TestLocalPath:
