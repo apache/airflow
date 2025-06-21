@@ -474,7 +474,7 @@ class TestVaultHook:
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        test_client.auth.gcp.configure.assert_called_with(
+        test_client.auth.gcp.login.assert_called_with(
             credentials="credentials",
         )
         test_client.is_authenticated.assert_called_with()
@@ -514,7 +514,7 @@ class TestVaultHook:
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        test_client.auth.gcp.configure.assert_called_with(
+        test_client.auth.gcp.login.assert_called_with(
             credentials="credentials",
         )
         test_client.is_authenticated.assert_called_with()
@@ -554,7 +554,7 @@ class TestVaultHook:
             key_path=None, keyfile_dict={"key": "value"}, scopes=["scope1", "scope2"]
         )
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        test_client.auth.gcp.configure.assert_called_with(
+        test_client.auth.gcp.login.assert_called_with(
             credentials="credentials",
         )
         test_client.is_authenticated.assert_called_with()
