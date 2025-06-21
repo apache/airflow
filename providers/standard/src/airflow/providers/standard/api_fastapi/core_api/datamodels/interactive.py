@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from uuid import UUID
+from datetime import datetime
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
