@@ -184,7 +184,7 @@ published as the official website. This includes any changes to `.htaccess` of t
 
 Such a main build also publishes latest "sphinx-airflow-theme" package to GitHub so that the next build
 of documentation can automatically pick it up from there. This means that if you want to make changes to
-`javascript` or `css` that are part of the theme, you need to do it in `ariflow-site` repository and
+`javascript` or `css` that are part of the theme, you need to do it in `airflow-site` repository and
 merge it to `main` branch in order to be able to run the documentation build in `apache-airflow` repository
 and pick up the latest version of the theme.
 
