@@ -128,6 +128,13 @@
     "manual": "手動觸發",
     "scheduled": "已排程"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "最下方",
+      "top": "最上方"
+    },
+    "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
+  },
   "seconds": "{{count}} 秒",
   "security": {
     "actions": "操作",
@@ -223,7 +230,7 @@
     "title": "選擇時區",
     "utc": "UTC"
   },
-    "toaster": {
+  "toaster": {
     "bulkDelete": {
       "error": "批次刪除 {{resourceName}} 請求失敗",
       "success": {
