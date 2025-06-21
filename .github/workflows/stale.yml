@@ -20,7 +20,8 @@
 name: 'Close stale PRs & Issues'
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '0 0 * * *'
+    # reduce scheduled github actions in fork to once a year
+    - cron: '0 0 31 12 *'
 permissions:
   # All other permissions are set to none
   pull-requests: write
