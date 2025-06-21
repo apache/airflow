@@ -51,6 +51,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
         sa.ForeignKeyConstraint(
             ["dag_id", "task_id", "run_id", "map_index"],
             [
