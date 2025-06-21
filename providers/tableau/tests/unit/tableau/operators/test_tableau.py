@@ -16,21 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-# mypy: disable-error-code=name-defined
 import sys
 from unittest.mock import Mock, patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
 
 if sys.version_info < (3, 10):
-    pytest.skip(
-        "Skipping this test file: Tableau provider not supported on Python < 3.10, see #51756.",
-        allow_module_level=True,
+    pytestmark = pytest.mark.skip(
+        "Skipping this test file: Tableau provider not supported on Python < 3.10, see #51756."
     )
 else:
-    from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
     from airflow.providers.tableau.operators.tableau import TableauOperator
 
 

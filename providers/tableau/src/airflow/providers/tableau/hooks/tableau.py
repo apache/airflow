@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import time
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
+if sys.version_info < (3, 10):
+    from airflow.providers.tableau.tableauserverclient_fake import JWTAuth, Pager, Server, TableauAuth
+else:
+    from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
