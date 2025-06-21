@@ -74,7 +74,8 @@ def write_response(
     )
     if existing_response:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, f"Interactive Response exists for task task_instance id {ti_id_str}"
+            status.HTTP_409_CONFLICT,
+            f"Interactive Response exists for task task_instance id {ti_id_str}",
         )
 
     interactive_response = InteractiveResponseModel(content=content, task_instance=ti, ti_id=ti_id_str)
