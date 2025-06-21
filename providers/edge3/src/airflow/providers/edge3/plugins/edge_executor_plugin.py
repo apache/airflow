@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -126,8 +127,6 @@ else:
         @has_access_view(AccessView.JOBS)
         @provide_session
         def jobs(self, session: Session = NEW_SESSION):
-            from airflow.providers.edge3.models.edge_job import EdgeJobModel
-
             jobs = session.scalars(select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)).all()
             html_states = {
                 str(state): _state_token(str(state)) for state in TaskInstanceState.__members__.values()
