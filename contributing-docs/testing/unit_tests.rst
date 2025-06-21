@@ -712,8 +712,8 @@ and run unit tests as follows:
     :alt: Running unit tests
 
 **NOTE:** You can run the unit tests in the standalone local virtualenv
-(with no Breeze installed) if they do not have dependencies such as
-``Postgres/MySQL/Hadoop/etc``.
+(with no Breeze installed) if they do not have dependencies such as 
+Postgres/MySQL/Hadoop/etc.
 
 Running Unit Tests from PyCharm IDE using Breeze
 ................................................
@@ -864,7 +864,11 @@ Once you enter the container, you might run regular pytest commands. For example
 Running Tests using Breeze from the Host
 ........................................
 
-If you wish to only run tests and not to drop into the shell, apply the ``tests`` command. You can add extra targets and pytest flags after the ``tests`` command. Note that often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag to breeze command. The Breeze image usually will have all the dependencies needed and it will ask you to rebuild the image if it is needed and some new dependencies should be installed.
+If you wish to only run tests and not to drop into the shell, apply the ``tests`` command. 
+You can add extra targets and pytest flags after the ``tests`` command. Note that
+often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
+to breeze command. The Breeze image usually will have all the dependencies needed and it 
+will ask you to rebuild the image if it is needed and some new dependencies should be installed.
 
 .. code-block:: bash
 
@@ -926,11 +930,17 @@ flag:
 Running full Airflow unit test suite in parallel
 ................................................
 
-If you run ``breeze testing core-tests --run-in-parallel`` or ``breeze testing providers-tests --run-in-parallel``, tests are executed in parallel on your development machine, using as many cores as are available to the Docker engine.
+If you run ``breeze testing core-tests --run-in-parallel`` or 
+``breeze testing providers-tests --run-in-parallel``, tests are executed in parallel
+on your development machine, using as many cores as are available to the Docker engine.
 
-If your Docker environment has limited memory (less than 8 GB), then ``Integration``, ``Provider``, and ``Core`` tests are run sequentially, with the Docker setup cleaned between test runs to minimize memory usage.
+If your Docker environment has limited memory (less than 8 GB), then ``Integration``, ``Provider``,
+and ``Core`` tests are run sequentially, with the Docker setup cleaned between test runs 
+to minimize memory usage.
 
-This approach allows for a massive speedup in full test execution. On a machine with 8 CPUs (16 cores), 64 GB of RAM, and a fast SSD, the full suite of tests can complete in about 5 minutes (!) — compared to more than 30 minutes when run sequentially.
+This approach allows for a massive speedup in full test execution. On a machine with 8 CPUs
+(16 cores), 64 GB of RAM, and a fast SSD, the full suite of tests can complete in about
+5 minutes (!) — compared to more than 30 minutes when run sequentially.
 
 .. note::
 
