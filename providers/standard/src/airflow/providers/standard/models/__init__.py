@@ -34,7 +34,6 @@ class InteractiveResponseModel(Base):
 
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        primary_key=True,
         nullable=False,
     )
 
