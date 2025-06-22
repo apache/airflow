@@ -152,7 +152,6 @@ def app():
         yield app
 
 
-@pytest.mark.db_test
 def test_get_task_instance(app):
     with app.app_context():
         operator = Mock()
@@ -170,7 +169,6 @@ def test_get_task_instance(app):
             assert result == dag_run
 
 
-@pytest.mark.db_test
 def test_get_return_url_dag_id_run_id(app):
     dag_id = "example_dag"
     run_id = "example_run"
@@ -182,7 +180,6 @@ def test_get_return_url_dag_id_run_id(app):
     assert actual_url == expected_url, f"Expected {expected_url}, got {actual_url}"
 
 
-@pytest.mark.db_test
 def test_workflow_job_run_link(app):
     with app.app_context():
         link = WorkflowJobRunLink()
@@ -220,7 +217,6 @@ def test_workflow_job_run_link(app):
 @pytest.mark.skipif(
     RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Web plugin test doesn't work when not against sources"
 )
-@pytest.mark.db_test
 def test_workflow_job_repair_single_failed_link(app):
     with app.app_context():
         link = WorkflowJobRepairSingleTaskLink()
