@@ -32,7 +32,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
-from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_xcom_sidecar, add_sidecar
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_sidecar_to_spark_operator_pod_spec
 
 if TYPE_CHECKING:
     import jinja2
@@ -297,39 +297,20 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if self.do_xcom_push:
             try:
                 self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
-                print("0")
-                print(self.template_body["spark"])
-                print("1")
-                print(self.template_body["spark"]["spec"])
-                print("2")
                 driver_template = self.template_body["spark"]["spec"]
-                print("3")
-                print(driver_template)
-                print(self.hook.get_xcom_sidecar_container_image())
-                print(self.hook.get_xcom_sidecar_container_resources())
-                print("roni")
-                driver_with_xcom_template = add_sidecar(
+                driver_with_xcom_template = add_sidecar_to_spark_operator_pod_spec(
                     driver_template,
                     sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
                     sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
                 )
-                print("4")
                 self.template_body["spark"]["spec"]= driver_with_xcom_template
-                print("5")
-                print("kesem shaked")
-                print(driver_with_xcom_template)
-                print(self.template_body)
             except KeyError as e:
-                raise AirflowException("Driver spec missing in SparkApplication template") from e
+                raise AirflowException("Spec missing in SparkApplication template") from e
 
     def execute(self, context: Context):
         self.name = self.create_job_name()
         self.log.info("Creating sparkApplication.")
-        print("kesem")
-        print(self.template_body)
         self.update_pod_spec_add_xcom_sidecar()
-        print("kesem shaked hello in here")
-        print(self.template_body)
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
@@ -339,7 +320,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
         self.pod_request_obj = self.launcher.pod_spec
-
         return super().execute(context=context)
 
     def on_kill(self) -> None:
