@@ -43,7 +43,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
-import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
@@ -149,13 +149,7 @@ const createColumns = (
   },
 ];
 
-const {
-  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
-  NAME_PATTERN: NAME_PATTERN_PARAM,
-  PAUSED: PAUSED_PARAM,
-  TAGS: TAGS_PARAM,
-  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
-}: SearchParamsKeysType = SearchParamsKeys;
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -175,17 +169,18 @@ export const DagsList = () => {
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
-  const showPaused = searchParams.get(PAUSED_PARAM);
+  const showPaused = searchParams.get(PAUSED);
+  const showFavorites = searchParams.get(FAVORITE);
 
-  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM) as DagRunState;
-  const selectedTags = searchParams.getAll(TAGS_PARAM);
-  const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE_PARAM) as "all" | "any";
+  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
+  const selectedTags = searchParams.getAll(TAGS);
+  const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+    searchParams.get(NAME_PATTERN) ?? undefined,
   );
 
   const [sort] = sorting;
@@ -195,9 +190,9 @@ export const DagsList = () => {
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
     setSearchParams(searchParams);
     setTableURLState({
@@ -208,6 +203,7 @@ export const DagsList = () => {
   };
 
   let paused = defaultShowPaused;
+  let isFavorite = undefined;
 
   if (showPaused === "all") {
     paused = undefined;
@@ -217,9 +213,16 @@ export const DagsList = () => {
     paused = false;
   }
 
+  if (showFavorites === "true") {
+    isFavorite = true;
+  } else if (showFavorites === "false") {
+    isFavorite = false;
+  }
+
   const { data, error, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
     dagRunsLimit,
+    isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,

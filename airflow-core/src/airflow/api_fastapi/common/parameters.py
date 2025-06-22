@@ -38,6 +38,7 @@ from sqlalchemy import Column, and_, case, func, or_, select
 from sqlalchemy.inspection import inspect
 
 from airflow.api_fastapi.core_api.base import OrmClause
+from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
@@ -133,8 +134,10 @@ class _FavoriteFilter(BaseParam[bool]):
         return select_stmt
 
     @classmethod
-    def depends(cls, is_favorite: bool | None = Query(None)) -> _FavoriteFilter:
-        return cls().set_value(is_favorite)
+    def depends(cls, user: GetUserDep, is_favorite: bool | None = Query(None)) -> _FavoriteFilter:
+        instance = cls().set_value(is_favorite)
+        instance.user_id = user.get_id()
+        return instance
 
 
 class _ExcludeStaleFilter(BaseParam[bool]):

@@ -3169,8 +3169,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/DAGResponse'
+              schema: {}
         '401':
           content:
             application/json:
@@ -3216,8 +3215,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/DAGResponse'
+              schema: {}
         '401':
           content:
             application/json:
