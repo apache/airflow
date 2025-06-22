@@ -67,7 +67,7 @@ HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = list[str]
-"""The legacy format of log messages, represented as a single string blob to be parsed later."""
+"""The legacy format of log messages before 3.0.2"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 RawLogStream: TypeAlias = Generator[str, None, None]
@@ -105,6 +105,9 @@ class LogMetadata(TypedDict):
     log_pos: NotRequired[int]
     # the following attributes are used for Elasticsearch and OpenSearch log handlers
     offset: NotRequired[str | int]
+    # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
+    # on the client. Sending as a string prevents this issue.
+    # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
     last_log_timestamp: NotRequired[str]
     max_offset: NotRequired[str]
 
