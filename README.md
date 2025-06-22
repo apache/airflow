@@ -48,7 +48,7 @@
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 
-Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
+Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
 <!-- END Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
