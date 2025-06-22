@@ -25,8 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestChimeWebhookHook:
     _config = {
