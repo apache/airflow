@@ -80,7 +80,7 @@ export const Nav = () => {
         <BrowseButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
         <AdminButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
         <SecurityButton />
-        <PluginMenus />
+        {authLinks?.authorized_menu_items.includes("Plugins") && <PluginMenus />}
       </Flex>
       <Flex flexDir="column">
         <DocsButton showAPI={authLinks?.authorized_menu_items.includes("Docs")} version={data?.version} />

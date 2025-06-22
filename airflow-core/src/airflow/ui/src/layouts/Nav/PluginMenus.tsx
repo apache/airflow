@@ -22,15 +22,15 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
+import type { AppBuilderMenuItemResponse, PluginResponse } from "openapi/requests/types.gen";
+import { usePluginServiceGetPlugins } from "openapi/queries";
 import { Menu } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
-  const { data } = useConfig("plugins_extra_menu_items");
+  const { data } = usePluginServiceGetPlugins();
 
   const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
   const iframePlugins =
@@ -47,7 +47,7 @@ export const PluginMenus = () => {
   const categories: Record<string, Array<AppBuilderMenuItemResponse>> = {};
   const buttons: Array<AppBuilderMenuItemResponse> = [];
 
-  menuPlugins?.forEach((plugin) => {
+  menuPlugins?.forEach((plugin: PluginResponse) => {
     plugin.appbuilder_menu_items.forEach((mi) => {
       if (mi.category !== null && mi.category !== undefined) {
         categories[mi.category] = [...(categories[mi.category] ?? []), mi];

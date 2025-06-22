@@ -30,9 +30,7 @@ import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("admin");
-  const { data, error, isLoading } = usePluginServiceImportErrors(undefined, {
-    retry: false,
-  });
+  const { data, error, isLoading } = usePluginServiceImportErrors();
 
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
