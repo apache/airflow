@@ -236,8 +236,8 @@ class HttpOperator(BaseOperator):
         """
         Resolve the authentication type for the HTTP request.
 
-        If auth_type is not explicitly set, attempt to infer it from the connection
-        configuration. For connections with login/password, default to BasicAuth.
+        If auth_type is not explicitly set, attempt to infer it from the connection configuration.
+        For connections with login/password, default to BasicAuth.
 
         :return: The resolved authentication type class, or None if no auth is needed.
         """
