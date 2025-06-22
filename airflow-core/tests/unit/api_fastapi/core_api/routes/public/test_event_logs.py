@@ -24,7 +24,11 @@ from airflow.models.log import Log
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
+<<<<<<< HEAD:airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_event_logs.py
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+=======
+from tests_common.test_utils.date_formatting import format_datetime_zulu
+>>>>>>> 6ac81f8f83 (Refactor: use shared Zulu date formatter in API FastAPI test routes):tests/api_fastapi/core_api/routes/public/test_event_logs.py
 
 pytestmark = pytest.mark.db_test
 
@@ -164,17 +168,25 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
         expected_json = {
             "event_log_id": event_log_id,
+<<<<<<< HEAD:airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_event_logs.py
             "when": from_datetime_to_zulu(event_log.dttm) if event_log.dttm else None,
             "dag_display_name": expected_body.get("dag_display_name"),
+=======
+            "when": format_datetime_zulu(event_log.dttm) if event_log.dttm else None,
+>>>>>>> 6ac81f8f83 (Refactor: use shared Zulu date formatter in API FastAPI test routes):tests/api_fastapi/core_api/routes/public/test_event_logs.py
             "dag_id": expected_body.get("dag_id"),
             "task_id": expected_body.get("task_id"),
             "run_id": expected_body.get("run_id"),
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
             "event": expected_body.get("event"),
+<<<<<<< HEAD:airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_event_logs.py
             "logical_date": from_datetime_to_zulu_without_ms(event_log.logical_date)
             if event_log.logical_date
             else None,
+=======
+            "logical_date": format_datetime_zulu(event_log.logical_date) if event_log.logical_date else None,
+>>>>>>> 6ac81f8f83 (Refactor: use shared Zulu date formatter in API FastAPI test routes):tests/api_fastapi/core_api/routes/public/test_event_logs.py
             "owner": expected_body.get("owner"),
             "extra": expected_body.get("extra"),
         }
