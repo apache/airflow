@@ -29,7 +29,6 @@ from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.triggers.base import TriggerEvent
 
 
-@pytest.mark.db_test
 class TestAirbyteSyncTrigger:
     DAG_ID = "airbyte_sync_run"
     TASK_ID = "airbyte_sync_run_task_op"
