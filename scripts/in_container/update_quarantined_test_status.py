@@ -181,7 +181,7 @@ if __name__ == "__main__":
     with open(sys.argv[1]) as f:
         text = f.read()
     y = BeautifulSoup(text, "html.parser")
-    res = y.testsuites.testsuite.findAll("testcase")
+    res = y.testsuites.testsuite.findAll("testcase")  # type: ignore[union-attr,call-arg]
     for test in res:
         print("Parsing: " + test["classname"] + "::" + test["name"])
         if test.contents and test.contents[0].name == "skipped":

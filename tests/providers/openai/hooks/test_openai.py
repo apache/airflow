@@ -27,7 +27,7 @@ from unittest.mock import mock_open
 
 from openai.pagination import SyncCursorPage
 from openai.types import CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
-from openai.types.beta import (
+from openai.types.beta import (  # type: ignore[attr-defined]
     Assistant,
     AssistantDeleted,
     Thread,

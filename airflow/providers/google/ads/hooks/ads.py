@@ -176,7 +176,7 @@ class GoogleAdsHook(BaseHook):
         """
         try:
             accessible_customers = self._get_customer_service.list_accessible_customers()
-            return accessible_customers.resource_names
+            return accessible_customers.resource_names  # type: ignore[return-value]
         except GoogleAdsException as ex:
             for error in ex.failure.errors:
                 self.log.error('\tError with message "%s".', error.message)
@@ -290,7 +290,7 @@ class GoogleAdsHook(BaseHook):
 
         self.log.info("Fetched Google Ads Iterators")
 
-        return self._extract_rows(iterators)
+        return self._extract_rows(iterators)  # type: ignore[arg-type]
 
     def _extract_rows(self, iterators: list[GRPCIterator]) -> list[GoogleAdsRow]:
         """
