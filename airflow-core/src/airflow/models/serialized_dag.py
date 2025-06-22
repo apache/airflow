@@ -414,10 +414,10 @@ class SerializedDagModel(Base):
                 )
                 if do_nothing:
                     return False
-            except OperationalError:
-                log.warning(
-                    "Another Scheduler is already reparsing dag %s. Skipping reparse request.", dag.dag_id
-                )
+           except OperationalError as e:
+            log.warning(
+                "Another Scheduler is already reparsing dag %s. Skipping reparse request. Details: %s", dag.dag_id, str(e)
+            )
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
