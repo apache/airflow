@@ -42,13 +42,15 @@ class TestLogStreamAccumulator:
         """Create a stream of mock structured log messages."""
 
         def generate_logs():
-            for i in range(LOG_COUNT):
-                yield StructuredLogMessage(
+            yield from (
+                StructuredLogMessage(
                     event=f"test_event_{i + 1}",
                     timestamp=LOG_START_DATETIME.add(seconds=i),
                     level="INFO",
                     message=f"Test log message {i + 1}",
                 )
+                for i in range(LOG_COUNT)
+            )
 
         return generate_logs()
 

@@ -196,8 +196,8 @@ class TestFileTaskLogHandler:
         # We should expect our log line from the callable above to appear in
         # the logs we read back
 
-        assert any(re.search(target_re, e) for e in events(log_handler_output_stream)), "Logs were " + str(
-            log_handler_output_stream
+        assert any(re.search(target_re, e) for e in events(log_handler_output_stream)), (
+            f"Logs were {log_handler_output_stream}"
         )
 
         # Remove the generated tmp log file.
@@ -775,9 +775,10 @@ def test__log_stream_to_parsed_log_stream():
     ]
 
 
-def test__sort_key():
+def test__create_sort_key():
     # assert _sort_key should return int
-    assert isinstance(_create_sort_key(pendulum.parse("2022-11-16T00:05:54.278000-08:00"), 10), int)
+    sort_key = _create_sort_key(pendulum.parse("2022-11-16T00:05:54.278000-08:00"), 10)
+    assert sort_key == 16685859542780000010
 
 
 @pytest.mark.parametrize(
@@ -871,24 +872,28 @@ def test__add_log_from_parsed_log_streams_to_heap():
             mock_parsed_logs_factory("Source 3", pendulum.parse("2022-11-16T00:05:54.380000-08:00"), 3)
         ),
     }
-    # First call
+
+    # Check that we correctly get the first line of each non-empty log stream
+
+    # First call: should add log records for all log streams
     _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
-    # Source 1 should be removed
     assert len(input_parsed_log_streams) == 3
     assert len(heap) == 3
-    # Second call
+    # Second call: source 1 is empty, should add log records for source 2 and source 3
     _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
-    # Source 2 should be removed
-    assert len(input_parsed_log_streams) == 2
+    assert len(input_parsed_log_streams) == 2  # Source 1 should be removed
     assert len(heap) == 5
-    # Third call
+    # Third call: source 1 and source 2 are empty, should add log records for source 3
     _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
-    assert len(input_parsed_log_streams) == 1
+    assert len(input_parsed_log_streams) == 1  # Source 2 should be removed
     assert len(heap) == 6
-    # Fourth call
+    # Fourth call: source 1, source 2, and source 3 are empty, should not add any log records
     _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
-    assert len(input_parsed_log_streams) == 0
+    assert len(input_parsed_log_streams) == 0  # Source 3 should be removed
     assert len(heap) == 6
+    # Fifth call: all sources are empty, should not add any log records
+    assert len(input_parsed_log_streams) == 0  # remains empty
+    assert len(heap) == 6  # no change in heap size
     # Check heap
     expected_logs: list[str] = [
         "Source 1 Event 0",
