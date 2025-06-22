@@ -52,16 +52,18 @@ describe("TokenFlow Interceptor", () => {
     const refreshToken = "test-refresh-token";
 
     document.cookie = `_refresh_token=${refreshToken};`;
+
     const setItemMock = vi.spyOn(localStorage, "setItem");
+
     const headers = {};
+
     const config = { headers };
+
     const { headers: updatedHeaders } = tokenHandler(config as InternalAxiosRequestConfig);
 
     expect(setItemMock).toHaveBeenCalledOnce();
     expect(setItemMock).toHaveBeenCalledWith(TOKEN_STORAGE_KEY, refreshToken);
-    expect(updatedHeaders).toEqual({
-      Authorization: `Bearer ${refreshToken}`,
-    });
+    expect(updatedHeaders).toEqual({ Authorization: `Bearer ${refreshToken}` });
     expect(document.cookie).toContain("_refresh_token=; expires=");
   });
 });
