@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
@@ -301,3 +303,50 @@ metadata:
             assert "execution_api_server_url" not in config, (
                 "execution_api_server_url should not be set for Airflow 2.x versions"
             )
+
+    @pytest.mark.parametrize(
+        "bundle_configs, expected_bundle",
+        [
+            (None, []),
+            ([], []),
+            (
+                [
+                    {
+                        "name": "git-repo",
+                        "type": "airflow.providers.git.bundles.git.GitDagBundle",
+                        "args": {
+                            "subdir": "src",
+                            "tracking_ref": "main",
+                            "refresh_interval": 1800,
+                            "git_conn_id": "git_default",
+                        },
+                    }
+                ],
+                [
+                    {
+                        "name": "git-repo",
+                        "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                        "kwargs": {
+                            "git_conn_id": "git_default",
+                            "refresh_interval": 1800,
+                            "subdir": "src",
+                            "tracking_ref": "main",
+                        },
+                    }
+                ],
+            ),
+        ],
+    )
+    def test_dag_bundle_config(self, bundle_configs, expected_bundle):
+        docs = render_chart(
+            values={"dags": {"bundleConfigs": bundle_configs}},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        dag_bundle_line = next(
+            line for line in cfg.splitlines() if line.strip().startswith("dag_bundle_config_list")
+        )
+        dag_bundle = dag_bundle_line.split("=", 1)[1].strip()
+
+        assert expected_bundle == json.loads(dag_bundle)
