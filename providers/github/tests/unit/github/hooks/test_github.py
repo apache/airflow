@@ -25,9 +25,6 @@ from github import BadCredentialsException, Github, NamedUser
 from airflow.models import Connection
 from airflow.providers.github.hooks.github import GithubHook
 
-pytestmark = pytest.mark.db_test
-
-
 github_client_mock = Mock(name="github_client_for_test")
 
 
