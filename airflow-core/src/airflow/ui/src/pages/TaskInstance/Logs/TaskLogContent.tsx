@@ -16,12 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, VStack, useToken } from "@chakra-ui/react";
+import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
+import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar } from "src/components/ui";
+import { ProgressBar, Tooltip } from "src/components/ui";
 
 type Props = {
   readonly error: unknown;
@@ -31,8 +34,50 @@ type Props = {
   readonly wrap: boolean;
 };
 
+const ScrollToButton = ({
+  direction,
+  onClick,
+}: {
+  readonly direction: "bottom" | "top";
+  readonly onClick: () => void;
+}) => {
+  const { t: translate } = useTranslation("common");
+
+  return (
+    <Tooltip
+      closeDelay={100}
+      content={translate("scroll.tooltip", {
+        direction: translate(`scroll.direction.${direction}`),
+        hotkey: direction === "bottom" ? "↓" : "↑",
+      })}
+      openDelay={100}
+    >
+      <IconButton
+        _ltr={{
+          left: "auto",
+          right: 4,
+        }}
+        _rtl={{
+          left: 4,
+          right: "auto",
+        }}
+        aria-label={translate(`scroll.direction.${direction}`)}
+        bg="bg.panel"
+        bottom={direction === "bottom" ? 2 : 12}
+        onClick={onClick}
+        position="absolute"
+        rounded="full"
+        size="xs"
+        variant="outline"
+      >
+        {direction === "bottom" ? <FiChevronDown /> : <FiChevronUp />}
+      </IconButton>
+    </Tooltip>
+  );
+};
+
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
-  const [bgLine] = useToken("colors", ["blue.emphasized"]);
+  const hash = location.hash.replace("#", "");
   const parentRef = useRef(null);
   const rowVirtualizer = useVirtualizer({
     count: parsedLogs.length,
@@ -42,25 +87,22 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
   });
 
   useLayoutEffect(() => {
-    if (location.hash) {
-      const hash = location.hash.replace("#", "");
-
-      setTimeout(() => {
-        const element = document.querySelector<HTMLElement>(`[id='${hash}']`);
-
-        if (element !== null) {
-          element.style.background = bgLine as string;
-        }
-        element?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 100);
+    if (location.hash && !isLoading) {
+      rowVirtualizer.scrollToIndex(Number(hash));
     }
-  }, [isLoading, bgLine]);
+  }, [isLoading, rowVirtualizer, hash]);
+
+  const handleScrollTo = (to: "bottom" | "top") => {
+    if (parsedLogs.length > 0) {
+      rowVirtualizer.scrollToIndex(to === "bottom" ? parsedLogs.length - 1 : 0);
+    }
+  };
+
+  useHotkeys("ArrowDown", () => handleScrollTo("bottom"), { enabled: !isLoading });
+  useHotkeys("ArrowUp", () => handleScrollTo("top"), { enabled: !isLoading });
 
   return (
-    <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0}>
+    <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
       <Code
@@ -90,6 +132,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
                 left: "auto",
                 right: 0,
               }}
+              bgColor={virtualRow.index === Number(hash) ? "blue.emphasized" : "transparent"}
               data-index={virtualRow.index}
               data-testid={`virtualized-item-${virtualRow.index}`}
               key={virtualRow.key}
@@ -104,6 +147,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
           ))}
         </VStack>
       </Code>
+
+      <ScrollToButton direction="top" onClick={() => handleScrollTo("top")} />
+      <ScrollToButton direction="bottom" onClick={() => handleScrollTo("bottom")} />
     </Box>
   );
 };
