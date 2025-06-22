@@ -5,7 +5,7 @@
   "type": "module",
   "homepage": "/ui",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5173 --strictPort",
     "build": "vite build",
     "lint": "eslint --quiet && tsc --p tsconfig.app.json",
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",

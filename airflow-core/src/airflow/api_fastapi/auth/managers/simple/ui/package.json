@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5174",
+    "dev": "vite --port 5174 --strictPort",
     "build": "vite build",
     "lint": "eslint --quiet && tsc --p tsconfig.app.json",
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
