@@ -581,7 +581,6 @@ repos:
             (?x)
             ^providers/airbyte/.*\.py$|
             ^providers/cohere/.*\.py$|
-            ^providers/docker/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
