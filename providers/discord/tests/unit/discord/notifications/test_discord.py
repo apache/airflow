@@ -24,8 +24,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.discord.notifications.discord import DiscordNotifier
 
-pytestmark = pytest.mark.db_test
-
 
 @pytest.fixture(autouse=True)
 def setup_connections(create_connection_without_db):

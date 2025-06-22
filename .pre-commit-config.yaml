@@ -582,6 +582,7 @@ repos:
             ^providers/airbyte/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/datadog/.*\.py$|
+            ^providers/discord/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
