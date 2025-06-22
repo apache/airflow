@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from subprocess import CalledProcessError
-from unittest import result
 
 import jmespath
 import pytest
