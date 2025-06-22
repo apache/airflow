@@ -64,7 +64,6 @@ def git_repo(tmp_path_factory):
 class TestGitHook:
     @classmethod
     def teardown_class(cls) -> None:
-        # clear_db_connections()
         return
 
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
