@@ -581,6 +581,7 @@ repos:
             (?x)
             ^providers/airbyte/.*\.py$|
             ^providers/cohere/.*\.py$|
+            ^providers/docker/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
@@ -601,7 +602,6 @@ repos:
             ^providers/trino/.*\.py$|
             ^providers/vertica/.*\.py$|
             ^providers/yandex/.*\.py$
-            ^providers/docker/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
         description: The links to example dags should use |version| as version specification
