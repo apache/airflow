@@ -161,20 +161,15 @@ class BaseOperations:
         params: dict | None = None,
         **kwargs,
     ) -> list | ServerResponseError:
-        if params is None:
-            params = {}
-        params.update({"limit": limit}, **kwargs)
-        try:
-            while offset < total_entries:
-                params.update({"offset": offset})
-                self.response = self.client.get(path, params=params)
-                entry = data_model.model_validate_json(self.response.content)
-                offset = offset + limit  # default limit params = 50
-                entry_list.append(entry)
+        shared_params = {**(params or {}), **kwargs}
+        while offset < total_entries:
+            loop_params = {**shared_params, "offset": offset}
+            self.response = self.client.get(path, params=loop_params)
+            entry = data_model.model_validate_json(self.response.content)
+            offset = offset + limit
+            entry_list.append(entry)
 
-            return entry_list
-        except ServerResponseError as e:
-            raise e
+        return entry_list
 
 
 # Login operations
@@ -629,7 +624,7 @@ class PoolsOperations(BaseOperations):
             entry_list = []
             entry_list.append(primary_data)
             total_entries = primary_data.total_entries
-            limit = 50  # default
+            limit = 50  # default limit 50
             if total_entries < limit:
                 return entry_list
             return super().return_all_entries(
