@@ -1589,9 +1589,6 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
-        if TYPE_CHECKING:
-            # TODO: Task-SDK: remove this assert
-            assert self.params
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         if conf:
