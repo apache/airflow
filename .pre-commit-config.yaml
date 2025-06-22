@@ -601,7 +601,8 @@ repos:
             ^providers/trino/.*\.py$|
             ^providers/vertica/.*\.py$|
             ^providers/yandex/.*\.py$|
-            ^providers/zendesk/.*\.py$
+            ^providers/zendesk/.*\.py$|
+            ^providers/telegram/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
         description: The links to example dags should use |version| as version specification
