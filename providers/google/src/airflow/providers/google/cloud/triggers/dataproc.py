@@ -194,9 +194,7 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
 
     def __init__(
         self,
-        region: str,
         job: dict,
-        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -204,8 +202,6 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.project_id = project_id
-        self.region = region
         self.job = job
         self.request_id = request_id
         self.retry = retry
@@ -265,18 +261,21 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         task_instance = self.get_task_instance()  # type: ignore[call-arg]
         return task_instance.state != TaskInstanceState.DEFERRED
 
+    def submit_job(self):
+        return self.get_sync_hook().submit_job(
+            project_id=self.project_id,
+            region=self.region,
+            job=self.job,
+            request_id=self.request_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
     async def run(self):
         try:
             # Create a new Dataproc job
-            job = self.get_sync_hook().submit_job(
-                project_id=self.project_id,
-                region=self.region,
-                job=self.job,
-                request_id=self.request_id,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
+            job = self.submit_job()
             self.job_id = job.reference.job_id
             while True:
                 job = await self.get_async_hook().get_job(
