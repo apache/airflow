@@ -90,8 +90,8 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     const contentHeight = rowVirtualizer.getTotalSize();
     const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
 
-    return contentHeight > containerHeight;
-  }, [rowVirtualizer]);
+    return parsedLogs.length > 0 && contentHeight > containerHeight;
+  }, [rowVirtualizer, parsedLogs]);
 
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
