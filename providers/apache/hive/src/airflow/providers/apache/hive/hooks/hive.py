@@ -194,7 +194,7 @@ class HiveCliHook(BaseHook):
                 if self.high_availability:
                     if not jdbc_url.endswith(";"):
                         jdbc_url += ";"
-                    ssl = conn.extra_dejson.get("ssl", "true")
+                    ssl = conn.extra_dejson.get("ssl", True)
                     zoo_keeper_namespace = conn.extra_dejson.get("zoo_keeper_namespace", "hiveserver2")
                     jdbc_url += (
                         f"serviceDiscoveryMode=zooKeeper;ssl={ssl};zooKeeperNamespace={zoo_keeper_namespace}"
