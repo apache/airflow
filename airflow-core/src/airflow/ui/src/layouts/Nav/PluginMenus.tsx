@@ -22,8 +22,8 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { AppBuilderMenuItemResponse, PluginResponse } from "openapi/requests/types.gen";
 import { usePluginServiceGetPlugins } from "openapi/queries";
+import type { AppBuilderMenuItemResponse, PluginResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 
 import { NavButton } from "./NavButton";
