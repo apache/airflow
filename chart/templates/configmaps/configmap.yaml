@@ -49,6 +49,17 @@ data:
       {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d%s/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath)  -}}
     {{- end -}}
   {{- end -}}
+
+  {{/*- Set a default for core.dag_processor.dag_bundle_config_list if it's not set -*/}}
+  {{- $bundleList := include "airflow_dag_bundles" . | trim }}
+  {{- if not (hasKey $config "dag_processor") }}
+    {{- $_ := set $config "dag_processor" (dict) }}
+  {{- end }}
+  {{- if not (hasKey $config.dag_processor "dag_bundle_config_list") -}}
+    {{- $bundleList := include "airflow_dag_bundles" . | trim -}}
+    {{- $_ := set $config.dag_processor "dag_bundle_config_list" $bundleList -}}
+  {{- end -}}
+
   # These are system-specified config overrides.
   airflow.cfg: |-
     {{- range $section, $settings := $config }}

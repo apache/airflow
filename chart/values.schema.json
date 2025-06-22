@@ -9153,6 +9153,41 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         }
                     }
+                },
+                "bundleConfigs": {
+                    "description": "List of DAG-bundle loader configurations",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "type",
+                            "args"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Unique human-friendly identifier"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "airflow.providers.git.bundles.git.GitDagBundle",
+                                    "airflow.dag_processing.bundles.local.LocalDagBundle"
+                                ],
+                                "description": "Fully-qualified class implementing the bundle loader"
+                            },
+                            "args": {
+                                "type": "object",
+                                "description": "Keyword arguments passed to the bundle loader"
+                            }
+                        }
+                    }
                 }
             }
         },

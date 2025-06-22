@@ -2924,7 +2924,7 @@ podTemplate: ~
 #       - name: base
 #         ...
 
-# Git sync
+# DAG sync
 dags:
   # Where dags volume will be mounted. Works for both persistence and gitSync.
   # If not specified, dags mount path will be set to $AIRFLOW_HOME/dags
@@ -2944,6 +2944,23 @@ dags:
     existingClaim:
     ## optional subpath for dag volume mount
     subPath: ~
+
+  # Create following example:
+  #   bundleConfigs:
+  #     - name: my-git-repo
+  #       type: airflow.providers.git.bundles.git.GitDagBundle
+  #       args:
+  #         - tracking_ref: main
+  #         - subdir: src
+  #         - git_conn_id: git_default
+  #         - repo_url: https://github.com/apache/airflow.git
+  #         - refresh_interval: 1800
+  #     - name: my-local-dags
+  #       type: airflow.dag_processing.bundles.local.LocalDagBundle
+  #       args:
+  #         - path: /opt/local/dags
+  bundleConfigs: ~
+
   gitSync:
     enabled: false
 
