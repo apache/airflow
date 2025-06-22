@@ -7,10 +7,10 @@
     "Providers": "제공자들",
     "Variables": "변수들"
   },
-  "assetEvent_one": "에셋 이벤트",
-  "assetEvent_other": "에셋 이벤트들",
   "asset_one": "에셋",
   "asset_other": "에셋들",
+  "assetEvent_one": "에셋 이벤트",
+  "assetEvent_other": "에셋 이벤트들",
   "backfill_one": "백필",
   "backfill_other": "백필들",
   "browse": {
@@ -19,6 +19,8 @@
   },
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
   "dagDetails": {
     "catchup": "캐치업",
     "concurrency": "동시 샐행 수",
@@ -57,8 +59,6 @@
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
   "dagWarnings": "Dag 경고/오류",
-  "dag_one": "Dag",
-  "dag_other": "Dags",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
   "direction": "방향",
@@ -182,6 +182,8 @@
     "operator": "연산자",
     "triggerRule": "트리거 규칙"
   },
+  "task_one": "작업",
+  "task_other": "작업들",
   "taskId": "작업 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",
@@ -208,8 +210,6 @@
   },
   "taskInstance_one": "작업 인스턴스",
   "taskInstance_other": "작업 인스턴스들",
-  "task_one": "작업",
-  "task_other": "작업들",
   "timeRange": {
     "last12Hours": "지난 12 시간",
     "last24Hours": "지난 24 시간",
