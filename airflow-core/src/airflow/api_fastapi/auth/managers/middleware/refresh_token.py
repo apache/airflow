@@ -22,7 +22,7 @@ import logging
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_REFRESH_JWT_TOKEN, BaseAuthManager
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
@@ -55,7 +55,11 @@ class RefreshTokenMiddleware(BaseHTTPMiddleware):
                     response = await call_next(request)
                     # Set the new access token in the cookies to update the state of the user in the token
                     secure = bool(conf.get("api", "ssl_cert", fallback=""))
-                    response.set_cookie(COOKIE_NAME_JWT_TOKEN, new_token_with_updated_user, secure=secure)
+                    response.set_cookie(
+                        COOKIE_NAME_REFRESH_JWT_TOKEN, new_token_with_updated_user, secure=secure
+                    )
+                    log.info("Token refreshed and sent to client")
                     return response
-                log.warning("User does not have an access token, cannot refresh.")
+            else:
+                log.warning("User does not have a refresh token, cannot refresh.")
         return await call_next(request)

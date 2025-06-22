@@ -206,7 +206,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def filter_authorized_menu_items(
         self, menu_items: list[MenuItem], *, user: KeycloakAuthManagerUser
     ) -> list[MenuItem]:
-        return [MenuItem(menu) for menu in menu_items]
         authorized_menus = self._is_batch_authorized(
             permissions=[("MENU", menu_item.value) for menu_item in menu_items],
             user=user,

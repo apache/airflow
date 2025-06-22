@@ -19,6 +19,17 @@
 import type { InternalAxiosRequestConfig } from "axios";
 
 export const TOKEN_STORAGE_KEY = "token";
+
+export const clearRefreshTokenCookie = () => {
+  document.cookie = `_refresh_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;`;
+};
+
+const setToken = (token: string) => {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  clearRefreshTokenCookie();
+  document.cookie = "_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;";
+};
+
 const getTokenFromCookies = (): string | undefined => {
   const cookies = document.cookie.split(";");
 
@@ -26,8 +37,23 @@ const getTokenFromCookies = (): string | undefined => {
     const [name, token] = cookie.split("=");
 
     if (name?.trim() === "_token" && token !== undefined) {
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      document.cookie = "_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;";
+      setToken(token);
+
+      return token;
+    }
+  }
+
+  return undefined;
+};
+
+const getRefreshedTokenFromCookies = (): string | undefined => {
+  const cookies = document.cookie.split(";");
+
+  for (const cookie of cookies) {
+    const [name, token] = cookie.split("=");
+
+    if (name?.trim() === "_refresh_token" && token !== undefined) {
+      setToken(token);
 
       return token;
     }
@@ -37,6 +63,14 @@ const getTokenFromCookies = (): string | undefined => {
 };
 
 export const tokenHandler = (config: InternalAxiosRequestConfig) => {
+  const refreshToken = getRefreshedTokenFromCookies();
+
+  if (refreshToken !== undefined && localStorage.getItem(TOKEN_STORAGE_KEY) !== refreshToken) {
+    config.headers.Authorization = `Bearer ${refreshToken}`;
+
+    return config;
+  }
+
   const token = localStorage.getItem(TOKEN_STORAGE_KEY) ?? getTokenFromCookies();
 
   if (token !== undefined) {
