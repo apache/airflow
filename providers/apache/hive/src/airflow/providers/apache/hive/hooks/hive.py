@@ -142,6 +142,10 @@ class HiveCliHook(BaseHook):
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
             "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
+            "ssl": BooleanField(lazy_gettext("Ssl"), default=True),
+            "zoo_keeper_namespace": StringField(
+                lazy_gettext("Zoo Keeper Namespace"), widget=BS3TextFieldWidget(), default="hiveserver2"
+            )
         }
 
     @classmethod
@@ -190,7 +194,9 @@ class HiveCliHook(BaseHook):
                 if self.high_availability:
                     if not jdbc_url.endswith(";"):
                         jdbc_url += ";"
-                    jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
+                    ssl = conn.extra_dejson.get("ssl", "true")
+                    zoo_keeper_namespace = conn.extra_dejson.get("zoo_keeper_namespace", "hiveserver2")
+                    jdbc_url += f"serviceDiscoveryMode=zooKeeper;ssl={ssl};zooKeeperNamespace={zoo_keeper_namespace}"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
