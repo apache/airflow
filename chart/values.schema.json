@@ -5454,11 +5454,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
