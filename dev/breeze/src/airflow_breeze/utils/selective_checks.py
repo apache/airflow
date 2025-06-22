@@ -834,6 +834,7 @@ class SelectiveChecks:
             or self.docs_build
             or self.run_kubernetes_tests
             or self.needs_helm_tests
+            or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
         )
