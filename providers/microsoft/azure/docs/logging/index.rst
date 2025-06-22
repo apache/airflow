@@ -58,7 +58,7 @@ Setup Steps:
 ''''''''''''''
 
 #. Install the provider package with ``pip install apache-airflow-providers-microsoft-azure``.
-#. Ensure :ref:`connection <howto/connection:wasb>` is already setup with read and write access to Azure Blob Storage in the ``remote_wasb_log_container`` container and path ``remote_base_log_folder``.
+#. Ensure :ref:`connection <howto/connection:wasb>` is already setup with read and write access to Azure Blob Storage in the ``remote_wasb_log_container`` container and path ``remote_base_log_folder``. The connection should be configured with appropriate authentication credentials (such as account key, shared access key, or managed identity). For account key authentication, you can add ``account_key`` to the connection's extra fields as a JSON dictionary: ``{"account_key": "your_account_key"}``.
 #. Setup the above configuration values. Please note that the container should already exist.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the container at the specified base path you have defined.
