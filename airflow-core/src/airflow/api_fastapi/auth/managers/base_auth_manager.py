@@ -72,6 +72,7 @@ T = TypeVar("T", bound=BaseUser)
 
 
 COOKIE_NAME_JWT_TOKEN = "_token"
+COOKIE_NAME_REFRESH_JWT_TOKEN = "_refresh_token"
 
 
 class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
