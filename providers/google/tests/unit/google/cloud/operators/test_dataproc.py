@@ -3453,8 +3453,14 @@ class TestDataprocCreateBatchOperator:
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
+        expected_labels = {
+            "airflow-dag-id": "adhoc_airflow",
+            "airflow-task-id": "task-id",
+        }
+
         expected_batch = {
             **BATCH,
+            "labels": expected_labels,
             "runtime_config": {
                 "properties": {
                     **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
