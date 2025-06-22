@@ -397,6 +397,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def get_xcom_sidecar_container_image(self):
         """Return the xcom sidecar image that defined in the connection."""
+        print("shlomit")
+        print(self._get_field("xcom_sidecar_container_image"))
         return self._get_field("xcom_sidecar_container_image")
 
     def get_xcom_sidecar_container_resources(self):

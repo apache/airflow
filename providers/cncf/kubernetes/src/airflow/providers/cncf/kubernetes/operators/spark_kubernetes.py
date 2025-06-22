@@ -32,7 +32,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
-from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_xcom_sidecar, add_sidecar
 
 if TYPE_CHECKING:
     import jinja2
@@ -166,18 +166,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             raise AirflowException("either application_file or template_spec should be passed")
         if "spark" not in template_body:
             template_body = {"spark": template_body}
-        if self.do_xcom_push:
-            try:
-                self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
-                driver_template = template_body["spark"]["spec"]["driver"]
-                driver_with_xcom_template = add_xcom_sidecar(
-                    driver_template,
-                    sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
-                    sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
-                )
-                template_body["spark"]["spec"]["driver"] = driver_with_xcom_template
-            except KeyError as e:
-                raise AirflowException("Driver spec missing in SparkApplication template") from e
         return template_body
 
     def create_job_name(self):
@@ -243,7 +231,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels["try_number"] == context["ti"].try_number
 
-    @property
+    @cached_property
     def template_body(self):
         """Templated body for CustomObjectLauncher."""
         return self.manage_template_specs()
@@ -272,15 +260,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             driver_pod = self.find_spark_job(context)
             if driver_pod:
                 return driver_pod
-        #
-        # if self.do_xcom_push:
-        #     self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-        #     pod = add_xcom_sidecar(
-        #         pod,
-        #         sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
-        #         sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
-        #     )
-
         driver_pod, spark_obj_spec = launcher.start_spark_job(
             image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
         )
@@ -314,10 +293,43 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def custom_obj_api(self) -> CustomObjectsApi:
         return CustomObjectsApi()
 
+    def update_pod_spec_add_xcom_sidecar(self):
+        if self.do_xcom_push:
+            try:
+                self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
+                print("0")
+                print(self.template_body["spark"])
+                print("1")
+                print(self.template_body["spark"]["spec"])
+                print("2")
+                driver_template = self.template_body["spark"]["spec"]
+                print("3")
+                print(driver_template)
+                print(self.hook.get_xcom_sidecar_container_image())
+                print(self.hook.get_xcom_sidecar_container_resources())
+                print("roni")
+                driver_with_xcom_template = add_sidecar(
+                    driver_template,
+                    sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
+                    sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+                )
+                print("4")
+                self.template_body["spark"]["spec"]= driver_with_xcom_template
+                print("5")
+                print("kesem shaked")
+                print(driver_with_xcom_template)
+                print(self.template_body)
+            except KeyError as e:
+                raise AirflowException("Driver spec missing in SparkApplication template") from e
+
     def execute(self, context: Context):
         self.name = self.create_job_name()
-
         self.log.info("Creating sparkApplication.")
+        print("kesem")
+        print(self.template_body)
+        self.update_pod_spec_add_xcom_sidecar()
+        print("kesem shaked hello in here")
+        print(self.template_body)
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
