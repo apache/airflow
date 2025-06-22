@@ -118,7 +118,6 @@ class CloudLoggingCreateSinkOperator(GoogleCloudBaseOperator):
         self.include_children = include_children
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self._validate_inputs()
 
     def _validate_inputs(self):
         """Validate required inputs."""
@@ -135,6 +134,7 @@ class CloudLoggingCreateSinkOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Execute the operator."""
+        self._validate_inputs()
         hook = CloudLoggingHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         client = hook.get_conn()
@@ -230,7 +230,6 @@ class CloudLoggingDeleteSinkOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self._validate_inputs()
 
     def _validate_inputs(self):
         """Validate required inputs."""
@@ -247,6 +246,7 @@ class CloudLoggingDeleteSinkOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Execute the operator."""
+        self._validate_inputs()
         hook = CloudLoggingHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         client = hook.get_conn()
@@ -334,7 +334,6 @@ class CloudLoggingUpdateSinkOperator(GoogleCloudBaseOperator):
         self.unique_writer_identity = unique_writer_identity
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self._validate_inputs()
 
     def _validate_inputs(self):
         """Validate required inputs."""
@@ -351,6 +350,7 @@ class CloudLoggingUpdateSinkOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Execute the operator."""
+        self._validate_inputs()
         hook = CloudLoggingHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         client = hook.get_conn()
@@ -465,6 +465,7 @@ class CloudLoggingListSinksOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
         """Execute the operator."""
+        self._validate_inputs()
         hook = CloudLoggingHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         client = hook.get_conn()

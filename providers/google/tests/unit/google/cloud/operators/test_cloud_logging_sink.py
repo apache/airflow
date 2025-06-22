@@ -108,7 +108,7 @@ class TestCloudLoggingCreateSinkOperator:
                 sink_name=None,
                 destination=None,
                 project_id=None,
-            )
+            ).execute(context={})
         assert "Required parameters are missing" in str(excinfo.value)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
@@ -228,6 +228,45 @@ class TestCloudLoggingCreateSinkOperator:
             gcp_conn_id="google_cloud_default", impersonation_chain=impersonation_chain
         )
 
+    def test_missing_rendered_field_raises(self):
+        operator = CloudLoggingCreateSinkOperator(
+            task_id=TASK_ID,
+            sink_name="{{ var.value.sink_name }}",
+            destination="{{ var.value.destination }}",
+            project_id="{{ var.value.project_id }}",
+        )
+
+        context = {
+            "var": {"value": {"sink_name": "", "destination": DESTINATION_BQ, "project_id": PROJECT_ID}},
+        }
+
+        operator.render_template_fields(context)
+
+        with pytest.raises(
+            AirflowException,
+            match=r"Required parameters are missing: \['sink_name'\]\. These parameters must be passed as keyword parameters or as extra fields in Airflow connection definition\.",
+        ):
+            operator.execute(context)
+
+    def test_template_rendering(self):
+        operator = CloudLoggingCreateSinkOperator(
+            task_id=TASK_ID,
+            sink_name="{{ var.value.sink_name }}",
+            destination="{{ var.value.destination }}",
+            project_id="{{ var.value.project_id }}",
+        )
+
+        context = {
+            "var": {
+                "value": {"sink_name": SINK_NAME, "destination": DESTINATION_BQ, "project_id": PROJECT_ID}
+            },
+        }
+        operator.render_template_fields(context)
+
+        assert operator.project_id == PROJECT_ID
+        assert operator.destination == DESTINATION_BQ
+        assert operator.sink_name == SINK_NAME
+
     def test_create_with_empty_sink_name_raises(self):
         with pytest.raises(
             AirflowException,
@@ -235,7 +274,7 @@ class TestCloudLoggingCreateSinkOperator:
         ):
             CloudLoggingCreateSinkOperator(
                 task_id=TASK_ID, sink_name="", destination=DESTINATION_BQ, project_id=PROJECT_ID
-            )
+            ).execute(context={})
 
 
 class TestCloudLoggingDeleteSinkOperator:
@@ -254,7 +293,7 @@ class TestCloudLoggingDeleteSinkOperator:
                 task_id=TASK_ID,
                 sink_name=None,
                 project_id=None,
-            )
+            ).execute(context={})
         assert "Required parameters are missing" in str(excinfo.value)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
@@ -298,6 +337,36 @@ class TestCloudLoggingDeleteSinkOperator:
         client_mock.get_sink.assert_called_once()
         client_mock.delete_sink.assert_not_called()
 
+    def test_missing_rendered_field_raises(self):
+        operator = CloudLoggingDeleteSinkOperator(
+            task_id=TASK_ID,
+            sink_name="{{ var.value.sink_name }}",
+            project_id="{{ var.value.project_id }}",
+        )
+        context = {
+            "var": {"value": {"sink_name": "", "project_id": PROJECT_ID}},
+        }
+        operator.render_template_fields(context)
+
+        with pytest.raises(
+            AirflowException,
+            match=r"Required parameters are missing: \['sink_name'\]\. These parameters must be passed as keyword parameters or as extra fields in Airflow connection definition\.",
+        ):
+            operator.execute(context)
+
+    def test_template_rendering(self):
+        operator = CloudLoggingDeleteSinkOperator(
+            task_id=TASK_ID, sink_name="{{ var.value.sink_name }}", project_id="{{ var.value.project_id }}"
+        )
+
+        context = {
+            "var": {"value": {"sink_name": SINK_NAME, "project_id": PROJECT_ID}},
+        }
+        operator.render_template_fields(context)
+
+        assert operator.project_id == PROJECT_ID
+        assert operator.sink_name == SINK_NAME
+
 
 class TestCloudLoggingListSinksOperator:
     def test_template_fields(self):
@@ -312,7 +381,7 @@ class TestCloudLoggingListSinksOperator:
             CloudLoggingListSinksOperator(
                 task_id=TASK_ID,
                 project_id=None,
-            )
+            ).execute(context={})
         assert "Required parameter 'project_id' is missing." in str(excinfo.value)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
@@ -352,6 +421,31 @@ class TestCloudLoggingListSinksOperator:
         ):
             CloudLoggingListSinksOperator(task_id="fail-task", project_id=PROJECT_ID, page_size=-1)
 
+    def test_missing_rendered_field_raises(self):
+        operator = CloudLoggingListSinksOperator(task_id=TASK_ID, project_id="{{ var.value.project_id }}")
+
+        context = {
+            "var": {"value": {"project_id": ""}},
+        }
+
+        operator.render_template_fields(context)
+
+        with pytest.raises(
+            AirflowException,
+            match="Required parameter 'project_id' is missing. This parameter must be passed as keyword parameter or as extra field in Airflow connection definition.",
+        ):
+            operator.execute(context)
+
+    def test_template_rendering(self):
+        operator = CloudLoggingListSinksOperator(task_id=TASK_ID, project_id="{{ var.value.project_id }}")
+
+        context = {
+            "var": {"value": {"project_id": PROJECT_ID}},
+        }
+        operator.render_template_fields(context)
+
+        assert operator.project_id == PROJECT_ID
+
 
 class TestCloudLoggingUpdateSinksOperator:
     def test_template_fields(self):
@@ -376,7 +470,7 @@ class TestCloudLoggingUpdateSinksOperator:
                 task_id=TASK_ID,
                 sink_name=None,
                 project_id=None,
-            )
+            ).execute(context={})
         assert "Required parameters are missing" in str(excinfo.value)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
@@ -503,3 +597,42 @@ class TestCloudLoggingUpdateSinksOperator:
         operator.execute(context=mock.MagicMock())
         update_mask = client_mock.update_sink.call_args[1]["request"]["update_mask"]["paths"]
         assert update_mask == ["description"]
+
+    def test_missing_rendered_field_raises(self):
+        operator = CloudLoggingUpdateSinkOperator(
+            task_id=TASK_ID,
+            sink_name="{{ var.value.sink_name }}",
+            destination="{{ var.value.destination }}",
+            project_id="{{ var.value.project_id }}",
+        )
+
+        context = {
+            "var": {"value": {"sink_name": "", "project_id": PROJECT_ID}},
+        }
+
+        operator.render_template_fields(context)
+
+        with pytest.raises(
+            AirflowException,
+            match=r"Required parameters are missing: \['sink_name'\]\. These parameters must be passed as keyword parameters or as extra fields in Airflow connection definition\.",
+        ):
+            operator.execute(context)
+
+    def test_template_rendering(self):
+        operator = CloudLoggingUpdateSinkOperator(
+            task_id=TASK_ID,
+            sink_name="{{ var.value.sink_name }}",
+            destination="{{ var.value.destination }}",
+            project_id="{{ var.value.project_id }}",
+        )
+
+        context = {
+            "var": {
+                "value": {"sink_name": SINK_NAME, "destination": DESTINATION_PUBSUB, "project_id": PROJECT_ID}
+            },
+        }
+        operator.render_template_fields(context)
+
+        assert operator.project_id == PROJECT_ID
+        assert operator.destination == DESTINATION_PUBSUB
+        assert operator.sink_name == SINK_NAME
