@@ -160,8 +160,152 @@ If you do not wish to have dags auto-registered, you can disable the behavior by
     global variable.
 
 
+
+Abstraction of DAG objects generation
+......................................
+
+Assume you want to create a *DAG template* which you can use for:
+
+  - Hiding the logics of your DAG from a viewer
+  - Dynamic DAG generation without a need for writing main logics of a DAG inside loops
+  - Convenient testing.
+
+Then you can create a special function which takes a `DAG` object as an argument
+and returns the same `DAG` object as the result.
+
+For example, assume you store the following `DAG` generating function inside your ``reusables/reusable_dag.py`` module file:
+
+.. code-block:: python
+
+  import datetime
+
+  from airflow.decorators import task
+  from airflow.sdk import DAG
+
+  DEFAULT_DAG_CONFIG = {
+      "schedule": None,
+      "catchup": False,
+      "start_date": datetime.datetime.fromisoformat("2025-04-29"),
+      "default_args": {
+          "depends_on_past": False
+      },
+      "max_active_tasks": 1,
+      "max_active_runs": 1
+  }
+
+  def reusable_dag_generator(
+          dag_obj: DAG,
+          printable_msg: str
+  ):
+     """Reusable dag generator used as a template for DAG generation"""
+
+      with dag_obj:
+
+          @task()
+          def start_dag():
+              pass
+
+          @task()
+          def print_msg():
+              print(printable_msg)
+
+          @task()
+          def finish_dag():
+              pass
+
+          start_dag() >> print_msg() >> finish_dag()
+      return dag_obj
+
+Then you can import a ``reusable_dag_generator`` function in your DAG file and use it:
+
+.. code-block:: python
+
+  from airflow.sdk import DAG
+  from reusables.reusable_dag import reusable_dag_generator, DEFAULT_DAG_CONFIG
+
+  dag = reusable_dag_generator(
+      dag_obj=DAG(
+          dag_id="test0",
+          **DEFAULT_DAG_CONFIG
+      ),
+      printable_msg="Hello DAG0!"
+  )
+
+Or generate several DAGs easily from one file:
+
+.. code-block:: python
+
+  from airflow.sdk import DAG
+
+  from reusables.reusable_dag import reusable_dag_generator, DEFAULT_DAG_CONFIG
+
+  configs = {
+      "config1": {"printable_msg": "first DAG will print this message"},
+      "config2": {"printable_msg": "second DAG will print this message"},
+  }
+
+  for config_name, config in configs.items():
+      dag_id = f"dynamic_generated_dag_{config_name}"
+      reusable_dag_generator(dag_obj=DAG(dag_id=dag_id, **DEFAULT_DAG_CONFIG), printable_msg=config["printable_msg"])
+
+And here is an example of testing ``reusable_dag_generator``:
+
+.. code-block:: python
+
+  from airflow.sdk import DAG
+  from unittest.mock import patch
+
+  from reusables.reusable_dag import reusable_dag_generator, DEFAULT_DAG_CONFIG
+
+  def test_reusable_dag_structure_and_logic():
+      """
+      Tests:
+      1. Correct task structure in the DAG
+      2. Proper dependencies between tasks
+      3. Correct execution of the print_msg task
+      """
+      test_dag_id = "test_dag"
+      test_message = "Test Hello World!"
+
+      # Create test DAG instance
+      with DAG(dag_id=test_dag_id, **DEFAULT_DAG_CONFIG) as dag:
+          reusable_dag_generator(dag, test_message)
+
+      # Verify DAG structure
+      task_ids = [task.task_id for task in dag.tasks]
+      assert task_ids == ["start_dag", "print_msg", "finish_dag"]
+
+      # Verify task dependencies
+      start_task = dag.get_task("start_dag")
+      print_task = dag.get_task("print_msg")
+      finish_task = dag.get_task("finish_dag")
+
+      # Check downstream dependencies
+      assert print_task in start_task.downstream_list
+      assert finish_task in print_task.downstream_list
+
+      # Check upstream dependencies
+      assert start_task in print_task.upstream_list
+      assert print_task in finish_task.upstream_list
+
+      # Test print_msg task functionality
+      with patch("builtins.print") as mock_print:
+          # Manually execute the task
+          print_task.execute(context={})
+
+          # Check that called once with test_message
+          mock_print.assert_called_once_with(test_message)
+
+      # Additional checks for extra dependencies
+      assert len(start_task.upstream_list) == 0
+      assert len(finish_task.downstream_list) == 0
+
+Note that now and then you need to cover only `DAG templates` with tests. Individual DAGs can
+be tested as well for special cases.
+
+
 Optimizing DAG parsing delays during execution
-----------------------------------------------
+..............................................
 
 .. versionadded:: 2.4
 
@@ -219,3 +363,5 @@ of the context are set to ``None``.
 
       with DAG(dag_id=dag_id, ...):
           ...
+
+
