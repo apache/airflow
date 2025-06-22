@@ -470,7 +470,7 @@ class TestVaultHook:
         ) as mock_file:
             test_hook = VaultHook(**kwargs)
             test_client = test_hook.get_conn()
-            mock_file.assert_called_with("path.json", "r")
+            mock_file.assert_called_with("path.json")
 
         mock_get_connection.assert_called_with("vault_conn_id")
         mock_get_scopes.assert_called_with("scope1,scope2")
@@ -527,7 +527,7 @@ class TestVaultHook:
         ) as mock_file:
             test_hook = VaultHook(**kwargs)
             test_client = test_hook.get_conn()
-            mock_file.assert_called_with("path.json", "r")
+            mock_file.assert_called_with("path.json")
 
         mock_get_connection.assert_called_with("vault_conn_id")
         mock_get_scopes.assert_called_with("scope1,scope2")
