@@ -580,6 +580,27 @@ repos:
         files: >
             (?x)
             ^providers/airbyte/.*\.py$|
+            ^providers/cohere/.*\.py$|
+            ^providers/facebook/.*\.py$|
+            ^providers/grpc/.*\.py$|
+            ^providers/hashicorp/.*\.py$|
+            ^providers/influxdb/.*\.py$|
+            ^providers/jenkins/.*\.py$|
+            ^providers/neo4j/.*\.py$|
+            ^providers/odbc/.*\.py$|
+            ^providers/openai/.*\.py$|
+            ^providers/openfaas/.*\.py$|
+            ^providers/pgvector/.*\.py$|
+            ^providers/pinecone/.*\.py$|
+            ^providers/postgres/.*\.py$|
+            ^providers/presto/.*\.py$|
+            ^providers/segment/.*\.py$|
+            ^providers/sendgrid/.*\.py$|
+            ^providers/singularity/.*\.py$|
+            ^providers/teradata/.*\.py$|
+            ^providers/trino/.*\.py$|
+            ^providers/vertica/.*\.py$|
+            ^providers/yandex/.*\.py$|
             ^providers/zendesk/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
