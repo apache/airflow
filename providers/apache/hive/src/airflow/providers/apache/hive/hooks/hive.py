@@ -145,7 +145,7 @@ class HiveCliHook(BaseHook):
             "ssl": BooleanField(lazy_gettext("Ssl"), default=True),
             "zoo_keeper_namespace": StringField(
                 lazy_gettext("Zoo Keeper Namespace"), widget=BS3TextFieldWidget(), default="hiveserver2"
-            )
+            ),
         }
 
     @classmethod
@@ -196,7 +196,9 @@ class HiveCliHook(BaseHook):
                         jdbc_url += ";"
                     ssl = conn.extra_dejson.get("ssl", "true")
                     zoo_keeper_namespace = conn.extra_dejson.get("zoo_keeper_namespace", "hiveserver2")
-                    jdbc_url += f"serviceDiscoveryMode=zooKeeper;ssl={ssl};zooKeeperNamespace={zoo_keeper_namespace}"
+                    jdbc_url += (
+                        f"serviceDiscoveryMode=zooKeeper;ssl={ssl};zooKeeperNamespace={zoo_keeper_namespace}"
+                    )
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
