@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
 from asyncio import CancelledError, Future, sleep
 from unittest import mock
 
@@ -220,8 +219,9 @@ class TestDataprocClusterTrigger:
         return_value=asyncio.Future(),
     )
     @mock.patch("google.auth.default")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_async_cluster_trigger_run_returns_error_event(
-        self, mock_auth, mock_delete_cluster, mock_get_cluster, cluster_trigger, async_get_cluster, caplog
+        self, mock_log, mock_auth, mock_delete_cluster, mock_get_cluster, cluster_trigger, async_get_cluster
     ):
         mock_credentials = mock.MagicMock()
         mock_credentials.universe_domain = "googleapis.com"
@@ -238,19 +238,22 @@ class TestDataprocClusterTrigger:
             status=ClusterStatus(state=ClusterStatus.State.ERROR),
         )
 
-        caplog.set_level(logging.INFO)
-
         trigger_event = None
         async for event in cluster_trigger.run():
             trigger_event = event
+
+        # Verify logging was called for cluster deletion
+        mock_log.info.assert_any_call("Deleting cluster %s.", TEST_CLUSTER_NAME)
+        mock_log.info.assert_any_call("Cluster %s has been deleted.", TEST_CLUSTER_NAME)
 
         assert trigger_event.payload["cluster_name"] == TEST_CLUSTER_NAME
         assert trigger_event.payload["cluster_state"] == ClusterStatus.State.DELETING
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_cluster_run_loop_is_still_running(
-        self, mock_hook, cluster_trigger, caplog, async_get_cluster
+        self, mock_log, mock_hook, cluster_trigger, async_get_cluster
     ):
         mock_hook.return_value = async_get_cluster(
             project_id=TEST_PROJECT_ID,
@@ -259,20 +262,20 @@ class TestDataprocClusterTrigger:
             status=ClusterStatus(state=ClusterStatus.State.CREATING),
         )
 
-        caplog.set_level(logging.INFO)
-
         task = asyncio.create_task(cluster_trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {ClusterStatus.State.CREATING}."
-        assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
+        # Verify logging was called for state updates
+        mock_log.info.assert_any_call("Current state is %s", ClusterStatus.State.CREATING)
+        mock_log.info.assert_any_call("Sleeping for %s seconds.", TEST_POLL_INTERVAL)
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_cluster_trigger_cancellation_handling(
-        self, mock_get_sync_hook, mock_get_async_hook, caplog
+        self, mock_log, mock_get_sync_hook, mock_get_async_hook
     ):
         cluster = Cluster(status=ClusterStatus(state=ClusterStatus.State.RUNNING))
         mock_get_async_hook.return_value.get_cluster.return_value = asyncio.Future()
@@ -306,8 +309,9 @@ class TestDataprocClusterTrigger:
                     cluster_name=cluster_trigger.cluster_name,
                     project_id=cluster_trigger.project_id,
                 )
-                assert "Deleting cluster" in caplog.text
-                assert "Deleted cluster" in caplog.text
+                # Verify logging was called for cluster deletion
+                mock_log.info.assert_any_call("Deleting cluster %s.", cluster_trigger.cluster_name)
+                mock_log.info.assert_any_call("Deleted cluster %s during cancellation.", cluster_trigger.cluster_name)
             else:
                 mock_delete_cluster.assert_not_called()
         except Exception as e:
@@ -469,19 +473,19 @@ class TestDataprocBatchTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
+    @mock.patch.object(DataprocBatchTrigger, "log")
     async def test_create_batch_run_loop_is_still_running(
-        self, mock_hook, batch_trigger, caplog, async_get_batch
+        self, mock_log, mock_hook, batch_trigger, async_get_batch
     ):
         mock_hook.return_value = async_get_batch(state=Batch.State.RUNNING)
-
-        caplog.set_level(logging.INFO)
 
         task = asyncio.create_task(batch_trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {Batch.State.RUNNING}"
-        assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
+        # Verify logging was called for state updates
+        mock_log.info.assert_any_call("Current state is %s", Batch.State.RUNNING)
+        mock_log.info.assert_any_call("Sleeping for %s seconds.", TEST_POLL_INTERVAL)
 
 
 class TestDataprocOperationTrigger:
@@ -812,7 +816,8 @@ class TestDataprocSubmitJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
-    async def test_submit_job_trigger_polling_loop(self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger, caplog):
+    @mock.patch.object(DataprocSubmitJobTrigger, "log")
+    async def test_submit_job_trigger_polling_loop(self, mock_log, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger):
         """Test the trigger correctly polls for job status until completion."""
         # Mock sync hook for job submission
         mock_sync_hook = mock_get_sync_hook.return_value
@@ -831,13 +836,14 @@ class TestDataprocSubmitJobTrigger:
         mock_async_hook.get_job = mock.AsyncMock()
         mock_async_hook.get_job.side_effect = [mock_running_job, mock_done_job]
 
-        caplog.set_level(logging.INFO)
-
         async_gen = submit_job_trigger.run()
         event = await async_gen.asend(None)
 
         # Verify job was polled multiple times
         assert mock_async_hook.get_job.call_count == 2
+
+        # Verify logging was called for job status updates
+        mock_log.info.assert_called_with("Dataproc job: %s is in state: %s", TEST_JOB_ID, JobStatus.State.DONE)
 
         expected_event = TriggerEvent(
             {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.DONE, "job": mock_done_job}
