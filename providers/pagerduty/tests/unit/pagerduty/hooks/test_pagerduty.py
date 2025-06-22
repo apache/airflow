@@ -21,7 +21,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
-from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -29,9 +28,9 @@ pytestmark = pytest.mark.db_test
 DEFAULT_CONN_ID = "pagerduty_default"
 
 
-@pytest.fixture(scope="class")
-def pagerduty_connections():
-    db.merge_conn(
+@pytest.fixture(autouse=True)
+def pagerduty_connections(create_connection_without_db):
+    create_connection_without_db(
         Connection(
             conn_id=DEFAULT_CONN_ID,
             conn_type="pagerduty",
@@ -39,7 +38,7 @@ def pagerduty_connections():
             extra='{"routing_key": "integration_key"}',
         )
     )
-    db.merge_conn(
+    create_connection_without_db(
         Connection(
             conn_id="pagerduty_no_extra", conn_type="pagerduty", password="pagerduty_token_without_extra"
         ),

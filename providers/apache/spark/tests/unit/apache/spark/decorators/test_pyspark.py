@@ -23,7 +23,7 @@ import pytest
 
 from airflow.decorators import task
 from airflow.models import Connection
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
@@ -48,8 +48,9 @@ class FakeConfig:
 
 
 class TestPysparkDecorator:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="pyspark_local",
                 conn_type="spark",
@@ -58,7 +59,7 @@ class TestPysparkDecorator:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark-connect",
                 conn_type="spark",
@@ -67,7 +68,7 @@ class TestPysparkDecorator:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark-connect-auth",
                 conn_type="spark_connect",

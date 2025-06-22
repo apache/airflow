@@ -23,7 +23,6 @@ from confluent_kafka import Producer
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
-from airflow.utils import db
 
 GROUP = "trigger.await_message.test.integration.test_1"
 TOPIC = "trigger.await_message.test.integration.test_1"
@@ -36,23 +35,23 @@ def _apply_function(message):
 
 @pytest.mark.integration("kafka")
 class TestTrigger:
-    def setup_method(self):
-        for num in [1]:
-            db.merge_conn(
-                Connection(
-                    conn_id=f"trigger.await_message.test.integration.test_{num}",
-                    conn_type="kafka",
-                    extra=json.dumps(
-                        {
-                            "socket.timeout.ms": 10,
-                            "bootstrap.servers": "broker:29092",
-                            "group.id": f"trigger.await_message.test.integration.test_{num}",
-                            "enable.auto.commit": False,
-                            "auto.offset.reset": "beginning",
-                        }
-                    ),
-                )
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="trigger.await_message.test.integration.test_1",
+                conn_type="kafka",
+                extra=json.dumps(
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "broker:29092",
+                        "group.id": "trigger.await_message.test.integration.test_1",
+                        "enable.auto.commit": False,
+                        "auto.offset.reset": "beginning",
+                    }
+                ),
             )
+        )
 
     @pytest.mark.asyncio
     async def test_trigger_await_message_test_1(self):

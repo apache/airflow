@@ -29,7 +29,7 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaFindTaskOperator,
     AsanaUpdateTaskOperator,
 )
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 # The tests do not create dag runs, so db isolation tests are skipped
 pytestmark = pytest.mark.db_test
@@ -45,11 +45,12 @@ class TestAsanaTaskOperators:
     Test that the AsanaTaskOperators are using the python-asana methods as expected.
     """
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=args)
         self.dag = dag
-        db.merge_conn(Connection(conn_id="asana_test", conn_type="asana", password="test"))
+        create_connection_without_db(Connection(conn_id="asana_test", conn_type="asana", password="test"))
 
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
     def test_asana_create_task_operator(self, mock_tasks_api):

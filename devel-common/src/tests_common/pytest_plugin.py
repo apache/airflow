@@ -2491,3 +2491,20 @@ def testing_dag_bundle():
         if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
             testing = DagBundleModel(name="testing")
             session.add(testing)
+
+
+@pytest.fixture
+def create_connection_without_db(monkeypatch):
+    """
+    Fixture to create connections for tests without using the database.
+
+    This fixture uses monkeypatch to set the appropriate AIRFLOW_CONN_{conn_id} environment variable.
+    """
+
+    def _create_conn(connection, session=None):
+        """Create connection using environment variable."""
+
+        env_var_name = f"AIRFLOW_CONN_{connection.conn_id.upper()}"
+        monkeypatch.setenv(env_var_name, connection.as_json())
+
+    return _create_conn

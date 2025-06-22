@@ -23,7 +23,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
-from airflow.utils import db
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 
@@ -62,8 +61,9 @@ class MockedConsumer:
 
 
 class TestMessageQueueTrigger:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",
@@ -72,7 +72,7 @@ class TestMessageQueueTrigger:
                 ),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_multi_bootstraps",
                 conn_type="kafka",
