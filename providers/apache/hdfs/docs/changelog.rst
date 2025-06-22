@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add custom headers and cookies support in WebHDFSHook (#50955)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use conn.password instead of conn.get_password() (#50759)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.9.0
 .....
 

@@ -55,6 +55,13 @@ def init_views(app: FastAPI) -> None:
 
     templates = Jinja2Templates(directory=directory)
 
+    if dev_mode:
+        app.mount(
+            "/static/i18n/locales",
+            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales"),
+            name="dev_i18n_static",
+        )
+
     app.mount(
         "/static",
         StaticFiles(

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import importlib
 import itertools
 import json
 import os
@@ -34,7 +35,6 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -233,10 +233,14 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 
 @pytest.fixture(autouse=True)
 def trace_sql(request):
-    from tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
-        count_queries,
-        trace_queries,
-    )
+    try:
+        from tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
+            count_queries,
+            trace_queries,
+        )
+    except ImportError:
+        yield
+        return
 
     """Displays queries from the tests to console."""
     trace_sql_option = request.config.option.trace_sql
@@ -908,17 +912,28 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dagbag.bag_dag(dag)
 
         def _activate_assets(self):
-            from sqlalchemy import select
+            from sqlalchemy import or_, select
 
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
             from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 
-            assets = self.session.scalars(
-                select(AssetModel).where(
-                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
-                    | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.models.asset import TaskInletAssetReference
+
+                assets_select_condition = or_(
+                    AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id),
+                    AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id == self.dag.dag_id),
+                    AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
                 )
-            ).all()
+            else:
+                assets_select_condition = or_(
+                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id),
+                    AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
+                )
+
+            assets = self.session.scalars(select(AssetModel).where(assets_select_condition)).all()
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
@@ -940,7 +955,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
-                    from airflow.www.security_appless import ApplessAirflowSecurityManager
+                    from airflow.www.security_appless import ApplessAirflowSecurityManager  # type: ignore
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
@@ -949,6 +964,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self._bag_dag_compat(self.dag)
 
         def _make_serdag(self, dag):
+            from sqlalchemy import select
+
             from airflow.models.serialized_dag import SerializedDagModel
 
             self.serialized_model = SerializedDagModel(dag)
@@ -1622,6 +1639,9 @@ def suppress_info_logs_for_dag_and_fab():
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
     """Clear DB before each test module run."""
+    if importlib.util.find_spec("airflow") is None:
+        # If airflow is not installed, we should not clear the DB
+        return
     from tests_common.test_utils.db import clear_all, initial_db_init
 
     if not request.config.option.db_cleanup:
@@ -1654,6 +1674,11 @@ def _clear_db(request):
 
 @pytest.fixture(autouse=True)
 def clear_lru_cache():
+    if importlib.util.find_spec("airflow") is None:
+        # If airflow is not installed, we should not clear the cache
+        yield
+        return
+
     from airflow.utils.entry_points import _get_grouped_entry_points
 
     _get_grouped_entry_points.cache_clear()
@@ -1687,6 +1712,9 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
 
 @pytest.fixture(autouse=True, scope="session")
 def initialize_providers_manager():
+    if importlib.util.find_spec("airflow") is None:
+        # If airflow is not installed, we should not initialize providers manager
+        return
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
@@ -1694,13 +1722,18 @@ def initialize_providers_manager():
 
 @pytest.fixture(autouse=True)
 def close_all_sqlalchemy_sessions():
-    from sqlalchemy.orm import close_all_sessions
+    try:
+        from sqlalchemy.orm import close_all_sessions
 
-    with suppress(Exception):
-        close_all_sessions()
-    yield
-    with suppress(Exception):
-        close_all_sessions()
+        with suppress(Exception):
+            close_all_sessions()
+        yield
+        with suppress(Exception):
+            close_all_sessions()
+    except ImportError:
+        # If sqlalchemy is not installed, we should not close all sessions
+        yield
+        return
 
 
 @pytest.fixture
@@ -1719,7 +1752,12 @@ def cleanup_providers_manager():
 @pytest.fixture(autouse=True)
 def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
-    from airflow import settings
+    try:
+        from airflow import settings
+    except ImportError:
+        # If airflow is not installed, we should not mock redact
+        yield
+        return
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -1956,17 +1994,27 @@ def override_caplog(request):
 
 
 @pytest.fixture
-def mock_supervisor_comms():
+def mock_supervisor_comms(monkeypatch):
     # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if not AIRFLOW_V_3_0_PLUS:
         yield None
         return
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
+
+    from airflow.sdk.execution_time import comms, task_runner
+
+    # Deal with TaskSDK 1.0/1.1 vs 1.2+. Annoying, and shouldn't need to exist once the separation between
+    # core and TaskSDK is finished
+    if CommsDecoder := getattr(comms, "CommsDecoder", None):
+        comms = mock.create_autospec(CommsDecoder)
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    else:
+        CommsDecoder = getattr(task_runner, "CommsDecoder")
+        comms = mock.create_autospec(CommsDecoder)
+        comms.send = comms.get_message
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    yield comms
 
 
 @pytest.fixture
@@ -1991,7 +2039,6 @@ def mocked_parse(spy_agency):
                         id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
                     ),
                     file="",
-                    requests_fd=0,
                 ),
                 "example_dag_id",
                 CustomOperator(task_id="hello"),
@@ -2006,7 +2053,8 @@ def mocked_parse(spy_agency):
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
         else:
             dag = task.dag
         if what.ti_context.dag_run.conf:
@@ -2141,8 +2189,9 @@ def create_runtime_ti(mocked_parse):
 
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
 
         data_interval_start = None
         data_interval_end = None
@@ -2198,9 +2247,10 @@ def create_runtime_ti(mocked_parse):
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
-            requests_fd=0,
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
+            # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)
@@ -2441,3 +2491,20 @@ def testing_dag_bundle():
         if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
             testing = DagBundleModel(name="testing")
             session.add(testing)
+
+
+@pytest.fixture
+def create_connection_without_db(monkeypatch):
+    """
+    Fixture to create connections for tests without using the database.
+
+    This fixture uses monkeypatch to set the appropriate AIRFLOW_CONN_{conn_id} environment variable.
+    """
+
+    def _create_conn(connection, session=None):
+        """Create connection using environment variable."""
+
+        env_var_name = f"AIRFLOW_CONN_{connection.conn_id.upper()}"
+        monkeypatch.setenv(env_var_name, connection.as_json())
+
+    return _create_conn

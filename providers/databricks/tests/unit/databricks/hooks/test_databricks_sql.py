@@ -35,8 +35,6 @@ from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
 from airflow.utils.session import provide_session
 
-pytestmark = pytest.mark.db_test
-
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"

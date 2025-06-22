@@ -141,7 +141,7 @@ The following states are used to track the worker:
       TERMINATING->OFFLINE[label="on clean shutdown if running tasks = 0"];
    }
 
-See also https://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/models/edge_worker.py#L45
+See also :py:class:`airflow.providers.edge3.models.edge_worker.EdgeWorkerState`
 for a documentation of details of all states of the Edge Worker.
 
 Feature Backlog Edge Provider

@@ -575,7 +575,6 @@ class TestDataflowCreatePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_response_409(self, mock_hook, create_operator):
         """
@@ -595,7 +594,6 @@ class TestDataflowCreatePipelineOperator:
         )
 
 
-@pytest.mark.db_test
 class TestDataflowRunPipelineOperator:
     @pytest.fixture
     def run_operator(self):
@@ -627,6 +625,7 @@ class TestDataflowRunPipelineOperator:
             location=TEST_LOCATION,
         )
 
+    @pytest.mark.db_test
     def test_invalid_data_pipeline_name(self):
         """
         Test that AirflowException is raised if Run Operator is not given a data pipeline name.
@@ -641,6 +640,7 @@ class TestDataflowRunPipelineOperator:
         with pytest.raises(AirflowException):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_project_id(self):
         """
         Test that AirflowException is raised if Run Operator is not given a project ID.
@@ -655,6 +655,7 @@ class TestDataflowRunPipelineOperator:
         with pytest.raises(AirflowException):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_location(self):
         """
         Test that AirflowException is raised if Run Operator is not given a location.
@@ -685,7 +686,6 @@ class TestDataflowRunPipelineOperator:
                 "error": {"message": "example error"}
             }
 
-    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_response_404(self, mock_hook, run_operator):
         """
@@ -702,7 +702,6 @@ class TestDataflowRunPipelineOperator:
         )
 
 
-@pytest.mark.db_test
 class TestDataflowDeletePipelineOperator:
     @pytest.fixture
     def run_operator(self):
@@ -736,6 +735,7 @@ class TestDataflowDeletePipelineOperator:
             location=TEST_LOCATION,
         )
 
+    @pytest.mark.db_test
     def test_invalid_data_pipeline_name(self):
         """
         Test that AirflowException is raised if Delete Operator is not given a data pipeline name.
@@ -750,6 +750,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_project_id(self):
         """
         Test that AirflowException is raised if Delete Operator is not given a project ID.
@@ -764,6 +765,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_location(self):
         """
         Test that AirflowException is raised if Delete Operator is not given a location.
@@ -778,6 +780,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_response(self):
         """
         Test that AirflowException is raised if Delete Operator fails execution and returns error.

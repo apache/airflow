@@ -29,12 +29,13 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1744792091
+source-date-epoch: 1749897313
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 16.0.0
   - 15.1.0
   - 15.0.1
   - 15.0.0
@@ -493,9 +494,6 @@ operators:
   - integration-name: Google Compute Engine
     python-modules:
       - airflow.providers.google.cloud.operators.compute
-  - integration-name: Google Data Catalog
-    python-modules:
-      - airflow.providers.google.cloud.operators.datacatalog
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.operators.dataflow
@@ -752,9 +750,6 @@ hooks:
     python-modules:
       - airflow.providers.google.cloud.hooks.compute
       - airflow.providers.google.cloud.hooks.compute_ssh
-  - integration-name: Google Data Catalog
-    python-modules:
-      - airflow.providers.google.cloud.hooks.datacatalog
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.hooks.dataflow
@@ -1145,9 +1140,6 @@ extra-links:
   - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
-  - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink
-  - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink
-  - airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.links.dataproc.DataprocClusterLink

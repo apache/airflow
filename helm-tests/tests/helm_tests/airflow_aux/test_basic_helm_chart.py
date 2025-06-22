@@ -38,7 +38,6 @@ OBJECTS_STD_NAMING = {
     ("Secret", "test-basic-airflow-metadata"),
     ("Secret", "test-basic-broker-url"),
     ("Secret", "test-basic-fernet-key"),
-    ("Secret", "test-basic-airflow-jwt-secret"),
     ("Secret", "test-basic-airflow-webserver-secret-key"),
     ("Secret", "test-basic-redis-password"),
     ("Secret", "test-basic-postgresql"),
@@ -72,6 +71,7 @@ DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Deployment", "test-basic-airflow-dag-processor"),
         ("ServiceAccount", "test-basic-airflow-api-server"),
         ("ServiceAccount", "test-basic-airflow-dag-processor"),
+        ("Secret", "test-basic-airflow-jwt-secret"),
     }
 )
 
@@ -137,7 +137,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-jwt-secret"),
             ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
@@ -172,6 +171,7 @@ class TestBaseChartTest:
                     ("ServiceAccount", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-dag-processor"),
                     ("Service", "test-basic-triggerer"),
+                    ("Secret", "test-basic-jwt-secret"),
                 )
             )
         else:
@@ -238,7 +238,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-jwt-secret"),
             ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
@@ -272,6 +271,7 @@ class TestBaseChartTest:
                     ("Deployment", "test-basic-api-server"),
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
+                    ("Secret", "test-basic-jwt-secret"),
                 }
             )
         else:

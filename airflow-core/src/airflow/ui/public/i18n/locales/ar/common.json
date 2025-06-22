@@ -1,0 +1,128 @@
+{
+  "admin": {
+    "Config": "تكوينات",
+    "Connections": "وصلات",
+    "Plugins": "إضافات",
+    "Pools": "مجموعة موارد",
+    "Providers": "حُزم",
+    "Variables": "متغيرات"
+  },
+  "asset_one": "واقعة",
+  "asset_other": "واقعات",
+  "assetEvent_one": "واقعة اصل",
+  "assetEvent_other": "واقعات اصل",
+  "backfill_one": "إعادة ملء",
+  "backfill_other": "إعادات ملء",
+  "browse": {
+    "auditLog": "سجل المراجعة",
+    "xcoms": "(XComs) إكس كوم"
+  },
+  "createdAssetEvent_one": "تم إنشاء واقعة اصل",
+  "createdAssetEvent_other": "تم إنشاء واقعات اصل",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagRun_one": "مثيل تشغيل لDAG",
+  "dagRun_other": "مثيل تشغيلات لDag",
+  "defaultToGraphView": "عرض الرسم البياني تلقائياً",
+  "defaultToGridView": "عرض الشبكة تلقائياً",
+  "docs": {
+    "documentation": "توثيق",
+    "githubRepo": "مستودع GitHub",
+    "restApiReference": "مرجع REST API"
+  },
+  "duration": "المدة",
+  "logout": "تسجيل الخروج",
+  "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
+  "modal": {
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": {
+      "button": "حذف",
+      "confirmation": "هل أنت متأكد من أنك تريد حذف {{resourceName}}؟ لا يمكن التراجع عن هذا الإجراء."
+    }
+  },
+  "nav": {
+    "admin": "إدارة",
+    "assets": "أصول",
+    "browse": "تصفح",
+    "dags": "Dags",
+    "docs": "وثائق",
+    "home": "الصفحة الرئيسية",
+    "plugins": "إضافات",
+    "security": "الأمان"
+  },
+  "noItemsFound": "لم يتم العثور على {{modelName}}",
+  "pools": {
+    "deferred": "مؤجل",
+    "open": "مفتوح",
+    "pools_one": "مجمع",
+    "pools_other": "مجمعات",
+    "queued": "في الانتظار",
+    "running": "قيد التشغيل",
+    "scheduled": "مجدول"
+  },
+  "runTypes": {
+    "asset_triggered": "مُشغل بواسطة الأصل",
+    "backfill": "تعبئة رجعية",
+    "manual": "يدوي",
+    "scheduled": "مجدول"
+  },
+  "security": {
+    "actions": "إجراءات",
+    "permissions": "صلاحيات",
+    "resources": "موارد",
+    "roles": "أدوار",
+    "users": "مستخدمون"
+  },
+  "selectLanguage": "اختيار اللغة",
+  "states": {
+    "deferred": "مؤجل",
+    "failed": "فشِل",
+    "no_status": "بلا حالة",
+    "none": "لا شيء",
+    "queued": "في الانتظار",
+    "removed": "محذوف",
+    "restarting": "إعادة التشغيل",
+    "running": "قيد التشغيل",
+    "scheduled": "مجدول",
+    "skipped": "متجاوز",
+    "success": "ناجح",
+    "up_for_reschedule": "جاهز لإعادة الجدولة",
+    "up_for_retry": "جاهز للمحاولة مرة أخرى",
+    "upstream_failed": "فشِل في المهام السابقة"
+  },
+  "switchToDarkMode": "تبديل إلى الوضع الداكن",
+  "switchToLightMode": "تبديل إلى الوضع الفاتح",
+  "table": {
+    "filterByTag": "تصفية الDags حسب الوسم",
+    "filterColumns": "تصفية أعمدة الجدول",
+    "filters": {
+      "filter_one": "فلتر",
+      "filter_other": "فلاتر",
+      "reset": "مسح الفلاتر"
+    },
+    "noTagsFound": "لم يتم العثور على وسوم",
+    "tagMode": {
+      "all": "الكل",
+      "any": "اي شيء"
+    },
+    "tagPlaceholder": "تصفية حسب الوسم"
+  },
+  "taskInstance_one": "مثيل المهمة",
+  "taskInstance_other": "مثيلات المهام",
+  "timeRange": {
+    "last12Hours": "آخر 12 ساعة",
+    "last24Hours": "آخر 24 ساعة",
+    "lastHour": "الساعة الماضية",
+    "pastWeek": "الأسبوع الماضي"
+  },
+  "timezone": "المنطقة الزمنية",
+  "timezoneModal": {
+    "current-timezone": "المنطقة الزمنية الحالية",
+    "placeholder": "اختر المنطقة الزمنية",
+    "title": "اختيار المنطقة الزمنية",
+    "utc": "UTC (التوقيت العالمي المنسق)"
+  },
+  "triggered": "مُشغل",
+  "user": "المستخدم"
+}

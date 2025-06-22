@@ -32,8 +32,9 @@ from google.cloud.datacatalog import (
     TagTemplateField,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -41,6 +42,13 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.hooks.dataplex.DataplexHook",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogHook(GoogleBaseHook):
     """
     Hook for Google Cloud Data Catalog Service.
