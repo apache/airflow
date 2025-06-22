@@ -601,6 +601,7 @@ repos:
             ^providers/segment/.*\.py$|
             ^providers/sendgrid/.*\.py$|
             ^providers/singularity/.*\.py$|
+            ^providers/tableau/.*\.py$|
             ^providers/teradata/.*\.py$|
             ^providers/trino/.*\.py$|
             ^providers/vertica/.*\.py$|
