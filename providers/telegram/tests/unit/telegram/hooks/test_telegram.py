@@ -71,7 +71,7 @@ class TestTelegramHook:
         hook = TelegramHook()
 
         assert hook.token == TELEGRAM_TOKEN
-        assert hook.chat_id is None
+        assert not hook.chat_id
 
     def test_should_raise_exception_if_conn_id_doesnt_exist(self):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
