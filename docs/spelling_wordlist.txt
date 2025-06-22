@@ -215,6 +215,7 @@ botocore
 BounceX
 Bq
 bq
+bteq
 bugfix
 bugfixes
 buildType
@@ -561,6 +562,7 @@ ds
 dsl
 Dsn
 dsn
+dst
 dts
 dttm
 dtypes
@@ -642,6 +644,7 @@ exc
 executables
 execvp
 exitcode
+expanduser
 explicit
 exportingmultiple
 ext
@@ -737,6 +740,7 @@ Gentner
 geq
 getattr
 getboolean
+getcwd
 getfqdn
 getframe
 getint
@@ -983,6 +987,7 @@ kerberized
 Kerberos
 kerberos
 KerberosClient
+keycloak
 Keyfile
 keyfile
 KeyManagementServiceClient
@@ -1046,6 +1051,7 @@ ListGenerator
 ListInfoTypesResponse
 ListModelsPager
 ListSecretsPager
+LiteralValue
 Liveness
 liveness
 livy
@@ -1089,6 +1095,8 @@ masterType
 materializations
 Matomo
 matomo
+MaxCompute
+maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
@@ -1147,6 +1155,7 @@ mssql
 mTLS
 mtls
 muldelete
+multimodal
 Multinamespace
 mutex
 mv
@@ -1219,6 +1228,7 @@ objectstorage
 observability
 od
 odbc
+odps
 ok
 Okta
 okta
@@ -1311,6 +1321,7 @@ pluggable
 pluggy
 plyvel
 png
+PoC
 PodManager
 podName
 PodSpec
@@ -1769,6 +1780,7 @@ taskgroup
 TaskGroups
 taskGroups
 TaskInstance
+taskInstance
 taskinstance
 TaskInstanceKey
 taskinstancekey
@@ -1786,6 +1798,7 @@ templatable
 templateable
 Templated
 templated
+templater
 Templating
 templating
 templatize
@@ -1962,6 +1975,7 @@ VideoIntelligenceServiceClient
 views
 virtualenv
 virtualenvs
+virtualized
 vm
 VolumeKmsKeyId
 VolumeMount

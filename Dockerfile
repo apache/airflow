@@ -46,7 +46,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.0.1"
+ARG AIRFLOW_VERSION="3.0.2"
 
 ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
@@ -57,7 +57,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
-ARG AIRFLOW_UV_VERSION=0.7.7
+ARG AIRFLOW_UV_VERSION=0.7.8
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -137,7 +137,7 @@ function get_runtime_apt_deps() {
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin krb5-user libev4 libgeos-dev \
+curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -473,7 +473,12 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--group=dev"
+        if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
+            # for uv only install dev group when we install from sources
+            export EXTRA_INSTALL_FLAGS="--group=dev"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+        fi
         export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"

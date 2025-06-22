@@ -48,7 +48,13 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models.asset import AssetActive, AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+)
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -63,7 +69,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -74,7 +80,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from system import standard
+from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
@@ -97,14 +103,20 @@ from unit.utils.test_timezone import UTC
 
 pytestmark = pytest.mark.db_test
 
-ROOT_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
-PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "tests", "test_utils", "perf", "dags")
+PERF_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "dev" / "airflow_perf" / "dags"
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-EXAMPLE_STANDARD_DAGS_FOLDER = standard.__path__[0]
+EXAMPLE_STANDARD_DAGS_FOLDER = (
+    AIRFLOW_ROOT_PATH
+    / "providers"
+    / "standard"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "standard"
+    / "example_dags"
+)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
@@ -3381,7 +3393,6 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
         self.job_runner._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
@@ -3398,7 +3409,7 @@ class TestSchedulerJob:
 
         # Now let's say the DAG got updated (new task got added)
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(dag=dag, bundle_name="dag_maker", session=session)
         session.commit()
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
@@ -3996,6 +4007,82 @@ class TestSchedulerJob:
         # dag3 ADRQ record should be deleted since the dag run was triggered
         assert session.query(AssetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
+        assert created_run.creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
+        """
+        Test Dag Run trigger on AssetAlias includes the corresponding AssetEvent in `consumed_asset_events`.
+        """
+
+        # Simulate an Asset created at runtime, and it is not an active asset
+        asset1 = Asset(uri="test://asset1", name="test_asset", group="test_group")
+        # Create an AssetAlias, and the Asset will be attached to this AssetAlias
+        asset_alias = AssetAlias(name="test_asset_alias_with_asset_event", group="test_group")
+
+        # Add it to the DB so the event can be created from this Asset
+        asm = AssetModel(name=asset1.name, uri=asset1.uri, group=asset1.group)
+        session.add(asm)
+
+        asam = AssetAliasModel(name=asset_alias.name, group=asset_alias.group)
+
+        # Simulate a Producer dag attach an asset event at runtime to an AssetAlias
+        # Don't use outlets here because the needs to associate an asset alias with an asset event in the association table
+        with dag_maker(dag_id="asset-alias-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="simulate-asset-alias-outlet", bash_command="echo 1")
+        dr = dag_maker.create_dagrun(run_id="asset-alias-producer-run")
+
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+
+        # Create an AssetEvent, which is associated with the Asset, and it is attached to the AssetAlias
+        event = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="simulate-asset-alias-outlet",
+            source_dag_id=dr.dag_id,
+            source_run_id=dr.run_id,
+            source_map_index=-1,
+        )
+        # Attach the Asset and the AssetEvent to the Asset Alias
+        asam.assets.append(asm)
+        asam.asset_events.append(event)
+
+        session.add_all([asam, event])
+        session.flush()
+
+        # Create the Consumer DAG and Trigger it with scheduler
+        with dag_maker(dag_id="asset-alias-consumer", schedule=[asset_alias]):
+            pass
+        consumer_dag = dag_maker.dag
+
+        session = dag_maker.session
+        session.add_all(
+            [
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag.dag_id),
+            ]
+        )
+        session.flush()
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        def dict_from_obj(obj):
+            """Get dict of column attrs from SqlAlchemy object."""
+            return {k.key: obj.__dict__.get(k) for k in obj.__mapper__.column_attrs}
+
+        created_run = session.query(DagRun).filter(DagRun.dag_id == consumer_dag.dag_id).one()
+        assert created_run.state == State.QUEUED
+        assert created_run.start_date is None
+
+        # The AssetEvent should be included in the consumed_asset_events when the consumer DAG is
+        # triggered on AssetAlias
+        assert list(map(dict_from_obj, created_run.consumed_asset_events)) == list(
+            map(dict_from_obj, [event])
+        )
+        assert created_run.data_interval_start is None
+        assert created_run.data_interval_end is None
         assert created_run.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
@@ -5542,7 +5629,7 @@ class TestSchedulerJob:
         assert len(tis) == 1
 
         BashOperator(task_id="dummy2", dag=dag, bash_command="echo test")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(dag=dag, bundle_name="dag_maker", session=session)
         session.commit()
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
@@ -5720,7 +5807,7 @@ class TestSchedulerJob:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_and_purge_task_instances_without_heartbeats(self, session, create_dagrun):
-        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = EXAMPLE_STANDARD_DAGS_FOLDER / "example_branch_operator.py"
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
@@ -5786,7 +5873,7 @@ class TestSchedulerJob:
         """
         Check that the task instance heartbeat timeout message comes out as expected
         """
-        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = EXAMPLE_STANDARD_DAGS_FOLDER / "example_branch_operator.py"
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
@@ -6007,7 +6094,7 @@ class TestSchedulerJob:
         assert dr.state == DagRunState.SUCCESS
 
     def test_should_mark_empty_task_as_success(self, testing_dag_bundle):
-        dag_file = Path(__file__).parent.parent / "dags/test_only_empty_tasks.py"
+        dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
@@ -6492,7 +6579,7 @@ class TestSchedulerJobQueriesCount:
         [
             (21, 1, 1),  # One DAG with one task per DAG file.
             (21, 1, 5),  # One DAG with five tasks per DAG file.
-            (93, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
+            (148, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
         ],
     )
     def test_execute_queries_count_with_harvested_dags(
@@ -6533,7 +6620,9 @@ class TestSchedulerJobQueriesCount:
                 dr = dag.create_dagrun(
                     state=State.RUNNING,
                     run_id=f"{DagRunType.MANUAL.value}__{i}",
-                    dag_hash=dagbag.dags_hash[dag.dag_id],
+                    run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+                    run_type=DagRunType.MANUAL,
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 dagruns.append(dr)
                 for ti in dr.get_task_instances():
@@ -6579,13 +6668,13 @@ class TestSchedulerJobQueriesCount:
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([105, 38, 38, 38], 10, 10, "1d", "@once", "no_structure"),
-            ([115, 51, 51, 51], 10, 10, "1d", "@once", "linear"),
-            ([105, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
-            ([115, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
-            ([115, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
-            ([115, 139, 139, 139], 10, 10, "1d", "30m", "star"),
-            ([115, 139, 139, 139], 10, 10, "1d", "30m", "grid"),
+            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
+            ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
+            ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
+            ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
+            ([227, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
+            ([227, 139, 139, 139], 10, 10, "1d", "30m", "star"),
+            ([227, 259, 259, 259], 10, 10, "1d", "30m", "grid"),
         ],
     )
     def test_process_dags_queries_count(

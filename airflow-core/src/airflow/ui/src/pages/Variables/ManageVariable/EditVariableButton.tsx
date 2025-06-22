@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Heading, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
@@ -33,6 +34,7 @@ type Props = {
 };
 
 const EditVariableButton = ({ disabled, variable }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const initialVariableValue: VariableBody = {
     description: variable.description ?? "",
@@ -51,20 +53,20 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
   return (
     <>
       <ActionButton
-        actionName="Edit Variable"
+        actionName={translate("variables.edit")}
         disabled={disabled}
         icon={<FiEdit />}
         onClick={() => {
           onOpen();
         }}
-        text="Edit Variable"
+        text={translate("variables.edit")}
         withText={false}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Edit Variable</Heading>
+            <Heading size="xl">{translate("variables.edit")}</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />

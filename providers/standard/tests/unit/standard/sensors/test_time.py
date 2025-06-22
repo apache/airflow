@@ -58,6 +58,35 @@ class TestTimeSensor:
             op = TimeSensor(task_id="test", target_time=aware_time)
             assert op.target_datetime.tzinfo == timezone.utc
 
+    @pytest.mark.parametrize(
+        "current_datetime, server_timezone",
+        [
+            ("2025-01-26 22:00:00", "UTC"),
+            ("2025-01-27 07:00:00", "Asia/Seoul"),  # UTC+09:00
+        ],
+    )
+    def test_target_date_aware_dag_timezone(self, current_datetime, server_timezone):
+        travel_time = pendulum.parse(current_datetime, tz=timezone.parse_timezone(server_timezone))
+        user_timezone = timezone.parse_timezone("Asia/Seoul")
+        expected_target_datetime = pendulum.datetime(2025, 1, 26, 22, 0, 0, tz="UTC")
+
+        with time_machine.travel(travel_time, tick=False):
+            with DAG(
+                "test_target_date_aware",
+                schedule=None,
+                start_date=datetime(2025, 1, 27, 7, tzinfo=user_timezone),
+            ):
+                aware_datetime = pendulum.datetime(2025, 1, 27, 7).replace(tzinfo=user_timezone)
+                op = TimeSensor(task_id="test", target_time=aware_datetime.time())
+
+                # In the old logic, if server's timezone is UTC op.target_datetime could be incorrectly.
+                # For example, it might be set to `2025-01-25 22:00:00 UTC`, not `2025-01-26 22:00:00 UTC`.
+                # This issue stems from using datetime.today() in an environment where the server timezone differs from the user's timezone
+                # The local date '2025-01-26' is combined with the target time `07:00:00`,
+                # resulting in `2025-01-26 07:00:00` in local time.
+                # When this is converted to UTC by convert_to_utc, it becomes `2025-01-25 22:00:00 UTC`.
+                assert op.target_datetime == expected_target_datetime
+
     def test_target_time_naive_dag_timezone(self):
         # Again, this behavior should be the same for both deferrable and non-deferrable
         with DAG(

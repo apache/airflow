@@ -51,7 +51,7 @@ That mean if one of this warning appear during test run and do not captured the 
     ...
     FAILED tests/models/test_dag.py::TestDag::test_clear_dag[None-None] - airflow.exceptions.RemovedInAirflow3Warning: Calling `DAG.create_dagrun()` without an explicit data interval is deprecated
 
-**NOTE:** As of Airflow 3.0 the test file tests/models/test_dag.py has been relocated to airflow-core/tests/unit/models/test_dag.py.
+**NOTE:** As of Airflow 3.0 the test file ``tests/models/test_dag.py`` has been relocated to ``airflow-core/tests/unit/models/test_dag.py``.
 
 For avoid this make sure:
 
@@ -155,7 +155,7 @@ the example below shows how to run all tests, parallelizing them with ``pytest-x
 
 .. code-block:: bash
 
-    pytest tests --skip-db-tests -n auto
+    pytest airflow-core/tests --skip-db-tests -n auto
 
 
 The ``--skip-db-tests`` flag will only run tests that are not marked as DB tests.
@@ -186,7 +186,7 @@ rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-x
 .. code-block:: bash
 
     breeze shell --backend none --python 3.9
-    > pytest tests --skip-db-tests -n auto
+    > pytest airflow-core/tests --skip-db-tests -n auto
 
 
 Airflow DB tests
@@ -221,7 +221,7 @@ folders/files/tests selection, ``pytest`` supports).
 
 .. code-block:: bash
 
-    pytest tests --run-db-tests-only
+    pytest airflow-core/tests --run-db-tests-only
 
 You can also run DB tests with ``breeze`` dockerized environment. You can choose backend to use with
 ``--backend`` flag. The default is ``sqlite`` but you can also use others such as ``postgres`` or ``mysql``.
@@ -250,7 +250,7 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 .. code-block:: bash
 
     breeze shell --backend postgres --python 3.9
-    > pytest tests --run-db-tests-only
+    > pytest airflow-core/tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
 support to split all the tests into test-types to run in separate containers and with separate databases
@@ -353,7 +353,7 @@ For the whole test suite you can run:
 
      breeze testing core-tests --skip-db-tests
 
-For selected test types (example - the tests will run for Providers/API/CLI code only:
+For selected test types (example - the tests will run for ``Providers/API/CLI`` code only:
 
   .. code-block:: bash
 
@@ -386,7 +386,7 @@ There are some tricky test cases that require special handling. Here are some of
 Parameterized tests stability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The parameterized tests require stable order of parameters if they are run via xdist - because the parameterized
+The parameterized tests require stable order of parameters if they are run via ``xdist`` - because the parameterized
 tests are distributed among multiple processes and handled separately. In some cases the parameterized tests
 have undefined / random order (or parameters are not hashable - for example set of enums). In such cases
 the xdist execution of the tests will fail and you will get an error mentioning "Known Limitations of xdist".
@@ -415,7 +415,7 @@ do that:
    @pytest.mark.parametrize("status", sorted(ALL_STATES))
    def test_method(): ...
 
-Similarly if your parameters are defined as result of utcnow() or other dynamic method - you should
+Similarly if your parameters are defined as result of ``utcnow()`` or other dynamic method - you should
 avoid that, or assign unique IDs for those parametrized tests. Instead of this:
 
 .. code-block:: python
@@ -521,7 +521,7 @@ the test is marked as DB test:
        def test_from_json(self, input, request_class): ...
 
 
-Instead - this will not break collection. The TaskInstance is not initialized when the module is parsed,
+Instead - this will not break collection. The ``TaskInstance`` is not initialized when the module is parsed,
 it will only be initialized when the test gets executed because we moved initialization of it from
 top level / parametrize to inside the test:
 
@@ -576,7 +576,7 @@ top level / parametrize to inside the test:
 
 Sometimes it is difficult to rewrite the tests, so you might add conditional handling and mock out some
 database-bound methods or objects to avoid hitting the database during test collection. The code below
-will hit the Database while parsing the tests, because this is what Variable.setdefault does when
+will hit the Database while parsing the tests, because this is what ``Variable.setdefault`` does when
 parametrize specification is being parsed - even if test is marked as DB test.
 
 
@@ -617,7 +617,7 @@ parametrize specification is being parsed - even if test is marked as DB test.
     def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected): ...
 
 
-You can make the code conditional and mock out the Variable to avoid hitting the database.
+You can make the code conditional and mock out the ``Variable`` to avoid hitting the database.
 
 
 .. code-block:: python
@@ -724,8 +724,8 @@ this in two clicks.
 
 1. Add Breeze as an "External Tool":
 
-   a. From the settings menu, navigate to Tools > External Tools
-   b. Click the little plus symbol to open the "Create Tool" popup and fill it out:
+   a. From the settings menu, navigate to ``Tools > External Tools``
+   b. Click the little plus symbol to open the ``Create Tool`` popup and fill it out:
 
 .. image:: images/pycharm/pycharm_create_tool.png
     :align: center
@@ -733,20 +733,20 @@ this in two clicks.
 
 2. Add the tool to the context menu:
 
-   a. From the settings menu, navigate to Appearance & Behavior > Menus & Toolbars > Project View Popup Menu
-   b. Click on the list of entries where you would like it to be added.  Right above or below "Project View Popup Menu Run Group" may be a good choice, you can drag and drop this list to rearrange the placement later as desired.
+   a. From the settings menu, navigate to ``Appearance & Behavior > Menus & Toolbars > Project View Popup Menu``
+   b. Click on the list of entries where you would like it to be added.  Right above or below ``Project View Popup Menu Run Group`` may be a good choice, you can drag and drop this list to rearrange the placement later as desired.
    c. Click the little plus at the top of the popup window
-   d. Find your "External Tool" in the new "Choose Actions to Add" popup and click OK.  If you followed the image above, it will be at External Tools > External Tools > Breeze
+   d. Find your ``External Tool`` in the new ``Choose Actions to Add`` popup and click OK.  If you followed the image above, it will be at ``External Tools > External Tools > Breeze``
 
 **Note:** That only adds the option to that one menu.  If you would like to add it to the context menu
 when right-clicking on a tab at the top of the editor, for example, follow the steps above again
-and place it in the "Editor Tab Popup Menu"
+and place it in the ``Editor Tab Popup Menu``
 
 .. image:: images/pycharm/pycharm_add_to_context.png
     :align: center
     :alt: Installing Python extension
 
-3. To run tests in Breeze, right click on the file or directory in the Project View and click Breeze.
+3. To run tests in Breeze, right click on the file or directory in the ``Project View`` and click Breeze.
 
 
 Running Unit Tests from Visual Studio Code
@@ -798,39 +798,39 @@ in the official documentation, but here are a few basic examples:
 
 .. code-block:: bash
 
-    pytest tests/core -k "TestCore and not check"
+    pytest airflow-core/tests/unit/core -k "TestCore and not check"
 
 This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
 For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py -k "TestCore and not bash"
+    pytest airflow-core/tests/unit/core/test_core.py -k "TestCore and not bash"
 
 This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py -k "test_check_operators"
+    pytest airflow-core/tests/unit/core/test_core.py -k "test_check_operators"
 
 This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_dag_params_and_task_params
+    pytest airflow-core/tests/unit/core/test_core.py::TestCore::test_dag_params_and_task_params
 
 To run the whole test class, enter:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore
+    pytest airflow-core/tests/unit/core/test_core.py::TestCore
 
 You can use all available ``pytest`` flags. For example, to increase a log level
 for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG airflow-core/tests/unit/core/test_core.py::TestCore
 
 
 Running Tests using Breeze interactive shell
@@ -858,39 +858,39 @@ Once you enter the container, you might run regular pytest commands. For example
 
 .. code-block:: bash
 
-    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG airflow-core/tests/unit/core/test_core.py::TestCore
 
 
 Running Tests using Breeze from the Host
 ........................................
 
-If you wish to only run tests and not to drop into the shell, apply the
-``tests`` command. You can add extra targets and pytest flags after the ``tests`` command. Note that
+If you wish to only run tests and not to drop into the shell, apply the ``tests`` command.
+You can add extra targets and pytest flags after the ``tests`` command. Note that
 often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
 to breeze command. The Breeze image usually will have all the dependencies needed and it
 will ask you to rebuild the image if it is needed and some new dependencies should be installed.
 
 .. code-block:: bash
 
-     breeze testing providers-tests providers/http/tests/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
+    breeze testing providers-tests providers/http/tests/http/hooks/test_http.py airflow-core/tests/unit/core/test_core.py --db-reset --log-cli-level=DEBUG
 
 You can run the whole core test suite without adding the test target:
 
 .. code-block:: bash
 
-    breeze core-testing tests --db-reset
+    breeze testing core-tests --db-reset
 
 You can run the whole providers test suite without adding the test target:
 
 .. code-block:: bash
 
-    breeze providers-testing tests --db-reset
+    breeze testing providers-tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    breeze testing core-tests --db-reset tests/core/test_core.py::TestCore
+    breeze testing core-tests --db-reset airflow-core/tests/unit/core/test_core.py::TestCore
 
 You can also limit the tests to execute to specific group of tests
 
@@ -924,24 +924,23 @@ flag:
 
 .. code-block:: bash
 
-    breeze testing core-tests --skip--docker-compose-down
+    breeze testing core-tests --skip-docker-compose-down
 
 
 Running full Airflow unit test suite in parallel
 ................................................
 
 If you run ``breeze testing core-tests --run-in-parallel`` or
-``breeze testing providers-tests --run-in-parallel`` tests run in parallel
-on your development machine - maxing out the number of parallel runs at the number of cores you
-have available in your Docker engine.
+``breeze testing providers-tests --run-in-parallel``, tests are executed in parallel
+on your development machine, using as many cores as are available to the Docker engine.
 
-In case you do not have enough memory available to your Docker (8 GB), the ``Integration``. ``Provider``
-and ``Core`` test type are executed sequentially with cleaning the docker setup in-between. This
-allows to print
+If your Docker environment has limited memory (less than 8 GB), then ``Integration``, ``Provider``,
+and ``Core`` tests are run sequentially, with the Docker setup cleaned between test runs
+to minimize memory usage.
 
-This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
-and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes
-more than 30 minutes on the same machine when tests are run sequentially.
+This approach allows for a massive speedup in full test execution. On a machine with 8 CPUs
+(16 cores), 64 GB of RAM, and a fast SSD, the full suite of tests can complete in about
+5 minutes (!) — compared to more than 30 minutes when run sequentially.
 
 .. note::
 
@@ -952,7 +951,7 @@ more than 30 minutes on the same machine when tests are run sequentially.
   in the ``Docker for Mac`` documentation on how to do it.
 
 You can also limit the parallelism by specifying the maximum number of parallel jobs via
-MAX_PARALLEL_TEST_JOBS variable. If you set it to "1", all the test types will be run sequentially.
+``MAX_PARALLEL_TEST_JOBS`` variable. If you set it to "1", all the test types will be run sequentially.
 
 .. code-block:: bash
 
@@ -1254,6 +1253,13 @@ running the tests from there, after manually downgrading the dependencies:
     cd airflow-core
     uv sync --resolution lowest-direct
 
+or run ``--force-lowest-dependencies`` switch directly from the breeze command line:
+
+.. code-block:: bash
+
+    breeze shell --force-lowest-dependencies --test-type "Core"
+
+
 The way it works - after you enter breeze container, you run the uv-sync in the airflow-core
 folder to downgrade the dependencies to the lowest version that is compatible
 with the dependencies specified in airflow-core dependencies. You will see it in the output of the breeze
@@ -1289,6 +1295,13 @@ manually downgrading dependencies for the provider and running the tests after t
     breeze shell
     cd providers/PROVIDER_ID
     uv sync --resolution lowest-direct
+
+
+or run ``--force-lowest-dependencies`` switch directly from the breeze command line:
+
+.. code-block:: bash
+
+    breeze shell --force-lowest-dependencies --test-type "Providers[google]"
 
 Similarly as in case of "Core" tests, the dependencies will be downgraded to the lowest version that is
 compatible with the dependencies specified in the provider dependencies and you will see the list of
@@ -1343,7 +1356,7 @@ to figure out one of the problems:
   dependency group for the provider - sometimes tests need another provider to be installed that is not
   normally needed as required dependencies of the provider being tested. Those dependencies
   should be added after the ``# Additional devel dependencies`` comment in case of providers. Adding the
-  dependencies here means that when ``uv sync`` is run, the packages and it's dependencies will be installed.
+  dependencies here means that when ``uv sync`` is run, the packages and its dependencies will be installed.
 
 .. code-block:: toml
 
@@ -1407,7 +1420,7 @@ Enable masking secrets in tests
 ...............................
 
 By default masking secrets in test disabled because it might have side effects
-into the other tests which intends to check logging/stdout/stderr values
+into the other tests which intends to check ``logging/stdout/stderr`` values
 
 If you need to test masking secrets in test cases
 you have to apply ``pytest.mark.enable_redact`` to the specific test case, class or module.
@@ -1442,7 +1455,7 @@ or by setting the environment variable ``CAPTURE_WARNINGS_OUTPUT``.
 
 .. code-block:: console
 
-    root@3f98e75b1ebe:/opt/airflow# pytest tests/core/ --warning-output-path=/foo/bar/spam.egg
+    root@3f98e75b1ebe:/opt/airflow# pytest airflow-core/tests/unit/core/ --warning-output-path=/foo/bar/spam.egg
     ...
     ========================= Warning summary. Total: 28, Unique: 12 ==========================
     airflow: total 11, unique 1
@@ -1461,7 +1474,7 @@ to **ignore**, e.g. set ``PYTHONWARNINGS`` environment variable to ``ignore``.
 
 .. code-block:: bash
 
-    pytest tests/core/ --disable-capture-warnings
+    pytest airflow-core/tests/unit/core/ --disable-capture-warnings
 
 Keep tests using environment variables
 ......................................
@@ -1477,7 +1490,7 @@ pytest CLI argument.
 
 .. code-block:: bash
 
-    pytest tests/core/ --keep-env-variables
+    pytest airflow-core/tests/unit/core/ --no-db-cleanup
 
 This parameter is also available in Breeze.
 
@@ -1498,13 +1511,13 @@ To disable the database cleanup, you need to provide ``--no-db-cleanup`` as pyte
 
 .. code-block:: bash
 
-    pytest tests/core/ --no-db-cleanup
+    pytest airflow-core/tests/unit/core/ --no-db-cleanup
 
 This parameter is also available in Breeze.
 
 .. code-block:: bash
 
-    breeze testing core-tests --no-db-cleanup tests/core
+    breeze testing core-tests --no-db-cleanup airflow-core/tests/unit/core/
 
 Code Coverage
 -------------
@@ -1524,16 +1537,27 @@ b. Execute one of the commands below based on the desired coverage area:
 - **Core:** ``python scripts/cov/core_coverage.py``
 - **REST API:** ``python scripts/cov/restapi_coverage.py``
 - **CLI:** ``python scripts/cov/cli_coverage.py``
-- **Webserver:** ``python scripts/cov/www_coverage.py``
+- **Other:** ``python scripts/cov/other_coverage.py``
 
-c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
+c. After execution, run the following commands from the repository root
+   (inside the Breeze shell):
+
+   .. code-block:: bash
+
+      cd htmlcov/
+      python -m http.server 5555
+
+   The Breeze container maps port ``5555`` inside the container to
+   ``25555`` on the host, so you can open the coverage report at
+   http://localhost:25555 in your browser.
 
 .. note::
 
-   In order to see the coverage report, you must start webserver first in breeze environment via the
-   ``airflow webserver``. Once you enter ``breeze``, you can start ``tmux``  (terminal multiplexer) and
-   split the terminal (by pressing ``ctrl-B "`` for example) to continue testing and run the webserver
-   in one terminal and run tests in the second one (you can switch between the terminals with ``ctrl-B <arrow>``).
+   You no longer need to start the Airflow web server to view the
+   coverage report.  The lightweight HTTP server above is sufficient and
+   avoids an extra service.  If port 25555 on the host is already in use,
+   adjust the container-to-host mapping with
+   ``BREEZE_PORTS_EXTRA="<host_port>:5555" breeze start-airflow``.
 
 Modules Not Fully Covered:
 ..........................
@@ -1568,7 +1592,7 @@ If you run the following command:
 .. code-block:: bash
 
     pytest --trace-sql=num,sql,parameters --capture=no \
-      tests/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
+      airflow-core/tests/unit/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
 
 On the screen you will see database queries for the given test.
 

@@ -28,7 +28,6 @@ from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.db.task_instance import get_task_instance_or_history_for_try_number
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrNdjson
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -36,7 +35,8 @@ from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, 
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, Trigger
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.log.log_reader import TaskLogReader
 
 task_instances_log_router = AirflowRouter(
@@ -105,14 +105,29 @@ def get_log(
     if not task_log_reader.supports_read:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Task log handler does not support read logs.")
 
-    ti = get_task_instance_or_history_for_try_number(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        try_number=try_number,
-        session=session,
-        map_index=map_index,
+    query = (
+        select(TaskInstance)
+        .where(
+            TaskInstance.task_id == task_id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == dag_run_id,
+            TaskInstance.map_index == map_index,
+            TaskInstance.try_number == try_number,
+        )
+        .join(TaskInstance.dag_run)
+        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
+        .options(joinedload(TaskInstance.dag_model))
     )
+    ti = session.scalar(query)
+    if ti is None:
+        query = select(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == task_id,
+            TaskInstanceHistory.dag_id == dag_id,
+            TaskInstanceHistory.run_id == dag_run_id,
+            TaskInstanceHistory.map_index == map_index,
+            TaskInstanceHistory.try_number == try_number,
+        )
+        ti = session.scalar(query)
 
     if ti is None:
         metadata["end_of_log"] = True

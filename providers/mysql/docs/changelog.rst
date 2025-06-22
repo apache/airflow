@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Misc
+~~~~
+
+* ``Bump problematic dependencies to avoid backtracking (#51702)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.3.0
 .....
 
