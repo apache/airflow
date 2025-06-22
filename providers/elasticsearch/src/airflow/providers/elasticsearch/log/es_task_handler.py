@@ -315,6 +315,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
+            # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
         metadata = cast("LogMetadata", metadata)
         if "offset" not in metadata:

@@ -145,6 +145,7 @@ def get_log(
             ti.task = dag.get_task(ti.task_id)
 
     if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
+        # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
         log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
         headers = None
         if not metadata.get("end_of_log", False):
@@ -155,6 +156,8 @@ def get_log(
 
     # application/json, or something else we don't understand.
     # Return JSON format, which will be more easily for users to debug.
+
+    # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
     structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)  # type: ignore[arg-type]
     encoded_token = None
     if not out_metadata.get("end_of_log", False):
