@@ -30,9 +30,6 @@ from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunEx
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
-pytestmark = pytest.mark.db_test
-
-
 ACCOUNT_ID = 11111
 RUN_ID = 5555
 TOKEN = "token"

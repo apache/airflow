@@ -38,8 +38,6 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
 )
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"
 SINGLE_TENANT_CONN = "single_tenant_conn"
