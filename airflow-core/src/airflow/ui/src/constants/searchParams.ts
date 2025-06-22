@@ -19,6 +19,7 @@
 export enum SearchParamsKeys {
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
+  FAVORITE = "favorite",
   LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
   LOG_LEVEL = "log_level",

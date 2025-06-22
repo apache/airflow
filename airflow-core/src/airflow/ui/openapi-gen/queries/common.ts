@@ -297,12 +297,13 @@ export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePa
 export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
 export type DagServiceGetDagsUiQueryResult<TData = DagServiceGetDagsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
-export const UseDagServiceGetDagsUiKeyFn = ({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const UseDagServiceGetDagsUiKeyFn = ({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
   dagIds?: string[];
   dagRunsLimit?: number;
   excludeStale?: boolean;
+  isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
@@ -311,7 +312,7 @@ export const UseDagServiceGetDagsUiKeyFn = ({ dagDisplayNamePattern, dagIdPatter
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLog>>;
 export type EventLogServiceGetEventLogQueryResult<TData = EventLogServiceGetEventLogDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";

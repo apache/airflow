@@ -2342,13 +2342,13 @@ export type FavoriteDagData = {
   dagId: string;
 };
 
-export type FavoriteDagResponse = DAGResponse;
+export type FavoriteDagResponse = unknown;
 
 export type UnfavoriteDagData = {
   dagId: string;
 };
 
-export type UnfavoriteDagResponse = DAGResponse;
+export type UnfavoriteDagResponse = unknown;
 
 export type GetDagTagsData = {
     limit?: number;
@@ -2374,6 +2374,7 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;

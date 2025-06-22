@@ -609,15 +609,17 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 * @param data.paused
 * @param data.lastDagRunState
 * @param data.orderBy
+* @param data.isFavorite
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
   dagIds?: string[];
   dagRunsLimit?: number;
   excludeStale?: boolean;
+  isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
@@ -626,7 +628,7 @@ export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefault
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDagsUi({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDagsUi({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
 /**
 * Get Event Log
 * @param data The data for the request.
@@ -1627,7 +1629,7 @@ export const useDagRunServiceGetListDagRunsBatch = <TData = Common.DagRunService
  * Mark the DAG as favorite.
  * @param data The data for the request.
  * @param data.dagId
- * @returns DAGResponse Successful Response
+ * @returns unknown Successful Response
  * @throws ApiError
  */
 export const useDagServiceFavoriteDag = <
@@ -1663,7 +1665,7 @@ export const useDagServiceFavoriteDag = <
  * Unmark the DAG as favorite.
  * @param data The data for the request.
  * @param data.dagId
- * @returns DAGResponse Successful Response
+ * @returns unknown Successful Response
  * @throws ApiError
  */
 export const useDagServiceUnfavoriteDag = <
