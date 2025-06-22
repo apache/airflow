@@ -18,7 +18,7 @@
  */
 import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
@@ -63,7 +63,7 @@ const ScrollToButton = ({
         }}
         aria-label={translate(`scroll.direction.${direction}`)}
         bg="bg.panel"
-        bottom={direction === "bottom" ? 2 : 12}
+        bottom={direction === "bottom" ? 4 : 14}
         onClick={onClick}
         position="absolute"
         rounded="full"
@@ -86,11 +86,18 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     overscan: 10,
   });
 
+  const showScrollButtons = useMemo(() => {
+    const contentHeight = rowVirtualizer.getTotalSize();
+    const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
+
+    return contentHeight > containerHeight;
+  }, [rowVirtualizer]);
+
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
-      rowVirtualizer.scrollToIndex(Number(hash));
+      rowVirtualizer.scrollToIndex(Math.min(Number(hash) + 5, parsedLogs.length - 1));
     }
-  }, [isLoading, rowVirtualizer, hash]);
+  }, [isLoading, rowVirtualizer, hash, parsedLogs]);
 
   const handleScrollTo = (to: "bottom" | "top") => {
     if (parsedLogs.length > 0) {
@@ -98,8 +105,8 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     }
   };
 
-  useHotkeys("ArrowDown", () => handleScrollTo("bottom"), { enabled: !isLoading });
-  useHotkeys("ArrowUp", () => handleScrollTo("top"), { enabled: !isLoading });
+  useHotkeys("mod+ArrowDown", () => handleScrollTo("bottom"), { enabled: !isLoading });
+  useHotkeys("mod+ArrowUp", () => handleScrollTo("top"), { enabled: !isLoading });
 
   return (
     <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">
@@ -148,8 +155,12 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         </VStack>
       </Code>
 
-      <ScrollToButton direction="top" onClick={() => handleScrollTo("top")} />
-      <ScrollToButton direction="bottom" onClick={() => handleScrollTo("bottom")} />
+      {showScrollButtons ? (
+        <>
+          <ScrollToButton direction="top" onClick={() => handleScrollTo("top")} />
+          <ScrollToButton direction="bottom" onClick={() => handleScrollTo("bottom")} />
+        </>
+      ) : undefined}
     </Box>
   );
 };
