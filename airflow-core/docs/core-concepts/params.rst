@@ -157,6 +157,34 @@ Another way to access your param is via a task's ``context`` kwarg.
         params={"my_int_param": 12345},
     )
 
+Using the get() Method for Default Values
+------------------------------------------
+
+When accessing params programmatically, you can use the ``.get()`` method to provide fallback values
+for parameters that might be ``None`` or missing:
+
+.. code-block::
+   :emphasize-lines: 2,3
+
+    def my_task(**context):
+        # This will return [] if 'my_list' is None or not provided
+        my_list = context["params"].get("my_list", [])
+
+        # This will return "default_value" if 'optional_param' is None or not provided
+        optional_value = context["params"].get("optional_param", "default_value")
+
+    PythonOperator(
+        task_id="my_task",
+        python_callable=my_task,
+        params={
+            "my_list": Param(default=None, type=["null", "array"]),
+            # optional_param is not defined, so it will use the fallback
+        },
+    )
+
+This is particularly useful when you have parameters with ``default=None`` or when parameters
+might not be provided at runtime.
+
 JSON Schema Validation
 ----------------------
 

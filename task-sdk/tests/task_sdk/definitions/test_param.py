@@ -306,3 +306,45 @@ class TestParamsDict:
     def test_repr(self):
         pd = ParamsDict({"key": Param("value", type="string")})
         assert repr(pd) == "{'key': 'value'}"
+
+    def test_get_method_with_none_values(self):
+        """Test ParamsDict.get() method properly handles None values with defaults.
+
+        This test verifies the fix for GitHub issue #51977 where dag.params.get()
+        ignores default values for parameters that exist but have None as their resolved value.
+        """
+        # Create a ParamsDict with a parameter that has default=None
+        pd = ParamsDict(
+            {
+                "param_with_none": Param(default=None, type=["null", "array"]),
+                "param_with_value": Param(default="hello", type="string"),
+            }
+        )
+
+        # Test case 1: Parameter exists with None value, should return provided default
+        result = pd.get("param_with_none", [])
+        assert result == [], f"Expected [], got {result}"
+
+        # Test case 2: Parameter exists with non-None value, should return actual value
+        result = pd.get("param_with_value", "fallback")
+        assert result == "hello", f"Expected 'hello', got {result}"
+
+        # Test case 3: Parameter doesn't exist, should return provided default
+        result = pd.get("absent_param", "default_value")
+        assert result == "default_value", f"Expected 'default_value', got {result}"
+
+        # Test case 4: Parameter exists with None value, no default provided
+        result = pd.get("param_with_none")
+        assert result is None, f"Expected None, got {result}"
+
+        # Test case 5: Direct access should still return None (unchanged behavior)
+        result = pd["param_with_none"]
+        assert result is None, f"Expected None, got {result}"
+
+        # Test case 6: Parameter exists with None value, default is also None
+        result = pd.get("param_with_none", None)
+        assert result is None, f"Expected None, got {result}"
+
+        # Test case 7: Parameter exists with None value, default is empty string
+        result = pd.get("param_with_none", "")
+        assert result == "", f"Expected '', got {result}"

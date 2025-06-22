@@ -218,6 +218,27 @@ class ParamsDict(MutableMapping[str, Any]):
         param = self.__dict[key]
         return param.resolve(suppress_exception=self.suppress_exception)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get the value for a key, returning default if the key is not found OR if the resolved value is None.
+
+        This method properly handles the case where a parameter exists but has a None value,
+        which should be treated as if the key doesn't exist when a default is provided.
+
+        :param key: The key to fetch
+        :param default: The default value to return if key is not found or resolved value is None
+        """
+        try:
+            param = self.__dict[key]
+            resolved_value = param.resolve(suppress_exception=self.suppress_exception)
+            # If the resolved value is None and a default is provided, return the default
+            # This matches the expected behavior described in GitHub issue #51977
+            if resolved_value is None and default is not None:
+                return default
+            return resolved_value
+        except KeyError:
+            return default
+
     def get_param(self, key: str) -> Param:
         """Get the internal :class:`.Param` object for this key."""
         return self.__dict[key]
