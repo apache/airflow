@@ -27,7 +27,6 @@ from airflow.models import Connection
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 
 
-@pytest.mark.db_test
 class TestAirbyteJobSensor:
     task_id = "task-id"
     airbyte_conn_id = "airbyte-conn-test"

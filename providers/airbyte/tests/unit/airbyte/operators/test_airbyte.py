@@ -19,14 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.models import Connection
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 
 
-@pytest.mark.db_test
 class TestAirbyteTriggerSyncOp:
     """
     Test execute function from Airbyte Operator

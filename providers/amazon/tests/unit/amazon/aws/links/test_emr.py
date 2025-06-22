@@ -36,6 +36,9 @@ from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
+pytestmark = pytest.mark.db_test
+
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
 

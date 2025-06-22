@@ -570,6 +570,16 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-pytest-mark-db-test-in-providers
+        language: pygrep
+        name: Check pytest.mark.db_test use in providers
+        entry: pytest\.mark\.db_test
+        pass_filenames: true
+        # Here we should add providers that are already free from the pytest.mark.db_test
+        # and we want to keep them clean and only use non-db-tests
+        files: >
+            (?x)
+            ^providers/airbyte/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
         description: The links to example dags should use |version| as version specification

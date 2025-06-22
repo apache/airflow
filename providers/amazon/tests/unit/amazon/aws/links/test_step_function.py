@@ -29,6 +29,8 @@ from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
 
+pytestmark = pytest.mark.db_test
+
 
 class TestStateMachineDetailsLink(BaseAwsLinksTestCase):
     link_class = StateMachineDetailsLink

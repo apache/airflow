@@ -27,11 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 
-# those tests will not work with database isolation because they mock requests
-pytestmark = pytest.mark.db_test
 
-
-@pytest.mark.db_test
 class TestAirbyteHook:
     """
     Test all functions from Airbyte Hook

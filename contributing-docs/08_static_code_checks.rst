@@ -221,6 +221,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pytest-mark-db-test-in-providers                    | Check pytest.mark.db_test use in providers             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
