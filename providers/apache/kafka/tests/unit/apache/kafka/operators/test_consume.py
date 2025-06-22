@@ -23,10 +23,11 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 
 # Import Operator
-from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
+from airflow.providers.apache.kafka.operators.consume import VALID_COMMIT_CADENCE, ConsumeFromTopicOperator
 
 log = logging.getLogger(__name__)
 
@@ -123,3 +124,71 @@ class TestConsumeFromTopic:
             # execute the operator (this is essentially a no op as we're mocking the consumer)
             operator.execute(context={})
             assert total_consumed_messages == expected_consumed_messages
+
+    @pytest.mark.parametrize(
+        "commit_cadence, enable_auto_commit, expected_warning",
+        [
+            # will raise AirflowException for invalid commit_cadence
+            ("invalid_cadence", "false", False),
+            # will not log warning if set 'enable.auto.commit' to false
+            ("end_of_operator", "false", False),
+            ("end_of_batch", "false", False),
+            ("never", "false", False),
+            # will log warning if set 'enable.auto.commit' to true
+            ("end_of_operator", "true", True),
+            ("end_of_batch", "true", True),
+            ("never", "true", True),
+            # will log warning if 'enable.auto.commit' is not set
+            ("end_of_operator", None, True),
+            ("end_of_batch", None, True),
+            ("never", None, True),
+            # will not log warning if commit_cadence is None, no matter the value of 'enable.auto.commit'
+            (None, None, False),
+            (None, "true", False),
+            (None, "false", False),
+        ],
+    )
+    def test__validate_commit_cadence(self, commit_cadence, enable_auto_commit, expected_warning):
+        operator_kwargs = {
+            "kafka_config_id": "kafka_d",
+            "topics": ["test"],
+            "task_id": "test",
+            "commit_cadence": commit_cadence,
+        }
+        # early return for invalid commit_cadence
+        if commit_cadence == "invalid_cadence":
+            with pytest.raises(
+                AirflowException,
+                match=f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got invalid_cadence",
+            ):
+                ConsumeFromTopicOperator(**operator_kwargs)
+            return
+
+        # mock connection and hook
+        mocked_hook = mock.MagicMock()
+        mocked_hook.get_connection.return_value.extra_dejson = (
+            {} if enable_auto_commit is None else {"enable.auto.commit": enable_auto_commit}
+        )
+
+        with (
+            mock.patch(
+                "airflow.providers.apache.kafka.operators.consume.ConsumeFromTopicOperator.hook",
+                new_callable=mock.PropertyMock,
+                return_value=mocked_hook,
+            ),
+            mock.patch(
+                "airflow.providers.apache.kafka.operators.consume.ConsumeFromTopicOperator.log"
+            ) as mock_log,
+        ):
+            ConsumeFromTopicOperator(**operator_kwargs)
+            if expected_warning:
+                expected_warning_template = (
+                    "To respect commit_cadence='%s', "
+                    "'enable.auto.commit' should be set to 'false' in the Kafka connection configuration. "
+                    "Currently, 'enable.auto.commit' is not explicitly set, so it defaults to 'true', which causes "
+                    "the consumer to auto-commit offsets every 5 seconds. "
+                    "See: https://kafka.apache.org/documentation/#consumerconfigs_enable.auto.commit"
+                )
+                mock_log.warning.assert_called_with(expected_warning_template, commit_cadence)
+            else:
+                mock_log.warning.assert_not_called()

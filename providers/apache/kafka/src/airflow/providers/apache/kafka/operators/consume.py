@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from functools import partial
+from functools import cached_property, partial
 from typing import Any
 
 from airflow.exceptions import AirflowException
@@ -102,11 +102,7 @@ class ConsumeFromTopicOperator(BaseOperator):
         self.poll_timeout = poll_timeout
 
         self.read_to_end = self.max_messages is None
-
-        if self.commit_cadence not in VALID_COMMIT_CADENCE:
-            raise AirflowException(
-                f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
-            )
+        self._validate_commit_cadence()
 
         if self.max_messages is not None and self.max_batch_size > self.max_messages:
             self.log.warning(
@@ -117,16 +113,18 @@ class ConsumeFromTopicOperator(BaseOperator):
             )
             self.max_messages = self.max_batch_size
 
-        if self.commit_cadence == "never":
-            self.commit_cadence = None
-
         if apply_function and apply_function_batch:
             raise AirflowException(
                 "One of apply_function or apply_function_batch must be supplied, not both."
             )
 
+    @cached_property
+    def hook(self):
+        """Return the KafkaConsumerHook instance."""
+        return KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
+
     def execute(self, context) -> Any:
-        consumer = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id).get_consumer()
+        consumer = self.hook.get_consumer()
 
         if isinstance(self.apply_function, str):
             self.apply_function = import_string(self.apply_function)
@@ -184,3 +182,27 @@ class ConsumeFromTopicOperator(BaseOperator):
         consumer.close()
 
         return
+
+    def _validate_commit_cadence(self):
+        """Validate the commit cadence configuration."""
+        if self.commit_cadence and self.commit_cadence not in VALID_COMMIT_CADENCE:
+            raise AirflowException(
+                f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
+            )
+
+        kafka_config = self.hook.get_connection(self.kafka_config_id).extra_dejson
+        # Same as kafka's behavior, default to "true" if not set
+        enable_auto_commit = kafka_config.get("enable.auto.commit", "true").lower()
+
+        if self.commit_cadence and enable_auto_commit != "false":
+            self.log.warning(
+                "To respect commit_cadence='%s', "
+                "'enable.auto.commit' should be set to 'false' in the Kafka connection configuration. "
+                "Currently, 'enable.auto.commit' is not explicitly set, so it defaults to 'true', which causes "
+                "the consumer to auto-commit offsets every 5 seconds. "
+                "See: https://kafka.apache.org/documentation/#consumerconfigs_enable.auto.commit",
+                self.commit_cadence,
+            )
+
+        if self.commit_cadence == "never":
+            self.commit_cadence = None
