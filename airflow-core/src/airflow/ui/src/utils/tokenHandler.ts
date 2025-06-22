@@ -26,8 +26,6 @@ export const clearRefreshTokenCookie = () => {
 
 const setToken = (token: string) => {
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  clearRefreshTokenCookie();
-  document.cookie = "_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;";
 };
 
 const getTokenFromCookies = (): string | undefined => {
@@ -38,6 +36,7 @@ const getTokenFromCookies = (): string | undefined => {
 
     if (name?.trim() === "_token" && token !== undefined) {
       setToken(token);
+      document.cookie = "_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;";
 
       return token;
     }
@@ -54,6 +53,7 @@ const getRefreshedTokenFromCookies = (): string | undefined => {
 
     if (name?.trim() === "_refresh_token" && token !== undefined) {
       setToken(token);
+      clearRefreshTokenCookie();
 
       return token;
     }

@@ -33,7 +33,3 @@ class KeycloakAuthManagerUser(BaseUser):
 
     def get_name(self) -> str:
         return self.name
-
-    def get_refresh_token(self) -> str:
-        """Return the refresh token for the user."""
-        return self.refresh_token
