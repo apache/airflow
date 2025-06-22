@@ -106,7 +106,7 @@ export const Gantt = ({ limit }: Props) => {
   const selectedId = selectedTaskId ?? selectedGroupId;
 
   return (
-    <Box height={`${fixedHeight}px`} minW="300px" mt={36} w="100%">
+    <Box height={`${fixedHeight}px`} minW="500px" mt={36} w="100%">
       <Bar
         data={{
           datasets: [

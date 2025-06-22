@@ -82,7 +82,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={showGantt ? 40 : 20}>
+          <Panel
+            defaultSize={dagView === "graph" ? 70 : 20}
+            minSize={showGantt && dagView === "grid" ? 60 : 20}
+          >
             <Box height="100%" overflowY="auto" position="relative" pr={2}>
               <PanelButtons
                 dagView={dagView}

@@ -53,8 +53,8 @@ export const formatDate = (
   timezone: string,
   format: string = "YYYY-MM-DD HH:mm:ss",
 ) => {
-  if (date === null || date === undefined) {
-    return "";
+  if (date === null || date === undefined || !dayjs(date).isValid()) {
+    return dayjs().tz(timezone).format(format);
   }
 
   return dayjs(date).tz(timezone).format(format);
