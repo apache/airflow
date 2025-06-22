@@ -145,7 +145,7 @@ def submit_job_trigger():
         metadata=METADATA,
         gcp_conn_id=TEST_GCP_CONN_ID,
         polling_interval_seconds=TEST_POLL_INTERVAL,
-        cancel_on_kill=True
+        cancel_on_kill=True,
     )
 
 
@@ -311,7 +311,9 @@ class TestDataprocClusterTrigger:
                 )
                 # Verify logging was called for cluster deletion
                 mock_log.info.assert_any_call("Deleting cluster %s.", cluster_trigger.cluster_name)
-                mock_log.info.assert_any_call("Deleted cluster %s during cancellation.", cluster_trigger.cluster_name)
+                mock_log.info.assert_any_call(
+                    "Deleted cluster %s during cancellation.", cluster_trigger.cluster_name
+                )
             else:
                 mock_delete_cluster.assert_not_called()
         except Exception as e:
@@ -681,7 +683,9 @@ class TestDataprocSubmitJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
-    async def test_submit_job_trigger_run_success(self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger):
+    async def test_submit_job_trigger_run_success(
+        self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger
+    ):
         """Test the trigger correctly submits a job and handles job completion."""
         # Mock sync hook for job submission
         mock_sync_hook = mock_get_sync_hook.return_value
@@ -717,14 +721,20 @@ class TestDataprocSubmitJobTrigger:
         )
 
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.DONE, "job": mock_async_hook.get_job.return_value}
+            {
+                "job_id": TEST_JOB_ID,
+                "job_state": JobStatus.State.DONE,
+                "job": mock_async_hook.get_job.return_value,
+            }
         )
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
-    async def test_submit_job_trigger_run_error(self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger):
+    async def test_submit_job_trigger_run_error(
+        self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger
+    ):
         """Test the trigger correctly handles a job error."""
         # Mock sync hook for job submission
         mock_sync_hook = mock_get_sync_hook.return_value
@@ -742,14 +752,20 @@ class TestDataprocSubmitJobTrigger:
         event = await async_gen.asend(None)
 
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.ERROR, "job": mock_async_hook.get_job.return_value}
+            {
+                "job_id": TEST_JOB_ID,
+                "job_state": JobStatus.State.ERROR,
+                "job": mock_async_hook.get_job.return_value,
+            }
         )
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
-    async def test_submit_job_trigger_run_cancelled(self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger):
+    async def test_submit_job_trigger_run_cancelled(
+        self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger
+    ):
         """Test the trigger correctly handles a job cancellation."""
         # Mock sync hook for job submission
         mock_sync_hook = mock_get_sync_hook.return_value
@@ -767,7 +783,11 @@ class TestDataprocSubmitJobTrigger:
         event = await async_gen.asend(None)
 
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.CANCELLED, "job": mock_async_hook.get_job.return_value}
+            {
+                "job_id": TEST_JOB_ID,
+                "job_state": JobStatus.State.CANCELLED,
+                "job": mock_async_hook.get_job.return_value,
+            }
         )
         assert event.payload == expected_event.payload
 
@@ -777,7 +797,12 @@ class TestDataprocSubmitJobTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.safe_to_cancel")
     async def test_submit_job_trigger_run_cancelled_with_exception(
-        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger, is_safe_to_cancel
+        self,
+        mock_safe_to_cancel,
+        mock_get_sync_hook,
+        mock_get_async_hook,
+        submit_job_trigger,
+        is_safe_to_cancel,
     ):
         """Test the trigger correctly handles an asyncio.CancelledError during job polling."""
         mock_safe_to_cancel.return_value = is_safe_to_cancel
@@ -817,7 +842,9 @@ class TestDataprocSubmitJobTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
     @mock.patch.object(DataprocSubmitJobTrigger, "log")
-    async def test_submit_job_trigger_polling_loop(self, mock_log, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger):
+    async def test_submit_job_trigger_polling_loop(
+        self, mock_log, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger
+    ):
         """Test the trigger correctly polls for job status until completion."""
         # Mock sync hook for job submission
         mock_sync_hook = mock_get_sync_hook.return_value
@@ -843,7 +870,9 @@ class TestDataprocSubmitJobTrigger:
         assert mock_async_hook.get_job.call_count == 2
 
         # Verify logging was called for job status updates
-        mock_log.info.assert_called_with("Dataproc job: %s is in state: %s", TEST_JOB_ID, JobStatus.State.DONE)
+        mock_log.info.assert_called_with(
+            "Dataproc job: %s is in state: %s", TEST_JOB_ID, JobStatus.State.DONE
+        )
 
         expected_event = TriggerEvent(
             {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.DONE, "job": mock_done_job}
