@@ -26,8 +26,6 @@ import sqlalchemy
 from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestSqliteHookConn:
     def setup_method(self):
@@ -78,6 +76,7 @@ class TestSqliteHook:
                 return conn
 
         self.db_hook = UnitTestSqliteHook()
+        self.db_hook.get_connection = mock.Mock(return_value=Connection(host="test"))
 
     def test_get_first_record(self):
         statement = "SQL"
@@ -155,13 +154,16 @@ class TestSqliteHook:
 
         assert sql == expected_sql
 
-    @pytest.mark.db_test
-    def test_sqlalchemy_engine(self):
-        """Test that the sqlalchemy engine is initialized"""
+    @patch.object(SqliteHook, "get_connection")
+    def test_sqlalchemy_engine(self, mock_get_connection):
+        """Test that the sqlalchemy engine is initialized."""
         conn_id = "sqlite_default"
+        db_path = "/tmp/test.db"
+        mock_get_connection.return_value = Connection(host=db_path)
         hook = SqliteHook(sqlite_conn_id=conn_id)
         engine = hook.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
         assert engine.name == "sqlite"
         # Assert filepath of the sqliate DB is correct
-        assert engine.url.database == hook.get_connection(conn_id).host
+        assert engine.url.database == db_path
+        mock_get_connection.assert_called_once_with(conn_id)
