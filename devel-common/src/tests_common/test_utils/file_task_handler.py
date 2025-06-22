@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.utils.log.file_task_handler import ParsedLog, StructuredLogMessage
 
 
-def events(logs: Iterable[StructuredLogMessage], skip_source_info=True) -> list[str]:
+def extract_events(logs: Iterable[StructuredLogMessage], skip_source_info=True) -> list[str]:
     """Helper function to return just the event (a.k.a message) from a list of StructuredLogMessage"""
     logs = iter(logs)
     if skip_source_info:
@@ -63,15 +63,14 @@ def mock_parsed_logs_factory(
     if AIRFLOW_V_3_0_PLUS:
         from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    parsed_logs: list[ParsedLog] = []
-    for i in range(count):
-        timestamp: datetime = start_datetime + pendulum.duration(seconds=i)
-        structured_log = StructuredLogMessage(timestamp=None, event=f"{event_prefix} Event {i}")
-        parsed_logs.append(
-            (
-                timestamp,
-                i,
-                structured_log,
-            )
+    return [
+        (
+            pendulum.instance(start_datetime + pendulum.duration(seconds=i)),
+            i,
+            StructuredLogMessage(
+                timestamp=pendulum.instance(start_datetime + pendulum.duration(seconds=i)),
+                event=f"{event_prefix} Event {i}",
+            ),
         )
-    return parsed_logs
+        for i in range(count)
+    ]

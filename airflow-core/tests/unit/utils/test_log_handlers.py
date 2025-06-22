@@ -72,7 +72,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.file_task_handler import (
     convert_list_to_stream,
-    events,
+    extract_events,
     mock_parsed_logs_factory,
 )
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -147,7 +147,9 @@ class TestFileTaskLogHandler:
         # passing invalid `try_number` to read function
         log_handler_output_stream, metadata = file_handler.read(ti, 0)
         assert isinstance(metadata, dict)
-        assert events(log_handler_output_stream) == ["Error fetching the logs. Try number 0 is invalid."]
+        assert extract_events(log_handler_output_stream) == [
+            "Error fetching the logs. Try number 0 is invalid."
+        ]
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
@@ -196,7 +198,7 @@ class TestFileTaskLogHandler:
         # We should expect our log line from the callable above to appear in
         # the logs we read back
 
-        assert any(re.search(target_re, e) for e in events(log_handler_output_stream)), (
+        assert any(re.search(target_re, e) for e in extract_events(log_handler_output_stream)), (
             f"Logs were {log_handler_output_stream}"
         )
 
@@ -421,7 +423,7 @@ class TestFileTaskLogHandler:
         fth = FileTaskHandler("")
         log_handler_output_stream, metadata = fth._read(ti=local_log_file_read, try_number=1)
         mock_read_local.assert_called_with(path)
-        assert events(log_handler_output_stream) == ["the log"]
+        assert extract_events(log_handler_output_stream) == ["the log"]
         assert metadata == {"end_of_log": True, "log_pos": 1}
 
     def test__read_from_local(self, tmp_path):
@@ -514,7 +516,7 @@ class TestFileTaskLogHandler:
             fth._read_from_logs_server.assert_called_once()
         else:
             fth._read_from_logs_server.assert_not_called()
-        assert events(logs, False) == expected_logs
+        assert extract_events(logs, False) == expected_logs
         assert metadata == {"end_of_log": True, "log_pos": 3}
 
     def test_add_triggerer_suffix(self):
@@ -1118,7 +1120,7 @@ def test_interleave_logs_correct_ordering():
     [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
     """
 
-    logs = events(
+    logs = extract_events(
         _interleave_logs(
             convert_list_to_stream(sample_with_dupe.splitlines()),
             convert_list_to_stream([]),
@@ -1141,7 +1143,7 @@ def test_interleave_logs_correct_dedupe():
     test"""
 
     input_logs = ",\n    ".join(["test"] * 10)
-    logs = events(
+    logs = extract_events(
         _interleave_logs(
             convert_list_to_stream(input_logs.splitlines()),
         )
