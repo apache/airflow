@@ -583,7 +583,6 @@ repos:
             ^providers/cohere/.*\.py$|
             ^providers/datadog/.*\.py$|
             ^providers/facebook/.*\.py$|
-            ^providers/git/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
             ^providers/influxdb/.*\.py$|
