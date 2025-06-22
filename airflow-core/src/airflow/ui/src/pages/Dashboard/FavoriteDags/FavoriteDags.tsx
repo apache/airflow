@@ -18,37 +18,25 @@
  */
 import { Box, Flex, Heading, SimpleGrid, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 import { useLocation } from "react-router-dom";
 
-import { useDagServiceGetDags } from "openapi/queries";
+import { useDagServiceGetDagsUi } from "openapi/queries";
 
 import { FavoriteDagCard } from "./FavoriteDagCard";
-
-const MAX_VISIBLE = 5;
 
 export const FavoriteDags = () => {
   const queryClient = useQueryClient();
   const location = useLocation();
 
   const { t: translate } = useTranslation("dashboard");
-  const { data: favorites } = useDagServiceGetDags({ isFavorite: true });
+  const { data: favorites } = useDagServiceGetDagsUi({ isFavorite: true, limit: 10 });
 
   useEffect(() => {
-    void queryClient.refetchQueries({ queryKey: ["DagServiceGetDags"] });
+    void queryClient.refetchQueries({ queryKey: ["DagServiceGetDagsUi"] });
   }, [location.key, queryClient]);
-
-  const [showAll, setShowAll] = useState(false);
-
-  const visibleFavorites = useMemo(() => {
-    if (!favorites?.dags) {
-      return [];
-    }
-
-    return showAll ? favorites.dags : favorites.dags.slice(0, MAX_VISIBLE);
-  }, [favorites, showAll]);
 
   if (!favorites) {
     return undefined;
@@ -68,28 +56,16 @@ export const FavoriteDags = () => {
           {translate("favorite.noFavoriteDags")}
         </Text>
       ) : (
-        <>
-          <SimpleGrid alignItems="end" columnGap={1} columns={10} rowGap={4}>
-            {visibleFavorites.map((dag) => (
-              <FavoriteDagCard dagId={dag.dag_id} dagName={dag.dag_display_name} key={dag.dag_id} />
-            ))}
-          </SimpleGrid>
-
-          {favorites.total_entries > MAX_VISIBLE && (
-            <Box mt={2}>
-              <Text
-                _hover={{ textDecoration: "underline" }}
-                as="span"
-                color="fg.info"
-                cursor="pointer"
-                fontSize="sm"
-                onClick={() => setShowAll(!showAll)}
-              >
-                {showAll ? translate("favorite.showLess") : translate("favorite.showMore")}
-              </Text>
-            </Box>
-          )}
-        </>
+        <SimpleGrid alignItems="end" columnGap={1} columns={10} rowGap={4}>
+          {favorites.dags.map((dag) => (
+            <FavoriteDagCard
+              dagId={dag.dag_id}
+              dagName={dag.dag_display_name}
+              key={dag.dag_id}
+              latestRuns={dag.latest_dag_runs}
+            />
+          ))}
+        </SimpleGrid>
       )}
     </Box>
   );

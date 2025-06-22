@@ -21,7 +21,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
-import { useDagServiceGetDags } from "openapi/queries";
+import { useDagServiceGetDagsUi } from "openapi/queries";
 import { useFavoriteDag } from "src/queries/useFavoriteDag";
 import { useUnfavoriteDag } from "src/queries/useUnfavoriteDag";
 
@@ -34,7 +34,7 @@ type FavoriteDagButtonProps = {
 
 export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-  const { data: favorites, refetch } = useDagServiceGetDags({ isFavorite: true });
+  const { data: favorites, refetch } = useDagServiceGetDagsUi({ isFavorite: true });
 
   const isFavorite = useMemo(
     () => favorites?.dags.some((fav) => fav.dag_id === dagId) ?? false,
@@ -60,11 +60,11 @@ export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonP
   return (
     <Box>
       <ActionButton
-        actionName={isFavorite ? translate("list.unfavoriteDag") : translate("list.favoriteDag")}
+        actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
         colorPalette="blue"
         icon={<FiStar style={{ fill: isFavorite ? "blue" : "none" }} />}
         onClick={onToggle}
-        text={isFavorite ? translate("list.unfavoriteDag") : translate("list.favoriteDag")}
+        text={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
         variant="solid"
         withText={withText}
       />

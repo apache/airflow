@@ -1442,7 +1442,7 @@ export class DagService {
    * Mark the DAG as favorite.
    * @param data The data for the request.
    * @param data.dagId
-   * @returns DAGResponse Successful Response
+   * @returns unknown Successful Response
    * @throws ApiError
    */
   public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
@@ -1466,7 +1466,7 @@ export class DagService {
    * Unmark the DAG as favorite.
    * @param data The data for the request.
    * @param data.dagId
-   * @returns DAGResponse Successful Response
+   * @returns unknown Successful Response
    * @throws ApiError
    */
   public static unfavoriteDag(data: UnfavoriteDagData): CancelablePromise<UnfavoriteDagResponse> {
@@ -1582,6 +1582,7 @@ export class DagService {
      * @param data.paused
      * @param data.lastDagRunState
      * @param data.orderBy
+     * @param data.isFavorite
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1602,7 +1603,8 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
-                order_by: data.orderBy
+                order_by: data.orderBy,
+                is_favorite: data.isFavorite
             },
             errors: {
                 422: 'Validation Error'

@@ -19,46 +19,38 @@
 import { Box, Button, Text, VStack } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useDagServiceRecentDagRuns } from "openapi/queries";
+import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { RecentRuns } from "src/pages/DagsList/RecentRuns";
 
 type FavoriteDagProps = {
   readonly dagId: string;
   readonly dagName: string;
+  readonly latestRuns: Array<DAGRunResponse>;
 };
 
-export const FavoriteDagCard = ({ dagId, dagName }: FavoriteDagProps) => {
-  const { data } = useDagServiceRecentDagRuns({
-    dagIds: [dagId],
-    dagRunsLimit: 5,
-  });
-
-  const latestRuns = data?.dags[0]?.latest_dag_runs ?? [];
-
-  return (
-    <Box width="100%">
-      <RouterLink to={`/dags/${dagId}`}>
-        <Button
-          borderRadius="md"
-          display="flex"
-          flexDirection="column"
-          gap={2}
-          height="auto"
-          px={4}
-          py={3}
-          variant="outline"
-          width="100%"
-        >
-          <Box mt={1}>
-            <VStack>
-              <RecentRuns latestRuns={latestRuns} />
-              <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
-                {dagName}
-              </Text>
-            </VStack>
-          </Box>
-        </Button>
-      </RouterLink>
-    </Box>
-  );
-};
+export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps) => (
+  <Box width="100%">
+    <RouterLink to={`/dags/${dagId}`}>
+      <Button
+        borderRadius="md"
+        display="flex"
+        flexDirection="column"
+        gap={2}
+        height="auto"
+        px={4}
+        py={3}
+        variant="outline"
+        width="100%"
+      >
+        <Box mt={1}>
+          <VStack>
+            <RecentRuns latestRuns={latestRuns} />
+            <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
+              {dagName}
+            </Text>
+          </VStack>
+        </Box>
+      </Button>
+    </RouterLink>
+  </Box>
+);

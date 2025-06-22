@@ -38,6 +38,7 @@ from airflow.models import (
     Variable,
 )
 from airflow.models.dag import DagOwnerAttributes
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
@@ -194,6 +195,7 @@ def clear_db_triggers():
 
 def clear_db_dags():
     with create_session() as session:
+        session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
         session.query(

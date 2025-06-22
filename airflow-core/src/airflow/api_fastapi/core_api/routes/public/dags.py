@@ -116,7 +116,6 @@ def get_dags(
     ],
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
-    user: GetUserDep,
     is_favorite: QueryFavoriteFilter,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
@@ -130,17 +129,15 @@ def get_dags(
         order_by=order_by,
     )
 
-    is_favorite.user_id = user.get_id()
-    favorite_filter_query = is_favorite.to_orm(query)
-
     dags_select, total_entries = paginated_select(
-        statement=favorite_filter_query,
+        statement=query,
         filters=[
             exclude_stale,
             paused,
             dag_id_pattern,
             dag_display_name_pattern,
             tags,
+            is_favorite,
             owners,
             readable_dags_filter,
         ],
@@ -334,7 +331,7 @@ def favorite_dag(
     dag_id: str,
     session: SessionDep,
     user: GetUserDep,
-) -> DAGResponse:
+) -> Response:
     """Mark the DAG as favorite."""
     dag = session.get(DagModel, dag_id)
     if not dag:
@@ -343,7 +340,7 @@ def favorite_dag(
     user_id = user.get_id()
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
 
-    return DAGResponse.model_validate(dag)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @dags_router.post(
@@ -355,7 +352,7 @@ def unfavorite_dag(
     dag_id: str,
     session: SessionDep,
     user: GetUserDep,
-) -> DAGResponse:
+) -> Response:
     """Unmark the DAG as favorite."""
     dag = session.get(DagModel, dag_id)
     if not dag:
@@ -380,7 +377,7 @@ def unfavorite_dag(
         )
     )
 
-    return DAGResponse.model_validate(dag)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @dags_router.delete(
