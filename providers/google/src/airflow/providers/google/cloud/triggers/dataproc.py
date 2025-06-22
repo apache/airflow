@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowException
@@ -42,6 +41,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from sqlalchemy.orm.session import Session
 
 
