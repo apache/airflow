@@ -604,6 +604,7 @@ repos:
             ^providers/trino/.*\.py$|
             ^providers/vertica/.*\.py$|
             ^providers/yandex/.*\.py$|
+            ^providers/cloudant/.*\.py$|
             ^providers/zendesk/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
