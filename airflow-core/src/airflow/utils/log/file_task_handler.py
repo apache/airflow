@@ -27,7 +27,7 @@ from collections.abc import Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
-from itertools import chain
+from itertools import chain, islice
 from pathlib import Path
 from types import GeneratorType
 from typing import IO, TYPE_CHECKING, Callable, Optional, TypedDict, Union, cast
@@ -386,12 +386,9 @@ def _get_compatible_log_stream(
     :param log_messages: List of legacy log message strings.
     :return: A generator that yields interleaved log lines.
     """
-    log_streams: list[RawLogStream] = [
+    yield from chain.from_iterable(
         _stream_lines_by_chunk(io.StringIO(log_message)) for log_message in log_messages
-    ]
-
-    for log_stream in log_streams:
-        yield from log_stream
+    )
 
 
 class FileTaskHandler(logging.Handler):
@@ -659,8 +656,7 @@ class FileTaskHandler(logging.Handler):
 
             # skip log stream until the last position
             if metadata and "log_pos" in metadata:
-                for _ in range(metadata["log_pos"]):
-                    next(out_stream, None)
+                islice(out_stream, metadata["log_pos"])
             else:
                 # first time reading log, add messages before interleaved log stream
                 out_stream = chain(header, out_stream)
