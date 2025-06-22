@@ -17,16 +17,35 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
+    from airflow.utils.db import DBLocks, create_global_lock
 
-    def _get_api_endpoint() -> dict[str, Any]:
+    @provide_session
+    def _get_api_endpoint(session: Session = NEW_SESSION) -> dict[str, Any]:
+        # Ensure all required DB modeals are created before starting the API
+        with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+            engine = session.get_bind().engine
+            from airflow.providers.edge3.models.edge_job import EdgeJobModel
+            from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
+            from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+
+            EdgeJobModel.metadata.create_all(engine)
+            EdgeLogsModel.metadata.create_all(engine)
+            EdgeWorkerModel.metadata.create_all(engine)
+
+        from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
+
         return {
             "app": create_edge_worker_api_app(),
             "url_prefix": "/edge_worker/v1",
@@ -39,7 +58,6 @@ else:
     import re
     from datetime import datetime, timedelta
     from pathlib import Path
-    from typing import TYPE_CHECKING, Any
 
     from flask import Blueprint, redirect, request, url_for
     from flask_appbuilder import BaseView, expose
@@ -48,13 +66,9 @@ else:
 
     from airflow.auth.managers.models.resource_details import AccessView
     from airflow.models.taskinstance import TaskInstanceState
-    from airflow.utils.session import NEW_SESSION, provide_session
     from airflow.utils.state import State
     from airflow.utils.yaml import safe_load
     from airflow.www.auth import has_access_view
-
-    if TYPE_CHECKING:
-        from sqlalchemy.orm import Session
 
     def _get_airflow_2_api_endpoint() -> Blueprint:
         from airflow.www.app import csrf
@@ -127,6 +141,8 @@ else:
         @has_access_view(AccessView.JOBS)
         @provide_session
         def jobs(self, session: Session = NEW_SESSION):
+            from airflow.providers.edge3.models.edge_job import EdgeJobModel
+
             jobs = session.scalars(select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)).all()
             html_states = {
                 str(state): _state_token(str(state)) for state in TaskInstanceState.__members__.values()
