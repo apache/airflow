@@ -18,18 +18,16 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 from typing import Any
 
 import pytest
 from confluent_kafka import Producer
 
-from airflow.models import Connection
-
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
+
+from tests_common.test_utils.config import conf_vars
 
 log = logging.getLogger(__name__)
 
@@ -52,31 +50,26 @@ def _basic_message_tester(message, test=None) -> Any:
 
 
 @pytest.mark.integration("kafka")
+@conf_vars(
+    {
+        (
+            "connections",
+            "operator.consumer.test.integration.test_1",
+        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_1&enable.auto.commit=False&auto.offset.reset=beginning",
+        (
+            "connections",
+            "operator.consumer.test.integration.test_2",
+        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_2&enable.auto.commit=False&auto.offset.reset=beginning",
+        (
+            "connections",
+            "operator.consumer.test.integration.test_3",
+        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_3&enable.auto.commit=False&auto.offset.reset=beginning",
+    }
+)
 class TestConsumeFromTopic:
     """
     test ConsumeFromTopicOperator
     """
-
-    def setup_method(self):
-        """Set up connections for each test method."""
-        # Create separate connections for each test
-        for num in (1, 2, 3):
-            conn = Connection(
-                conn_id=f"operator.consumer.test.integration.test_{num}",
-                conn_type="kafka",
-                extra=json.dumps(
-                    {
-                        "socket.timeout.ms": 10,
-                        "bootstrap.servers": "broker:29092",
-                        "group.id": f"operator.consumer.test.integration.test_{num}",
-                        "enable.auto.commit": False,
-                        "auto.offset.reset": "beginning",
-                    }
-                ),
-            )
-
-            env_var_name = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
-            os.environ[env_var_name] = conn.get_uri()
 
     def test_consumer_operator_test_1(self):
         """test consumer works with string import"""
