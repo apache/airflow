@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-22T08:04:02.279583
+# This constraints file was automatically generated on 2025-06-22T14:03:34.527582
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -639,7 +639,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 python-http-client==3.3.7
 python-jenkins==1.8.2
-python-keycloak==5.5.1
+python-keycloak==5.6.0
 python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.77.0
