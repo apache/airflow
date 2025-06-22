@@ -153,6 +153,15 @@ class _VaultClient(LoggingMixin):
                 raise VaultError("The 'radius' authentication type requires 'radius_host'")
             if not radius_secret:
                 raise VaultError("The 'radius' authentication type requires 'radius_secret'")
+        if auth_type == "gcp":
+            if not gcp_scopes:
+                raise VaultError("The 'gcp' authentication type requires 'gcp_scopes'")
+            if not role_id:
+                raise VaultError("The 'gcp' authentication type requires 'role_id'")
+            if not gcp_key_path and not gcp_keyfile_dict:
+                raise VaultError(
+                    "The 'gcp' authentication type requires 'gcp_key_path' or 'gcp_keyfile_dict'"
+                )
 
         self.kv_engine_version = kv_engine_version or 2
         self.url = url
@@ -303,13 +312,41 @@ class _VaultClient(LoggingMixin):
         )
 
         scopes = _get_scopes(self.gcp_scopes)
-        credentials, _ = get_credentials_and_project_id(
+        credentials, project_id = get_credentials_and_project_id(
             key_path=self.gcp_key_path, keyfile_dict=self.gcp_keyfile_dict, scopes=scopes
         )
+
+        import json
+        import time
+
+        import googleapiclient
+
+        if self.gcp_keyfile_dict:
+            creds = self.gcp_keyfile_dict
+        elif self.gcp_key_path:
+            with open(self.gcp_key_path) as f:
+                creds = json.load(f)
+
+        service_account = creds["client_email"]
+
+        # Generate a payload for subsequent "signJwt()" call
+        # Reference: https://googleapis.dev/python/google-auth/latest/reference/google.auth.jwt.html#google.auth.jwt.Credentials
+        now = int(time.time())
+        expires = now + 900  # 15 mins in seconds, can't be longer.
+        payload = {"iat": now, "exp": expires, "sub": credentials, "aud": f"vault/{self.role_id}"}
+        body = {"payload": json.dumps(payload)}
+        name = f"projects/{project_id}/serviceAccounts/{service_account}"
+
+        # Perform the GCP API call
+        iam = googleapiclient.discovery.build("iam", "v1", credentials=credentials)
+        request = iam.projects().serviceAccounts().signJwt(name=name, body=body)
+        resp = request.execute()
+        jwt = resp["signedJwt"]
+
         if self.auth_mount_point:
-            _client.auth.gcp.configure(credentials=credentials, mount_point=self.auth_mount_point)
+            _client.auth.gcp.login(role=self.role_id, jwt=jwt, mount_point=self.auth_mount_point)
         else:
-            _client.auth.gcp.configure(credentials=credentials)
+            _client.auth.gcp.login(role=self.role_id, jwt=jwt)
 
     def _auth_azure(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:

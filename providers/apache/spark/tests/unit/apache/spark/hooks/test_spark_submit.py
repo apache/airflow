@@ -28,7 +28,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
-from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -76,8 +75,9 @@ class TestSparkSubmitHook:
                 return_dict[arg1] = arg2
         return return_dict
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="spark_yarn_cluster",
                 conn_type="spark",
@@ -85,7 +85,7 @@ class TestSparkSubmitHook:
                 extra='{"queue": "root.etl", "deploy-mode": "cluster"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_k8s_cluster",
                 conn_type="spark",
@@ -93,7 +93,7 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "cluster", "namespace": "mynamespace"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_k8s_client",
                 conn_type="spark",
@@ -101,11 +101,11 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "client", "namespace": "mynamespace"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(conn_id="spark_default_mesos", conn_type="spark", host="mesos://host", port=5050)
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_binary_set",
                 conn_type="spark",
@@ -113,7 +113,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-binary": "spark2-submit"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_binary_set_spark3_submit",
                 conn_type="spark",
@@ -121,7 +121,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-binary": "spark3-submit"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_custom_binary_set",
                 conn_type="spark",
@@ -129,7 +129,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-binary": "spark-other-submit"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_home_set",
                 conn_type="spark",
@@ -137,7 +137,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-home": "/custom/spark-home/path"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_standalone_cluster",
                 conn_type="spark",
@@ -145,7 +145,7 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "cluster"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_standalone_cluster_client_mode",
                 conn_type="spark",
@@ -153,7 +153,7 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "client"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_principal_set",
                 conn_type="spark",
@@ -161,7 +161,7 @@ class TestSparkSubmitHook:
                 extra='{"principal": "user/spark@airflow.org"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_keytab_set",
                 conn_type="spark",
