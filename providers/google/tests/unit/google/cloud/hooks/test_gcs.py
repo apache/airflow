@@ -596,7 +596,6 @@ class TestGCSHook:
         mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
-    @pytest.mark.db_test
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
         mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
