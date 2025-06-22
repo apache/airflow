@@ -84,7 +84,6 @@ class TestDataflowCreatePipelineOperator:
         )
 
 
-@pytest.mark.db_test
 class TestDataflowRunPipelineOperator:
     @pytest.fixture
     def run_operator(self):

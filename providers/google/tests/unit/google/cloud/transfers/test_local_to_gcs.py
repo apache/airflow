@@ -31,8 +31,6 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
-pytestmark = pytest.mark.db_test
-
 
 class TestFileToGcsOperator:
     _config = {

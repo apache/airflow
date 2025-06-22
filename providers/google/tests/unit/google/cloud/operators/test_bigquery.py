@@ -82,9 +82,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 
-pytestmark = pytest.mark.db_test
-
-
 TASK_ID = "test-bq-generic-operator"
 TEST_DATASET = "test-dataset"
 TEST_DATASET_LOCATION = "EU"
@@ -1820,6 +1817,7 @@ class TestBigQueryInsertJobOperator:
             "Trigger is not a BigQueryInsertJobTrigger"
         )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_async_inherits_hook_project_id_when_non_given(
         self, mock_hook, create_task_instance_of_operator
@@ -2202,6 +2200,7 @@ class TestBigQueryInsertJobOperator:
         op._add_job_labels()
         assert "labels" not in configuration
 
+    @pytest.mark.db_test
     def test_dag_label_too_big(self, dag_maker):
         configuration = {
             "query": {
@@ -2219,6 +2218,7 @@ class TestBigQueryInsertJobOperator:
         op._add_job_labels()
         assert "labels" not in configuration
 
+    @pytest.mark.db_test
     def test_labels_lowercase(self, dag_maker):
         configuration = {
             "query": {
@@ -2237,6 +2237,7 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-dag"] == "yelling_dag_name"
         assert configuration["labels"]["airflow-task"] == "yelling_task_id"
 
+    @pytest.mark.db_test
     def test_labels_starting_with_numbers(self, dag_maker):
         configuration = {
             "query": {
@@ -2255,6 +2256,7 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-dag"] == "123_dag"
         assert configuration["labels"]["airflow-task"] == "123_task"
 
+    @pytest.mark.db_test
     def test_labels_starting_with_underscore(self, dag_maker):
         configuration = {
             "query": {
@@ -2274,6 +2276,7 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-dag"] == "_dag_starting_with_underscore"
         assert configuration["labels"]["airflow-task"] == "_task_starting_with_underscore"
 
+    @pytest.mark.db_test
     def test_labels_starting_with_hyphen(self, dag_maker):
         configuration = {
             "query": {
@@ -2309,6 +2312,7 @@ class TestBigQueryInsertJobOperator:
         op._add_job_labels()
         assert "labels" not in configuration
 
+    @pytest.mark.db_test
     def test_labels_replace_dots_with_hyphens(self, dag_maker):
         configuration = {
             "query": {
@@ -2341,6 +2345,7 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-dag"] == "dag_with_taskgroup"
         assert configuration["labels"]["airflow-task"] == "task_group-task_name"
 
+    @pytest.mark.db_test
     def test_labels_with_task_group_prefix_group_id(self, dag_maker):
         configuration = {
             "query": {
