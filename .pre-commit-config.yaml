@@ -591,6 +591,7 @@ repos:
             ^providers/odbc/.*\.py$|
             ^providers/openai/.*\.py$|
             ^providers/openfaas/.*\.py$|
+            ^providers/oracle/.*\.py$|
             ^providers/pgvector/.*\.py$|
             ^providers/pinecone/.*\.py$|
             ^providers/postgres/.*\.py$|
