@@ -586,6 +586,7 @@ repos:
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
+            ^providers/imap/.*\.py$|
             ^providers/influxdb/.*\.py$|
             ^providers/jenkins/.*\.py$|
             ^providers/mongo/.*\.py$|
