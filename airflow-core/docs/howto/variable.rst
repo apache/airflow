@@ -61,9 +61,19 @@ You can use them in your dags as:
 
     Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
     parameters are stored, where double underscores surround the config section name.
-    Variables set using Environment Variables would not appear in the Airflow UI but you will
-    be able to use them in your DAG file. Variables set using Environment Variables will also
+    Variables set using Environment Variables will also
     take precedence over variables defined in the Airflow UI.
+
+Visibility in UI and CLI
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Variables defined through environment variables are **not displayed** in the Airflow UI or listed using ``airflow variables list``.
+
+This is because these variables are **resolved dynamically at runtime**, typically on the **worker** process executing your task. They are not stored in the metadata database or loaded in the webserver or scheduler environment.
+
+This supports secure deployment patterns where environment-based secrets (e.g. via ``.env`` files, Docker, or Kubernetes secrets) are injected only into runtime components like workers — and not into components exposed to users, like the webserver.
+
+If you want variables to appear in the UI for visibility or editing, define them in the metadata database instead.
 
 Securing Variables
 ------------------
