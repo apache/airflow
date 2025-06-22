@@ -28,10 +28,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.smtp.hooks.smtp import SmtpHook
-from airflow.utils.session import create_session
-
-pytestmark = pytest.mark.db_test
-
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
@@ -317,8 +313,6 @@ class TestSmtpHook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
         assert not mock_smtp.login.called
-        with create_session() as session:
-            session.query(Connection).filter(Connection.id == conn.id).delete()
 
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
