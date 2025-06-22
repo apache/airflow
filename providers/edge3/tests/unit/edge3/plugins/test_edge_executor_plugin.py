@@ -43,6 +43,7 @@ def test_plugin_inactive():
         assert len(rep.appbuilder_views) == 0
 
 
+@pytest.mark.db_test
 def test_plugin_active():
     with conf_vars({("edge", "api_enabled"): "true"}):
         importlib.reload(edge_executor_plugin)
