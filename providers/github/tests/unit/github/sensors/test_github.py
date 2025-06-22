@@ -26,9 +26,6 @@ from airflow.models.dag import DAG
 from airflow.providers.github.sensors.github import GithubTagSensor
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
-
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
