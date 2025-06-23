@@ -153,6 +153,7 @@ config_list: list[_TableConfig] = [
         recency_column_name="created_at",
         dependent_tables=["task_instance_history", "task_reschedule", "xcom", "task_instance", "dag_run"],
     ),
+    _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
