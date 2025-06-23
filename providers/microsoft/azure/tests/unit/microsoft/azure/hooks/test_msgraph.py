@@ -401,7 +401,6 @@ class TestResponseHandler:
     # TODO: Elad: review this after merging the bump 2.10 PR
     # We should not have specific provider test block the release
     @pytest.mark.xfail(reason="TODO: Remove")
-    @pytest.mark.db_test
     def test_when_provider_min_airflow_version_is_2_10_or_higher_remove_obsolete_code(self):
         """
         Once this test starts failing due to the fact that the minimum Airflow version is now 2.10.0 or higher
