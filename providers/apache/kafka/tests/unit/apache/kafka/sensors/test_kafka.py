@@ -26,9 +26,6 @@ from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor, AwaitMessageTriggerFunctionSensor
 
-pytestmark = pytest.mark.db_test
-
-
 log = logging.getLogger(__name__)
 
 
