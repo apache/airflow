@@ -363,8 +363,25 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             realm_name=realm,
         )
 
-    def refresh_token(self, refresh_token: str) -> dict | None:
+    def refresh_token(self, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
         """Refresh the access token for the user."""
+        if self._is_token_expired(user=user) and user.access_token and user.refresh_token:
+            client = self.get_keycloak_client()
+            tokens = client.refresh_token(user.refresh_token)
+            user.access_token = tokens["access_token"]
+            user.refresh_token = tokens["refresh_token"]
+        return user
+
+    def _is_token_expired(self, user: KeycloakAuthManagerUser) -> bool:
+        """Check if the access token is expired."""
+        if not user.access_token:
+            return False
         client = self.get_keycloak_client()
-        tokens = client.refresh_token(refresh_token)
-        return tokens
+        try:
+            result = client.introspect(user.access_token)
+            if not result["active"]:
+                log.warning("Nonono is not active")
+                return True
+        except Exception as e:
+            log.warning("Token introspection failed: %s", e)
+        return False
