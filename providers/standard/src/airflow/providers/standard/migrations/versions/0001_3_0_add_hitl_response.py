@@ -17,16 +17,11 @@
 # under the License.
 
 """
-placeholder migration.
+Add hitl_response table.
 
 Revision ID: 5e7113ca79cc
 Revises:
 Create Date: 2025-06-13 17:06:38.040510
-
-Note: This is a placeholder migration used to stamp the migration
-when we create the migration from the ORM. Otherwise, it will run
-without stamping the migration, leading to subsequent changes to
-the tables not being migrated.
 """
 
 from __future__ import annotations
@@ -47,15 +42,16 @@ standard_provider_verison = "1.3.0"
 
 def upgrade() -> None:
     op.create_table(
-        "interactive_response",
+        "hitl_response",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("user_id", sa.String(length=128), nullable=False),
         sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
         sa.ForeignKeyConstraint(
             ["ti_id"],
             ["task_instance.id"],
-            name="interactive_response_ti_fkey",
+            name="hitl_response_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
@@ -63,4 +59,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("interactive_response")
+    op.drop_table("hitl_response")

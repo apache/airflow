@@ -30,8 +30,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 }
 
 
-class InteractiveProviderDBManager(BaseDBManager):
-    """Manages Interactive database."""
+class HITLProviderDBManager(BaseDBManager):
+    """Manages Human in the loop database."""
 
     metadata = metadata
     version_table_name = "alembic_version_hitl"

@@ -20,10 +20,11 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from airflow.sdk.execution_time.comms import FetchHITLResponse, HITLResponseResult
-from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
 
 def fetch_response_content(ti_id: UUID) -> str | None:
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
     response = SUPERVISOR_COMMS.send(msg=FetchHITLResponse(ti_id=ti_id))
 
     if TYPE_CHECKING:

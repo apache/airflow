@@ -32,7 +32,7 @@ from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     AddHITLResponsePayload,
     HITLResponse,
 )
-from airflow.providers.standard.models import InteractiveResponseModel
+from airflow.providers.standard.models import HITLResponseModel
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 
@@ -69,16 +69,14 @@ def write_response(
             },
         )
 
-    existing_response = session.scalar(
-        select(InteractiveResponseModel).where(InteractiveResponseModel.ti_id == ti_id_str)
-    )
+    existing_response = session.scalar(select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str))
     if existing_response:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"HITL Response exists for task task_instance id {ti_id_str}",
         )
 
-    hitl_response_model = InteractiveResponseModel(
+    hitl_response_model = HITLResponseModel(
         ti_id=ti_id_str,
         content=add_response_payload.content,
         user_id=user.get_id(),

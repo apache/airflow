@@ -27,7 +27,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class HITLTrigger(BaseTrigger):
-    """AIP-90 Tirggerer."""
+    """A trigger that checks whether human responses are received."""
 
     def __init__(
         self,
