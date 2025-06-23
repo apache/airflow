@@ -1141,11 +1141,11 @@ class TriggerRunner:
         """
         Clear the import cache (sys.modules) of the modules found in zip_file.
 
-        This is done so that triggers from different versions of a dag, with
+        This is done so that triggers from different versions of the same dag, with
         different versions of the same library are imported correctly.
 
         If this is not performed then the triggerer process can (will) load
-        the wrong version of the library from the cache.
+        the wrong version of the library from the sys.modules cache.
         """
         with zipfile.ZipFile(zip_file) as zf:
             for zip_info in zf.infolist():
