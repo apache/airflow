@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-22T19:47:36.851342
+# This constraints file was automatically generated on 2025-06-23T19:48:56.939309
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -121,7 +121,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==1.26.20
 uuid6==2025.0.0
-uv==0.7.8
+uv==0.7.13
 uvicorn==0.34.3
 uvloop==0.21.0
 watchfiles==1.1.0

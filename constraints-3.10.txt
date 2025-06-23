@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-22T19:54:19.998339
+# This constraints file was automatically generated on 2025-06-23T19:55:23.839378
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -528,7 +528,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.90.0
+openai==1.91.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -724,7 +724,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.14.1
+sqlalchemy-bigquery==1.15.0
 sqlalchemy-spanner==1.13.1
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
@@ -792,7 +792,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.0
-uv==0.7.13
+uv==0.7.14
 uvicorn==0.34.3
 uvloop==0.21.0
 validators==0.34.0
