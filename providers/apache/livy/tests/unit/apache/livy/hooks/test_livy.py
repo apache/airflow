@@ -91,7 +91,6 @@ class TestLivyDbHook:
             )
         )
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "conn_id, expected",
         [
@@ -752,7 +751,6 @@ class TestLivyAsyncHook:
         create_connection_without_db(Connection(conn_id="missing_host", conn_type="http", port=1234))
         create_connection_without_db(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
 
-    @pytest.mark.db_test
     def test_build_get_hook(self, setup_livy_conn):
         connection_url_mapping = {
             # id, expected
