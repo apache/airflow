@@ -41,6 +41,49 @@ def _no_op(*args, **kwargs) -> Any:
     return args, kwargs
 
 
+def create_mock_kafka_consumer(
+    message_count: int = 1001, message_content: Any = "test_message", track_consumed_messages: bool = False
+) -> tuple[mock.MagicMock, mock.MagicMock, list[int] | None]:
+    """
+    Creates a mock Kafka consumer with configurable behavior.
+
+    :param message_count: Number of messages to generate
+    :param message_content: Content of each message
+    :param track_consumed_messages: Whether to track total consumed messages
+    :return: Tuple of (mock_consumer, mock_get_consumer, total_consumed_messages)
+    """
+    # Initialize messages and tracking variables
+    mocked_messages = [message_content for _ in range(message_count)]
+    total_consumed_count = [0] if track_consumed_messages else None
+
+    # Define the mock consume behavior
+    def mock_consume(num_messages=0, timeout=-1):
+        nonlocal mocked_messages
+        if num_messages < 0:
+            raise Exception("Number of messages needs to be positive")
+
+        msg_count = min(num_messages, len(mocked_messages))
+        returned_messages = mocked_messages[:msg_count]
+        mocked_messages = mocked_messages[msg_count:]
+
+        if track_consumed_messages:
+            total_consumed_count[0] += msg_count
+
+        return returned_messages
+
+    # Create mock objects
+    mock_consumer = mock.MagicMock()
+    mock_consumer.consume = mock_consume
+
+    mock_get_consumer = mock.patch(
+        "airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer",
+        return_value=mock_consumer,
+    )
+
+    #
+    return mock_consumer, mock_get_consumer, total_consumed_count  # type: ignore[return-value]
+
+
 class TestConsumeFromTopic:
     """
     Test ConsumeFromTopic
@@ -91,28 +134,13 @@ class TestConsumeFromTopic:
         ],
     )
     def test_operator_consume(self, max_messages, expected_consumed_messages):
-        total_consumed_messages = 0
-        mocked_messages = ["test_messages" for i in range(1001)]
+        # Create mock consumer with tracking of consumed messages
+        _, mock_get_consumer, consumed_messages = create_mock_kafka_consumer(
+            message_count=1001, message_content="test_messages", track_consumed_messages=True
+        )
 
-        def mock_consume(num_messages=0, timeout=-1):
-            nonlocal mocked_messages
-            nonlocal total_consumed_messages
-            if num_messages < 0:
-                raise Exception("Number of messages needs to be positive")
-            msg_count = min(num_messages, len(mocked_messages))
-            returned_messages = mocked_messages[:msg_count]
-            mocked_messages = mocked_messages[msg_count:]
-            total_consumed_messages += msg_count
-            return returned_messages
-
-        mock_consumer = mock.MagicMock()
-        mock_consumer.consume = mock_consume
-
-        with mock.patch(
-            "airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer"
-        ) as mock_get_consumer:
-            mock_get_consumer.return_value = mock_consumer
-
+        # Use the mock
+        with mock_get_consumer:
             operator = ConsumeFromTopicOperator(
                 kafka_config_id="kafka_d",
                 topics=["test"],
@@ -123,7 +151,7 @@ class TestConsumeFromTopic:
 
             # execute the operator (this is essentially a no op as we're mocking the consumer)
             operator.execute(context={})
-            assert total_consumed_messages == expected_consumed_messages
+            assert consumed_messages[0] == expected_consumed_messages
 
     @pytest.mark.parametrize(
         "commit_cadence",
@@ -212,3 +240,42 @@ class TestConsumeFromTopic:
                 mock_log.warning.assert_called_with(expected_warning_template, commit_cadence)
             else:
                 mock_log.warning.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "commit_cadence, max_messages, expected_commit_calls",
+        [
+            # end_of_operator: should call commit once at the end
+            ("end_of_operator", 1500, 1),
+            # end_of_batch: should call commit after each batch (2 batches for 1500 messages with default batch size 1000)
+            # and a final commit at the end of execute (since commit_cadence is not 'never')
+            ("end_of_batch", 1500, 3),
+            # never: should never call commit
+            ("never", 1500, 0),
+        ],
+    )
+    def test_commit_cadence_behavior(self, commit_cadence, max_messages, expected_commit_calls):
+        # Create mock consumer with 1500 messages (will use 1001 for the first batch)
+        mock_consumer, mock_get_consumer, _ = create_mock_kafka_consumer(
+            message_count=1001,  # Only need to create 1001 messages for the first batch
+        )
+
+        # Use the mocks
+        with mock_get_consumer:
+            # Create and execute the operator
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                max_messages=max_messages,
+                commit_cadence=commit_cadence,
+                apply_function=_no_op,
+            )
+
+            operator.execute(context={})
+
+            # Verify commit was called the expected number of times
+            assert mock_consumer.commit.call_count == expected_commit_calls
+
+            # Verify consumer was closed
+            mock_consumer.close.assert_called_once()
