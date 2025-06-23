@@ -100,7 +100,6 @@ def create_app(apps: str = "all") -> FastAPI:
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
-        init_generic_middlewares(app)
 
     init_config(app)
 
@@ -205,15 +204,3 @@ def init_plugins(app: FastAPI) -> None:
 
         log.debug("Adding root middleware %s", name)
         app.add_middleware(middleware, *args, **kwargs)
-
-
-def init_generic_middlewares(app: FastAPI) -> None:
-    """
-    Initialize middlewares for the FastAPI app.
-
-    This function is called to set up any middlewares that are required for the app.
-    It is typically called after the app has been created and before it starts serving requests.
-    """
-    from airflow.api_fastapi.auth.managers.middleware.refresh_token import RefreshTokenMiddleware
-
-    app.add_middleware(RefreshTokenMiddleware, auth_manager=get_auth_manager())

@@ -45,12 +45,7 @@ Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
-  (response) => {
-    // Clear the refresh token cookie after a successful request because middleware always set the cookie.
-    clearRefreshTokenCookie();
-
-    return response;
-  },
+  (response) => response,
   (error: AxiosError<HTTPExceptionResponse>) => {
     if (
       error.response?.status === 401 ||

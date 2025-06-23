@@ -72,7 +72,6 @@ T = TypeVar("T", bound=BaseUser)
 
 
 COOKIE_NAME_JWT_TOKEN = "_token"
-COOKIE_NAME_REFRESH_JWT_TOKEN = "_refresh_token"
 
 
 class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
@@ -133,12 +132,12 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def refresh_token(self, refresh_token: str) -> dict | None:
+    def refresh_token(self, user: T) -> T | None:
         """
-        Refresh the JWT token.
+        Refresh the JWT token if needed.
 
-        This method is called when the JWT token is about to expire. It should return a new JWT token if the
-        user is still authenticated, or None if the user is not authenticated anymore.
+        This method is called when the JWT token expired. Returns the user if the token were being refreshed, None otherwise.
+        Implementing this method should check whether token needs a refresh before refreshing.
         """
         return None
 

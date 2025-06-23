@@ -46,26 +46,6 @@ describe("TokenFlow Interceptor", () => {
     expect(updatedHeaders).toEqual({ Authorization: `Bearer ${token}` });
     expect(document.cookie).toContain("_token=; expires=");
   });
-
-  // Implement for _refresh_token case where called in `tokenHandler`
-  it("Should read from the cookie, persist to the localStorage and remove from the cookie for _refresh_token", () => {
-    const refreshToken = "test-refresh-token";
-
-    document.cookie = `_refresh_token=${refreshToken};`;
-
-    const setItemMock = vi.spyOn(localStorage, "setItem");
-
-    const headers = {};
-
-    const config = { headers };
-
-    const { headers: updatedHeaders } = tokenHandler(config as InternalAxiosRequestConfig);
-
-    expect(setItemMock).toHaveBeenCalledOnce();
-    expect(setItemMock).toHaveBeenCalledWith(TOKEN_STORAGE_KEY, refreshToken);
-    expect(updatedHeaders).toEqual({ Authorization: `Bearer ${refreshToken}` });
-    expect(document.cookie).toContain("_refresh_token=; expires=");
-  });
 });
 
 afterEach(() => {
