@@ -22,6 +22,7 @@ https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from airflow.decorators import task
@@ -30,7 +31,6 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
-from airflow.utils import db
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
@@ -102,15 +102,20 @@ def delete_dynamodb_table(table_name):
 # is hosted on EMR.  You must set the host name of the connection
 # to match your EMR cluster's hostname.
 @task
-def configure_hive_connection(connection_id, hostname):
-    db.merge_conn(
-        Connection(
-            conn_id=connection_id,
-            conn_type="hiveserver2",
-            host=hostname,
-            port=10000,
-        )
+def configure_hive_connection(connection_id: str, hostname: str):
+    """
+    Setup Hive connection using environment variables instead of database operations.
+    This approach is cleaner and compatible with Airflow 3.
+    """
+    c = Connection(
+        conn_id=connection_id,
+        conn_type="hiveserver2",
+        host=hostname,
+        port=10000,
     )
+
+    envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+    os.environ[envvar] = c.get_uri()
 
 
 with DAG(
