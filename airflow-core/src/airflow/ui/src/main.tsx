@@ -33,7 +33,7 @@ import { getRedirectPath } from "src/utils/links.ts";
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
 import { system } from "./theme";
-import { clearToken, tokenHandler, clearRefreshTokenCookie } from "./utils/tokenHandler";
+import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
