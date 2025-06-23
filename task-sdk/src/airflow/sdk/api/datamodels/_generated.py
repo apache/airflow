@@ -102,6 +102,24 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class CreateHITLInputRequestPayload(BaseModel):
+    """
+    Used in adding the input request part of a Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    default: Annotated[list[str] | None, Field(title="Default")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    form_content: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
+    type: Annotated[Literal["CreateHITLInputRequestPayload"] | None, Field(title="Type")] = (
+        "CreateHITLInputRequestPayload"
+    )
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -152,6 +170,30 @@ class DagRunType(str, Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+
+
+class HITLInputRequestResponse(BaseModel):
+    """
+    Schema for a Human-in-the-loop input request for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    default: Annotated[list[str] | None, Field(title="Default")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    form_content: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
+
+
+class HITLResponseContentDetail(BaseModel):
+    """
+    Response for HITLResponse.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    content: Annotated[str | None, Field(title="Content")] = None
 
 
 class InactiveAssetsResponse(BaseModel):

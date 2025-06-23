@@ -16,19 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from uuid import UUID
+import uuid
+from typing import TYPE_CHECKING
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import HITLResponse
 
-
-class FetchInteractiveResponsePayload(BaseModel):
-    """Schema for fetching an InteractiveResponse for a specific task instance."""
-
-    ti_id: UUID
+if TYPE_CHECKING:
+    from airflow.sdk.api.client import Client
 
 
-class InteractiveResponse(BaseModel):
-    """Response for InteractiveResponse."""
+class HITLOperations:
+    """Operations related to Human in the loop."""
 
-    ti_id: UUID
-    content: str | None
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def get_response(self, ti_id: uuid.UUID) -> HITLResponse:
+        """Get the HITL Response of a specific Task Instance."""
+        resp = self.client.get(f"/hitl/{ti_id}/response")
+        return HITLResponse.model_validate_json(resp.read())

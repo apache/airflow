@@ -14,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from datetime import datetime
-
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class AddInteractiveResponsePayload(BaseModel):
-    """Schema for adding an InteractiveResponse for a specific Task Instance."""
-
-    content: str
-
-
-class InteractiveResponse(BaseModel):
-    """Schema for added InteractiveResponse."""
-
-    ti_id: str
-    content: str
-    created_at: datetime

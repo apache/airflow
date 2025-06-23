@@ -53,10 +53,8 @@ authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"
 
 # TODO: Remove this block once we can make the execution API pluggable.
 with contextlib.suppress(ModuleNotFoundError):
-    from airflow.providers.standard.api_fastapi.execution_api.routes import interactive
+    from airflow.providers.standard.api_fastapi.execution_api.routes import hitl
 
-    authenticated_router.include_router(
-        interactive.router, prefix="/interactive", tags=["InteractiveResponse"]
-    )
+    authenticated_router.include_router(hitl.router, prefix="/hitl", tags=["HITLResponse"])
 
 execution_api_router.include_router(authenticated_router)

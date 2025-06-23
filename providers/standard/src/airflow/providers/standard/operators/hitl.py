@@ -20,15 +20,15 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.triggers.interactive import InteractiveTrigger
+from airflow.providers.standard.triggers.hitl import HITLTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.param import ParamsDict
 
 
-class InteractiveOperator(BaseOperator):
-    """Base class for all following InteractiveOperator which the dedicated operators inherit from."""
+class HITLOperator(BaseOperator):
+    """Base class for all following HITLOperator which the dedicated operators inherit from."""
 
     def __init__(
         self,
@@ -37,8 +37,8 @@ class InteractiveOperator(BaseOperator):
         subject: str,
         python_callable: Callable,
         body: str | None = None,
-        params: ParamsDict | None = None,
         default: str | None = None,
+        params: ParamsDict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -52,7 +52,7 @@ class InteractiveOperator(BaseOperator):
     def execute(self, context: Context):
         ti_id = context["task_instance"].id
         self.defer(
-            trigger=InteractiveTrigger(
+            trigger=HITLTrigger(
                 ti_id=ti_id,
                 options=self.options,
                 default=self.default,
@@ -69,7 +69,7 @@ class InteractiveOperator(BaseOperator):
         return self.python_callable(user_response)
 
 
-class ApprovalOperator(InteractiveOperator):
+class ApprovalOperator(HITLOperator):
     """Convenience operator for approval tasks."""
 
     def __init__(
@@ -100,7 +100,7 @@ class ApprovalOperator(InteractiveOperator):
         return super().execute_complete(context, event)
 
 
-class InteractiveTerminationOperator(InteractiveOperator, SkipMixin):
+class HITLTerminationOperator(HITLOperator, SkipMixin):
     """ShortCirquitOperator to terminate the Dag run by human decision."""
 
     def __init__(
@@ -131,7 +131,7 @@ class InteractiveTerminationOperator(InteractiveOperator, SkipMixin):
         return super().execute_complete(context, event)
 
 
-class InteractiveBranchOperator(InteractiveOperator):
+class HITLBranchOperator(HITLOperator):
     """SkipMixIn to implement a branching functionality based on human selection."""
 
     def __init__(
@@ -165,7 +165,7 @@ class InteractiveBranchOperator(InteractiveOperator):
         return self.python_callable(content)
 
 
-class InteractiveEntryOperator(InteractiveOperator):
+class HITLEntryOperator(HITLOperator):
     """
     User can add further information with all options that a TriggerForm allows (same like Dag params).
 

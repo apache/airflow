@@ -49,7 +49,7 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DRCount,
     ErrorResponse,
-    FetchInteractiveResponse,
+    FetchHITLResponse,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -57,7 +57,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
-    InteractiveResponseResult,
+    HITLResponseResult,
     TaskStatesResult,
     TICount,
     VariableResult,
@@ -221,6 +221,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
+    | HITLResponseResult
     | ErrorResponse,
     Field(discriminator="type"),
 ]
@@ -238,7 +239,8 @@ ToTriggerSupervisor = Annotated[
     | GetTICount
     | GetTaskStates
     | GetDagRunState
-    | GetDRCount,
+    | GetDRCount
+    | FetchHITLResponse,
     Field(discriminator="type"),
 ]
 """
@@ -450,9 +452,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
-        elif isinstance(msg, FetchInteractiveResponse):
-            api_resp = self.client.interactive_responses.get_response(ti_id=msg.ti_id)
-            resp = InteractiveResponseResult.from_api_response(interactive_response=api_resp)
+        elif isinstance(msg, FetchHITLResponse):
+            api_resp = self.client.hitl.get_response(ti_id=msg.ti_id)
+            resp = HITLResponseResult.from_api_response(hitl_response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

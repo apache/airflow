@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 import uuid
@@ -32,7 +33,6 @@ from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
 from airflow.configuration import conf
-from airflow.providers.standard.api_fastapi.execution_api.datamodels.interactive import InteractiveResponse
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -619,18 +619,6 @@ class DagRunOperations:
         return DRCount(count=resp.json())
 
 
-class InteractiveResponseOperations:
-    __slots__ = ("client",)
-
-    def __init__(self, client: Client) -> None:
-        self.client = client
-
-    def get_response(self, ti_id: uuid.UUID) -> InteractiveResponse:
-        """Get the Interactive Response of a specific Task Instance."""
-        resp = self.client.get(f"/interactive/{ti_id}/response")
-        return InteractiveResponse.model_validate_json(resp.read())
-
-
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -764,11 +752,16 @@ class Client(httpx.Client):
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
-    @property
-    def interactive_responses(self) -> InteractiveResponseOperations:
-        """Operations related to Interactive Responses."""
-        return InteractiveResponseOperations(self)
+    # TODO: Remove this block once we can make the execution API pluggable.
+    with contextlib.suppress(ModuleNotFoundError):
+
+        @lru_cache()  # type: ignore[misc]
+        @property
+        def hitl(self):
+            from airflow.providers.standard.api.client import HITLOperations
+
+            """Operations related to HITL Responses."""
+            return HITLOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

@@ -18,23 +18,15 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from typing import Any, TypedDict
+from typing import Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.sdk.execution_time.interactive import fetch_response_content
+from airflow.providers.standard.execution_time.hitl import fetch_response_content
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class _InteractiveResponseTriggerEventPaylod(TypedDict):
-    content: str
-
-
-class _InteractiveMultipleResponseTriggerEventPaylod(TypedDict):
-    content: list[str]
-
-
-class InteractiveTrigger(BaseTrigger):
+class HITLTrigger(BaseTrigger):
     """AIP-90 Tirggerer."""
 
     def __init__(
@@ -47,7 +39,7 @@ class InteractiveTrigger(BaseTrigger):
         poke_interval: float = 5.0,
         **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.ti_id = ti_id
         self.options = options
         self.default = default
@@ -55,9 +47,9 @@ class InteractiveTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize InteractiveTrigger arguments and classpath."""
+        """Serialize HITLTrigger arguments and classpath."""
         return (
-            "airflow.providers.standard.triggers.interactive.InteractiveTrigger",
+            "airflow.providers.standard.triggers.hitl.HITLTrigger",
             {
                 "ti_id": self.ti_id,
                 "options": self.options,

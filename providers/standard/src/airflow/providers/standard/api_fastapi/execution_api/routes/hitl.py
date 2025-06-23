@@ -25,7 +25,7 @@ from structlog.contextvars import bind_contextvars
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.standard.api_fastapi.execution_api.datamodels.interactive import InteractiveResponse
+from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import HITLResponse
 from airflow.providers.standard.models import InteractiveResponseModel
 
 router = APIRouter()
@@ -40,8 +40,8 @@ log = structlog.get_logger(__name__)
 def get_response(
     task_instance_id: UUID,
     session: SessionDep,
-) -> InteractiveResponse:
-    """Fetch InteractiveResponse."""
+) -> HITLResponse:
+    """Fetch HITLResponse."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
 
@@ -56,10 +56,10 @@ def get_response(
             },
         )
 
-    interactive_response = session.scalar(
+    hitl_response = session.scalar(
         select(InteractiveResponseModel).where(InteractiveResponseModel.ti_id == ti_id_str),
     )
-    return InteractiveResponse(
+    return HITLResponse(
         ti_id=task_instance_id,
-        content=interactive_response.content if interactive_response else None,
+        content=hitl_response.content if hitl_response else None,
     )

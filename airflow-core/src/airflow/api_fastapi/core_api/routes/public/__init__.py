@@ -84,11 +84,11 @@ authenticated_router.include_router(dag_parsing_router)
 authenticated_router.include_router(dag_tags_router)
 authenticated_router.include_router(dag_versions_router)
 
-# TODO: use airflow pluging to load it
+# TODO: use airflow plugin to load it
 with contextlib.suppress(ModuleNotFoundError):
-    from airflow.providers.standard.api_fastapi.core_api.routes.interactive import interactive_router
+    from airflow.providers.standard.api_fastapi.core_api.routes.hitl import hitl_router
 
-    authenticated_router.include_router(interactive_router)
+    authenticated_router.include_router(hitl_router)
 
 # Include authenticated router in public router
 public_router.include_router(authenticated_router)
