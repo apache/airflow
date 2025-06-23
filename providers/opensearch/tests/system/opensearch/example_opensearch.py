@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 
 from opensearchpy import Integer, Text
@@ -61,13 +62,13 @@ class LogDocument(Document):
 def load_connections():
     # Connections needed for this example dag to finish
     from airflow.models import Connection
-    from airflow.utils import db
 
-    db.merge_conn(
-        Connection(
-            conn_id="opensearch_test", conn_type="opensearch", host="127.0.0.1", login="test", password="test"
-        )
+    c = Connection(
+        conn_id="opensearch_test", conn_type="opensearch", host="127.0.0.1", login="test", password="test"
     )
+
+    envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+    os.environ[envvar] = c.get_uri()
 
 
 with DAG(
