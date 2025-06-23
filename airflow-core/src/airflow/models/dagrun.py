@@ -1369,17 +1369,11 @@ class DagRun(Base, LoggingMixin):
         context: Context = {  # type: ignore[assignment]
             "dag": dag,
             "run_id": str(self.run_id),
-            "execution_date": self.logical_date,
             "start_date": self.start_date,
             "end_date": self.end_date,
             "data_interval_start": self.data_interval_start,
             "data_interval_end": self.data_interval_end,
             "reason": reason,
-            "run_duration": (
-                (self.end_date - self.start_date).total_seconds()
-                if self.start_date and self.end_date
-                else None
-            ),
         }
 
         # Add task-level metadata if available
@@ -1387,10 +1381,6 @@ class DagRun(Base, LoggingMixin):
             context.update(
                 task_instance=last_relevant_ti,
                 ti=last_relevant_ti,
-                try_number=last_relevant_ti.try_number,
-                max_tries=last_relevant_ti.max_tries,
-                log_url=last_relevant_ti.log_url,
-                mark_success_url=last_relevant_ti.mark_success_url,
             )
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback

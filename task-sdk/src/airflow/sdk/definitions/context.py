@@ -80,9 +80,7 @@ class Context(TypedDict, total=False):
     var: Any
 
     # --- Added for enriched DAG-level callback context ---
-    execution_date: DateTime
     end_date: DateTime
-    run_duration: float | None
     dag_run_url: str
     max_tries: int | None
     log_url: str
