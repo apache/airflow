@@ -89,7 +89,7 @@ def clean_database():
 def create_trigger_in_db(session, trigger, operator=None):
     bundle_name = "test_bundle"
     orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.merge(orm_dag_bundle)
+    session.add(orm_dag_bundle)
     session.flush()
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
@@ -359,7 +359,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
 
     bundle_name = "test_bundle"
     orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.merge(orm_dag_bundle)
+    session.add(orm_dag_bundle)
     session.flush()
 
     dag = DagModel(dag_id="test-dag", bundle_name=bundle_name)

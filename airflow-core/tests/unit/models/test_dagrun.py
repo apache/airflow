@@ -447,7 +447,7 @@ class TestDagRun:
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"
 
-        session.merge(DagBundleModel(name="dags-folder"))
+        session.add(DagBundleModel(name="dags-folder"))
         session.flush()
 
         dag = DAG(
@@ -655,7 +655,7 @@ class TestDagRun:
         ) as dag:
             ...
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
-        session.merge(DagBundleModel(name="dags-folder"))
+        session.add(DagBundleModel(name="dags-folder"))
         session.flush()
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.relative_fileloc = relative_fileloc
@@ -706,7 +706,7 @@ class TestDagRun:
         ) as dag:
             ...
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
-        session.merge(DagBundleModel(name="dags-folder"))
+        session.add(DagBundleModel(name="dags-folder"))
         session.flush()
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.relative_fileloc = relative_fileloc
@@ -1053,7 +1053,7 @@ class TestDagRun:
         dag = DAG(dag_id="test_dags", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
-        session.merge(DagBundleModel(name="dags-folder"))
+        session.add(DagBundleModel(name="dags-folder"))
         session.flush()
 
         orm_dag = DagModel(
@@ -1103,7 +1103,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
-        session.merge(DagBundleModel(name="dags-folder"))
+        session.add(DagBundleModel(name="dags-folder"))
         session.flush()
 
         dag = DAG(dag_id="test_dagrun_stats", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
@@ -1161,7 +1161,7 @@ class TestDagRun:
                         "next_dagrun_create_after": info.run_after,
                     },
                 )
-            session.merge(DagBundleModel(name="dags-folder"))
+            session.add(DagBundleModel(name="dags-folder"))
             session.flush()
             orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)

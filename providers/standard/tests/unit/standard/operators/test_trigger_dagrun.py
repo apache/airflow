@@ -79,7 +79,7 @@ class TestDagRunOperator:
                 from airflow.models.dagbundle import DagBundleModel
 
                 bundle_name = "test_bundle"
-                session.merge(DagBundleModel(name=bundle_name))
+                session.add(DagBundleModel(name=bundle_name))
                 session.flush()
                 session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name=bundle_name, fileloc=self._tmpfile))
             else:

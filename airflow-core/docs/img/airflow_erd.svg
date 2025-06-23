@@ -692,24 +692,24 @@
 <!-- dagrun_asset_event -->
 <g id="node21" class="node">
 <title>dagrun_asset_event</title>
-<polygon fill="none" stroke="black" points="1797,-3666.5 1797,-3694.5 2042,-3694.5 2042,-3666.5 1797,-3666.5"/>
-<text text-anchor="start" x="1830" y="-3677.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dagrun_asset_event</text>
-<polygon fill="none" stroke="black" points="1797,-3641.5 1797,-3666.5 2042,-3666.5 2042,-3641.5 1797,-3641.5"/>
-<text text-anchor="start" x="1802" y="-3651.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_run_id</text>
-<text text-anchor="start" x="1879" y="-3651.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1884" y="-3651.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1961" y="-3651.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1797,-3616.5 1797,-3641.5 2042,-3641.5 2042,-3616.5 1797,-3616.5"/>
-<text text-anchor="start" x="1802" y="-3626.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">event_id</text>
-<text text-anchor="start" x="1861" y="-3626.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1866" y="-3626.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1943" y="-3626.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1797,-3682.5 1797,-3710.5 2042,-3710.5 2042,-3682.5 1797,-3682.5"/>
+<text text-anchor="start" x="1830" y="-3693.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dagrun_asset_event</text>
+<polygon fill="none" stroke="black" points="1797,-3657.5 1797,-3682.5 2042,-3682.5 2042,-3657.5 1797,-3657.5"/>
+<text text-anchor="start" x="1802" y="-3667.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_run_id</text>
+<text text-anchor="start" x="1879" y="-3667.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1884" y="-3667.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1961" y="-3667.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1797,-3632.5 1797,-3657.5 2042,-3657.5 2042,-3632.5 1797,-3632.5"/>
+<text text-anchor="start" x="1802" y="-3642.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">event_id</text>
+<text text-anchor="start" x="1861" y="-3642.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1866" y="-3642.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1943" y="-3642.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- asset_event&#45;&#45;dagrun_asset_event -->
 <g id="edge13" class="edge">
 <title>asset_event&#45;&#45;dagrun_asset_event</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M758.22,-3859.62C803.48,-3874.91 854.37,-3890.26 902,-3900.5 980.86,-3917.45 1001.83,-3919.5 1082.5,-3919.5 1082.5,-3919.5 1082.5,-3919.5 1512,-3919.5 1672.17,-3919.5 1818.78,-3773.31 1883.32,-3698.5"/>
-<text text-anchor="start" x="1852.32" y="-3702.3" font-family="Times,serif" font-size="14.00">0..N</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M758.22,-3859.62C803.48,-3874.91 854.37,-3890.26 902,-3900.5 980.86,-3917.45 1001.83,-3919.5 1082.5,-3919.5 1082.5,-3919.5 1082.5,-3919.5 1512,-3919.5 1667.28,-3919.5 1813.45,-3785.75 1880.15,-3714.7"/>
+<text text-anchor="start" x="1849.15" y="-3718.5" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="758.22" y="-3848.42" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- trigger -->
@@ -1358,30 +1358,30 @@
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
 <g id="edge56" class="edge">
 <title>task_instance&#45;&#45;rendered_task_instance_fields</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2026.75,-1889.69C2045.53,-1805.33 2064.36,-1718.38 2081,-1636.5 2117.68,-1455.98 2051.27,-1381.41 2154,-1228.5 2158.15,-1222.32 2162.82,-1216.44 2167.87,-1210.87"/>
-<text text-anchor="start" x="2136.87" y="-1199.67" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2016.75" y="-1878.49" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2037.63,-1889.63C2053.13,-1823.51 2068.1,-1756.41 2081,-1692.5 2122.32,-1487.87 2039.41,-1403 2154,-1228.5 2158.09,-1222.28 2162.7,-1216.36 2167.71,-1210.76"/>
+<text text-anchor="start" x="2136.71" y="-1199.56" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2027.63" y="-1878.43" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
 <g id="edge57" class="edge">
 <title>task_instance&#45;&#45;rendered_task_instance_fields</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2030.68,-1889.77C2048.14,-1811.24 2065.52,-1730.68 2081,-1654.5 2117.68,-1473.98 2051.27,-1399.41 2154,-1246.5 2158.15,-1240.32 2162.82,-1234.44 2167.87,-1228.86"/>
-<text text-anchor="start" x="2136.87" y="-1217.66" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2030.68" y="-1878.57" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2041.77,-1889.75C2055.79,-1829.55 2069.25,-1768.7 2081,-1710.5 2122.32,-1505.87 2039.41,-1421 2154,-1246.5 2158.09,-1240.28 2162.7,-1234.36 2167.71,-1228.75"/>
+<text text-anchor="start" x="2136.71" y="-1217.55" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2041.77" y="-1878.55" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
 <g id="edge58" class="edge">
 <title>task_instance&#45;&#45;rendered_task_instance_fields</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2034.6,-1889.89C2050.73,-1817.2 2066.68,-1742.97 2081,-1672.5 2117.68,-1491.98 2051.27,-1417.41 2154,-1264.5 2158.15,-1258.32 2162.82,-1252.44 2167.87,-1246.84"/>
-<text text-anchor="start" x="2136.87" y="-1235.64" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2034.6" y="-1878.69" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2045.87,-1889.93C2058.41,-1835.65 2070.4,-1781 2081,-1728.5 2122.32,-1523.87 2039.41,-1439 2154,-1264.5 2158.09,-1258.28 2162.7,-1252.36 2167.71,-1246.74"/>
+<text text-anchor="start" x="2136.71" y="-1235.54" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2045.87" y="-1878.73" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
 <g id="edge59" class="edge">
 <title>task_instance&#45;&#45;rendered_task_instance_fields</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2038.62,-1889.57C2053.37,-1822.88 2067.87,-1755.11 2081,-1690.5 2117.68,-1509.98 2051.27,-1435.41 2154,-1282.5 2162.86,-1269.32 2174.05,-1257.49 2186.4,-1246.8"/>
-<text text-anchor="start" x="2186.4" y="-1250.6" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2028.62" y="-1893.37" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2050.04,-1889.7C2061.06,-1841.5 2071.58,-1793.15 2081,-1746.5 2122.32,-1541.87 2039.41,-1457 2154,-1282.5 2162.72,-1269.22 2173.83,-1257.34 2186.12,-1246.62"/>
+<text text-anchor="start" x="2186.12" y="-1250.42" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2050.04" y="-1878.5" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag_bundle -->
 <g id="node24" class="node">
@@ -1525,42 +1525,98 @@
 <text text-anchor="start" x="302.2" y="-1915.3" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;dag_schedule_asset_alias_reference -->
-<g id="edge20" class="edge">
+<g id="edge19" class="edge">
 <title>dag&#45;&#45;dag_schedule_asset_alias_reference</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M772.44,-2257.14C793.91,-2312.52 813.8,-2370.02 829,-2425.5 891.25,-2652.71 758.89,-2763.37 902,-2950.5 904.38,-2953.61 906.91,-2956.6 909.57,-2959.47"/>
 <text text-anchor="start" x="878.57" y="-2948.27" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="762.44" y="-2260.94" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;dag_schedule_asset_reference -->
-<g id="edge21" class="edge">
+<g id="edge20" class="edge">
 <title>dag&#45;&#45;dag_schedule_asset_reference</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M765.48,-2257.02C787.99,-2312.79 810.03,-2370.44 829,-2425.5 869.07,-2541.81 821.14,-2599.79 902,-2692.5 911.29,-2703.16 922.32,-2712.38 934.27,-2720.36"/>
 <text text-anchor="start" x="903.27" y="-2709.16" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="755.48" y="-2260.82" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;task_outlet_asset_reference -->
-<g id="edge22" class="edge">
+<g id="edge21" class="edge">
 <title>dag&#45;&#45;task_outlet_asset_reference</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M756.45,-2257.39C806.35,-2367 860.64,-2471.72 902,-2513.5 913.92,-2525.54 927.8,-2536.22 942.48,-2545.61"/>
 <text text-anchor="start" x="911.48" y="-2534.41" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="746.45" y="-2261.19" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;task_inlet_asset_reference -->
-<g id="edge23" class="edge">
+<g id="edge22" class="edge">
 <title>dag&#45;&#45;task_inlet_asset_reference</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.14,-2216.87C852.64,-2244.08 877.12,-2270.44 902,-2294.5 919.44,-2311.37 939.23,-2327.75 959.16,-2342.86"/>
 <text text-anchor="start" x="928.16" y="-2331.66" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="829.14" y="-2205.67" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;asset_dag_run_queue -->
-<g id="edge24" class="edge">
+<g id="edge23" class="edge">
 <title>dag&#45;&#45;asset_dag_run_queue</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.18,-2117.36C852.91,-2134.84 877.42,-2151.28 902,-2165.5 908.49,-2169.25 915.23,-2172.85 922.13,-2176.28"/>
 <text text-anchor="start" x="891.13" y="-2165.08" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="829.18" y="-2106.16" font-family="Times,serif" font-size="14.00">1</text>
 </g>
-<!-- dag_version -->
+<!-- dag_schedule_asset_name_reference -->
 <g id="node26" class="node">
+<title>dag_schedule_asset_name_reference</title>
+<polygon fill="none" stroke="black" points="914.5,-1339.5 914.5,-1367.5 1253.5,-1367.5 1253.5,-1339.5 914.5,-1339.5"/>
+<text text-anchor="start" x="919.5" y="-1350.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_schedule_asset_name_reference</text>
+<polygon fill="none" stroke="black" points="914.5,-1314.5 914.5,-1339.5 1253.5,-1339.5 1253.5,-1314.5 914.5,-1314.5"/>
+<text text-anchor="start" x="919.5" y="-1324.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
+<text text-anchor="start" x="965.5" y="-1324.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="970.5" y="-1324.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="1091.5" y="-1324.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="914.5,-1289.5 914.5,-1314.5 1253.5,-1314.5 1253.5,-1289.5 914.5,-1289.5"/>
+<text text-anchor="start" x="919.5" y="-1299.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">name</text>
+<text text-anchor="start" x="959.5" y="-1299.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="964.5" y="-1299.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(1500)]</text>
+<text text-anchor="start" x="1094.5" y="-1299.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="914.5,-1264.5 914.5,-1289.5 1253.5,-1289.5 1253.5,-1264.5 914.5,-1264.5"/>
+<text text-anchor="start" x="919.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
+<text text-anchor="start" x="992.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="997.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1093.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+</g>
+<!-- dag&#45;&#45;dag_schedule_asset_name_reference -->
+<g id="edge17" class="edge">
+<title>dag&#45;&#45;dag_schedule_asset_name_reference</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M718.04,-1595.78C753.92,-1518.73 801.8,-1442.85 865,-1386.5 877.21,-1375.61 891.14,-1366.41 905.91,-1358.65"/>
+<text text-anchor="start" x="874.91" y="-1347.45" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="708.04" y="-1584.58" font-family="Times,serif" font-size="14.00">1</text>
+</g>
+<!-- dag_schedule_asset_uri_reference -->
+<g id="node27" class="node">
+<title>dag_schedule_asset_uri_reference</title>
+<polygon fill="none" stroke="black" points="926.5,-1895.5 926.5,-1923.5 1241.5,-1923.5 1241.5,-1895.5 926.5,-1895.5"/>
+<text text-anchor="start" x="931.5" y="-1906.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_schedule_asset_uri_reference</text>
+<polygon fill="none" stroke="black" points="926.5,-1870.5 926.5,-1895.5 1241.5,-1895.5 1241.5,-1870.5 926.5,-1870.5"/>
+<text text-anchor="start" x="931.5" y="-1880.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
+<text text-anchor="start" x="977.5" y="-1880.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="982.5" y="-1880.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="1103.5" y="-1880.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="926.5,-1845.5 926.5,-1870.5 1241.5,-1870.5 1241.5,-1845.5 926.5,-1845.5"/>
+<text text-anchor="start" x="931.5" y="-1855.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">uri</text>
+<text text-anchor="start" x="950.5" y="-1855.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="955.5" y="-1855.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(1500)]</text>
+<text text-anchor="start" x="1085.5" y="-1855.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="926.5,-1820.5 926.5,-1845.5 1241.5,-1845.5 1241.5,-1820.5 926.5,-1820.5"/>
+<text text-anchor="start" x="931.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
+<text text-anchor="start" x="1004.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1009.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1105.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+</g>
+<!-- dag&#45;&#45;dag_schedule_asset_uri_reference -->
+<g id="edge18" class="edge">
+<title>dag&#45;&#45;dag_schedule_asset_uri_reference</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.26,-1902.07C858.92,-1898.6 889.07,-1895.08 917.73,-1891.74"/>
+<text text-anchor="start" x="886.73" y="-1880.54" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="829.26" y="-1890.87" font-family="Times,serif" font-size="14.00">1</text>
+</g>
+<!-- dag_version -->
+<g id="node28" class="node">
 <title>dag_version</title>
 <polygon fill="none" stroke="black" points="943.5,-2124.5 943.5,-2152.5 1224.5,-2152.5 1224.5,-2124.5 943.5,-2124.5"/>
 <text text-anchor="start" x="1029.5" y="-2135.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_version</text>
@@ -1599,67 +1655,11 @@
 <text text-anchor="start" x="1143.5" y="-1959.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag&#45;&#45;dag_version -->
-<g id="edge17" class="edge">
+<g id="edge24" class="edge">
 <title>dag&#45;&#45;dag_version</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.26,-1983.06C864.9,-1992.69 901.24,-2002.51 934.86,-2011.6"/>
 <text text-anchor="start" x="903.86" y="-2000.4" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="829.26" y="-1971.86" font-family="Times,serif" font-size="14.00">1</text>
-</g>
-<!-- dag_schedule_asset_name_reference -->
-<g id="node27" class="node">
-<title>dag_schedule_asset_name_reference</title>
-<polygon fill="none" stroke="black" points="914.5,-1339.5 914.5,-1367.5 1253.5,-1367.5 1253.5,-1339.5 914.5,-1339.5"/>
-<text text-anchor="start" x="919.5" y="-1350.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_schedule_asset_name_reference</text>
-<polygon fill="none" stroke="black" points="914.5,-1314.5 914.5,-1339.5 1253.5,-1339.5 1253.5,-1314.5 914.5,-1314.5"/>
-<text text-anchor="start" x="919.5" y="-1324.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
-<text text-anchor="start" x="965.5" y="-1324.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="970.5" y="-1324.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="1091.5" y="-1324.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="914.5,-1289.5 914.5,-1314.5 1253.5,-1314.5 1253.5,-1289.5 914.5,-1289.5"/>
-<text text-anchor="start" x="919.5" y="-1299.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">name</text>
-<text text-anchor="start" x="959.5" y="-1299.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="964.5" y="-1299.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(1500)]</text>
-<text text-anchor="start" x="1094.5" y="-1299.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="914.5,-1264.5 914.5,-1289.5 1253.5,-1289.5 1253.5,-1264.5 914.5,-1264.5"/>
-<text text-anchor="start" x="919.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
-<text text-anchor="start" x="992.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="997.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1093.5" y="-1274.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-</g>
-<!-- dag&#45;&#45;dag_schedule_asset_name_reference -->
-<g id="edge18" class="edge">
-<title>dag&#45;&#45;dag_schedule_asset_name_reference</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M718.04,-1595.78C753.92,-1518.73 801.8,-1442.85 865,-1386.5 877.21,-1375.61 891.14,-1366.41 905.91,-1358.65"/>
-<text text-anchor="start" x="874.91" y="-1347.45" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="708.04" y="-1584.58" font-family="Times,serif" font-size="14.00">1</text>
-</g>
-<!-- dag_schedule_asset_uri_reference -->
-<g id="node28" class="node">
-<title>dag_schedule_asset_uri_reference</title>
-<polygon fill="none" stroke="black" points="926.5,-1895.5 926.5,-1923.5 1241.5,-1923.5 1241.5,-1895.5 926.5,-1895.5"/>
-<text text-anchor="start" x="931.5" y="-1906.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_schedule_asset_uri_reference</text>
-<polygon fill="none" stroke="black" points="926.5,-1870.5 926.5,-1895.5 1241.5,-1895.5 1241.5,-1870.5 926.5,-1870.5"/>
-<text text-anchor="start" x="931.5" y="-1880.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
-<text text-anchor="start" x="977.5" y="-1880.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="982.5" y="-1880.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="1103.5" y="-1880.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="926.5,-1845.5 926.5,-1870.5 1241.5,-1870.5 1241.5,-1845.5 926.5,-1845.5"/>
-<text text-anchor="start" x="931.5" y="-1855.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">uri</text>
-<text text-anchor="start" x="950.5" y="-1855.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="955.5" y="-1855.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(1500)]</text>
-<text text-anchor="start" x="1085.5" y="-1855.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="926.5,-1820.5 926.5,-1845.5 1241.5,-1845.5 1241.5,-1820.5 926.5,-1820.5"/>
-<text text-anchor="start" x="931.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
-<text text-anchor="start" x="1004.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1009.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1105.5" y="-1830.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-</g>
-<!-- dag&#45;&#45;dag_schedule_asset_uri_reference -->
-<g id="edge19" class="edge">
-<title>dag&#45;&#45;dag_schedule_asset_uri_reference</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.26,-1902.07C858.92,-1898.6 889.07,-1895.08 917.73,-1891.74"/>
-<text text-anchor="start" x="886.73" y="-1880.54" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="829.26" y="-1890.87" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag_tag -->
 <g id="node29" class="node">
@@ -1748,41 +1748,41 @@
 <!-- deadline -->
 <g id="node32" class="node">
 <title>deadline</title>
-<polygon fill="none" stroke="black" points="1777,-1622.5 1777,-1650.5 2061,-1650.5 2061,-1622.5 1777,-1622.5"/>
-<text text-anchor="start" x="1881" y="-1633.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">deadline</text>
-<polygon fill="none" stroke="black" points="1777,-1597.5 1777,-1622.5 2061,-1622.5 2061,-1597.5 1777,-1597.5"/>
-<text text-anchor="start" x="1782" y="-1607.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="1795" y="-1607.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1800" y="-1607.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1852" y="-1607.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1777,-1572.5 1777,-1597.5 2061,-1597.5 2061,-1572.5 1777,-1572.5"/>
-<text text-anchor="start" x="1782" y="-1582.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback</text>
-<text text-anchor="start" x="1839" y="-1582.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1844" y="-1582.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(500)]</text>
-<text text-anchor="start" x="1965" y="-1582.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1777,-1547.5 1777,-1572.5 2061,-1572.5 2061,-1547.5 1777,-1547.5"/>
-<text text-anchor="start" x="1782" y="-1557.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback_kwargs</text>
-<text text-anchor="start" x="1895" y="-1557.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1900" y="-1557.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="1777,-1522.5 1777,-1547.5 2061,-1547.5 2061,-1522.5 1777,-1522.5"/>
-<text text-anchor="start" x="1782" y="-1532.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
-<text text-anchor="start" x="1828" y="-1532.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1833" y="-1532.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<polygon fill="none" stroke="black" points="1777,-1497.5 1777,-1522.5 2061,-1522.5 2061,-1497.5 1777,-1497.5"/>
-<text text-anchor="start" x="1782" y="-1507.3" font-family="Helvetica,sans-Serif" font-size="14.00">dagrun_id</text>
-<text text-anchor="start" x="1852" y="-1507.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1857" y="-1507.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<polygon fill="none" stroke="black" points="1777,-1472.5 1777,-1497.5 2061,-1497.5 2061,-1472.5 1777,-1472.5"/>
-<text text-anchor="start" x="1782" y="-1482.3" font-family="Helvetica,sans-Serif" font-size="14.00">deadline_time</text>
-<text text-anchor="start" x="1879" y="-1482.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1884" y="-1482.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1980" y="-1482.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1777,-1678.5 1777,-1706.5 2061,-1706.5 2061,-1678.5 1777,-1678.5"/>
+<text text-anchor="start" x="1881" y="-1689.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">deadline</text>
+<polygon fill="none" stroke="black" points="1777,-1653.5 1777,-1678.5 2061,-1678.5 2061,-1653.5 1777,-1653.5"/>
+<text text-anchor="start" x="1782" y="-1663.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="1795" y="-1663.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1800" y="-1663.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1852" y="-1663.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1777,-1628.5 1777,-1653.5 2061,-1653.5 2061,-1628.5 1777,-1628.5"/>
+<text text-anchor="start" x="1782" y="-1638.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback</text>
+<text text-anchor="start" x="1839" y="-1638.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1844" y="-1638.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(500)]</text>
+<text text-anchor="start" x="1965" y="-1638.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1777,-1603.5 1777,-1628.5 2061,-1628.5 2061,-1603.5 1777,-1603.5"/>
+<text text-anchor="start" x="1782" y="-1613.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback_kwargs</text>
+<text text-anchor="start" x="1895" y="-1613.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1900" y="-1613.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="1777,-1578.5 1777,-1603.5 2061,-1603.5 2061,-1578.5 1777,-1578.5"/>
+<text text-anchor="start" x="1782" y="-1588.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
+<text text-anchor="start" x="1828" y="-1588.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1833" y="-1588.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<polygon fill="none" stroke="black" points="1777,-1553.5 1777,-1578.5 2061,-1578.5 2061,-1553.5 1777,-1553.5"/>
+<text text-anchor="start" x="1782" y="-1563.3" font-family="Helvetica,sans-Serif" font-size="14.00">dagrun_id</text>
+<text text-anchor="start" x="1852" y="-1563.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1857" y="-1563.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<polygon fill="none" stroke="black" points="1777,-1528.5 1777,-1553.5 2061,-1553.5 2061,-1528.5 1777,-1528.5"/>
+<text text-anchor="start" x="1782" y="-1538.3" font-family="Helvetica,sans-Serif" font-size="14.00">deadline_time</text>
+<text text-anchor="start" x="1879" y="-1538.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1884" y="-1538.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1980" y="-1538.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag&#45;&#45;deadline -->
 <g id="edge28" class="edge">
 <title>dag&#45;&#45;deadline</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M743.78,-1595.83C784.18,-1527.42 836.15,-1463.03 902,-1419.5 969.29,-1375.02 1001.83,-1400.5 1082.5,-1400.5 1082.5,-1400.5 1082.5,-1400.5 1512,-1400.5 1601.29,-1400.5 1694.33,-1434.56 1768.79,-1471.35"/>
-<text text-anchor="start" x="1737.79" y="-1460.15" font-family="Times,serif" font-size="14.00">0..N</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M743.78,-1595.83C784.18,-1527.42 836.15,-1463.03 902,-1419.5 969.29,-1375.02 1001.83,-1400.5 1082.5,-1400.5 1082.5,-1400.5 1082.5,-1400.5 1512,-1400.5 1623.89,-1400.5 1734.82,-1465.4 1812.38,-1524.21"/>
+<text text-anchor="start" x="1781.38" y="-1513.01" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="743.78" y="-1584.63" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- dag_version&#45;&#45;task_instance -->
@@ -2019,9 +2019,9 @@
 <!-- dag_run&#45;&#45;dagrun_asset_event -->
 <g id="edge34" class="edge">
 <title>dag_run&#45;&#45;dagrun_asset_event</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1667.23,-3237.34C1751.4,-3377.7 1847.19,-3537.42 1892.14,-3612.37"/>
-<text text-anchor="start" x="1861.14" y="-3601.17" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="1667.23" y="-3226.14" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1667.23,-3243.46C1751.74,-3387.7 1847.95,-3551.93 1892.67,-3628.27"/>
+<text text-anchor="start" x="1861.67" y="-3617.07" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1667.23" y="-3232.26" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag_run&#45;&#45;task_instance -->
 <g id="edge35" class="edge">
@@ -2040,50 +2040,50 @@
 <!-- dag_run&#45;&#45;deadline -->
 <g id="edge39" class="edge">
 <title>dag_run&#45;&#45;deadline</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1583.73,-2647.69C1651.21,-2337.98 1743.83,-1917.32 1757,-1880.5 1785.25,-1801.5 1828.59,-1716.93 1863.19,-1654.73"/>
-<text text-anchor="start" x="1832.19" y="-1658.53" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="1542.73" y="-2636.49" font-family="Times,serif" font-size="14.00">{0,1}</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1583.03,-2647.81C1650.02,-2337.88 1742.33,-1916.77 1757,-1880.5 1781.14,-1820.82 1818.13,-1759.18 1850.56,-1710.59"/>
+<text text-anchor="start" x="1819.56" y="-1714.39" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1542.03" y="-2636.61" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- backfill_dag_run -->
 <g id="node37" class="node">
 <title>backfill_dag_run</title>
-<polygon fill="none" stroke="black" points="1785,-3298.5 1785,-3326.5 2054,-3326.5 2054,-3298.5 1785,-3298.5"/>
-<text text-anchor="start" x="1847" y="-3309.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">backfill_dag_run</text>
-<polygon fill="none" stroke="black" points="1785,-3273.5 1785,-3298.5 2054,-3298.5 2054,-3273.5 1785,-3273.5"/>
-<text text-anchor="start" x="1790" y="-3283.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="1803" y="-3283.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1808" y="-3283.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1885" y="-3283.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1785,-3248.5 1785,-3273.5 2054,-3273.5 2054,-3248.5 1785,-3248.5"/>
-<text text-anchor="start" x="1790" y="-3258.3" font-family="Helvetica,sans-Serif" font-size="14.00">backfill_id</text>
-<text text-anchor="start" x="1860" y="-3258.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1865" y="-3258.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1942" y="-3258.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1785,-3223.5 1785,-3248.5 2054,-3248.5 2054,-3223.5 1785,-3223.5"/>
-<text text-anchor="start" x="1790" y="-3233.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_run_id</text>
-<text text-anchor="start" x="1867" y="-3233.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1872" y="-3233.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<polygon fill="none" stroke="black" points="1785,-3198.5 1785,-3223.5 2054,-3223.5 2054,-3198.5 1785,-3198.5"/>
-<text text-anchor="start" x="1790" y="-3208.3" font-family="Helvetica,sans-Serif" font-size="14.00">exception_reason</text>
-<text text-anchor="start" x="1911" y="-3208.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1916" y="-3208.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<polygon fill="none" stroke="black" points="1785,-3173.5 1785,-3198.5 2054,-3198.5 2054,-3173.5 1785,-3173.5"/>
-<text text-anchor="start" x="1790" y="-3183.3" font-family="Helvetica,sans-Serif" font-size="14.00">logical_date</text>
-<text text-anchor="start" x="1872" y="-3183.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1877" y="-3183.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1973" y="-3183.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1785,-3148.5 1785,-3173.5 2054,-3173.5 2054,-3148.5 1785,-3148.5"/>
-<text text-anchor="start" x="1790" y="-3158.3" font-family="Helvetica,sans-Serif" font-size="14.00">sort_ordinal</text>
-<text text-anchor="start" x="1872" y="-3158.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1877" y="-3158.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1954" y="-3158.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1785,-3329.5 1785,-3357.5 2054,-3357.5 2054,-3329.5 1785,-3329.5"/>
+<text text-anchor="start" x="1847" y="-3340.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">backfill_dag_run</text>
+<polygon fill="none" stroke="black" points="1785,-3304.5 1785,-3329.5 2054,-3329.5 2054,-3304.5 1785,-3304.5"/>
+<text text-anchor="start" x="1790" y="-3314.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="1803" y="-3314.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1808" y="-3314.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1885" y="-3314.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1785,-3279.5 1785,-3304.5 2054,-3304.5 2054,-3279.5 1785,-3279.5"/>
+<text text-anchor="start" x="1790" y="-3289.3" font-family="Helvetica,sans-Serif" font-size="14.00">backfill_id</text>
+<text text-anchor="start" x="1860" y="-3289.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1865" y="-3289.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1942" y="-3289.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1785,-3254.5 1785,-3279.5 2054,-3279.5 2054,-3254.5 1785,-3254.5"/>
+<text text-anchor="start" x="1790" y="-3264.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_run_id</text>
+<text text-anchor="start" x="1867" y="-3264.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1872" y="-3264.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<polygon fill="none" stroke="black" points="1785,-3229.5 1785,-3254.5 2054,-3254.5 2054,-3229.5 1785,-3229.5"/>
+<text text-anchor="start" x="1790" y="-3239.3" font-family="Helvetica,sans-Serif" font-size="14.00">exception_reason</text>
+<text text-anchor="start" x="1911" y="-3239.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1916" y="-3239.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<polygon fill="none" stroke="black" points="1785,-3204.5 1785,-3229.5 2054,-3229.5 2054,-3204.5 1785,-3204.5"/>
+<text text-anchor="start" x="1790" y="-3214.3" font-family="Helvetica,sans-Serif" font-size="14.00">logical_date</text>
+<text text-anchor="start" x="1872" y="-3214.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1877" y="-3214.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1973" y="-3214.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1785,-3179.5 1785,-3204.5 2054,-3204.5 2054,-3179.5 1785,-3179.5"/>
+<text text-anchor="start" x="1790" y="-3189.3" font-family="Helvetica,sans-Serif" font-size="14.00">sort_ordinal</text>
+<text text-anchor="start" x="1872" y="-3189.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1877" y="-3189.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1954" y="-3189.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag_run&#45;&#45;backfill_dag_run -->
 <g id="edge37" class="edge">
 <title>dag_run&#45;&#45;backfill_dag_run</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1667.23,-3077.53C1703.05,-3100.37 1740.97,-3124.57 1776.18,-3147.03"/>
-<text text-anchor="start" x="1745.18" y="-3135.83" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="1667.23" y="-3066.33" font-family="Times,serif" font-size="14.00">{0,1}</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1667.23,-3089.38C1706.96,-3117.76 1749.29,-3147.99 1787.63,-3175.38"/>
+<text text-anchor="start" x="1756.63" y="-3164.18" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1667.23" y="-3078.18" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- dag_run_note -->
 <g id="node38" class="node">
@@ -2223,9 +2223,9 @@
 <!-- backfill&#45;&#45;backfill_dag_run -->
 <g id="edge41" class="edge">
 <title>backfill&#45;&#45;backfill_dag_run</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1265.18,-3433.29C1384.68,-3403.14 1544.45,-3361.09 1684,-3318.5 1714.02,-3309.34 1745.94,-3298.82 1776.25,-3288.45"/>
-<text text-anchor="start" x="1745.25" y="-3277.25" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="1265.18" y="-3422.09" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1265.1,-3432.21C1418.41,-3393.77 1635.37,-3339.37 1776.38,-3304.01"/>
+<text text-anchor="start" x="1745.38" y="-3292.81" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1265.1" y="-3421.01" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- alembic_version -->
 <g id="node46" class="node">

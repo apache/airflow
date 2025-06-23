@@ -1231,7 +1231,7 @@ class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         bundle_name = "test_bundle"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
+        session.add(orm_dag_bundle)
         session.flush()
 
         inactive_dag = DagModel(

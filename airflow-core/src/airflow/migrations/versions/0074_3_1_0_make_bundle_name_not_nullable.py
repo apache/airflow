@@ -97,10 +97,17 @@ def downgrade():
         existing_type_kwargs = {}
         if op.get_bind().dialect.name == "mysql":
             existing_type_kwargs["collation"] = "utf8mb3_bin"
-
         batch_op.alter_column(
             "bundle_name", nullable=True, existing_type=sa.String(length=250, **existing_type_kwargs)
         )
+        if op.get_bind().dialect.name == "mysql":
+            # Ensures the collation and charset are the same before creating the foreign key
+            op.execute(
+                "ALTER TABLE dag_bundle MODIFY name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
+            )
+            op.execute(
+                "ALTER TABLE dag MODIFY bundle_name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
+            )
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )

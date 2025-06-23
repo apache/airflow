@@ -132,7 +132,7 @@ def create_context(task, persist_to_db=False, map_index=None):
                 from airflow.models.dagbundle import DagBundleModel
 
                 bundle_name = "test_bundle"
-                session.merge(DagBundleModel(name=bundle_name))
+                session.add(DagBundleModel(name=bundle_name))
                 session.flush()
                 session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
             else:
