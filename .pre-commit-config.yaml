@@ -580,6 +580,7 @@ repos:
         files: >
             (?x)
             ^providers/airbyte/.*\.py$|
+            ^providers/apache/iceberg/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/datadog/.*\.py$|
