@@ -28,8 +28,6 @@ from airflow.providers.samba.hooks.samba import SambaHook
 
 PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
-pytestmark = pytest.mark.db_test
-
 
 class TestSambaHook:
     @pytest.mark.db_test
