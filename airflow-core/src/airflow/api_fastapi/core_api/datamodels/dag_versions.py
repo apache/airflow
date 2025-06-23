@@ -44,7 +44,7 @@ class DagVersionResponse(BaseModel):
             try:
                 return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
             except ValueError:
-                return "No link since this bundle is no longer configured"
+                return None
         return None
 
 

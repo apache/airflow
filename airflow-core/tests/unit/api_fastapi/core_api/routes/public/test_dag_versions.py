@@ -118,7 +118,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         assert response.status_code == 200
 
         response_data = response.json()
-        assert response_data["bundle_url"] == "No link since this bundle is no longer configured"
+        assert not response_data["bundle_url"]
 
     def test_get_dag_version_404(self, test_client):
         response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/99")
