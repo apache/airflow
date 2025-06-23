@@ -991,6 +991,14 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 id="test null states with no filter",
             ),
             pytest.param(
+                [{"start_date": None, "end_date": None}],
+                True,
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
+                {"start_date_gte": DEFAULT_DATETIME_STR_1},
+                1,
+                id="test start_date coalesce with null",
+            ),
+            pytest.param(
                 [
                     {"pool": "test_pool_1"},
                     {"pool": "test_pool_2"},
