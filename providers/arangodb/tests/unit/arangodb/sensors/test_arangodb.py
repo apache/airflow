@@ -27,7 +27,6 @@ from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 from airflow.utils import timezone
 
 # The tests do not create dag runs, so db isolation tests are skipped
-pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
