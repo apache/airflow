@@ -60,11 +60,8 @@ dependencies = [
     "apache-airflow>=2.10.0",
     "httpx>=0.25.0",
     "weaviate-client>=4.4.0",
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=2.1.2,<2.2",
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
 ]
 
 [dependency-groups]

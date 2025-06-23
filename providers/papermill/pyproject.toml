@@ -61,7 +61,8 @@ dependencies = [
     "papermill[all]>=2.6.0",
     "scrapbook[all]>=0.5.0",
     "ipykernel>=6.29.4",
-    "pandas>=2.1.2,<2.2",
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
     "nbconvert>=7.16.1",
 ]
 
