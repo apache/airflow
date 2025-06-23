@@ -537,6 +537,16 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: prevent-deprecated-sqlalchemy-usage
+        name: Prevent deprecated sqlalchemy usage
+        entry: ./scripts/ci/pre_commit/prevent_deprecated_sqlalchemy_usage.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: >
+            (?x)
+            ^airflow-ctl.*\.py$|
+            ^task_sdk.*\.py$
+        pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/supported_versions.py
