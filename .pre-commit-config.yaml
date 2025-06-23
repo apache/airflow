@@ -585,6 +585,7 @@ repos:
             ^providers/datadog/.*\.py$|
             ^providers/dingding/.*\.py$|
             ^providers/discord/.*\.py$|
+            ^providers/exasol/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
