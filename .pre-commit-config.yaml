@@ -587,6 +587,7 @@ repos:
             ^providers/discord/.*\.py$|
             ^providers/exasol/.*\.py$|
             ^providers/facebook/.*\.py$|
+            ^providers/ftp/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
             ^providers/imap/.*\.py$|
