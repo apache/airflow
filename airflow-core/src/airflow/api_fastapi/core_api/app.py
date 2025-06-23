@@ -181,3 +181,8 @@ def init_middlewares(app: FastAPI) -> None:
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
+
+    from airflow.api_fastapi.app import get_auth_manager
+    from airflow.api_fastapi.auth.managers.middleware.refresh_token import RefreshTokenMiddleware
+
+    app.add_middleware(RefreshTokenMiddleware, auth_manager=get_auth_manager())
