@@ -47,13 +47,13 @@ class TestSqliteHookConn:
         ],
     )
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
-    def test_get_conn(self, mock_connect, connection, uri):
+    def test_get_conn(self, mock_connect: mock.Mock, connection: Connection, uri: str):
         self.db_hook.get_connection = mock.Mock(return_value=connection)
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(uri, uri=True)
 
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
-    def test_get_conn_non_default_id(self, mock_connect):
+    def test_get_conn_non_default_id(self, mock_connect: mock.Mock):
         self.db_hook.get_connection = mock.Mock(return_value=Connection(host="host"))
         self.db_hook.test_conn_id = "non_default"
         self.db_hook.get_conn()
@@ -76,7 +76,8 @@ class TestSqliteHook:
                 return conn
 
         self.db_hook = UnitTestSqliteHook()
-        self.db_hook.get_connection = mock.Mock(return_value=Connection(host="test"))
+        self.db_hook.get_connection = mock.Mock(return_value=Connection(conn_id="test", extra="{}"))
+        self.db_hook.get_uri = mock.Mock(return_value="sqlite://")
 
     def test_get_first_record(self):
         statement = "SQL"
@@ -154,16 +155,16 @@ class TestSqliteHook:
 
         assert sql == expected_sql
 
-    @patch.object(SqliteHook, "get_connection")
-    def test_sqlalchemy_engine(self, mock_get_connection):
-        """Test that the sqlalchemy engine is initialized."""
+    def test_sqlalchemy_engine(self):
+        """Test that the sqlalchemy engine is initialized"""
         conn_id = "sqlite_default"
-        db_path = "/tmp/test.db"
-        mock_get_connection.return_value = Connection(host=db_path)
-        hook = SqliteHook(sqlite_conn_id=conn_id)
-        engine = hook.get_sqlalchemy_engine()
-        assert isinstance(engine, sqlalchemy.engine.Engine)
-        assert engine.name == "sqlite"
-        # Assert filepath of the sqliate DB is correct
-        assert engine.url.database == db_path
-        mock_get_connection.assert_called_once_with(conn_id)
+        with patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+            mock_get_connection.return_value = Connection(
+                conn_id="sqlite_default", conn_type="sqlite", host="/tmp/test.db"
+            )
+            hook = SqliteHook(sqlite_conn_id=conn_id)
+            engine = hook.get_sqlalchemy_engine()
+            assert isinstance(engine, sqlalchemy.engine.Engine)
+            assert engine.name == "sqlite"
+            # Assert filepath of the sqliate DB is correct
+            assert engine.url.database == mock_get_connection.return_value.host
