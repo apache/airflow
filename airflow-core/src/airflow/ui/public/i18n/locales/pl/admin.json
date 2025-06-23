@@ -40,7 +40,10 @@
       "standardFields": "Standardowe pola"
     },
     "nothingFound": {
-        "title": "Nie znaleziono połączeń!"
+      "description": "Połączenia zdefiniowane za pomocą zmiennych środowiskowych lub menedżerów sekretów nie są tutaj wyświetlane.",
+      "documentationLink": "Dowiedz się więcej w dokumentacji Airflow.",
+      "learnMore": "Są one rozwiązywane w czasie wykonywania i nie są widoczne w interfejsie użytkownika.",
+      "title": "Nie znaleziono połączeń!"
     },
     "searchPlaceholder": "Szukaj połączeń",
     "test": "Test połączenia",
