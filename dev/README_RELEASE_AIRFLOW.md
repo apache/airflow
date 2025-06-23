@@ -75,7 +75,7 @@ The first step of a release is to work out what is being included. This differs 
 
 ## Validating completeness of i18n locale files
 
-At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/src/i18n/README.md) for doing so.
+At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md) for doing so.
 If there are any incomplete locales, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion of the translation by a due date of your choice
 before cutting the release candidate (RC).
 The reminder should be sent via dev@airflow.apache.org mailing list, preferably with an accompanying GitHub issue for tracking purposes.
@@ -663,7 +663,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
