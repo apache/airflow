@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { InfiniteData, useInfiniteQuery, UseInfiniteQueryOptions } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery, type UseInfiniteQueryOptions } from "@tanstack/react-query";
 
+import { UseDagServiceGetDagTagsKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import { DAGTagCollectionResponse } from "openapi/requests/types.gen";
+import type { DAGTagCollectionResponse } from "openapi/requests/types.gen";
 
-import * as Common from "./common";
-
-export const useDagTagsInfinite = <TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(
+export const useDagTagsInfinite = <TError = unknown>(
   {
     limit,
     orderBy,
@@ -33,26 +32,26 @@ export const useDagTagsInfinite = <TError = unknown, TQueryKey extends Array<unk
     orderBy?: string;
     tagNamePattern?: string;
   } = {},
-  queryKey?: TQueryKey,
+  queryKey?: Array<unknown>,
   options?: Omit<
     UseInfiniteQueryOptions<
       DAGTagCollectionResponse,
       TError,
       InfiniteData<DAGTagCollectionResponse>,
       DAGTagCollectionResponse,
-      unknown[],
+      Array<unknown>,
       number
     >,
-    "queryKey" | "queryFn"
+    "queryFn" | "queryKey"
   >,
 ) =>
   useInfiniteQuery({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, orderBy, tagNamePattern }, queryKey),
-    queryFn: ({ pageParam }) => DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePattern }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, _allPages, lastPageParam, _allPageParams) =>
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
       lastPageParam < lastPage.total_entries ? lastPage.tags.length + lastPageParam : undefined,
-    getPreviousPageParam: (firstPage, _allPages, firstPageParam, _allPageParams) =>
+    getPreviousPageParam: (firstPage, _allPages, firstPageParam) =>
       firstPageParam > 0 ? -firstPage.tags.length + firstPageParam : undefined,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePattern }),
+    queryKey: UseDagServiceGetDagTagsKeyFn({ limit, orderBy, tagNamePattern }, queryKey),
     ...options,
   });
