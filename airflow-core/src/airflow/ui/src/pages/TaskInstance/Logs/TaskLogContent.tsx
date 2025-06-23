@@ -25,6 +25,7 @@ import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar, Tooltip } from "src/components/ui";
+import { getMetaKey } from "src/utils";
 
 type Props = {
   readonly error: unknown;
@@ -48,7 +49,7 @@ const ScrollToButton = ({
       closeDelay={100}
       content={translate("scroll.tooltip", {
         direction: translate(`scroll.direction.${direction}`),
-        hotkey: direction === "bottom" ? "↓" : "↑",
+        hotkey: `${getMetaKey()}+${direction === "bottom" ? "↓" : "↑"}`,
       })}
       openDelay={100}
     >
