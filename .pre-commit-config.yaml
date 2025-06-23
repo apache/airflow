@@ -592,6 +592,7 @@ repos:
             ^providers/hashicorp/.*\.py$|
             ^providers/imap/.*\.py$|
             ^providers/influxdb/.*\.py$|
+            ^providers/jdbc/.*\.py$|
             ^providers/jenkins/.*\.py$|
             ^providers/mongo/.*\.py$|
             ^providers/neo4j/.*\.py$|
