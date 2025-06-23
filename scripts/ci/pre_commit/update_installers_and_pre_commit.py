@@ -50,6 +50,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
 ]
 
@@ -100,7 +101,7 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to "
+            r"(\")([0-9.]+)(\"  # Keep this comment to "
             r"allow automatic replacement of uv version)"
         ),
         Quoting.UNQUOTED,
@@ -123,7 +124,7 @@ PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit version)"
         ),
         Quoting.UNQUOTED,
@@ -142,7 +143,7 @@ PRE_COMMIT_UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit-uv version)"
         ),
         Quoting.UNQUOTED,

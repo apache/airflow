@@ -24,13 +24,16 @@ inputs:
     default: "3.9"
   uv-version:
     description: 'uv version to use'
-    default: "0.7.8"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.7.13"  # Keep this comment to allow automatic replacement of uv version
   pre-commit-version:
     description: 'pre-commit version to use'
     default: "4.2.0"  # Keep this comment to allow automatic replacement of pre-commit version
   pre-commit-uv-version:
     description: 'pre-commit-uv version to use'
     default: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
+  skip-pre-commits:
+    description: "Skip some pre-commits from installation"
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -40,6 +43,7 @@ runs:
         UV_VERSION: ${{inputs.uv-version}}
         PRE_COMMIT_VERSION: ${{inputs.pre-commit-version}}
         PRE_COMMIT_UV_VERSION: ${{inputs.pre-commit-uv-version}}
+        SKIP: ${{ inputs.skip-pre-commits }}
       run: |
         pip install uv==${UV_VERSION} || true
         uv tool install pre-commit==${PRE_COMMIT_VERSION} --with uv==${UV_VERSION} \
@@ -86,3 +90,5 @@ runs:
       shell: bash
       run: pre-commit install-hooks || (cat ~/.cache/pre-commit/pre-commit.log && exit 1)
       working-directory: ${{ github.workspace }}
+      env:
+        SKIP: ${{ inputs.skip-pre-commits }}
