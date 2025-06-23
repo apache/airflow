@@ -39,7 +39,9 @@
       "selectConnectionType": "Wybierz typ połączenia",
       "standardFields": "Standardowe pola"
     },
-    "noRowMessage": "Nie znaleziono połączeń",
+    "nothingFound": {
+        "title": "Nie znaleziono połączeń!"
+    },
     "searchPlaceholder": "Szukaj połączeń",
     "test": "Test połączenia",
     "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć.",

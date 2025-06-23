@@ -65,7 +65,8 @@ dependencies = [
     "databricks-sqlalchemy>=1.0.2",
     "aiohttp>=3.9.2, <4",
     "mergedeep>=1.3.4",
-    "pandas>=2.1.2,<2.2",
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
     "pyarrow>=14.0.1",
 ]
 
