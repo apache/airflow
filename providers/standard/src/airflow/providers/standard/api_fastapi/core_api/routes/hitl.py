@@ -26,19 +26,20 @@ from structlog.contextvars import bind_contextvars
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.standard.api_fastapi.core_api.datamodels.interactive import (
-    AddInteractiveResponsePayload,
-    InteractiveResponse,
+from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
+    AddHITLResponsePayload,
+    HITLResponse,
 )
 from airflow.providers.standard.models import InteractiveResponseModel
 
-interactive_router = AirflowRouter(tags=["InteractiveResponse"], prefix="/interactive")
+hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 
 log = structlog.get_logger(__name__)
 
 
-@interactive_router.post(
+@hitl_router.post(
     "/{task_instance_id}/response",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
@@ -50,10 +51,11 @@ log = structlog.get_logger(__name__)
 )
 def write_response(
     task_instance_id: UUID,
-    add_response_payload: AddInteractiveResponsePayload,
+    add_response_payload: AddHITLResponsePayload,
+    user: GetUserDep,
     session: SessionDep,
-) -> InteractiveResponse:
-    """Write an InteractiveResponse."""
+) -> HITLResponse:
+    """Write an HITLResponse."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
     ti = session.scalar(select(TI).where(TI.id == ti_id_str))
@@ -73,13 +75,14 @@ def write_response(
     if existing_response:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Interactive Response exists for task task_instance id {ti_id_str}",
+            f"HITL Response exists for task task_instance id {ti_id_str}",
         )
 
-    interactive_response_model = InteractiveResponseModel(
+    hitl_response_model = InteractiveResponseModel(
         ti_id=ti_id_str,
         content=add_response_payload.content,
+        user_id=user.get_id(),
     )
-    session.add(interactive_response_model)
+    session.add(hitl_response_model)
     session.commit()
-    return InteractiveResponse.model_validate(interactive_response_model)
+    return HITLResponse.model_validate(hitl_response_model)

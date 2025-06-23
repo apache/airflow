@@ -14,3 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from uuid import UUID
+
+from airflow.api_fastapi.core_api.base import BaseModel
+
+
+class FetchHITLResponsePayload(BaseModel):
+    """Schema for fetching an HITLResponse for a specific task instance."""
+
+    ti_id: UUID
+
+
+class HITLResponse(BaseModel):
+    """Response for HITLResponse."""
+
+    ti_id: UUID
+    content: str | None

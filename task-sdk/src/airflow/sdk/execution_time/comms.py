@@ -63,9 +63,9 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
-from airflow.providers.standard.api_fastapi.execution_api.datamodels.interactive import (
-    FetchInteractiveResponsePayload,
-    InteractiveResponse,
+from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
+    FetchHITLResponsePayload,
+    HITLResponse,
 )
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
@@ -842,15 +842,15 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
-class FetchInteractiveResponse(FetchInteractiveResponsePayload):
-    type: Literal["FetchInteractiveResponsePayload"] = "FetchInteractiveResponsePayload"
+class FetchHITLResponse(FetchHITLResponsePayload):
+    type: Literal["FetchHITLResponsePayload"] = "FetchHITLResponsePayload"
 
 
-class InteractiveResponseResult(InteractiveResponse):
-    type: Literal["InteractiveResponseResult"] = "InteractiveResponseResult"
+class HITLResponseResult(HITLResponse):
+    type: Literal["HITLResponseResult"] = "HITLResponseResult"
 
     @classmethod
-    def from_api_response(cls, interactive_response: InteractiveResponse) -> InteractiveResponseResult:
+    def from_api_response(cls, hitl_response: HITLResponse) -> HITLResponseResult:
         """
         Create result class from API Response.
 
@@ -858,7 +858,7 @@ class InteractiveResponseResult(InteractiveResponse):
         for communication between the Supervisor and the task process since it needs a
         discriminator field.
         """
-        return cls(**interactive_response.model_dump(exclude_defaults=True), type="InteractiveResponseResult")
+        return cls(**hitl_response.model_dump(exclude_defaults=True), type="HITLResponseResult")
 
 
 ToSupervisor = Annotated[
@@ -892,7 +892,7 @@ ToSupervisor = Annotated[
     | TriggerDagRun
     | DeleteVariable
     | ResendLoggingFD
-    # interactive repsonse from standard provider
-    | FetchInteractiveResponse,
+    # HITL response from standard provider
+    | FetchHITLResponse,
     Field(discriminator="type"),
 ]
