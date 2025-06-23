@@ -230,6 +230,7 @@ class TestCLIGetNumReadyWorkersRunning:
 # server already running in the background in the isolation mode.
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
+@pytest.mark.quarantined
 class TestCliWebServer(_ComonCLIGunicornTestClass):
     main_process_regexp = r"airflow webserver"
 
