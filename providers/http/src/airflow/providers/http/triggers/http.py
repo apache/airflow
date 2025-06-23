@@ -20,6 +20,7 @@ import asyncio
 import base64
 import pickle
 from collections.abc import AsyncIterator
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -33,6 +34,21 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+
+
+def serialize_auth_type(auth: str | type | None) -> str | None:
+    if auth is None:
+        return None
+    if isinstance(auth, str):
+        return auth
+    return f"{auth.__module__}.{auth.__qualname__}"
+
+
+def deserialize_auth_type(path: str | None) -> type | None:
+    if path is None:
+        return None
+    module_path, cls_name = path.rsplit(".", 1)
+    return getattr(import_module(module_path), cls_name)
 
 
 class HttpTrigger(BaseTrigger):
@@ -56,7 +72,7 @@ class HttpTrigger(BaseTrigger):
     def __init__(
         self,
         http_conn_id: str = "http_default",
-        auth_type: Any = None,
+        auth_type: str | None = None,
         method: str = "POST",
         endpoint: str | None = None,
         headers: dict[str, str] | None = None,
@@ -66,7 +82,7 @@ class HttpTrigger(BaseTrigger):
         super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method
-        self.auth_type = auth_type
+        self.auth_type = deserialize_auth_type(auth_type)
         self.endpoint = endpoint
         self.headers = headers
         self.data = data
@@ -79,7 +95,7 @@ class HttpTrigger(BaseTrigger):
             {
                 "http_conn_id": self.http_conn_id,
                 "method": self.method,
-                "auth_type": self.auth_type,
+                "auth_type": serialize_auth_type(self.auth_type),
                 "endpoint": self.endpoint,
                 "headers": self.headers,
                 "data": self.data,

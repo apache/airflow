@@ -215,6 +215,7 @@ botocore
 BounceX
 Bq
 bq
+bteq
 bugfix
 bugfixes
 buildType
@@ -1154,6 +1155,7 @@ mssql
 mTLS
 mtls
 muldelete
+multimodal
 Multinamespace
 mutex
 mv

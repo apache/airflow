@@ -31,6 +31,7 @@ from operator import attrgetter
 from random import randint
 from time import sleep
 from typing import TYPE_CHECKING
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -85,7 +86,9 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    ResendLoggingFD,
     RetryTask,
+    SentFDs,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
@@ -233,6 +236,44 @@ class TestWatchedSubprocess:
                     "logger": "py.warnings",
                     "timestamp": instant.replace(tzinfo=None),
                 },
+            ]
+        )
+
+    def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
+        def subprocess_main():
+            # This is run in the subprocess!
+
+            # Ensure we follow the "protocol" and get the startup message before we do anything else
+            comms = CommsDecoder()
+            comms._get_response()
+
+            logs = comms.send(ResendLoggingFD())
+            assert isinstance(logs, SentFDs)
+            fd = os.fdopen(logs.fds[0], "w")
+            logging.root.info("Log on old socket")
+            json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        rc = proc.wait()
+
+        assert rc == 0
+        assert captured_logs == unordered(
+            [
+                {"event": "Log on new socket", "level": "info", "logger": "task", "timestamp": mock.ANY},
+                {"event": "Log on old socket", "level": "info", "logger": "root", "timestamp": mock.ANY},
             ]
         )
 

@@ -18,9 +18,9 @@
     "searchByFile": "파일로 검색",
     "timestamp": "타임스탬프"
   },
-  "managePools": "Pools 관리",
-  "noAssetEvents": "자산 이벤트를 찾을 수 없습니다.",
-  "poolSlots": "Pool 슬롯",
+  "managePools": "풀 관리",
+  "noAssetEvents": "에셋 이벤트를 찾을 수 없습니다.",
+  "poolSlots": "풀 슬롯",
   "sortBy": {
     "newestFirst": "최신순",
     "oldestFirst": "오래된 순"
