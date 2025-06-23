@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 # Add the SDK src directory to sys.path so that importlib loads our airflow.sdk module
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 import importlib
 import shutil
 import subprocess
@@ -59,7 +59,7 @@ def test_docs_inventory_matches_public_api(tmp_path):
     """
     Build the HTML docs and compare the generated Sphinx inventory with the public API re-exports.
     """
-    docs_dir = Path(__file__).parent.parent / "docs"
+    docs_dir = Path(__file__).parents[3] / "docs"
     build_dir = tmp_path / "build"
     sphinx = shutil.which("sphinx-build")
     subprocess.run([sphinx, "-b", "html", "-q", str(docs_dir), str(build_dir)], check=True)
