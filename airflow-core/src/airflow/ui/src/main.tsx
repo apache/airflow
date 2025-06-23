@@ -35,7 +35,7 @@ import { getRedirectPath } from "src/utils/links.ts";
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
 import { system } from "./theme";
-import { clearToken, tokenHandler, clearRefreshTokenCookie } from "./utils/tokenHandler";
+import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
 // Set React and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
 // Only one instance of React should be used.
