@@ -60,10 +60,11 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -1771,7 +1772,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.notify_dagrun_state_changed()
 
             if (deadline := dag.deadline) and isinstance(
-                deadline.reference, ReferenceModels.DagRunQueuedAtDeadline
+                deadline.reference, DeadlineReference.TYPES.DAGRUN_QUEUED
             ):
                 session.add(
                     Deadline(

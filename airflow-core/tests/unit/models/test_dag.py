@@ -67,7 +67,6 @@ from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -2040,54 +2039,6 @@ my_postgres_conn:
         assert dag.get_bundle_version() is None
         DAG.bulk_write_to_db("testing", "abc", [dag])
         assert dag.get_bundle_version() == "abc"
-
-    @pytest.mark.parametrize(
-        "reference, expect_none",
-        [
-            pytest.param(
-                DeadlineReference.DAGRUN_LOGICAL_DATE,
-                False,
-                id="DAGRUN_LOGICAL_DATE is considered DagRun-creation related",
-            ),
-            pytest.param(
-                DeadlineReference.DAGRUN_QUEUED_AT,
-                True,
-                id="DAGRUN_QUEUED_AT is not considered DagRun-creation related",
-            ),
-            pytest.param(
-                DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
-                False,
-                id="FIXED_DATETIME is considered DagRun-creation related",
-            ),
-            pytest.param(
-                DeadlineReference._TEMPORARY_TEST_REFERENCE,
-                True,
-                id="Non-DagRun reference types return None",
-            ),
-            pytest.param(
-                None,
-                True,
-                id="No provided deadline returns None",
-            ),
-        ],
-    )
-    def test_get_dagrun_creation_deadlines(self, reference, expect_none):
-        """Test that get_dagrun_deadline correctly identifies and returns DagRun-related deadline types."""
-        deadline = (
-            DeadlineAlert(
-                reference=reference,
-                interval=timedelta(hours=1),
-                callback=lambda: None,
-            )
-            if reference
-            else None
-        )
-        expected_result = None if expect_none else deadline
-
-        dag = DAG(dag_id="test_dag", deadline=deadline)
-        result = dag.get_dagrun_creation_deadlines()
-
-        assert result is expected_result
 
 
 class TestDagModel:

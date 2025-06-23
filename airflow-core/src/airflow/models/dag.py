@@ -464,14 +464,6 @@ class DAG(TaskSDKDag, LoggingMixin):
                         "update the executor configuration for this task."
                     )
 
-    def get_dagrun_creation_deadlines(self) -> DeadlineAlert | None:
-        """If the DAG has a deadline related to DagRun creation, return it; else return None."""
-        if (deadline := self.deadline) and isinstance(
-            deadline.reference, DeadlineReference.TYPES.DAGRUN_CREATED
-        ):
-            return deadline
-        return None
-
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
@@ -1622,16 +1614,18 @@ class DAG(TaskSDKDag, LoggingMixin):
             session=session,
         )
 
-        if dag_deadline := self.get_dagrun_creation_deadlines():
+        if (deadline := self.deadline) and isinstance(
+            deadline.reference, DeadlineReference.TYPES.DAGRUN_CREATED
+        ):
             session.add(
                 Deadline(
-                    deadline_time=dag_deadline.reference.evaluate_with(
+                    deadline_time=deadline.reference.evaluate_with(
                         session=session,
-                        interval=dag_deadline.interval,
+                        interval=deadline.interval,
                         dag_id=self.dag_id,
                     ),
-                    callback=dag_deadline.callback,
-                    callback_kwargs=dag_deadline.callback_kwargs or {},
+                    callback=deadline.callback,
+                    callback_kwargs=deadline.callback_kwargs or {},
                     dag_id=self.dag_id,
                     dagrun_id=orm_dagrun.id,
                 )
