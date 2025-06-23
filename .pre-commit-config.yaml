@@ -583,6 +583,7 @@ repos:
             ^providers/cohere/.*\.py$|
             ^providers/datadog/.*\.py$|
             ^providers/discord/.*\.py$|
+            ^providers/exasol/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
             ^providers/hashicorp/.*\.py$|
