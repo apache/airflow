@@ -142,4 +142,19 @@ spec:
         {{- if .Values.migrateDatabaseJob.extraVolumes }}
           {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumes) . | nindent 8 }}
         {{- end }}
+        {{- if .Values.postgresql.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-database
+  annotations:
+    "helm.sh/hook": pre-install,post-upgrade
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+{{- end }}
+
 {{- end }}
