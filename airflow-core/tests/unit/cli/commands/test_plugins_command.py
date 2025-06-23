@@ -93,10 +93,9 @@ class TestPluginsCommand:
                 "external_views": [
                     {
                         "destination": "nav",
-                        "icon": "https://example.com/icon.svg",
-                        "dark_mode_icon": "https://example.com/dark_icon.svg",
-                        "name": "Test IFrame Plugin",
-                        "href": "https://www.google.com",
+                        "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                        "name": "Test IFrame Airflow Docs",
+                        "href": "https://airflow.apache.org/",
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
                     },

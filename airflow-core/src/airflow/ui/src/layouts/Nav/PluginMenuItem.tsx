@@ -44,8 +44,15 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
         to={href}
       />
     ) : (
-      <Box alignItems="center" display="flex" gap={2} outline="none" px={2}>
-        <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank" width="100%">
+      <Box alignItems="center" display="flex" gap={2} outline="none" px={2} py="6px">
+        <Link
+          aria-label={name}
+          fontSize="sm"
+          href={href}
+          rel="noopener noreferrer"
+          target="_blank"
+          width="100%"
+        >
           {name}
         </Link>
       </Box>
@@ -72,7 +79,7 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
 
   return (
     <RouterLink to={`plugin/${urlRoute}`}>
-      <Box alignItems="center" display="flex" gap={2} px={2}>
+      <Box alignItems="center" display="flex" fontSize="sm" gap={2} px={2} py="6px">
         {typeof icon === "string" ? (
           <Image height="1.25rem" src={icon} width="1.25rem" />
         ) : (

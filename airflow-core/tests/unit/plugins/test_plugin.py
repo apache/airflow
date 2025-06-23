@@ -103,10 +103,9 @@ middleware_with_metadata = {
 }
 
 external_view_with_metadata = {
-    "name": "Test IFrame Plugin",
-    "href": "https://www.google.com",
-    "icon": "https://example.com/icon.svg",
-    "dark_mode_icon": "https://example.com/dark_icon.svg",
+    "name": "Test IFrame Airflow Docs",
+    "href": "https://airflow.apache.org/",
+    "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
     "url_route": "test_iframe_plugin",
     "destination": "nav",
     "category": "browse",

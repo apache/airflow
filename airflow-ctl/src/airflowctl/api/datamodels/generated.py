@@ -533,7 +533,7 @@ class ExternalViewResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     href: Annotated[str, Field(title="Href")]
     icon: Annotated[str | None, Field(title="Icon")] = None
-    dark_mode_icon: Annotated[str | None, Field(title="Dark Mode Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"

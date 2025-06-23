@@ -77,7 +77,7 @@ class ExternalViewResponse(BaseModel):
     name: str
     href: str
     icon: str | None = None
-    dark_mode_icon: str | None = None
+    icon_dark_mode: str | None = None
     url_route: str | None = None
     category: str | None = None
     destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = "nav"

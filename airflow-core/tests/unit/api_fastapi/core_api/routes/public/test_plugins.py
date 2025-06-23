@@ -77,10 +77,10 @@ class TestGetPlugins:
         assert test_plugin["external_views"] == [
             # external_views
             {
-                "name": "Test IFrame Plugin",
-                "href": "https://www.google.com",
-                "icon": "https://example.com/icon.svg",
-                "dark_mode_icon": "https://example.com/dark_icon.svg",
+                "name": "Test IFrame Airflow Docs",
+                "href": "https://airflow.apache.org/",
+                "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                "icon_dark_mode": None,
                 "url_route": "test_iframe_plugin",
                 "destination": "nav",
                 "category": "browse",
@@ -88,19 +88,19 @@ class TestGetPlugins:
             # appbuilder_menu_items
             {
                 "category": "Search",
-                "dark_mode_icon": None,
                 "destination": "nav",
                 "href": "https://www.google.com",
                 "icon": None,
+                "icon_dark_mode": None,
                 "name": "Google",
                 "url_route": None,
             },
             {
                 "category": None,
-                "dark_mode_icon": None,
                 "destination": "nav",
                 "href": "https://www.apache.org/",
                 "icon": None,
+                "icon_dark_mode": None,
                 "label": "The Apache Software Foundation",
                 "name": "apache",
                 "url_route": None,

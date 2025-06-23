@@ -206,7 +206,7 @@ definitions in Airflow.
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
-        "dark_mode_icon": "https://example.com/dark_icon.svg",
+        "icon_dark_mode": "https://example.com/dark_icon.svg",
         # Optional parameters, relative URL location for the iframe rendering. If not provided, external view will be rendeded as an external link. Should
         # not contain a leading slash.
         "url_route": "my_iframe_view",

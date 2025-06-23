@@ -3283,7 +3283,7 @@ export const $ExternalViewResponse = {
             ],
             title: 'Icon'
         },
-        dark_mode_icon: {
+        icon_dark_mode: {
             anyOf: [
                 {
                     type: 'string'
@@ -3292,7 +3292,7 @@ export const $ExternalViewResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Dark Mode Icon'
+            title: 'Icon Dark Mode'
         },
         url_route: {
             anyOf: [

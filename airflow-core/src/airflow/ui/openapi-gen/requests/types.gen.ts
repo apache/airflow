@@ -878,7 +878,7 @@ export type ExternalViewResponse = {
     name: string;
     href: string;
     icon?: string | null;
-    dark_mode_icon?: string | null;
+    icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
