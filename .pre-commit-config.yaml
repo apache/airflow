@@ -583,6 +583,7 @@ repos:
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/datadog/.*\.py$|
+            ^providers/dingding/.*\.py$|
             ^providers/discord/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/grpc/.*\.py$|
