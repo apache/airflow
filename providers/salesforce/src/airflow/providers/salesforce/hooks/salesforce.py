@@ -268,7 +268,7 @@ class SalesforceHook(BaseHook):
             try:
                 converted.append(value.timestamp())
             except (ValueError, AttributeError):
-                converted.append(np.NaN)
+                converted.append(np.nan)
 
         return pd.Series(converted, index=column.index)
 
