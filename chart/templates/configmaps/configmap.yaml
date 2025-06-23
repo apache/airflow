@@ -51,12 +51,14 @@ data:
   {{- end -}}
 
   {{/*- Set a default for dag_processor.dag_bundle_config_list if it's not set -*/}}
-  {{- if not (hasKey $config "dag_processor") }}
-    {{- $_ := set $config "dag_processor" (dict) }}
-  {{- end }}
-  {{- if not (hasKey $config.dag_processor "dag_bundle_config_list") -}}
-    {{- $bundleList := include "airflow_dag_bundles" . | trim -}}
-    {{- $_ := set $config.dag_processor "dag_bundle_config_list" $bundleList -}}
+  {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
+    {{- if not (hasKey $config "dag_processor") }}
+      {{- $_ := set $config "dag_processor" (dict) }}
+    {{- end }}
+    {{- if not (hasKey $config.dag_processor "dag_bundle_config_list") -}}
+      {{- $bundleList := include "airflow_dag_bundles" . | trim -}}
+      {{- $_ := set $config.dag_processor "dag_bundle_config_list" $bundleList -}}
+    {{- end -}}
   {{- end -}}
 
   # These are system-specified config overrides.

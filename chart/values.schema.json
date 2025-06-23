@@ -9190,15 +9190,15 @@
                                         "title": "GitDagBundle keyword arguments",
                                         "type": "object",
                                         "required": [
-                                            "tracking_ref"
+                                            "trackingRef"
                                         ],
                                         "properties": {
-                                            "repo_url": {
+                                            "repoUrl": {
                                                 "type": "string",
                                                 "description": "Explicit Git repository URL to override the connection's host",
                                                 "default": null
                                             },
-                                            "tracking_ref": {
+                                            "trackingRef": {
                                                 "type": "string",
                                                 "description": "Branch or tag for this DAG bundle"
                                             },
@@ -9207,12 +9207,12 @@
                                                 "description": "Subdirectory within the repository where the DAGs are stored",
                                                 "default": null
                                             },
-                                            "git_conn_id": {
+                                            "gitConnId": {
                                                 "type": "string",
                                                 "description": "Connection ID for SSH/token based connection to the repository",
                                                 "default": null
                                             },
-                                            "refresh_interval": {
+                                            "refreshInterval": {
                                                 "type": "integer",
                                                 "minimum": 0,
                                                 "description": "How often (in seconds) to re-sync the repo"

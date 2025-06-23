@@ -318,9 +318,10 @@ metadata:
                         "type": "airflow.providers.git.bundles.git.GitDagBundle",
                         "args": {
                             "subdir": "src",
-                            "tracking_ref": "main",
-                            "refresh_interval": 1800,
-                            "git_conn_id": "git_default",
+                            "trackingRef": "main",
+                            "refreshInterval": 1800,
+                            "gitConnId": "git_default",
+                            "repoUrl": "https://github.com/apache/airflow.git",
                         },
                     }
                 ],
@@ -333,6 +334,7 @@ metadata:
                             "refresh_interval": 1800,
                             "subdir": "src",
                             "tracking_ref": "main",
+                            "repo_url": "https://github.com/apache/airflow.git",
                         },
                     }
                 ],
