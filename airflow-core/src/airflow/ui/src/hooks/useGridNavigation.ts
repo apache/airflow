@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { GridTask, RunWithDuration } from "src/layouts/Details/Grid/utils";
+import { getTaskNavigationPath } from "src/utils/links";
 
 type UseGridNavigationProps = {
   flatNodes: Array<GridTask>;
@@ -56,9 +58,13 @@ export const useGridNavigation = ({ flatNodes, isGridFocused, runs }: UseGridNav
 
       const { search } = globalThis.location;
       const searchParams = new URLSearchParams(search);
-      const groupPath = task.isGroup ? "group/" : "";
-      const mappedPath = task.is_mapped ? "/mapped" : "";
-      const path = `/dags/${dagId}/runs/${run.dag_run_id}/tasks/${groupPath}${task.id}${mappedPath}`;
+      const path = getTaskNavigationPath({
+        dagId,
+        isGroup: task.isGroup,
+        isMapped: Boolean(task.is_mapped),
+        runId: run.dag_run_id,
+        taskId: task.id,
+      });
 
       navigate(
         {
@@ -71,56 +77,53 @@ export const useGridNavigation = ({ flatNodes, isGridFocused, runs }: UseGridNav
     [navigate, dagId, runs, flatNodes],
   );
 
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      const isArrowKey = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(event.key);
-
-      if (!isArrowKey || !isGridFocused) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-
+  const handleKeyNavigation = useCallback(
+    (key: "ArrowDown" | "ArrowUp" | "ArrowLeft" | "ArrowRight", isQuickJump: boolean) => {
       const { runIndex, taskIndex } = getCurrentIndices();
-      const isQuickJump = event.metaKey || event.ctrlKey; // Command(Mac) or Ctrl(Windows)
-      let newRunIndex = runIndex;
-      let newTaskIndex = taskIndex;
+      
+      const navigationConfig = {
+        ArrowDown: {
+          runIndex,
+          taskIndex: isQuickJump ? flatNodes.length - 1 : Math.min(flatNodes.length - 1, taskIndex + 1),
+        },
+        ArrowUp: {
+          runIndex,
+          taskIndex: isQuickJump ? 0 : Math.max(0, taskIndex - 1),
+        },
+        ArrowLeft: {
+          runIndex: isQuickJump ? runs.length - 1 : Math.min(runs.length - 1, runIndex + 1),
+          taskIndex,
+        },
+        ArrowRight: {
+          runIndex: isQuickJump ? 0 : Math.max(0, runIndex - 1),
+          taskIndex,
+        },
+      };
 
-      switch (event.key) {
-        case "ArrowDown": {
-          newTaskIndex = isQuickJump ? flatNodes.length - 1 : Math.min(flatNodes.length - 1, taskIndex + 1);
-          break;
-        }
-        case "ArrowLeft": {
-          newRunIndex = isQuickJump ? runs.length - 1 : Math.min(runs.length - 1, runIndex + 1);
-          break;
-        }
-        case "ArrowRight": {
-          newRunIndex = isQuickJump ? 0 : Math.max(0, runIndex - 1);
-          break;
-        }
-        case "ArrowUp": {
-          newTaskIndex = isQuickJump ? 0 : Math.max(0, taskIndex - 1);
-          break;
-        }
-        default: {
-          return;
-        }
-      }
-
+      const { runIndex: newRunIndex, taskIndex: newTaskIndex } = navigationConfig[key];
       navigateToPosition(newRunIndex, newTaskIndex);
     },
-    [isGridFocused, getCurrentIndices, navigateToPosition, flatNodes.length, runs.length],
+    [getCurrentIndices, navigateToPosition, flatNodes.length, runs.length],
   );
 
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
 
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleKeyDown]);
+  useHotkeys(
+    [
+      "ArrowDown", "meta+ArrowDown", "ctrl+ArrowDown",
+      "ArrowUp", "meta+ArrowUp", "ctrl+ArrowUp",
+      "ArrowLeft", "meta+ArrowLeft", "ctrl+ArrowLeft", 
+      "ArrowRight", "meta+ArrowRight", "ctrl+ArrowRight",
+    ],
+    (event, _handler) => {
+      event.stopPropagation();
+      const isQuickJump = event.metaKey || event.ctrlKey;
+      handleKeyNavigation(event.key as "ArrowDown" | "ArrowUp" | "ArrowLeft" | "ArrowRight", isQuickJump);
+    },
+    {
+      enabled: isGridFocused,
+      preventDefault: true,
+    },
+  );
 
   return {
     getCurrentIndices,

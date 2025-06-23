@@ -33,6 +33,25 @@ export const getTaskInstanceLinkFromObj = ({
   taskId: string;
 }) => `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
 
+export const getTaskNavigationPath = ({
+  dagId,
+  isGroup,
+  isMapped,
+  runId,
+  taskId,
+}: {
+  dagId: string;
+  isGroup?: boolean;
+  isMapped?: boolean;
+  runId: string;
+  taskId: string;
+}) => {
+  const groupPath = isGroup ? "group/" : "";
+  const mappedPath = isMapped ? "/mapped" : "";
+
+  return `/dags/${dagId}/runs/${runId}/tasks/${groupPath}${taskId}${mappedPath}`;
+};
+
 export const getRedirectPath = (targetPath: string): string => {
   const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
   const baseUrl = new URL(baseHref, globalThis.location.origin);
