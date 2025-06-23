@@ -594,6 +594,7 @@ repos:
             ^providers/apache/flink/.*\.py$|
             ^providers/apache/iceberg/.*\.py$|
             ^providers/apache/kafka/.*\.py$|
+            ^providers/arangodb/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/common/compat/.*\.py$|
