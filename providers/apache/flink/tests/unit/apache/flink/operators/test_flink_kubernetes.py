@@ -29,9 +29,6 @@ from airflow.models import Connection
 from airflow.providers.apache.flink.operators.flink_kubernetes import FlinkKubernetesOperator
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
-
 TEST_VALID_APPLICATION_YAML = """
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment

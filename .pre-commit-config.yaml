@@ -580,10 +580,13 @@ repos:
         files: >
             (?x)
             ^providers/airbyte/.*\.py$|
-            ^providers/apache/iceberg/.*\.py$|
             ^providers/apache/beam/.*\.py$|
+            ^providers/apache/flink/.*\.py$|
+            ^providers/apache/iceberg/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
+            ^providers/common/compat/.*\.py$|
+            ^providers/common/messaging/.*\.py$|
             ^providers/datadog/.*\.py$|
             ^providers/dingding/.*\.py$|
             ^providers/discord/.*\.py$|
@@ -597,6 +600,7 @@ repos:
             ^providers/jdbc/.*\.py$|
             ^providers/jenkins/.*\.py$|
             ^providers/mongo/.*\.py$|
+            ^providers/microsoft/psrp/.*\.py$|
             ^providers/neo4j/.*\.py$|
             ^providers/odbc/.*\.py$|
             ^providers/openai/.*\.py$|
