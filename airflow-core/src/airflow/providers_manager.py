@@ -36,8 +36,6 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar
 from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.standard.hooks.filesystem import FSHook
-from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.typing_compat import ParamSpec
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -395,8 +393,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: dict[str, ProviderInfo] = {}
-        # Keeps dict of hooks keyed by connection type
-        self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
         self._asset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
         self._asset_factories: dict[str, Callable[..., Asset]] = {}
@@ -443,19 +439,17 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 connection_type=None,
                 connection_testable=False,
             )
-        for cls in [FSHook, PackageIndexHook]:
-            package_name = cls.__module__
-            hook_class_name = f"{cls.__module__}.{cls.__name__}"
-            hook_info = self._import_hook(
+        for conn_type, class_name in (
+            ("fs", "airflow.providers.standard.hooks.filesystem.FSHook"),
+            ("package_index", "airflow.providers.standard.hooks.package_index.PackageIndexHook"),
+        ):
+            self._hooks_lazy_dict[conn_type] = functools.partial(
+                self._import_hook,
                 connection_type=None,
-                provider_info=None,
-                hook_class_name=hook_class_name,
-                package_name=package_name,
+                package_name="apache-airflow-providers-standard",
+                hook_class_name=class_name,
+                provider_info=None,  # type: ignore[argument]
             )
-            self._hook_provider_dict[hook_info.connection_type] = HookClassProvider(
-                hook_class_name=hook_class_name, package_name=package_name
-            )
-            self._hooks_lazy_dict[hook_info.connection_type] = hook_info
 
     @provider_info_cache("list")
     def initialize_providers_list(self):
@@ -487,6 +481,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @provider_info_cache("hooks")
     def initialize_providers_hooks(self):
         """Lazy initialization of providers hooks."""
+        self._init_airflow_core_hooks()
         self.initialize_providers_list()
         self._discover_hooks()
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
@@ -1275,7 +1270,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def _cleanup(self):
         self._initialized_cache.clear()
         self._provider_dict.clear()
-        self._hooks_dict.clear()
         self._fs_set.clear()
         self._taskflow_decorators.clear()
         self._hook_provider_dict.clear()
