@@ -289,6 +289,8 @@ def _add_log_from_parsed_log_streams_to_heap(
     :param heap: heap to store log records
     :param parsed_log_streams: dict of parsed log streams
     """
+    # We intend to initialize the list lazily, as in most cases we don't need to remove any log streams.
+    # This reduces memory overhead, since this function is called repeatedly until all log streams are empty.
     log_stream_to_remove: list[int] | None = None
     for idx, log_stream in parsed_log_streams.items():
         record: ParsedLog | None = next(log_stream, None)
