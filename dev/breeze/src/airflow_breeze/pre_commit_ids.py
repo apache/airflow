@@ -129,6 +129,7 @@ PRE_COMMIT_LIST = [
     "mypy-providers",
     "mypy-task-sdk",
     "pretty-format-json",
+    "prevent-usage-of-session-query",
     "pylint",
     "python-no-log-warn",
     "replace-bad-characters",
