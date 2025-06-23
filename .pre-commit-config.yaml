@@ -613,6 +613,7 @@ repos:
             ^providers/jenkins/.*\.py$|
             ^providers/mongo/.*\.py$|
             ^providers/microsoft/psrp/.*\.py$|
+            ^providers/microsoft/winrm/.*\.py$|
             ^providers/neo4j/.*\.py$|
             ^providers/odbc/.*\.py$|
             ^providers/openai/.*\.py$|
