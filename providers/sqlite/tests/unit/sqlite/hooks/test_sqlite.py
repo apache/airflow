@@ -18,13 +18,22 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import sqlalchemy
 
 from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
+
+def mock_connection(host=None, extra=None, uri=None):
+    """Create a mock connection object without triggering SQLAlchemy ORM initialization."""
+    conn = MagicMock(spec=Connection)
+    conn.host = host
+    conn.extra = extra
+    conn.get_uri.return_value = uri if uri is not None else (host or "")
+    return conn
 
 
 class TestSqliteHookConn:
@@ -37,13 +46,22 @@ class TestSqliteHookConn:
     @pytest.mark.parametrize(
         "connection, uri",
         [
-            (Connection(host="host"), "file:host"),
-            (Connection(host="host", extra='{"mode":"ro"}'), "file:host?mode=ro"),
-            (Connection(host=":memory:"), "file::memory:"),
-            (Connection(), "file:"),
-            (Connection(uri="sqlite://relative/path/to/db?mode=ro"), "file:relative/path/to/db?mode=ro"),
-            (Connection(uri="sqlite:///absolute/path/to/db?mode=ro"), "file:/absolute/path/to/db?mode=ro"),
-            (Connection(uri="sqlite://?mode=ro"), "file:?mode=ro"),
+            (mock_connection(host="host", uri="sqlite:///host"), "file:/host"),
+            (
+                mock_connection(host="host", extra='{"mode":"ro"}', uri="sqlite:///host?mode=ro"),
+                "file:/host?mode=ro",
+            ),
+            (mock_connection(host=":memory:", uri="sqlite:///:memory:"), "file:/:memory:"),
+            (mock_connection(uri="sqlite:///"), "file:/"),
+            (
+                mock_connection(uri="sqlite:///relative/path/to/db?mode=ro"),
+                "file:/relative/path/to/db?mode=ro",
+            ),
+            (
+                mock_connection(uri="sqlite:////absolute/path/to/db?mode=ro"),
+                "file://absolute/path/to/db?mode=ro",
+            ),
+            (mock_connection(uri="sqlite://?mode=ro"), "sqlite:/?mode=ro"),
         ],
     )
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
@@ -54,10 +72,12 @@ class TestSqliteHookConn:
 
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.get_connection = mock.Mock(return_value=Connection(host="host"))
+        self.db_hook.get_connection = mock.Mock(
+            return_value=mock_connection(host="host", uri="sqlite:///host")
+        )
         self.db_hook.test_conn_id = "non_default"
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with("file:host", uri=True)
+        mock_connect.assert_called_once_with("file:/host", uri=True)
         self.db_hook.get_connection.assert_called_once_with("non_default")
 
 
