@@ -21,18 +21,21 @@ import base64
 import contextlib
 import json
 import pickle
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import call, patch
 
 import pytest
 import tenacity
+from aiohttp import BasicAuth
 from requests import Response
 from requests.models import RequestEncodingMixin
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.hooks import base
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
-from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
@@ -92,6 +95,7 @@ class TestHttpOperator:
         result = operator.execute({})
         assert result == {"value": 5}
 
+    @pytest.mark.db_test
     def test_async_defer_successfully(self, requests_mock):
         operator = HttpOperator(
             task_id="test_HTTP_op",
@@ -186,6 +190,7 @@ class TestHttpOperator:
 
         assert result == [5, 10]
 
+    @pytest.mark.db_test
     def test_async_pagination(self, requests_mock):
         """
         Test that the HttpOperator calls asynchronously and repetitively
@@ -300,3 +305,53 @@ class TestHttpOperator:
         )
 
         assert mock_run_with_advanced_retry.call_count == 2
+
+    def _capture_defer(self, monkeypatch):
+        captured = {}
+
+        def _fake_defer(self, *, trigger, method_name, **kwargs):
+            captured["trigger"] = trigger
+            captured["kwargs"] = kwargs
+
+        monkeypatch.setattr(HttpOperator, "defer", _fake_defer)
+        return captured
+
+    @pytest.mark.parametrize(
+        "login, password, auth_type, expect_cls",
+        [
+            ("user", "password", None, BasicAuth),
+            (None, None, None, type(None)),
+            ("user", "password", BasicAuth, BasicAuth),
+        ],
+    )
+    def test_auth_type_is_serialised_as_string(self, monkeypatch, login, password, auth_type, expect_cls):
+        monkeypatch.setattr(
+            base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login=login, password=password)
+        )
+        captured = self._capture_defer(monkeypatch)
+
+        HttpOperator(task_id="test_HTTP_op", deferrable=True, auth_type=auth_type).execute(context={})
+
+        trigger = captured["trigger"]
+        kwargs = captured["trigger"].serialize()[1]
+
+        expected_str = serialize_auth_type(expect_cls) if expect_cls is not type(None) else None
+        assert kwargs["auth_type"] == expected_str
+
+        assert trigger.auth_type == expect_cls or (trigger.auth_type is None and expect_cls is type(None))
+
+    def test_resolve_auth_type_variants(self, monkeypatch):
+        monkeypatch.setattr(
+            base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login="user", password="password")
+        )
+        assert HttpOperator(task_id="test_HTTP_op_1")._resolve_auth_type() is BasicAuth
+
+        class DummyAuth:
+            def __init__(self, *_, **__): ...
+
+        assert HttpOperator(task_id="test_HTTP_op_2", auth_type=DummyAuth)._resolve_auth_type() is DummyAuth
+
+        monkeypatch.setattr(
+            base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login=None, password=None)
+        )
+        assert HttpOperator(task_id="test_HTTP_op_3")._resolve_auth_type() is None
