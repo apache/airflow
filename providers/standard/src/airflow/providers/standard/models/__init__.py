@@ -24,13 +24,14 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class InteractiveResponseModel(Base):
+class HITLResponseModel(Base):
     """AIP-90."""
 
-    __tablename__ = "interactive_response"
+    __tablename__ = "hitl_response"
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     content = Column(Text)
+    user_id = Column(String(128), nullable=False)
 
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
@@ -41,7 +42,7 @@ class InteractiveResponseModel(Base):
         ForeignKeyConstraint(
             (ti_id,),
             ("task_instance.id",),
-            name="interactive_response_ti_fkey",
+            name="hitl_response_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
