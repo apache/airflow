@@ -537,8 +537,8 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: prevent-usage-of-session-query
-        name: Prevent usage of session.query
+      - id: prevent-deprecated-sqlalchemy-usage
+        name: Prevent deprecated sqlalchemy usage
         entry: ./scripts/ci/pre_commit/usage_session_query.py
         language: python
         additional_dependencies: ['rich>=12.4.4']
