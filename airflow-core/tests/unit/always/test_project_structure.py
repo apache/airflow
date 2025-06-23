@@ -304,7 +304,7 @@ def get_imports_from_file(filepath: str):
     doc_node = ast.parse(content, filepath)
     import_names: set[str] = set()
     for current_node in ast.walk(doc_node):
-        if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
+        if not isinstance(current_node, ast.Import | ast.ImportFrom):
             continue
         for alias in current_node.names:
             name = alias.name
