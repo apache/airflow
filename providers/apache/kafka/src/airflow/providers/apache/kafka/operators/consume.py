@@ -82,7 +82,7 @@ class ConsumeFromTopicOperator(BaseOperator):
         apply_function_batch: Callable[..., Any] | str | None = None,
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
-        commit_cadence: str | None = "end_of_operator",
+        commit_cadence: str = "end_of_operator",
         max_messages: int | None = None,
         max_batch_size: int = 1000,
         poll_timeout: float = 60,
@@ -102,7 +102,7 @@ class ConsumeFromTopicOperator(BaseOperator):
         self.poll_timeout = poll_timeout
 
         self.read_to_end = self.max_messages is None
-        self._validate_commit_cadence()
+        self._validate_commit_cadence_on_construct()
 
         if self.max_messages is not None and self.max_batch_size > self.max_messages:
             self.log.warning(
@@ -124,6 +124,7 @@ class ConsumeFromTopicOperator(BaseOperator):
         return KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
 
     def execute(self, context) -> Any:
+        self._validate_commit_cadence_before_execute()
         consumer = self.hook.get_consumer()
 
         if isinstance(self.apply_function, str):
@@ -175,7 +176,7 @@ class ConsumeFromTopicOperator(BaseOperator):
                 self.log.info("committing offset at %s", self.commit_cadence)
                 consumer.commit()
 
-        if self.commit_cadence:
+        if self.commit_cadence != "never":
             self.log.info("committing offset at %s", self.commit_cadence)
             consumer.commit()
 
@@ -183,16 +184,18 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         return
 
-    def _validate_commit_cadence(self):
-        """Validate the commit cadence configuration."""
+    def _validate_commit_cadence_on_construct(self):
+        """Validate the commit_cadence parameter when the operator is constructed."""
         if self.commit_cadence and self.commit_cadence not in VALID_COMMIT_CADENCE:
             raise AirflowException(
                 f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
             )
 
+    def _validate_commit_cadence_before_execute(self):
+        """Validate the commit_cadence parameter before executing the operator."""
         kafka_config = self.hook.get_connection(self.kafka_config_id).extra_dejson
         # Same as kafka's behavior, default to "true" if not set
-        enable_auto_commit = kafka_config.get("enable.auto.commit", "true").lower()
+        enable_auto_commit = str(kafka_config.get("enable.auto.commit", "true")).lower()
 
         if self.commit_cadence and enable_auto_commit != "false":
             self.log.warning(
@@ -203,6 +206,3 @@ class ConsumeFromTopicOperator(BaseOperator):
                 "See: https://kafka.apache.org/documentation/#consumerconfigs_enable.auto.commit",
                 self.commit_cadence,
             )
-
-        if self.commit_cadence == "never":
-            self.commit_cadence = None
