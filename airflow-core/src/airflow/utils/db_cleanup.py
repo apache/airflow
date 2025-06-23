@@ -82,6 +82,9 @@ class _TableConfig:
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
+    # We explicitly list these tables instead of detecting foreign keys automatically,
+    # because the relationships are unlikely to change and the number of tables is small.
+    # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
 
     def __post_init__(self):
@@ -110,7 +113,6 @@ config_list: list[_TableConfig] = [
         table_name="dag",
         recency_column_name="last_parsed_time",
         dependent_tables=[
-            "task_reschedule",
             "task_instance_history",
             "xcom",
             "task_instance",
@@ -125,7 +127,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
-        dependent_tables=["xcom", "task_reschedule", "task_instance_history", "task_instance"],
+        dependent_tables=["xcom", "task_instance_history", "task_instance"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
@@ -134,7 +136,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
+        dependent_tables=["task_instance_history", "xcom"],
     ),
     _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
@@ -146,12 +148,12 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="trigger",
         recency_column_name="created_date",
-        dependent_tables=["task_reschedule", "xcom", "task_instance_history", "task_instance"],
+        dependent_tables=["xcom", "task_instance_history", "task_instance"],
     ),
     _TableConfig(
         table_name="dag_version",
         recency_column_name="created_at",
-        dependent_tables=["task_instance_history", "task_reschedule", "xcom", "task_instance", "dag_run"],
+        dependent_tables=["task_instance_history", "xcom", "task_instance", "dag_run"],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
