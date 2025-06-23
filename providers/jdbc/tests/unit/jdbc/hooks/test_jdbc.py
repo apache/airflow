@@ -33,9 +33,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 
-pytestmark = pytest.mark.db_test
-
-
 jdbc_conn_mock = Mock(name="jdbc_conn")
 logger = logging.getLogger(__name__)
 
