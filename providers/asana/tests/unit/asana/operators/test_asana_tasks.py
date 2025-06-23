@@ -32,8 +32,6 @@ from airflow.providers.asana.operators.asana_tasks import (
 from airflow.utils import timezone
 
 # The tests do not create dag runs, so db isolation tests are skipped
-pytestmark = pytest.mark.db_test
-
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
@@ -52,6 +50,7 @@ class TestAsanaTaskOperators:
         self.dag = dag
         create_connection_without_db(Connection(conn_id="asana_test", conn_type="asana", password="test"))
 
+    @pytest.mark.db_test
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
     def test_asana_create_task_operator(self, mock_tasks_api):
         """
@@ -69,6 +68,7 @@ class TestAsanaTaskOperators:
         create_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert mock_tasks_api.return_value.create_task.called
 
+    @pytest.mark.db_test
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
     def test_asana_find_task_operator(self, mock_tasks_api):
         """
@@ -84,6 +84,7 @@ class TestAsanaTaskOperators:
         find_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert mock_tasks_api.return_value.get_tasks.called
 
+    @pytest.mark.db_test
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
     def test_asana_update_task_operator(self, mock_tasks_api):
         """
@@ -99,6 +100,7 @@ class TestAsanaTaskOperators:
         update_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert mock_tasks_api.return_value.update_task.called
 
+    @pytest.mark.db_test
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
     def test_asana_delete_task_operator(self, mock_tasks_api):
         """
