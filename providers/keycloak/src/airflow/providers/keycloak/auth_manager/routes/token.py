@@ -19,44 +19,37 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import Request  # noqa: TC002
-from starlette.responses import HTMLResponse, RedirectResponse
+from fastapi import HTTPException
+from keycloak import KeycloakAuthenticationError
+from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.configuration import conf
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.providers.keycloak.auth_manager.datamodels.token import TokenBody, TokenResponse
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
-login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
+token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
 
 
-@login_router.get("/login")
-def login(request: Request) -> RedirectResponse:
-    """Initiate the authentication."""
+@token_router.post(
+    "/token",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+)
+def create_token(body: TokenBody) -> TokenResponse:
     client = KeycloakAuthManager.get_keycloak_client()
-    redirect_uri = request.url_for("login_callback")
-    auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid")
-    return RedirectResponse(auth_url)
 
+    try:
+        tokens = client.token(body.username, body.password)
+    except KeycloakAuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+        )
 
-@login_router.get("/login_callback")
-def login_callback(request: Request):
-    """Authenticate the user."""
-    code = request.query_params.get("code")
-    if not code:
-        return HTMLResponse("Missing code", status_code=400)
-
-    client = KeycloakAuthManager.get_keycloak_client()
-    redirect_uri = request.url_for("login_callback")
-
-    tokens = client.token(
-        grant_type="authorization_code",
-        code=code,
-        redirect_uri=str(redirect_uri),
-    )
     userinfo = client.userinfo(tokens["access_token"])
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
@@ -66,7 +59,4 @@ def login_callback(request: Request):
     )
     token = get_auth_manager().generate_jwt(user)
 
-    response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
-    return response
+    return TokenResponse(access_token=token)
