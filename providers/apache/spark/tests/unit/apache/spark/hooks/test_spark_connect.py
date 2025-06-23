@@ -22,8 +22,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestSparkConnectHook:
     @pytest.fixture(autouse=True)
