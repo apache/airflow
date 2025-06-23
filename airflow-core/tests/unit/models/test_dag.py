@@ -2332,12 +2332,12 @@ class TestDagModel:
             is_stale=False,
         )
         assert not orm_dag.has_import_errors
-        session.merge(orm_dag)
+        session.add(orm_dag)
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
         needed = query.all()
-        assert [d.dag_id for d in needed] == [orm_dag.dag_id]
+        assert needed == [orm_dag]
 
         orm_dag.has_import_errors = True
         session.merge(orm_dag)

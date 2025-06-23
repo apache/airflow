@@ -39,7 +39,7 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Apply Make bundle_name not nullable."""
+    """Make bundle_name not nullable."""
     dialect_name = op.get_bind().dialect.name
     if dialect_name == "postgresql":
         op.execute("""
@@ -80,8 +80,8 @@ def upgrade():
         batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
         batch_op.alter_column("bundle_name", nullable=False, existing_type=sa.String(length=250))
 
-    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-        batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
+    # with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+    #     batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.create_foreign_key(
@@ -90,4 +90,17 @@ def upgrade():
 
 
 def downgrade():
-    """NO downgrade because the primary key cannot be null."""
+    """Make bundle_name nullable."""
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
+
+        existing_type_kwargs = {}
+        if op.get_bind().dialect.name == "mysql":
+            existing_type_kwargs["collation"] = "utf8mb3_bin"
+
+        batch_op.alter_column(
+            "bundle_name", nullable=True, existing_type=sa.String(length=250, **existing_type_kwargs)
+        )
+        batch_op.create_foreign_key(
+            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+        )
