@@ -179,13 +179,8 @@ class TestCloudDataCatalogCreateEntryOperator:
         )
         mock_xcom.assert_called_with(
             context,
-            key="data_catalog_entry",
-            value={
-                "entry_id": TEST_ENTRY_ID,
-                "entry_group_id": TEST_ENTRY_GROUP_ID,
-                "location_id": TEST_LOCATION,
-                "project_id": TEST_PROJECT_ID,
-            },
+            key="entry_id",
+            value=TEST_ENTRY_ID,
         )
 
         assert result == TEST_ENTRY_DICT
@@ -236,13 +231,8 @@ class TestCloudDataCatalogCreateEntryOperator:
         )
         mock_xcom.assert_called_with(
             context,
-            key="data_catalog_entry",
-            value={
-                "entry_id": TEST_ENTRY_ID,
-                "entry_group_id": TEST_ENTRY_GROUP_ID,
-                "location_id": TEST_LOCATION,
-                "project_id": TEST_PROJECT_ID,
-            },
+            key="entry_id",
+            value=TEST_ENTRY_ID,
         )
         assert result == TEST_ENTRY_DICT
 
@@ -284,12 +274,8 @@ class TestCloudDataCatalogCreateEntryGroupOperator:
         )
         mock_xcom.assert_called_with(
             context,
-            key="data_catalog_entry_group",
-            value={
-                "entry_group_id": TEST_ENTRY_GROUP_ID,
-                "location_id": TEST_LOCATION,
-                "project_id": TEST_PROJECT_ID,
-            },
+            key="entry_group_id",
+            value=TEST_ENTRY_GROUP_ID,
         )
         assert result == TEST_ENTRY_GROUP_DICT
 
@@ -335,13 +321,8 @@ class TestCloudDataCatalogCreateTagOperator:
         )
         mock_xcom.assert_called_with(
             context,
-            key="data_catalog_entry",
-            value={
-                "entry_id": TEST_ENTRY_ID,
-                "entry_group_id": TEST_ENTRY_GROUP_ID,
-                "location_id": TEST_LOCATION,
-                "project_id": TEST_PROJECT_ID,
-            },
+            key="tag_id",
+            value=TEST_TAG_ID,
         )
         assert result == TEST_TAG_DICT
 
@@ -383,12 +364,8 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
         )
         mock_xcom.assert_called_with(
             context,
-            key="data_catalog_tag_template",
-            value={
-                "tag_template_id": TEST_TAG_TEMPLATE_ID,
-                "location_id": TEST_LOCATION,
-                "project_id": TEST_PROJECT_ID,
-            },
+            key="tag_template_id",
+            value=TEST_TAG_TEMPLATE_ID,
         )
         assert result == {**result, **TEST_TAG_TEMPLATE_DICT}
 
@@ -432,12 +409,8 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
         )
         mock_xcom.assert_called_with(
             context,
-            key="data_catalog_tag_template",
-            value={
-                "tag_template_id": TEST_TAG_TEMPLATE_ID,
-                "location_id": TEST_LOCATION,
-                "project_id": TEST_PROJECT_ID,
-            },
+            key="tag_template_field_id",
+            value=TEST_TAG_TEMPLATE_FIELD_ID,
         )
         assert result == {**result, **TEST_TAG_TEMPLATE_FIELD_DICT}
 

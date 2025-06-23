@@ -170,6 +170,13 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
         if event["status"] == "error":
             raise AirflowException(event["message"])
@@ -180,7 +187,7 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
             model = training_pipeline["model_to_upload"]
             model_id = self.hook.extract_model_id(model)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
             return model
         except KeyError:
             self.log.warning(
@@ -585,12 +592,12 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
     def invoke_defer(self, context: Context) -> None:
@@ -649,7 +656,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         custom_container_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_container_training_job_obj.name
         self.xcom_push(context, key="training_id", value=training_pipeline_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_pipeline_id)
         self.defer(
             trigger=CustomContainerTrainingJobTrigger(
                 conn_id=self.gcp_conn_id,
@@ -1042,12 +1049,12 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
     def invoke_defer(self, context: Context) -> None:
@@ -1107,7 +1114,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         custom_python_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_python_training_job_obj.name
         self.xcom_push(context, key="training_id", value=training_pipeline_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_pipeline_id)
         self.defer(
             trigger=CustomPythonPackageTrainingJobTrigger(
                 conn_id=self.gcp_conn_id,
@@ -1505,12 +1512,12 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
     def invoke_defer(self, context: Context) -> None:
@@ -1570,7 +1577,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         custom_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_training_job_obj.name
         self.xcom_push(context, key="training_id", value=training_pipeline_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_pipeline_id)
         self.defer(
             trigger=CustomTrainingJobTrigger(
                 conn_id=self.gcp_conn_id,
@@ -1748,6 +1755,12 @@ class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1764,5 +1777,5 @@ class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAITrainingPipelinesLink.persist(context=context, task_instance=self)
+        VertexAITrainingPipelinesLink.persist(context=context)
         return [TrainingPipeline.to_dict(result) for result in results]

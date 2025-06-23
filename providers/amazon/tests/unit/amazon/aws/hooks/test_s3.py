@@ -1272,7 +1272,6 @@ class TestAwsS3Hook:
             assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
-    @pytest.mark.db_test
     def test_provide_bucket_name(self):
         with mock.patch.object(
             S3Hook,
@@ -1728,7 +1727,6 @@ class TestAwsS3Hook:
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
 
-@pytest.mark.db_test
 @pytest.mark.parametrize(
     "key_kind, has_conn, has_bucket, precedence, expected",
     [

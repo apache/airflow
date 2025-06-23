@@ -26,7 +26,6 @@ try:
     from airflow.sdk import BaseHook
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore
-from airflow.utils import db
 
 try:
     from opensearchpy import OpenSearch
@@ -182,9 +181,8 @@ def mock_hook(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def setup_connection():
-    # We need to set up a Connection into the database for all tests.
-    db.merge_conn(
+def setup_connection(create_connection_without_db):
+    create_connection_without_db(
         Connection(
             conn_id="opensearch_default",
             conn_type="opensearch",

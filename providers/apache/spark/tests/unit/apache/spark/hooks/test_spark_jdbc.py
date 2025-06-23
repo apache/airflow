@@ -23,7 +23,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
-from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -64,8 +63,9 @@ class TestSparkJDBCHook:
         "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)",
     }
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="spark-default",
                 conn_type="spark",
@@ -73,7 +73,7 @@ class TestSparkJDBCHook:
                 extra='{"queue": "root.etl", "deploy-mode": "cluster"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="jdbc-default",
                 conn_type="postgres",
@@ -85,7 +85,7 @@ class TestSparkJDBCHook:
                 extra='{"conn_prefix":"jdbc:postgresql://"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="jdbc-invalid-host",
                 conn_type="postgres",
@@ -97,7 +97,7 @@ class TestSparkJDBCHook:
                 extra='{"conn_prefix":"jdbc:postgresql://"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="jdbc-invalid-schema",
                 conn_type="postgres",
@@ -109,7 +109,7 @@ class TestSparkJDBCHook:
                 extra='{"conn_prefix":"jdbc:postgresql://"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="jdbc-invalid-extra-conn-prefix",
                 conn_type="postgres",

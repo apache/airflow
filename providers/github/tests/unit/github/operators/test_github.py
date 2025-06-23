@@ -24,21 +24,17 @@ import pytest
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.github.operators.github import GithubOperator
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
-
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
 
 class TestGithubOperator:
-    def setup_class(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", schedule=None, default_args=args)
-        self.dag = dag
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="github_default",
                 conn_type="github",
@@ -46,6 +42,11 @@ class TestGithubOperator:
                 host="https://mygithub.com/api/v3",
             )
         )
+
+    def setup_class(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", schedule=None, default_args=args)
+        self.dag = dag
 
     def test_operator_init_with_optional_args(self):
         github_operator = GithubOperator(
@@ -56,6 +57,7 @@ class TestGithubOperator:
         assert github_operator.github_method_args == {}
         assert github_operator.result_processor is None
 
+    @pytest.mark.db_test
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
     )
