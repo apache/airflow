@@ -580,6 +580,9 @@ repos:
         files: >
             (?x)
             ^providers/airbyte/.*\.py$|
+            ^providers/apache/beam/.*\.py$|
+            ^providers/apache/flink/.*\.py$|
+            ^providers/apache/iceberg/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/datadog/.*\.py$|
@@ -592,6 +595,7 @@ repos:
             ^providers/hashicorp/.*\.py$|
             ^providers/imap/.*\.py$|
             ^providers/influxdb/.*\.py$|
+            ^providers/jdbc/.*\.py$|
             ^providers/jenkins/.*\.py$|
             ^providers/mongo/.*\.py$|
             ^providers/neo4j/.*\.py$|
