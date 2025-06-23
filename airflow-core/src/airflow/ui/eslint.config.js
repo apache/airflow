@@ -36,7 +36,7 @@ import { unicornRules } from "./rules/unicorn.js";
  */
 export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
   // Global ignore of dist directory
-  { ignores: ["**/dist/", "**coverage/"] },
+  { ignores: ["**/dist/", "**coverage/", "**/openapi-gen/"] },
   // Base rules
   coreRules,
   typescriptRules,
