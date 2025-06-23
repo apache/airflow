@@ -93,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    ResendLoggingFD,
     RetryTask,
     SentFDs,
     SetRenderedFields,
@@ -1223,6 +1224,12 @@ class ActivitySubprocess(WatchedSubprocess):
             inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
             resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
             dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, ResendLoggingFD):
+            # We need special handling here!
+            if send_fds is not None:
+                self._send_new_log_fd(req_id)
+                # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
+                return
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

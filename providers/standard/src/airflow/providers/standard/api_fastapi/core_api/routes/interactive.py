@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from uuid import UUID
 
 import structlog
@@ -32,10 +31,6 @@ from airflow.providers.standard.api_fastapi.core_api.datamodels.interactive impo
     AddInteractiveResponsePayload,
     InteractiveResponse,
 )
-<<<<<<< HEAD
-from airflow.models.taskinstance import TaskInstance as TI
-=======
->>>>>>> 0b5b3552cc (fixup! feat: add write_response api)
 from airflow.providers.standard.models import InteractiveResponseModel
 
 interactive_router = AirflowRouter(tags=["InteractiveResponse"], prefix="/interactive")
@@ -58,13 +53,6 @@ def write_response(
     add_response_payload: AddInteractiveResponsePayload,
     session: SessionDep,
 ) -> InteractiveResponse:
-    status_code=status.HTTP_200_OK,
-)
-def write_response(
-    task_instance_id: UUID,
-    content: str,
-    session: SessionDep,
-) -> None:
     """Write an InteractiveResponse."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
@@ -88,19 +76,10 @@ def write_response(
             f"Interactive Response exists for task task_instance id {ti_id_str}",
         )
 
-    from airflow.utils import timezone
-
     interactive_response_model = InteractiveResponseModel(
-        id=1,
         ti_id=ti_id_str,
         content=add_response_payload.content,
-        created_at=datetime.now(timezone.utc),
     )
     session.add(interactive_response_model)
     session.commit()
-    ret = InteractiveResponse(
-        ti_id=interactive_response_model.ti_id,
-        created_at=interactive_response_model.created_at,
-        content=interactive_response_model.content,
-    )
-    return ret
+    return InteractiveResponse.model_validate(interactive_response_model)
