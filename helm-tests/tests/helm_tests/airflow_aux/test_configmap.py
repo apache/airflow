@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import configparser
+import io
 import json
 
 import jmespath
@@ -335,6 +337,22 @@ metadata:
                     }
                 ],
             ),
+            (
+                [
+                    {
+                        "name": "local-dags",
+                        "type": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "args": {"path": "/opt/dags"},
+                    }
+                ],
+                [
+                    {
+                        "name": "local-dags",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": "/opt/dags"},
+                    }
+                ],
+            ),
         ],
     )
     def test_dag_bundle_config(self, bundle_configs, expected_bundle):
@@ -344,9 +362,39 @@ metadata:
         )
 
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
-        dag_bundle_line = next(
-            line for line in cfg.splitlines() if line.strip().startswith("dag_bundle_config_list")
+        parser = configparser.ConfigParser()
+        parser.read_file(io.StringIO(cfg))
+
+        dag_bundle = parser["dag_processor"]["dag_bundle_config_list"]
+
+        assert expected_bundle == json.loads(dag_bundle)
+
+    def test_dag_bundle_config_override(self):
+        docs = render_chart(
+            values={
+                "config": {
+                    "dag_processor": {
+                        "dag_bundle_config_list": """
+                        [{"name":"local-dags","classpath":"airflow.dag_processing.bundles.local.LocalDagBundle","kwargs":{"path":"/opt/dags"}}]
+                        """,
+                    }
+                }
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
         )
-        dag_bundle = dag_bundle_line.split("=", 1)[1].strip()
+
+        expected_bundle = [
+            {
+                "name": "local-dags",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/opt/dags"},
+            }
+        ]
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        parser = configparser.ConfigParser()
+        parser.read_file(io.StringIO(cfg))
+
+        dag_bundle = parser["dag_processor"]["dag_bundle_config_list"]
 
         assert expected_bundle == json.loads(dag_bundle)
