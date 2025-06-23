@@ -22,7 +22,7 @@ from typing import Annotated, Any, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -196,22 +196,23 @@ def get_mapped_task_instances(
             error_message = f"Task id {task_id} is not mapped"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
+    filters = [
+        run_after_range,
+        logical_date_range,
+        start_date_range,
+        end_date_range,
+        update_at_range,
+        duration_range,
+        state,
+        pool,
+        queue,
+        executor,
+        version_number,
+    ]
     if state.value is not None and None in state.value:
-        filters = [state, pool, queue, executor, version_number]
-    else:
-        filters = [
-            run_after_range,
-            logical_date_range,
-            start_date_range,
-            end_date_range,
-            update_at_range,
-            duration_range,
-            state,
-            pool,
-            queue,
-            executor,
-            version_number,
-        ]
+        current_time = func.now()
+        for f in (start_date_range, end_date_range):
+            f.attribute = func.coalesce(f.attribute, current_time)
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=cast("Sequence[OrmClause[Any]]", filters),
@@ -466,34 +467,23 @@ def get_task_instances(
             )
         query = query.where(TI.run_id == dag_run_id)
 
+    filters = [
+        run_after_range,
+        logical_date_range,
+        start_date_range,
+        end_date_range,
+        update_at_range,
+        duration_range,
+        state,
+        pool,
+        queue,
+        executor,
+        version_number,
+    ]
     if state.value is not None and None in state.value:
-        filters = [
-            state,
-            pool,
-            queue,
-            executor,
-            task_id,
-            task_display_name_pattern,
-            version_number,
-            readable_ti_filter,
-        ]
-    else:
-        filters = [
-            run_after_range,
-            logical_date_range,
-            start_date_range,
-            end_date_range,
-            update_at_range,
-            duration_range,
-            state,
-            pool,
-            queue,
-            executor,
-            task_id,
-            task_display_name_pattern,
-            version_number,
-            readable_ti_filter,
-        ]
+        current_time = func.now()
+        for f in (start_date_range, end_date_range):
+            f.attribute = func.coalesce(f.attribute, current_time)
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=cast("Sequence[OrmClause[Any]]", filters),
