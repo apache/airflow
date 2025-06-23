@@ -255,6 +255,23 @@ class TestConnection:
     def test_sanitize_conn_id(self, connection, expected_conn_id):
         assert connection.conn_id == expected_conn_id
 
+    @pytest.mark.parametrize(
+        "conn_type, host",
+        [
+            # same protocol to type
+            ("http", "http://host"),
+            # different protocol to type
+            ("spark", "k8s://100.68.0.1:443"),
+        ],
+    )
+    def test_connection_uri_recovery(self, conn_type, host):
+        original = Connection(conn_id="test", conn_type=conn_type, host=host)
+        uri = original.get_uri()
+
+        recovered = Connection(uri=uri)
+        assert recovered.conn_type == original.conn_type
+        assert recovered.host == original.host
+
     def test_extra_dejson(self):
         extra = (
             '{"trust_env": false, "verify": false, "stream": true, "headers":'

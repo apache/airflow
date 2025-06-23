@@ -38,10 +38,10 @@ metadata:
   {{- end }}
 {{- $Global := . }}
 data:
+  {{- $config := deepCopy .Values.config | merge (dict "core" dict) }}
   {{/*- Set a default for core.execution_api_server_url pointing to the api-server service if it's not set -*/}}
   {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
     {{- $basePath := "" -}}
-    {{- $config := merge .Values.config ( dict  "core" dict )}}
     {{- if not (hasKey $config.core "execution_api_server_url") -}}
       {{-  if (and $config.api $config.api.base_url) -}}
         {{- with urlParse $config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
@@ -51,7 +51,7 @@ data:
   {{- end -}}
   # These are system-specified config overrides.
   airflow.cfg: |-
-    {{- range $section, $settings := .Values.config }}
+    {{- range $section, $settings := $config }}
     [{{ $section }}]
     {{- range $key, $val := $settings }}
     {{ $key }} = {{ tpl ($val | toString) $Global }}

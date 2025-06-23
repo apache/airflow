@@ -1,10 +1,10 @@
 {
-  "auditLog":{
+  "auditLog": {
     "actions": {
       "collapseAllExtra": "طي جميع الJSON الإضافية",
       "expandAllExtra": "توسيع جميع الJSON الإضافية"
     },
-    "columns":{
+    "columns": {
       "event": "اصل",
       "extra": "إضافي",
       "user": "مستخدم",
@@ -12,8 +12,8 @@
     },
     "title": "سجل المراجعة"
   },
-  "xcom":{
-    "columns":{
+  "xcom": {
+    "columns": {
       "dag": "Dag",
       "key": "مفتاح",
       "value": "قيمة"

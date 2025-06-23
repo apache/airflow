@@ -40,7 +40,9 @@ from rich.table import Table
 click.rich_click.MAX_WIDTH = 120
 click.rich_click.USE_RICH_MARKUP = True
 
-LOCALES_DIR = Path(__file__).parent / "locales"
+LOCALES_DIR = (
+    Path(__file__).parents[2] / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
+)
 
 
 class LocaleSummary(NamedTuple):
@@ -375,6 +377,11 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     help="Add missing translations for the selected language, prefixed with 'TODO: translate:'.",
 )
 def cli(language: str | None = None, add_missing: bool = False):
+    if add_missing:
+        if not language:
+            raise ValueError("--language is required when passing --add_missing")
+        locale_path = LOCALES_DIR / language
+        locale_path.mkdir(exist_ok=True)
     locale_files = get_locale_files()
     console = Console(force_terminal=True, color_system="auto")
     print_locale_file_table(locale_files, console, language)
