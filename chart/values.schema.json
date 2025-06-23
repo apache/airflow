@@ -9160,6 +9160,7 @@
                         "array",
                         "null"
                     ],
+                    "default": null,
                     "items": {
                         "type": "object",
                         "additionalProperties": false,
@@ -9183,8 +9184,57 @@
                                 "description": "Fully-qualified class implementing the bundle loader"
                             },
                             "args": {
-                                "type": "object",
-                                "description": "Keyword arguments passed to the bundle loader"
+                                "description": "Keyword arguments passed to the bundle loader",
+                                "oneOf": [
+                                    {
+                                        "title": "GitDagBundle keyword arguments",
+                                        "type": "object",
+                                        "required": [
+                                            "tracking_ref"
+                                        ],
+                                        "properties": {
+                                            "repo_url": {
+                                                "type": "string",
+                                                "description": "Explicit Git repository URL to override the connection's host",
+                                                "default": null
+                                            },
+                                            "tracking_ref": {
+                                                "type": "string",
+                                                "description": "Branch or tag for this DAG bundle"
+                                            },
+                                            "subdir": {
+                                                "type": "string",
+                                                "description": "Subdirectory within the repository where the DAGs are stored",
+                                                "default": null
+                                            },
+                                            "git_conn_id": {
+                                                "type": "string",
+                                                "description": "Connection ID for SSH/token based connection to the repository",
+                                                "default": null
+                                            },
+                                            "refresh_interval": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "description": "How often (in seconds) to re-sync the repo"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    },
+                                    {
+                                        "title": "LocalDagBundle keyword arguments",
+                                        "type": "object",
+                                        "required": [
+                                            "path"
+                                        ],
+                                        "properties": {
+                                            "path": {
+                                                "type": "string",
+                                                "description": "Absolute path to a local directory with DAG files"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
                             }
                         }
                     }

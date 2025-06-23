@@ -2950,15 +2950,15 @@ dags:
   #     - name: my-git-repo
   #       type: airflow.providers.git.bundles.git.GitDagBundle
   #       args:
-  #         - tracking_ref: main
-  #         - subdir: src
-  #         - git_conn_id: git_default
-  #         - repo_url: https://github.com/apache/airflow.git
-  #         - refresh_interval: 1800
+  #         tracking_ref: main
+  #         subdir: src
+  #         git_conn_id: git_default
+  #         repo_url: https://github.com/apache/airflow.git
+  #         refresh_interval: 1800
   #     - name: my-local-dags
   #       type: airflow.dag_processing.bundles.local.LocalDagBundle
   #       args:
-  #         - path: /opt/local/dags
+  #         path: /opt/local/dags
   bundleConfigs: ~
 
   gitSync:
