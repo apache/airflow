@@ -365,7 +365,7 @@ airflowLocalSettings: |-
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
-  createSCCRoleBinding: true
+  createSCCRoleBinding: false
 
 # Airflow executor
 # One or multiple of: LocalExecutor, CeleryExecutor, KubernetesExecutor
@@ -1968,7 +1968,7 @@ triggerer:
 
 # Airflow Dag Processor Config
 dagProcessor:
-  enabled: true
+  enabled: ~
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
