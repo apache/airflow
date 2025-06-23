@@ -19,6 +19,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import delete
+from sqlalchemy import select
+from sqlalchemy import select, update
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -124,8 +126,9 @@ class DagBundlesManager(LoggingMixin):
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
         self.log.debug("Syncing DAG bundles to the database")
-        stored = {b.name: b for b in session.query(DagBundleModel).all()}
-        for name in self._bundle_config.keys():
+        stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
+        active_bundle_names = set(self._bundle_config.keys())
+        for name in active_bundle_names:
             if bundle := stored.pop(name, None):
                 bundle.active = True
             else:

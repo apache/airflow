@@ -788,10 +788,13 @@ class DagRun(Base, LoggingMixin):
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
         dag_runs = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag_id)
-            .order_by(DagRun.logical_date.desc())
-            .limit(max_consecutive_failed_dag_runs)
+            session.execute(
+                select(DagRun)
+                .where(DagRun.dag_id == dag_id)
+                .order_by(DagRun.logical_date.desc())
+                .limit(max_consecutive_failed_dag_runs)
+            )
+            .scalars()
             .all()
         )
         """ Marking dag as paused, if needed"""
