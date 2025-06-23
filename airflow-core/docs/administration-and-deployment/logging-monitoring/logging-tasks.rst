@@ -113,7 +113,7 @@ When displaying the logs in web UI, the display of logs will be condensed:
    [2024-03-08, 23:30:18 CET] {logging_mixin.py:188} ⯈ Non important details
    [2024-03-08, 23:30:18 CET] {logging_mixin.py:188} INFO - Here is again some standard text.
 
-If you click on the log text label, the detailed log lies will be displayed.
+If you click on the log text label, the detailed log lines will be displayed.
 
 .. code-block:: text
 
