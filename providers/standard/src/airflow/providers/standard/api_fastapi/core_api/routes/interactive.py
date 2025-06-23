@@ -33,10 +33,7 @@ from airflow.providers.standard.api_fastapi.core_api.datamodels.interactive impo
     AddInteractiveResponsePayload,
     InteractiveResponse,
 )
-<<<<<<< HEAD
 from airflow.models.taskinstance import TaskInstance as TI
-=======
->>>>>>> 0b5b3552cc (fixup! feat: add write_response api)
 from airflow.providers.standard.models import InteractiveResponseModel
 
 interactive_router = AirflowRouter(tags=["InteractiveResponse"], prefix="/interactive")
@@ -53,6 +50,7 @@ log = structlog.get_logger(__name__)
             status.HTTP_409_CONFLICT,
         ]
     ),
+<<<<<<< HEAD
 )
 def write_response(
     task_instance_id: UUID,
@@ -60,12 +58,14 @@ def write_response(
     session: SessionDep,
 ) -> InteractiveResponse:
     status_code=status.HTTP_200_OK,
+=======
+>>>>>>> a7ed69aee6 (fixup! feat: add write_response api)
 )
 def write_response(
     task_instance_id: UUID,
-    content: str,
+    add_response_payload: AddInteractiveResponsePayload,
     session: SessionDep,
-) -> None:
+) -> InteractiveResponse:
     """Write an InteractiveResponse."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
