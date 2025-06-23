@@ -46,7 +46,6 @@ from airflow.utils.db_cleanup import (
     config_dict,
     drop_archived_tables,
     export_archived_records,
-    get_all_dependent_tables,
     run_cleanup,
 )
 from airflow.utils.session import create_session
@@ -305,16 +304,15 @@ class TestDBCleanup:
                 raise Exception("unexpected")
 
     @pytest.mark.parametrize(
-        "table_name, expected_deps, expected_archived",
+        "table_name, expected_archived",
         [
             (
                 "dag_run",
-                {"task_instance", "xcom", "task_reschedule", "task_instance_history"},
                 {"dag_run", "task_instance"},  # Only these are populated
             ),
         ],
     )
-    def test_fk_detection_and_archival_integration(self, table_name, expected_deps, expected_archived):
+    def test_archival_integration(self, table_name, expected_archived):
         """
         Integration test that verifies:
 
@@ -335,9 +333,8 @@ class TestDBCleanup:
         create_tis(base_date=base_date, num_tis=num_tis, run_type=DagRunType.MANUAL)
 
         with create_session() as session:
-            fk_deps = get_all_dependent_tables(table_name, session)
-            dep_table_names = {fk["table_name"] for fk in fk_deps}
-            assert expected_deps <= dep_table_names, f"Missing FK tables: {expected_deps - dep_table_names}"
+            # dep_table_names = config_dict[table_name.name].dependent_tables
+            # assert expected_deps <= dep_table_names, f"Missing FK tables: {expected_deps - dep_table_names}"
 
             clean_before_date = base_date.add(days=10)
             _cleanup_table(

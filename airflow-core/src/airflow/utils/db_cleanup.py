@@ -26,7 +26,6 @@ from __future__ import annotations
 import csv
 import logging
 import os
-from collections import defaultdict, deque
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -74,6 +73,7 @@ class _TableConfig:
         in the table.  to ignore certain records even if they are the latest in the table, you can
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
+    :param dependent_tables: list of tables which have FK relationship with this table
     """
 
     table_name: str
@@ -82,6 +82,7 @@ class _TableConfig:
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
+    dependent_tables: list[str] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -105,7 +106,18 @@ class _TableConfig:
 
 config_list: list[_TableConfig] = [
     _TableConfig(table_name="job", recency_column_name="latest_heartbeat"),
-    _TableConfig(table_name="dag", recency_column_name="last_parsed_time"),
+    _TableConfig(
+        table_name="dag",
+        recency_column_name="last_parsed_time",
+        dependent_tables=[
+            "task_reschedule",
+            "task_instance_history",
+            "xcom",
+            "task_instance",
+            "dag_run",
+            "dag_version",
+        ],
+    ),
     _TableConfig(
         table_name="dag_run",
         recency_column_name="start_date",
@@ -113,12 +125,17 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
+        dependent_tables=["xcom", "task_reschedule", "task_instance_history", "task_instance"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
-    _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(
+        table_name="task_instance",
+        recency_column_name="start_date",
+        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
+    ),
     _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp"),
@@ -126,8 +143,16 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
-    _TableConfig(table_name="trigger", recency_column_name="created_date"),
-    _TableConfig(table_name="dag_version", recency_column_name="created_at"),
+    _TableConfig(
+        table_name="trigger",
+        recency_column_name="created_date",
+        dependent_tables=["task_reschedule", "xcom", "task_instance_history", "task_instance"],
+    ),
+    _TableConfig(
+        table_name="dag_version",
+        recency_column_name="created_at",
+        dependent_tables=["task_instance_history", "task_reschedule", "xcom", "task_instance", "dag_run"],
+    ),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -167,43 +192,6 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
                 rows = cursor.fetchmany(BATCH_SIZE)
     else:
         raise AirflowException(f"Export format {export_format} is not supported.")
-
-
-def get_all_dependent_tables(root_table: str, session: Session) -> list[dict]:
-    inspector = inspect(session.get_bind())
-    config_table_names = set(config_dict.keys())
-    visited = set()
-    dependent_fks = []
-
-    def visit(table_name: str):
-        if table_name in visited:
-            return
-        visited.add(table_name)
-
-        for other_table in inspector.get_table_names():
-            if other_table not in config_table_names:
-                continue
-
-            for fk in inspector.get_foreign_keys(other_table):
-                if (
-                    fk.get("referred_table") == table_name
-                    and fk.get("constrained_columns")
-                    and fk.get("referred_columns")
-                ):
-                    dependent_fks.append(
-                        {
-                            "table_name": other_table,
-                            "fk_column": fk["constrained_columns"][0],
-                            "referred_table": table_name,
-                            "referred_column": fk["referred_columns"][0],
-                        }
-                    )
-                    # Recurse into the next level
-                    visit(other_table)
-
-    visit(root_table)
-    print(f"dependent_fks are {dependent_fks}")
-    return dependent_fks
 
 
 def _do_delete(
@@ -360,33 +348,6 @@ def _build_query(
     return query
 
 
-def topologically_sort_tables(table_names, session: Session) -> list[str]:
-    inspector = inspect(session.get_bind())
-    graph = defaultdict(set)
-    reverse_graph = defaultdict(set)
-
-    # Build graph of FK relationships
-    for table_name in table_names:
-        for fk in inspector.get_foreign_keys(table_name):
-            referred = fk.get("referred_table")
-            if referred in table_names:
-                graph[table_name].add(referred)
-                reverse_graph[referred].add(table_name)
-
-    no_deps = deque([t for t in table_names if not graph[t]])
-    sorted_order = []
-
-    while no_deps:
-        table_name = no_deps.popleft()
-        sorted_order.append(table_name)
-        for dependent in reverse_graph[table_name]:
-            graph[dependent].remove(table_name)
-            if not graph[dependent]:
-                no_deps.append(dependent)
-
-    return list(reversed(sorted_order))
-
-
 def _cleanup_table(
     *,
     orm_model,
@@ -430,21 +391,16 @@ def _cleanup_table(
                 skip_delete=skip_delete,
             )
 
-    #  Get all recursive dependencies including children-of-children
-    dependent_fks = get_all_dependent_tables(orm_model.name, session)
-
-    #  Extract table names and topologically sort deepest first
-    dep_table_names = [fk["table_name"] for fk in dependent_fks]
-    sorted_tables = topologically_sort_tables(dep_table_names, session)
-    print(f"sorted_tables are {sorted_tables}")
-
-    # Cleanup all dependent tables first
-    for table_name in sorted_tables:
-        metadata = reflect_tables([table_name], session)
-        model = metadata.tables[table_name]
-        recency_col_name = config_dict[model.name].recency_column_name
-        recency_col = column(recency_col_name)
-        _cleanup_single_table(model, recency_col, skip_delete=True)
+    dep_table_names = config_dict[orm_model.name].dependent_tables
+    if dep_table_names is not None:
+        # Cleanup all dependent tables first
+        print(f"archiving dependent tables {dep_table_names}")
+        for table_name in dep_table_names:
+            metadata = reflect_tables([table_name], session)
+            model = metadata.tables[table_name]
+            recency_col_name = config_dict[model.name].recency_column_name
+            recency_col = column(recency_col_name)
+            _cleanup_single_table(model, recency_col, skip_delete=True)
 
     # Cleanup original table
     _cleanup_single_table(
