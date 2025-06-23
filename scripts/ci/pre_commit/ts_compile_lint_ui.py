@@ -42,7 +42,7 @@ if __name__ == "__main__":
     files = [
         file[len(relative_dir.as_posix()) + 1 :]
         for file in original_files
-        if Path(file).is_relative_to(relative_dir) and "openapi-gen/" not in file
+        if Path(file).is_relative_to(relative_dir)
     ]
     all_non_yaml_files = [file for file in files if not file.endswith(".yaml")]
     print("All non-YAML files:", all_non_yaml_files)
