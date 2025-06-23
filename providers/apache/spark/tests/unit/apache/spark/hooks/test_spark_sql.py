@@ -29,8 +29,6 @@ from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 
 from tests_common.test_utils.db import clear_db_connections
 
-pytestmark = pytest.mark.db_test
-
 
 def get_after(sentinel, iterable):
     """Get the value after `sentinel` in an `iterable`"""
@@ -78,6 +76,7 @@ class TestSparkSqlHook:
     def teardown_class(cls) -> None:
         clear_db_connections(add_default_connections_back=True)
 
+    @pytest.mark.db_test
     def test_build_command(self):
         hook = SparkSqlHook(**self._config)
 
@@ -100,6 +99,7 @@ class TestSparkSqlHook:
         if self._config["verbose"]:
             assert "--verbose" in cmd
 
+    @pytest.mark.db_test
     def test_build_command_with_str_conf(self):
         hook = SparkSqlHook(**self._config_str)
 
@@ -123,6 +123,7 @@ class TestSparkSqlHook:
         if self._config["verbose"]:
             assert "--verbose" in cmd
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen")
     def test_spark_process_runcmd(self, mock_popen):
         # Given
@@ -171,6 +172,7 @@ class TestSparkSqlHook:
             universal_newlines=True,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen")
     def test_spark_process_runcmd_with_str(self, mock_popen):
         # Given
@@ -201,6 +203,7 @@ class TestSparkSqlHook:
             universal_newlines=True,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen")
     def test_spark_process_runcmd_with_list(self, mock_popen):
         # Given
@@ -231,6 +234,7 @@ class TestSparkSqlHook:
             universal_newlines=True,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen")
     def test_spark_process_runcmd_and_fail(self, mock_popen):
         # Given
