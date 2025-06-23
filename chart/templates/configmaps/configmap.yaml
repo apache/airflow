@@ -50,8 +50,7 @@ data:
     {{- end -}}
   {{- end -}}
 
-  {{/*- Set a default for core.dag_processor.dag_bundle_config_list if it's not set -*/}}
-  {{- $bundleList := include "airflow_dag_bundles" . | trim }}
+  {{/*- Set a default for dag_processor.dag_bundle_config_list if it's not set -*/}}
   {{- if not (hasKey $config "dag_processor") }}
     {{- $_ := set $config "dag_processor" (dict) }}
   {{- end }}
