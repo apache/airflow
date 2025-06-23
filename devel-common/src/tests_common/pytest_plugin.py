@@ -1993,7 +1993,6 @@ def override_caplog(request):
         airflow.logging_config.configure_logging()
 
 
-@pytest.fixture(autouse=True)
 def mock_supervisor_comms(monkeypatch):
     # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
