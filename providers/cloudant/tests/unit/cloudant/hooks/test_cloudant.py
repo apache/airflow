@@ -25,7 +25,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 
-pytestmark = [pytest.mark.db_test]
+pytestmark = []
 
 if sys.version_info < (3, 10):
     pytestmark.append(
