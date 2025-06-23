@@ -588,6 +588,7 @@ repos:
             ^providers/hashicorp/.*\.py$|
             ^providers/influxdb/.*\.py$|
             ^providers/jenkins/.*\.py$|
+            ^providers/mongo/.*\.py$|
             ^providers/neo4j/.*\.py$|
             ^providers/odbc/.*\.py$|
             ^providers/openai/.*\.py$|

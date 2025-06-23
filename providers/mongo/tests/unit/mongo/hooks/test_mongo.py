@@ -30,8 +30,6 @@ from airflow.providers.mongo.hooks.mongo import MongoHook
 
 from tests_common.test_utils.compat import connection_as_json
 
-pytestmark = pytest.mark.db_test
-
 if TYPE_CHECKING:
     from types import ModuleType
 
