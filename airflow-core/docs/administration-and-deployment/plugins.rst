@@ -109,7 +109,7 @@ looks like:
         # A list of dictionaries containing FastAPI middleware factory objects and some metadata. See the example below.
         fastapi_root_middlewares = []
         # A list of dictionaries containing iframe views and some metadata. See the example below.
-        iframe_views = []
+        external_views = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
@@ -195,18 +195,24 @@ definitions in Airflow.
     }
 
     # Creating a iframe view that will be rendered in the Airflow UI.
-    iframe_view_with_metadata = {
+    external_view_with_metadata = {
         "name": "Name of the Iframe View as displayed in the UI",
-        # Source URL of the iframe. This URL can be templated using context variables, depending on the location where the iframe is rendered
-        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX)
-        "src": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}",
+        # Source URL of the external view. This URL can be templated using context variables, depending on the location where the external view is rendered
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX).
+        "href": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}",
         # Destination of the iframe view. This is used to determine where the iframe will be loaded in the UI.
-        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"]
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"], default to "nav".
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
-        # Optional parameters, relative URL location when opening the iframe
-        "url_route": "/my_iframe_view",
+        # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
+        "icon_dark_mode": "https://example.com/dark_icon.svg",
+        # Optional parameters, relative URL location for the iframe rendering. If not provided, external view will be rendeded as an external link. Should
+        # not contain a leading slash.
+        "url_route": "my_iframe_view",
+        # Optional category, only relevant for destination "nav". This is used to group the external links in the navigation bar.  We will match the existing
+        # menus of ["browse", "docs", "admin", "user"] and if there's no match then create a new menu.
+        "category": "browse",
     }
 
 
@@ -216,7 +222,7 @@ definitions in Airflow.
         macros = [plugin_macro]
         fastapi_apps = [app_with_metadata]
         fastapi_root_middlewares = [middleware_with_metadata]
-        iframe_views = [iframe_view_with_metadata]
+        external_views = [external_view_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
 
