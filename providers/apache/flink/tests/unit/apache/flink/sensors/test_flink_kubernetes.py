@@ -32,9 +32,6 @@ from airflow.models import Connection
 from airflow.providers.apache.flink.sensors.flink_kubernetes import FlinkKubernetesSensor
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
-
 TEST_NO_STATE_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
     "kind": "FlinkDeployment",
