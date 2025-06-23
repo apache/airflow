@@ -112,13 +112,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="dag",
         recency_column_name="last_parsed_time",
-        dependent_tables=[
-            "task_instance_history",
-            "xcom",
-            "task_instance",
-            "dag_run",
-            "dag_version",
-        ],
+        dependent_tables=["dag_version"],
     ),
     _TableConfig(
         table_name="dag_run",
@@ -127,7 +121,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
-        dependent_tables=["xcom", "task_instance_history", "task_instance"],
+        dependent_tables=["task_instance"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
@@ -148,12 +142,12 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="trigger",
         recency_column_name="created_date",
-        dependent_tables=["xcom", "task_instance_history", "task_instance"],
+        dependent_tables=["task_instance"],
     ),
     _TableConfig(
         table_name="dag_version",
         recency_column_name="created_at",
-        dependent_tables=["task_instance_history", "xcom", "task_instance", "dag_run"],
+        dependent_tables=["task_instance", "dag_run"],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
@@ -394,9 +388,18 @@ def _cleanup_table(
                 skip_delete=skip_delete,
             )
 
-    dep_table_names = config_dict[orm_model.name].dependent_tables
-    if dep_table_names is not None:
-        # Cleanup all dependent tables first
+    def get_recursive_deps(table_name: str, seen: set[str]) -> list[str]:
+        deps = config_dict[table_name].dependent_tables or []
+        all_deps = []
+        for dep in deps:
+            if dep not in seen:
+                seen.add(dep)
+                all_deps.append(dep)
+                all_deps.extend(get_recursive_deps(dep, seen))
+        return all_deps
+
+    dep_table_names = get_recursive_deps(orm_model.name, seen=set())
+    if dep_table_names:
         print(f"archiving dependent tables {dep_table_names}")
         for table_name in dep_table_names:
             metadata = reflect_tables([table_name], session)
