@@ -1379,8 +1379,10 @@ class DagRun(Base, LoggingMixin):
         # Add task-level metadata if available
         if last_relevant_ti:
             context.update(
-                task_instance=last_relevant_ti,
-                ti=last_relevant_ti,
+                {
+                    "task_instance": last_relevant_ti,
+                    "ti": last_relevant_ti,
+                }
             )
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
