@@ -23,9 +23,11 @@ import { useParams } from "react-router-dom";
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
+  useGridServiceGetGridTiSummaries,
   useGridServiceGridData,
 } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
@@ -51,26 +53,9 @@ export const GroupTaskInstance = () => {
     { enabled: runId !== "" },
   );
 
-  // Filter grid data to get only a single dag run
-  const { data, error, isLoading } = useGridServiceGridData(
-    {
-      dagId,
-      limit: 1,
-      offset: 0,
-      runAfterGte: dagRun?.run_after,
-      runAfterLte: dagRun?.run_after,
-    },
-    undefined,
-    {
-      enabled: dagRun !== undefined,
-      refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
-    },
-  );
+  const { data: gridTISummaries, error, isLoading } = useGridTiSummaries({ dagId, runId, state: undefined });
 
-  const taskInstance = data?.dag_runs
-    .find((dr) => dr.dag_run_id === runId)
-    ?.task_instances.find((ti) => ti.task_id === groupId);
+  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
   const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
 

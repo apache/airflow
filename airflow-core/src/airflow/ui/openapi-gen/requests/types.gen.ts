@@ -1797,6 +1797,11 @@ export type LatestRunResponse = {
 export type LightGridTaskInstanceSummary = {
     task_id: string;
     state: TaskInstanceState | null;
+    child_states: {
+        [key: string]: (number);
+    };
+    min_start_date: string | null;
+    max_end_date: string | null;
 };
 
 /**
