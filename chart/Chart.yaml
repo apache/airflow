@@ -19,7 +19,7 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.15.2-astro
+version: 1.15.3-astro
 appVersion: 2.10.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
