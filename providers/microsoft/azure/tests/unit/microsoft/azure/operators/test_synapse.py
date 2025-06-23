@@ -292,7 +292,7 @@ class TestAzureSynapseRunPipelineOperator:
 
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="run_id",
                 value=PIPELINE_RUN_RESPONSE["run_id"],
             )
