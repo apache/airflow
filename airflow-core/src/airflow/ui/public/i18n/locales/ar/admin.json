@@ -39,7 +39,9 @@
       "selectConnectionType": "اختر نوع الموَّصل",
       "standardFields": "حقول قياسية"
     },
-    "noRowMessage": "لا توجد موَّصلات متاحة",
+    "nothingFound": {
+        "title": "لا توجد موَّصلات متاحة"
+    },
     "searchPlaceholder": "البحث عن موَّصلات",
     "test": "اختبار الموَّصل",
     "testDisabled": "اختبار الموَّصل معطل. تواصل مع المسؤول لتفعيله.",

@@ -40,6 +40,7 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
@@ -198,6 +199,7 @@ export const Connections = () => {
           isFetching={isFetching}
           isLoading={isLoading}
           modelName={translate("common:admin.Connections")}
+          noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
         />

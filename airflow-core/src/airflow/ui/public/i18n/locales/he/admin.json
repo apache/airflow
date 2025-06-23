@@ -39,7 +39,9 @@
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
     },
-    "noRowMessage": "לא נמצאו חיבורים",
+    "nothingFound": {
+        "title": "לא נמצאו חיבורים"
+    },
     "searchPlaceholder": "חפש חיבורים",
     "test": "בדוק חיבור",
     "testDisabled": "אפשרות זו אינה זמינה. פנו למנהל המערכת להפעלתה",
