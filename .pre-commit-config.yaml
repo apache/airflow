@@ -539,7 +539,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: prevent-deprecated-sqlalchemy-usage
         name: Prevent deprecated sqlalchemy usage
-        entry: ./scripts/ci/pre_commit/usage_session_query.py
+        entry: ./scripts/ci/pre_commit/prevent_deprecated_sqlalchemy_usage.py
         language: python
         additional_dependencies: ['rich>=12.4.4']
         files: >
