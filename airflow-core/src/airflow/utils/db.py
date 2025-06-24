@@ -131,20 +131,6 @@ def create_default_connections(session: Session = NEW_SESSION):
         merge_conn(c, session)
 
 
-def create_default_connections_for_tests():
-    """
-    Create default Airflow connections for tests.
-
-    For testing purposes, we do not need to have the connections setup in the database, using environment
-    variables instead would provide better lookup speeds and is easier too.
-    """
-    conns = get_default_connections()
-
-    for c in conns:
-        envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
-        os.environ[envvar] = c.as_json()
-
-
 def get_default_connections():
     from airflow.models.connection import Connection
 

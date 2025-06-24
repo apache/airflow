@@ -41,7 +41,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import (
     add_default_pool_if_not_exists,
-    create_default_connections_for_tests,
+    get_default_connections,
     reflect_tables,
 )
 from airflow.utils.session import create_session
@@ -344,6 +344,22 @@ def clear_dag_specific_permissions():
             synchronize_session=False
         )
         session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+
+
+def create_default_connections_for_tests():
+    """
+    Create default Airflow connections for tests.
+
+    For testing purposes, we do not need to have the connections setup in the database, using environment
+    variables instead would provide better lookup speeds and is easier too.
+    """
+    import os
+
+    conns = get_default_connections()
+
+    for c in conns:
+        envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+        os.environ[envvar] = c.as_json()
 
 
 def clear_all():
