@@ -52,6 +52,11 @@ def workflow_run():
     required=True,
 )
 @click.option(
+    "--skip-tag-validation",
+    help="Skip validation of the tag. Allows to use `main` or commit hash. Use with caution.",
+    is_flag=True,
+)
+@click.option(
     "--exclude-docs",
     help="Comma separated list of docs packages to exclude from the publish.",
     default="no-docs-excluded",
@@ -72,6 +77,7 @@ def workflow_run_publish(
     ref: str,
     exclude_docs: str,
     site_env: str,
+    skip_tag_validation: bool,
     doc_packages: tuple[str, ...],
     skip_write_to_stable_folder: bool = False,
 ):
@@ -79,20 +85,21 @@ def workflow_run_publish(
         f"[blue]Validating ref: {ref}[/blue]",
     )
 
-    tag_result = run_command(
-        ["gh", "api", f"repos/apache/airflow/git/refs/tags/{ref}"],
-        capture_output=True,
-        check=False,
-    )
-
-    stdout = tag_result.stdout.decode("utf-8")
-    tag_respo = json.loads(stdout)
-
-    if not tag_respo.get("ref"):
-        get_console().print(
-            f"[red]Error: Ref {ref} is not exists in repo apache/airflow .[/red]",
+    if not skip_tag_validation:
+        tag_result = run_command(
+            ["gh", "api", f"repos/apache/airflow/git/refs/tags/{ref}"],
+            capture_output=True,
+            check=False,
         )
-        sys.exit(1)
+
+        stdout = tag_result.stdout.decode("utf-8")
+        tag_respo = json.loads(stdout)
+
+        if not tag_respo.get("ref"):
+            get_console().print(
+                f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
+            )
+            sys.exit(1)
 
     get_console().print(
         f"[blue]Triggering workflow {WORKFLOW_NAME_MAPS['publish-docs']}: at {APACHE_AIRFLOW_REPO}[/blue]",
