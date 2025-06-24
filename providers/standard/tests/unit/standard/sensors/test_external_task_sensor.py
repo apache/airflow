@@ -1919,7 +1919,7 @@ def dag_bag_multiple(session):
         from airflow.models.dagbundle import DagBundleModel
 
         bundle_name = "abcbunhdlerch3rc"
-        session.add(DagBundleModel(name=bundle_name))
+        session.merge(DagBundleModel(name=bundle_name))
         session.flush()
         DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[daily_dag, agg_dag], bundle_version=None)
         SerializedDagModel.write_dag(dag=daily_dag, bundle_name=bundle_name)
@@ -1985,7 +1985,7 @@ def dag_bag_head_tail(session):
 
         dag_bag.bag_dag(dag=dag)
         bundle_name = "9e8uh9odhu9c"
-        session.add(DagBundleModel(name=bundle_name))
+        session.merge(DagBundleModel(name=bundle_name))
         session.flush()
         DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[dag], bundle_version=None)
         SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)

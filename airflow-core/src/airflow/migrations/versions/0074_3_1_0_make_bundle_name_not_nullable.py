@@ -80,8 +80,8 @@ def upgrade():
         batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
         batch_op.alter_column("bundle_name", nullable=False, existing_type=sa.String(length=250))
 
-    # with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-    #     batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
+    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+        batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.create_foreign_key(
@@ -100,14 +100,15 @@ def downgrade():
         batch_op.alter_column(
             "bundle_name", nullable=True, existing_type=sa.String(length=250, **existing_type_kwargs)
         )
-        if op.get_bind().dialect.name == "mysql":
-            # Ensures the collation and charset are the same before creating the foreign key
-            op.execute(
-                "ALTER TABLE dag_bundle MODIFY name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
-            )
-            op.execute(
-                "ALTER TABLE dag MODIFY bundle_name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
-            )
+    if op.get_bind().dialect.name == "mysql":
+        # Ensures the collation and charset are the same before creating the foreign key
+        op.execute(
+            "ALTER TABLE dag_bundle MODIFY name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
+        )
+        op.execute(
+            "ALTER TABLE dag MODIFY bundle_name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
+        )
+    with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )
