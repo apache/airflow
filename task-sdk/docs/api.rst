@@ -33,7 +33,7 @@ Decorators
 .. autoapifunction:: airflow.sdk.dag
 .. autoapifunction:: airflow.sdk.task
 
-Sub-decorators on ``task``:
+Task Decorators:
 
 - ``@task.run_if(condition, skip_message=None)``
   Run the task only if the given condition is met; otherwise the task is skipped.  The condition is a callable
