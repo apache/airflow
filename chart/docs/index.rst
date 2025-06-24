@@ -67,10 +67,13 @@ Features
 --------
 
 * Supported executors (all Airflow versions): ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
-* Supported executors (Airflow version ``2.X.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported hybrid static executors (Airflow version ``2.X.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported Hybrid Executors (``2.10+``)
 * Supported AWS executors with AWS provider version ``8.21.0+``:
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
    * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
+* Supported AWS executors with AWS provider version ``9.9.0+``:
+   * ``airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor``
 * Supported Edge executor with edge3 provider version ``1.0.0+``:
    * ``airflow.providers.edge3.executors.EdgeExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``, ``3.0+``
