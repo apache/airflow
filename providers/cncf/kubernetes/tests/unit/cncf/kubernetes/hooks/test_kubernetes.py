@@ -38,7 +38,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
@@ -138,7 +138,7 @@ class TestKubernetesHook:
 
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections()
+        clear_test_connections()
 
     @pytest.mark.parametrize(
         "in_cluster_param, conn_id, in_cluster_called",
@@ -849,7 +849,7 @@ class TestAsyncKubernetesHook:
             ),
         )
         yield
-        clear_db_connections()
+        clear_test_connections()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
@@ -936,7 +936,7 @@ class TestAsyncKubernetesHook:
         except:
             raise
         finally:
-            clear_db_connections()
+            clear_test_connections()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)

@@ -30,7 +30,7 @@ from airflow.models import Connection
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_db
+from tests_common.test_utils.db import clear_test_connections, parse_and_sync_to_db
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
@@ -136,7 +136,7 @@ def configure_git_connection_for_dag_bundle(session):
     ):
         yield
 
-    clear_db_connections(False)
+    clear_test_connections(False)
 
 
 @pytest.fixture

@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.models import (
-    Connection,
     DagModel,
     DagRun,
     DagTag,
@@ -40,7 +39,11 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
-from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
+from airflow.utils.db import (
+    add_default_pool_if_not_exists,
+    create_default_connections_for_tests,
+    reflect_tables,
+)
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import (
@@ -223,11 +226,16 @@ def clear_db_pools():
         add_default_pool_if_not_exists(session)
 
 
-def clear_db_connections(add_default_connections_back=True):
-    with create_session() as session:
-        session.query(Connection).delete()
-        if add_default_connections_back:
-            create_default_connections(session)
+def clear_test_connections(add_default_connections_back=True):
+    # clear environment variables with AIRFLOW_CONN prefix
+    import os
+
+    env_vars_to_remove = [key for key in os.environ.keys() if key.startswith("AIRFLOW_CONN_")]
+    for env_var in env_vars_to_remove:
+        del os.environ[env_var]
+
+    if add_default_connections_back:
+        create_default_connections_for_tests()
 
 
 def clear_db_variables():
@@ -355,7 +363,7 @@ def clear_all():
     clear_db_xcom()
     clear_db_variables()
     clear_db_pools()
-    clear_db_connections(add_default_connections_back=True)
+    clear_test_connections(add_default_connections_back=True)
     clear_db_deadline()
     clear_dag_specific_permissions()
     if AIRFLOW_V_3_0_PLUS:

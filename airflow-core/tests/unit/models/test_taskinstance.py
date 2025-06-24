@@ -86,7 +86,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
-from tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from tests_common.test_utils.db import clear_db_runs, clear_test_connections
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
 
@@ -2191,7 +2191,7 @@ class TestTaskInstance:
         Test the availability of variables in templates
         """
         with create_session() as session:
-            clear_db_connections(add_default_connections_back=False)
+            clear_test_connections(add_default_connections_back=False)
             merge_conn(
                 Connection(
                     conn_id="a_connection",

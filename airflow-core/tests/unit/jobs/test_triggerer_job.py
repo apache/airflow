@@ -56,11 +56,11 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
-    clear_db_connections,
     clear_db_dags,
     clear_db_runs,
     clear_db_variables,
     clear_db_xcom,
+    clear_test_connections,
 )
 
 if TYPE_CHECKING:
@@ -76,13 +76,13 @@ def clean_database():
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
+    clear_test_connections()
     yield  # Test runs here
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
+    clear_test_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):

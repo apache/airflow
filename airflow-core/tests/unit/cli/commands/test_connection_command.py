@@ -35,7 +35,7 @@ from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
@@ -44,14 +44,14 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(scope="module", autouse=True)
 def clear_connections():
     yield
-    clear_db_connections(add_default_connections_back=False)
+    clear_test_connections(add_default_connections_back=False)
 
 
 class TestCliGetConnection:
     parser = cli_parser.get_parser()
 
     def setup_method(self):
-        clear_db_connections(add_default_connections_back=True)
+        clear_test_connections(add_default_connections_back=True)
 
     def test_cli_connection_get(self):
         with redirect_stdout(StringIO()) as stdout:
@@ -85,7 +85,7 @@ class TestCliListConnections:
     ]
 
     def setup_method(self):
-        clear_db_connections(add_default_connections_back=True)
+        clear_test_connections(add_default_connections_back=True)
 
     def test_cli_connections_list_as_json(self):
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
@@ -112,7 +112,7 @@ class TestCliExportConnections:
     parser = cli_parser.get_parser()
 
     def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
+        clear_test_connections(add_default_connections_back=False)
         merge_conn(
             Connection(
                 conn_id="airflow_db",
@@ -385,7 +385,7 @@ class TestCliAddConnections:
     parser = cli_parser.get_parser()
 
     def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
+        clear_test_connections(add_default_connections_back=False)
 
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
@@ -709,7 +709,7 @@ class TestCliDeleteConnections:
     parser = cli_parser.get_parser()
 
     def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
+        clear_test_connections(add_default_connections_back=False)
 
     def test_cli_delete_connections(self, session):
         merge_conn(
@@ -747,7 +747,7 @@ class TestCliImportConnections:
     parser = cli_parser.get_parser()
 
     def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
+        clear_test_connections(add_default_connections_back=False)
 
     @mock.patch("os.path.exists")
     def test_cli_connections_import_should_return_error_if_file_does_not_exist(self, mock_exists):
@@ -992,7 +992,7 @@ class TestCliTestConnections:
     parser = cli_parser.get_parser()
 
     def setup_class(self):
-        clear_db_connections()
+        clear_test_connections()
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
