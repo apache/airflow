@@ -295,7 +295,6 @@ class WinRMHook(BaseHook):
         finally:
             winrm_client.close_shell(shell_id)  # type: ignore[attr-defined]
 
-
     def test_connection(self):
         try:
             (r_code, std_out, std_err) = self.run("cd")
