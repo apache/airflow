@@ -43,6 +43,7 @@ from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch.boto_schema import (
@@ -374,7 +375,7 @@ class AwsBatchExecutor(BaseExecutor):
         """Save the task to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
-        
+
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
 
@@ -391,8 +392,8 @@ class AwsBatchExecutor(BaseExecutor):
             else:
                 raise ValueError(
                     f"BatchExecutor doesn't know how to handle workload of type: {type(command[0])}"
-                    )
-            
+                )
+
         self.pending_jobs.append(
             BatchQueuedJob(
                 key=key,

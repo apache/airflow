@@ -43,7 +43,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     AllBatchConfigKeys,
 )
 from airflow.utils.helpers import convert_camel_to_snake
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
@@ -205,7 +205,7 @@ class TestAwsBatchExecutor:
     def test_task_sdk(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
         from airflow.executors.workloads import ExecuteTask
-        
+
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = mock_airflow_key()
@@ -238,31 +238,33 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.pending_jobs) == 0
         mock_executor.batch.submit_job.assert_called_once_with(
-        jobDefinition="some-job-def",
-        jobName="some-job-name",
-        jobQueue="some-job-queue",
-        tags=tags_exec_config,
-        containerOverrides={
-            "command": [
-                "python",
-                "-m",
-                "airflow.sdk.execution_time.execute_workload",
-                "--json-string",
-                ser_workload,
-            ],
-            "environment": [
-                {
-                    "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
-                    "value": "true",
-                },
-            ],
-        },
-    )
+            jobDefinition="some-job-def",
+            jobName="some-job-name",
+            jobQueue="some-job-queue",
+            tags=tags_exec_config,
+            containerOverrides={
+                "command": [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    ser_workload,
+                ],
+                "environment": [
+                    {
+                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                        "value": "true",
+                    },
+                ],
+            },
+        )
 
         # Task is stored in active worker.
         assert len(mock_executor.active_workers) == 1
         # Get the job_id for this task key
-        job_id = next(job_id for job_id, key in mock_executor.active_workers.id_to_key.items() if key == workload.ti.key)
+        job_id = next(
+            job_id for job_id, key in mock_executor.active_workers.id_to_key.items() if key == workload.ti.key
+        )
         assert job_id == ARN1
         running_state_mock.assert_called_once_with(workload.ti.key, ARN1)
 
