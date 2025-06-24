@@ -16,23 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from structlog.contextvars import bind_contextvars
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     AddHITLResponsePayload,
+    HITLInputRequest,
     HITLResponse,
 )
 from airflow.providers.standard.models import HITLResponseModel
+from airflow.providers.standard.operators.hitl import HITLOperator
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 
@@ -40,7 +44,7 @@ log = structlog.get_logger(__name__)
 
 
 @hitl_router.post(
-    "/{task_instance_id}/response",
+    "/input-requests/{task_instance_id}/response",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [
@@ -48,6 +52,9 @@ log = structlog.get_logger(__name__)
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 def write_response(
     task_instance_id: UUID,
@@ -84,3 +91,93 @@ def write_response(
     session.add(hitl_response_model)
     session.commit()
     return HITLResponse.model_validate(hitl_response_model)
+
+
+@hitl_router.get(
+    "/input-requests/{task_instance_id}",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+)
+def get_hitl_input_request(
+    task_instance_id: UUID,
+    session: SessionDep,
+) -> HITLInputRequest:
+    """Get a Human-in-the-loop input request of a specific task instance."""
+    ti_id_str = str(task_instance_id)
+    bind_contextvars(ti_id=ti_id_str)
+    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if not ti:
+        log.error("Task Instance not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found",
+            },
+        )
+    dag = dag_bag.get_dag(ti.dag_id)
+    if not dag:
+        log.error("Task Instance not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag {ti.dag_id} not found")
+    task = dag.get_task(ti.task_id)
+    if TYPE_CHECKING:
+        assert isinstance(task, HITLOperator)
+    return HITLInputRequest.from_task_instance(ti, task)
+
+
+# @hitl_router.get(
+#     "/input-requests/{task_instance_id}/response",
+#     status_code=status.HTTP_201_CREATED,
+#     responses=create_openapi_http_exception_doc(
+#         [
+#             status.HTTP_404_NOT_FOUND,
+#             status.HTTP_409_CONFLICT,
+#         ]
+#     ),
+#     dependencies=[
+#         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+#     ],
+# )
+# def get_hitl_input_requests(
+#     session: SessionDep,
+#     readable_ti_filter: ReadableTIFilterDep,
+# ) -> HITLInputRequest:
+#     """Get a Human-in-the-loop input request of a specific task instance."""
+#     task_instance_select, total_entries = paginated_select(
+#         statement=query,
+#         filters=[
+#             readable_ti_filter,
+#         ],
+#         session=session,
+#     )
+#     # ti_id_str = str(task_instance_id)
+#     # bind_contextvars(ti_id=ti_id_str)
+#     # ti = session.scalar(select(TI).where(TI.id == ti_id_str))
+#     # if not ti:
+#     #     log.error("Task Instance not found")
+#     #     raise HTTPException(
+#     #         status_code=status.HTTP_404_NOT_FOUND,
+#     #         detail={
+#     #             "reason": "not_found",
+#     #             "message": "Task Instance not found",
+#     #         },
+#     #     )
+#     # task = ti.task
+#     # if TYPE_CHECKING:
+#     #     assert isinstance(task, HITLOperator)
+#     # return HITLInputRequest(
+#     #     ti_id=ti_id_str,
+#     #     options=task.options,
+#     #     subject=task.subject,
+#     #     body=task.body,
+#     #     default=task.default,
+#     #     params=task.params,
+#     # )
