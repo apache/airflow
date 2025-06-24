@@ -203,6 +203,6 @@ class ConsumeFromTopicOperator(BaseOperator):
                 "'enable.auto.commit' should be set to 'false' in the Kafka connection configuration. "
                 "Currently, 'enable.auto.commit' is not explicitly set, so it defaults to 'true', which causes "
                 "the consumer to auto-commit offsets every 5 seconds. "
-                "See: https://kafka.apache.org/documentation/#consumerconfigs_enable.auto.commit",
+                "See: https://kafka.apache.org/documentation/#consumerconfigs_enable.auto.commit for more information",
                 self.commit_cadence,
             )
