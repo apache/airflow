@@ -96,6 +96,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     UV_VERSION,
 )
@@ -3901,6 +3902,7 @@ def generate_issue_content(
 @click.option(
     "--destination-location",
     help="Name of the S3 bucket to publish the documentation to.",
+    type=NotVerifiedBetterChoice(DESTINATION_LOCATIONS),
     required=True,
 )
 @click.option(

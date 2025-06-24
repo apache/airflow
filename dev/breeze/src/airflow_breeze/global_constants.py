@@ -208,6 +208,11 @@ REGULAR_DOC_PACKAGES = [
     "task-sdk",
 ]
 
+DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/docs/",
+    "s3://staging-docs-airflow-apache-org/docs/",
+]
+
 
 @clearable_cache
 def all_selective_core_test_types() -> tuple[str, ...]:
