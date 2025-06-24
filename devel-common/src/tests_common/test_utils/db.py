@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.models import (
+    Connection,
     DagModel,
     DagRun,
     DagTag,
@@ -41,6 +42,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import (
     add_default_pool_if_not_exists,
+    create_default_connections,
     get_default_connections,
     reflect_tables,
 )
@@ -236,6 +238,13 @@ def clear_test_connections(add_default_connections_back=True):
 
     if add_default_connections_back:
         create_default_connections_for_tests()
+
+
+def clear_db_connections(add_default_connections_back=True):
+    with create_session() as session:
+        session.query(Connection).delete()
+        if add_default_connections_back:
+            create_default_connections(session)
 
 
 def clear_db_variables():
