@@ -6926,7 +6926,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl/{task_instance_id}/response:
+  /api/v2/hitl/input-requests/{task_instance_id}/response:
     post:
       tags:
       - HumanInTheLoop
@@ -6986,6 +6986,88 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl/input-requests/{task_instance_id}:
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Hitl Input Request
+      description: Get a Human-in-the-loop input request of a specific task instance.
+      operationId: get_hitl_input_request
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: task_instance_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Instance Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLInputRequest'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl/input-requests:
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Hitl Input Requests
+      description: Get a Human-in-the-loop input request of a specific task instance.
+      operationId: get_hitl_input_requests
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLInputRequestCollection'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /api/v2/monitor/health:
     get:
       tags:
@@ -9455,25 +9537,6 @@ components:
       - name
       title: FastAPIRootMiddlewareResponse
       description: Serializer for Plugin FastAPI root middleware responses.
-    HITLResponse:
-      properties:
-        ti_id:
-          type: string
-          title: Ti Id
-        content:
-          type: string
-          title: Content
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-      type: object
-      required:
-      - ti_id
-      - content
-      - created_at
-      title: HITLResponse
-      description: Schema for added HITLResponse.
     HTTPExceptionResponse:
       properties:
         detail:

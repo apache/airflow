@@ -63,9 +63,9 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
-from airflow.providers.standard.api.client import HITLInputRequestResponse
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
     FetchHITLResponsePayload,
+    HITLInputRequestResponse,
     HITLResponse,
 )
 from airflow.sdk.api.datamodels._generated import (
