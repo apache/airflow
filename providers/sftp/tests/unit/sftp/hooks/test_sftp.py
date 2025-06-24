@@ -564,6 +564,7 @@ class TestSFTPHook:
         hook = SFTPHook(
             remote_host="example.com",
             username="user",
+            password=None,
             host_proxy_cmd=host_proxy_cmd,
         )
 

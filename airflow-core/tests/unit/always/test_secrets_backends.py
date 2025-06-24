@@ -29,7 +29,7 @@ from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.db import clear_db_variables, clear_test_connections
+from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
@@ -48,7 +48,7 @@ class TestBaseSecretsBackend:
         clear_db_variables()
 
     def teardown_method(self) -> None:
-        clear_test_connections()
+        clear_db_connections()
         clear_db_variables()
 
     @pytest.mark.parametrize(

@@ -28,7 +28,7 @@ from airflow.models import Connection, Variable
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_variables, clear_test_connections
+from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
@@ -39,11 +39,11 @@ class TestRotateFernetKeyCommand:
         cls.parser = cli_parser.get_parser()
 
     def setup_method(self) -> None:
-        clear_test_connections(add_default_connections_back=False)
+        clear_db_connections(add_default_connections_back=False)
         clear_db_variables()
 
     def teardown_method(self) -> None:
-        clear_test_connections(add_default_connections_back=False)
+        clear_db_connections(add_default_connections_back=False)
         clear_db_variables()
 
     @provide_session

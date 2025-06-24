@@ -29,7 +29,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, clear_test_connections
+from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -94,13 +94,13 @@ class TestUniqueConstraintErrorHandler:
 
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
-        clear_test_connections(add_default_connections_back=False)
+        clear_db_connections(add_default_connections_back=False)
         clear_db_pools()
         clear_db_runs()
         clear_db_dags()
 
     def teardown_method(self) -> None:
-        clear_test_connections()
+        clear_db_connections()
         clear_db_pools()
         clear_db_runs()
         clear_db_dags()
