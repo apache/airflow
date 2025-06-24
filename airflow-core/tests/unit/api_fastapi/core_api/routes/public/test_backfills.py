@@ -95,7 +95,7 @@ class TestBackfillEndpoint:
     def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
         bundle_name = "dags-folder"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.add(orm_dag_bundle)
+        session.merge(orm_dag_bundle)
         session.flush()
 
         dags = []

@@ -523,7 +523,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            session.add(DagBundleModel(name=bundle_name))
+            session.merge(DagBundleModel(name=bundle_name))
             session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
@@ -570,7 +570,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            session.add(DagBundleModel(name=bundle_name))
+            session.merge(DagBundleModel(name=bundle_name))
             session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
@@ -1054,7 +1054,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             username=username,
             role_name=role_name,
         ) as user:
-            session.add(DagBundleModel(name=bundle_name))
+            session.merge(DagBundleModel(name=bundle_name))
             session.flush()
             dag1 = DagModel(dag_id=dag_id, bundle_name=bundle_name)
             dag2 = DagModel(dag_id=dag_id_2, bundle_name=bundle_name)

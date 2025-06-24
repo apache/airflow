@@ -5761,7 +5761,7 @@ class TestSchedulerJob:
                 # We don't actually need a linked trigger here; the code doesn't check.
                 bundle_name = "testing"
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
+                session.merge(orm_dag_bundle)
                 session.flush()
                 dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
                 session.merge(dag_model)

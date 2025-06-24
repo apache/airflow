@@ -34,7 +34,6 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
@@ -443,12 +442,10 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_on_success_callback_when_task_skipped(self, session):
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"
-
-        session.add(DagBundleModel(name="dags-folder"))
-        session.flush()
 
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_success",
@@ -462,7 +459,7 @@ class TestDagRun:
         # Create DagModel directly with bundle_name
         dag_model = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="dags-folder",
+            bundle_name="testing",
         )
         session.merge(dag_model)
         session.flush()
@@ -642,6 +639,7 @@ class TestDagRun:
 
         assert dag_run.span_status == SpanStatus.SHOULD_END
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, dag_maker, session):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
@@ -655,8 +653,6 @@ class TestDagRun:
         ) as dag:
             ...
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
-        session.add(DagBundleModel(name="dags-folder"))
-        session.flush()
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.relative_fileloc = relative_fileloc
         session.merge(dm)
@@ -693,6 +689,7 @@ class TestDagRun:
             msg="success",
         )
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
@@ -706,8 +703,6 @@ class TestDagRun:
         ) as dag:
             ...
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
-        session.add(DagBundleModel(name="dags-folder"))
-        session.flush()
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.relative_fileloc = relative_fileloc
         session.merge(dm)
@@ -1045,6 +1040,7 @@ class TestDagRun:
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_next_dagruns_to_examine_only_unpaused(self, session, state):
         """
         Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
@@ -1053,12 +1049,9 @@ class TestDagRun:
         dag = DAG(dag_id="test_dags", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
-        session.add(DagBundleModel(name="dags-folder"))
-        session.flush()
-
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="dags-folder",
+            bundle_name="testing",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
@@ -1098,21 +1091,19 @@ class TestDagRun:
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
-        session.add(DagBundleModel(name="dags-folder"))
-        session.flush()
-
         dag = DAG(dag_id="test_dagrun_stats", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id="dummy", dag=dag)
 
         # Create DagModel directly with bundle_name
         dag_model = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="dags-folder",
+            bundle_name="testing",
         )
         session.merge(dag_model)
         session.flush()
@@ -1136,6 +1127,7 @@ class TestDagRun:
             ("@once", False),
         ],
     )
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_emit_scheduling_delay(self, session, schedule, expected):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
@@ -1149,7 +1141,7 @@ class TestDagRun:
             info = dag.next_dagrun_info(None)
             orm_dag_kwargs = {
                 "dag_id": dag.dag_id,
-                "bundle_name": "dags-folder",
+                "bundle_name": "testing",
                 "has_task_concurrency_limits": False,
                 "is_stale": False,
             }
@@ -1161,8 +1153,6 @@ class TestDagRun:
                         "next_dagrun_create_after": info.run_after,
                     },
                 )
-            session.add(DagBundleModel(name="dags-folder"))
-            session.flush()
             orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)
             session.flush()

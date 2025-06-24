@@ -53,7 +53,7 @@ BUNDLE_NAME = "dag_maker"
 @provide_session
 def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
     orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
-    session.add(orm_dag_bundle)
+    session.merge(orm_dag_bundle)
     session.flush()
     dag_model = DagModel(
         fileloc=FILENAME1,
@@ -72,7 +72,7 @@ def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
 @provide_session
 def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
     orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
-    session.add(orm_dag_bundle)
+    session.merge(orm_dag_bundle)
     session.flush()
     dag_model = DagModel(
         fileloc=FILENAME1,

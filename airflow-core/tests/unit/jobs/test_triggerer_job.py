@@ -359,7 +359,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
 
     bundle_name = "test_bundle"
     orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.add(orm_dag_bundle)
+    session.merge(orm_dag_bundle)
     session.flush()
 
     dag = DagModel(dag_id="test-dag", bundle_name=bundle_name)

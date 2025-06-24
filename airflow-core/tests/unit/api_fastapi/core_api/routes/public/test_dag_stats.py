@@ -50,7 +50,7 @@ class TestDagStatsEndpoint:
     def _create_dag_and_runs(self, session=None):
         bundle_name = "test_bundle"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.add(orm_dag_bundle)
+        session.merge(orm_dag_bundle)
         session.flush()
 
         dag_1 = DagModel(
