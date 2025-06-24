@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
@@ -33,10 +32,10 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     AddHITLResponsePayload,
     HITLInputRequest,
+    HITLInputRequestCollection,
     HITLResponse,
 )
-from airflow.providers.standard.models import HITLResponseModel
-from airflow.providers.standard.operators.hitl import HITLOperator
+from airflow.providers.standard.models import HITLInputRequestModel, HITLResponseModel
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 
@@ -95,7 +94,7 @@ def write_response(
 
 @hitl_router.get(
     "/input-requests/{task_instance_id}",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -123,61 +122,42 @@ def get_hitl_input_request(
                 "message": "Task Instance not found",
             },
         )
-    dag = dag_bag.get_dag(ti.dag_id)
-    if not dag:
-        log.error("Task Instance not found")
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag {ti.dag_id} not found")
-    task = dag.get_task(ti.task_id)
-    if TYPE_CHECKING:
-        assert isinstance(task, HITLOperator)
-    return HITLInputRequest.from_task_instance(ti, task)
+    input_request_model = session.scalar(
+        select(HITLInputRequestModel).where(HITLInputRequestModel.ti_id == ti_id_str)
+    )
+    if not input_request_model:
+        log.error("HITL input request not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "HITL input request not found",
+            },
+        )
+    return HITLInputRequest.model_validate(input_request_model)
 
 
-# @hitl_router.get(
-#     "/input-requests/{task_instance_id}/response",
-#     status_code=status.HTTP_201_CREATED,
-#     responses=create_openapi_http_exception_doc(
-#         [
-#             status.HTTP_404_NOT_FOUND,
-#             status.HTTP_409_CONFLICT,
-#         ]
-#     ),
-#     dependencies=[
-#         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
-#     ],
-# )
-# def get_hitl_input_requests(
-#     session: SessionDep,
-#     readable_ti_filter: ReadableTIFilterDep,
-# ) -> HITLInputRequest:
-#     """Get a Human-in-the-loop input request of a specific task instance."""
-#     task_instance_select, total_entries = paginated_select(
-#         statement=query,
-#         filters=[
-#             readable_ti_filter,
-#         ],
-#         session=session,
-#     )
-#     # ti_id_str = str(task_instance_id)
-#     # bind_contextvars(ti_id=ti_id_str)
-#     # ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-#     # if not ti:
-#     #     log.error("Task Instance not found")
-#     #     raise HTTPException(
-#     #         status_code=status.HTTP_404_NOT_FOUND,
-#     #         detail={
-#     #             "reason": "not_found",
-#     #             "message": "Task Instance not found",
-#     #         },
-#     #     )
-#     # task = ti.task
-#     # if TYPE_CHECKING:
-#     #     assert isinstance(task, HITLOperator)
-#     # return HITLInputRequest(
-#     #     ti_id=ti_id_str,
-#     #     options=task.options,
-#     #     subject=task.subject,
-#     #     body=task.body,
-#     #     default=task.default,
-#     #     params=task.params,
-#     # )
+@hitl_router.get(
+    "/input-requests",
+    status_code=status.HTTP_200_OK,
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+)
+def get_hitl_input_requests(
+    session: SessionDep,
+    # readable_ti_filter: ReadableTIFilterDep,
+) -> HITLInputRequestCollection:
+    """Get a Human-in-the-loop input request of a specific task instance."""
+    query = select(HITLInputRequestModel)
+    # input_reuqest_select, total_entries = paginated_select(
+    #     statement=query,
+    #     # filters=[readable_ti_filter],
+    #     filters=[],
+    #     session=session,
+    # )
+    input_requests = session.scalars(query).all()
+    return HITLInputRequestCollection(
+        hitl_input_requests=input_requests,
+        total_entries=len(input_requests),
+    )

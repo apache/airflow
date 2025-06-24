@@ -21,7 +21,6 @@ from collections.abc import MutableMapping
 from typing import TYPE_CHECKING
 
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
-    HITLInputRequestResponse,
     HITLResponse,
 )
 
@@ -46,9 +45,12 @@ class HITLOperations:
         default: str | None = None,
         params: MutableMapping | None = None,
         multiple: bool = False,
-    ):# -> HITLInputRequestResponseResult:
+    ):  # -> HITLInputRequestResponseResult:
         """Add the Human-in-the-loop input request of a specific Task Instance."""
-        from airflow.sdk.execution_time.comms import CreateHITLInputRequestPayload, HITLInputRequestResponseResult
+        from airflow.sdk.execution_time.comms import (
+            CreateHITLInputRequestPayload,
+            HITLInputRequestResponseResult,
+        )
 
         payload = CreateHITLInputRequestPayload(
             ti_id=ti_id,
