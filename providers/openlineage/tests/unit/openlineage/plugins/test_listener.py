@@ -838,7 +838,7 @@ class TestOpenLineageListenerAirflow3:
         dagrun_kwargs = {
             "dag_version": None,
             "logical_date": date,
-            "triggered_by": types.DagRunTriggeredByType.TEST,
+            "triggered_with": types.DagRunTriggeredWithType.TEST,
         }
 
         dag.create_dagrun(
@@ -931,7 +931,7 @@ class TestOpenLineageListenerAirflow3:
         dagrun_kwargs = {
             "dag_version": None,
             "logical_date": date,
-            "triggered_by": types.DagRunTriggeredByType.TEST,
+            "triggered_with": types.DagRunTriggeredWithType.TEST,
         }
 
         dagrun = dag.create_dagrun(

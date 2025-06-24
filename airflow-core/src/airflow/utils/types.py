@@ -63,7 +63,7 @@ class EdgeInfoType(TypedDict):
     label: str | None
 
 
-class DagRunTriggeredByType(enum.Enum):
+class DagRunTriggeredWithType(enum.Enum):
     """Class with TriggeredBy types for DagRun."""
 
     CLI = "cli"  # for the trigger subcommand of the CLI: airflow dags trigger

@@ -54,7 +54,7 @@ from tests_common.test_utils.compat import (
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import _secrets_masker
@@ -113,7 +113,7 @@ def test_get_dagrun_start_end(dag_maker):
         dagrun_kwargs = {
             "logical_date": data_interval.start,
             "run_after": data_interval.end,
-            "triggered_by": DagRunTriggeredByType.TEST,
+            "triggered_with": DagRunTriggeredWithType.TEST,
         }
     else:
         dagrun_kwargs = {"execution_date": data_interval.start}

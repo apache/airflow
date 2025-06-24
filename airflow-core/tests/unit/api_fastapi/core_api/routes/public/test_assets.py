@@ -1209,7 +1209,8 @@ class TestPostAssetMaterialize(TestAssets):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
-            "triggered_by": "rest_api",
+            "triggered_with": "rest_api",
+            "triggered_by": "test",
             "conf": {},
             "note": None,
         }

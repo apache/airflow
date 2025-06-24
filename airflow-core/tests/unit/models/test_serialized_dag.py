@@ -41,7 +41,7 @@ from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils import db
 
@@ -152,7 +152,7 @@ class TestSerializedDagModel:
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
             run_type=DagRunType.MANUAL,
         )
 
@@ -203,7 +203,7 @@ class TestSerializedDagModel:
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
             run_type=DagRunType.MANUAL,
         )
         dag.doc_md = "new doc string"

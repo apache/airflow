@@ -61,7 +61,7 @@ from airflowctl.api.datamodels.generated import (
     DAGRunCollectionResponse,
     DAGRunResponse,
     DagRunState,
-    DagRunTriggeredByType,
+    DagRunTriggeredWithType,
     DagRunType,
     DagStatsCollectionResponse,
     DagStatsResponse,
@@ -164,7 +164,7 @@ class TestAssetsOperations:
         run_type=DagRunType.MANUAL,
         run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         state=DagRunState.RUNNING,
-        triggered_by=DagRunTriggeredByType.UI,
+        triggered_with=DagRunTriggeredWithType.UI,
         conf=None,
         note=None,
         dag_versions=[
@@ -825,7 +825,7 @@ class TestDagRunOperations:
         run_type=DagRunType.MANUAL,
         run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         state=DagRunState.RUNNING,
-        triggered_by=DagRunTriggeredByType.UI,
+        triggered_with=DagRunTriggeredWithType.UI,
         conf={},
         note=None,
         dag_versions=[

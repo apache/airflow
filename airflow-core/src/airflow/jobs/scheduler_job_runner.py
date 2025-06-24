@@ -78,7 +78,7 @@ from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     import logging
@@ -1522,7 +1522,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         data_interval=data_interval,
                         run_after=dag_model.next_dagrun_create_after,
                         run_type=DagRunType.SCHEDULED,
-                        triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        triggered_with=DagRunTriggeredWithType.TIMETABLE,
                         state=DagRunState.QUEUED,
                         creating_job_id=self.job.id,
                         session=session,
@@ -1609,7 +1609,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 data_interval=None,
                 run_after=triggered_date,
                 run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
+                triggered_with=DagRunTriggeredWithType.ASSET,
                 state=DagRunState.QUEUED,
                 creating_job_id=self.job.id,
                 session=session,
@@ -1691,7 +1691,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if (
                 dag.timetable.periodic
                 and dag_run.run_type != DagRunType.MANUAL
-                and dag_run.triggered_by != DagRunTriggeredByType.ASSET
+                and dag_run.triggered_with != DagRunTriggeredWithType.ASSET
                 and dag_run.clear_number < 1
             ):
                 # TODO: Logically, this should be DagRunInfo.run_after, but the

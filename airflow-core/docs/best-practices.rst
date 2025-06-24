@@ -778,7 +778,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     from airflow.sdk import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.types import DagRunTriggeredByType, DagRunType
+    from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
     DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
     DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
@@ -808,7 +808,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
             logical_date=DATA_INTERVAL_START,
             data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.TIMETABLE,
+            triggered_with=DagRunTriggeredWithType.TIMETABLE,
             state=DagRunState.RUNNING,
             start_date=DATA_INTERVAL_END,
         )

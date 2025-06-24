@@ -930,10 +930,15 @@ components:
           $ref: '#/components/schemas/DagRunType'
         state:
           $ref: '#/components/schemas/DagRunState'
+        triggered_with:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunTriggeredWithType'
+          - type: 'null'
         triggered_by:
           anyOf:
-          - $ref: '#/components/schemas/DagRunTriggeredByType'
+          - type: string
           - type: 'null'
+          title: Triggered By
         conf:
           anyOf:
           - additionalProperties: true
@@ -973,6 +978,7 @@ components:
       - last_scheduling_decision
       - run_type
       - state
+      - triggered_with
       - triggered_by
       - conf
       - note
@@ -1222,7 +1228,7 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
-    DagRunTriggeredByType:
+    DagRunTriggeredWithType:
       type: string
       enum:
       - cli
@@ -1233,7 +1239,7 @@ components:
       - timetable
       - asset
       - backfill
-      title: DagRunTriggeredByType
+      title: DagRunTriggeredWithType
       description: Class with TriggeredBy types for DagRun.
     DagRunType:
       type: string

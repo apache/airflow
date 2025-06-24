@@ -82,7 +82,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
@@ -1428,7 +1428,7 @@ class TestTaskInstance:
             session=session,
             data_interval=(logical_date, logical_date),
             run_after=logical_date,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         assert ti1 in session
         ti2 = dr.task_instances[0]
@@ -2123,7 +2123,7 @@ class TestTaskInstance:
             session=session,
             data_interval=(logical_date, logical_date),
             run_after=logical_date,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         ds1_event = AssetEvent(asset_id=1)
         ds2_event_1 = AssetEvent(asset_id=2)
@@ -2318,7 +2318,7 @@ class TestTaskInstance:
             session=session,
             data_interval=(logical_date, logical_date),
             run_after=logical_date,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         dr.set_state(DagRunState.FAILED)
         ti1 = dr.get_task_instance(task1.task_id, session=session)
@@ -2473,7 +2473,7 @@ class TestTaskInstance:
             session=session,
             data_interval=(logical_date, logical_date),
             run_after=logical_date,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
         )
         dr.set_state(DagRunState.SUCCESS)
 

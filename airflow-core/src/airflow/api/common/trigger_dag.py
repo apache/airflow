@@ -27,7 +27,7 @@ from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -40,7 +40,8 @@ def _trigger_dag(
     dag_id: str,
     dag_bag: DagBag,
     *,
-    triggered_by: DagRunTriggeredByType,
+    triggered_with: DagRunTriggeredWithType,
+    triggered_by: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
     conf: dict | str | None = None,
@@ -53,8 +54,9 @@ def _trigger_dag(
 
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
-    :param triggered_by: the entity which triggers the dag_run
-    :param run_after: the datetime before which dag cannot run.
+    :param triggered_with: the entity which triggers the dag_run
+    :param triggered_by: the user name who triggers the dag_run
+    :param run_after: the datetime before which dag cannot run
     :param run_id: ID of the run
     :param conf: configuration
     :param logical_date: logical date of the run
@@ -110,6 +112,7 @@ def _trigger_dag(
         run_after=run_after,
         conf=run_conf,
         run_type=DagRunType.MANUAL,
+        triggered_with=triggered_with,
         triggered_by=triggered_by,
         state=DagRunState.QUEUED,
         session=session,
@@ -122,7 +125,8 @@ def _trigger_dag(
 def trigger_dag(
     dag_id: str,
     *,
-    triggered_by: DagRunTriggeredByType,
+    triggered_with: DagRunTriggeredWithType,
+    triggered_by: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
     conf: dict | str | None = None,
@@ -134,8 +138,9 @@ def trigger_dag(
     Triggers execution of DAG specified by dag_id.
 
     :param dag_id: DAG ID
-    :param triggered_by: the entity which triggers the dag_run
-    :param run_after: the datetime before which dag won't run.
+    :param triggered_with: the entity which triggers the dag_run
+    :param triggered_by: the user name who triggers the dag_run
+    :param run_after: the datetime before which dag won't run
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param logical_date: date of execution
@@ -156,6 +161,7 @@ def trigger_dag(
         conf=conf,
         logical_date=logical_date,
         replace_microseconds=replace_microseconds,
+        triggered_with=triggered_with,
         triggered_by=triggered_by,
         session=session,
     )

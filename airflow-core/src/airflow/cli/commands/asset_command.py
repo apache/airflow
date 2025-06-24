@@ -26,10 +26,12 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasResponse, AssetResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.cli.simple_table import AirflowConsole
+from airflow.exceptions import AirflowConfigException
 from airflow.models.asset import AssetAliasModel, AssetModel, TaskOutletAssetReference
 from airflow.utils import cli as cli_utils
+from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredWithType
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -149,7 +151,14 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     if next(dag_id_it, None) is not None:
         raise SystemExit(f"More than one DAG materializes asset with {select_message}.")
 
-    dagrun = trigger_dag(dag_id=dag_id, triggered_by=DagRunTriggeredByType.CLI, session=session)
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s", e)
+        user = None
+    dagrun = trigger_dag(
+        dag_id=dag_id, triggered_with=DagRunTriggeredWithType.CLI, triggered_by=user, session=session
+    )
     if dagrun is not None:
         data = [DAGRunResponse.model_validate(dagrun).model_dump(mode="json")]
     else:

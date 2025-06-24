@@ -70,7 +70,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task as task_deco
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 else:
     from airflow.decorators import task as task_deco
 pytestmark = pytest.mark.db_test
@@ -1620,7 +1620,7 @@ def run_tasks(
                 data_interval=data_interval,
                 run_after=logical_date,
                 run_type=DagRunType.MANUAL,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
                 state=DagRunState.RUNNING,
                 start_date=logical_date,
                 session=session,

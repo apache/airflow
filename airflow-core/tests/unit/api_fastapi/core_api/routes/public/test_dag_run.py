@@ -35,7 +35,7 @@ from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
@@ -61,10 +61,10 @@ DAG1_RUN1_RUN_TYPE = DagRunType.MANUAL
 DAG1_RUN2_RUN_TYPE = DagRunType.SCHEDULED
 DAG2_RUN1_RUN_TYPE = DagRunType.BACKFILL_JOB
 DAG2_RUN2_RUN_TYPE = DagRunType.ASSET_TRIGGERED
-DAG1_RUN1_TRIGGERED_BY = DagRunTriggeredByType.UI
-DAG1_RUN2_TRIGGERED_BY = DagRunTriggeredByType.ASSET
-DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
-DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
+DAG1_RUN1_TRIGGERED_WITH = DagRunTriggeredWithType.UI
+DAG1_RUN2_TRIGGERED_WITH = DagRunTriggeredWithType.ASSET
+DAG2_RUN1_TRIGGERED_WITH = DagRunTriggeredWithType.CLI
+DAG2_RUN2_TRIGGERED_WITH = DagRunTriggeredWithType.REST_API
 START_DATE1 = datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE1 = datetime(2024, 2, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
@@ -98,7 +98,7 @@ def setup(request, dag_maker, session=None):
         run_id=DAG1_RUN1_ID,
         state=DAG1_RUN1_STATE,
         run_type=DAG1_RUN1_RUN_TYPE,
-        triggered_by=DAG1_RUN1_TRIGGERED_BY,
+        triggered_with=DAG1_RUN1_TRIGGERED_WITH,
         logical_date=LOGICAL_DATE1,
     )
 
@@ -115,7 +115,7 @@ def setup(request, dag_maker, session=None):
         run_id=DAG1_RUN2_ID,
         state=DAG1_RUN2_STATE,
         run_type=DAG1_RUN2_RUN_TYPE,
-        triggered_by=DAG1_RUN2_TRIGGERED_BY,
+        triggered_with=DAG1_RUN2_TRIGGERED_WITH,
         logical_date=LOGICAL_DATE2,
     )
 
@@ -134,14 +134,14 @@ def setup(request, dag_maker, session=None):
         run_id=DAG2_RUN1_ID,
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
-        triggered_by=DAG2_RUN1_TRIGGERED_BY,
+        triggered_with=DAG2_RUN1_TRIGGERED_WITH,
         logical_date=LOGICAL_DATE3,
     )
     dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
-        triggered_by=DAG2_RUN2_TRIGGERED_BY,
+        triggered_with=DAG2_RUN2_TRIGGERED_WITH,
         logical_date=LOGICAL_DATE4,
     )
 
@@ -180,7 +180,8 @@ def get_dag_run_dict(run: DagRun):
         ),
         "run_type": run.run_type,
         "state": run.state,
-        "triggered_by": run.triggered_by.value,
+        "triggered_with": run.triggered_with.value,
+        "triggered_by": run.triggered_by,
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
@@ -189,14 +190,14 @@ def get_dag_run_dict(run: DagRun):
 
 class TestGetDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
+        "dag_id, run_id, state, run_type, triggered_with, dag_run_note",
         [
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
                 DAG1_RUN1_STATE,
                 DAG1_RUN1_RUN_TYPE,
-                DAG1_RUN1_TRIGGERED_BY,
+                DAG1_RUN1_TRIGGERED_WITH,
                 DAG1_RUN1_NOTE,
             ),
             (
@@ -204,7 +205,7 @@ class TestGetDagRun:
                 DAG1_RUN2_ID,
                 DAG1_RUN2_STATE,
                 DAG1_RUN2_RUN_TYPE,
-                DAG1_RUN2_TRIGGERED_BY,
+                DAG1_RUN2_TRIGGERED_WITH,
                 None,
             ),
             (
@@ -212,7 +213,7 @@ class TestGetDagRun:
                 DAG2_RUN1_ID,
                 DAG2_RUN1_STATE,
                 DAG2_RUN1_RUN_TYPE,
-                DAG2_RUN1_TRIGGERED_BY,
+                DAG2_RUN1_TRIGGERED_WITH,
                 None,
             ),
             (
@@ -220,13 +221,13 @@ class TestGetDagRun:
                 DAG2_RUN2_ID,
                 DAG2_RUN2_STATE,
                 DAG2_RUN2_RUN_TYPE,
-                DAG2_RUN2_TRIGGERED_BY,
+                DAG2_RUN2_TRIGGERED_WITH,
                 None,
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
+    def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_with, dag_run_note):
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
         body = response.json()
@@ -234,7 +235,7 @@ class TestGetDagRun:
         assert body["dag_run_id"] == run_id
         assert body["state"] == state
         assert body["run_type"] == run_type
-        assert body["triggered_by"] == triggered_by.value
+        assert body["triggered_with"] == triggered_with.value
         assert body["note"] == dag_run_note
 
     def test_get_dag_run_not_found(self, test_client):
@@ -1321,7 +1322,8 @@ class TestTriggerDagRun:
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": note,
-            "triggered_by": "rest_api",
+            "triggered_with": "rest_api",
+            "triggered_by": "test",
         }
 
         assert response.json() == expected_response_json
@@ -1511,7 +1513,8 @@ class TestTriggerDagRun:
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
-            "triggered_by": "rest_api",
+            "triggered_with": "rest_api",
+            "triggered_by": "test",
             "conf": {},
             "note": note,
         }
@@ -1598,7 +1601,8 @@ class TestTriggerDagRun:
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
-            "triggered_by": "rest_api",
+            "triggered_with": "rest_api",
+            "triggered_by": "test",
             "conf": {},
             "note": None,
         }

@@ -31,7 +31,7 @@ from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredWithType
 
 router = APIRouter()
 
@@ -78,7 +78,7 @@ def trigger_dag_run(
             run_id=run_id,
             conf=payload.conf,
             logical_date=payload.logical_date,
-            triggered_by=DagRunTriggeredByType.OPERATOR,
+            triggered_with=DagRunTriggeredWithType.OPERATOR,
             replace_microseconds=False,
             session=session,
         )

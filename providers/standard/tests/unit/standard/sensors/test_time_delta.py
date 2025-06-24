@@ -90,9 +90,9 @@ def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_mak
 
         kwargs = {}
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.types import DagRunTriggeredByType
+            from airflow.utils.types import DagRunTriggeredWithType
 
-            kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+            kwargs.update(triggered_with=DagRunTriggeredWithType.TEST, run_after=run_after)
         dr = dag.create_dagrun(
             run_id="abcrhroceuh",
             run_type=DagRunType.MANUAL,
@@ -126,9 +126,9 @@ def test_timedelta_sensor_deferrable_run_after_vs_interval(run_after, interval_e
     with dag_maker() as dag:
         kwargs = {}
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.types import DagRunTriggeredByType
+            from airflow.utils.types import DagRunTriggeredWithType
 
-            kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+            kwargs.update(triggered_with=DagRunTriggeredWithType.TEST, run_after=run_after)
 
         delta = timedelta(minutes=5)
         sensor = TimeDeltaSensor(
@@ -223,9 +223,9 @@ class TestTimeDeltaSensorAsync:
             with dag_maker() as dag:
                 kwargs = {}
                 if AIRFLOW_V_3_0_PLUS:
-                    from airflow.utils.types import DagRunTriggeredByType
+                    from airflow.utils.types import DagRunTriggeredWithType
 
-                    kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+                    kwargs.update(triggered_with=DagRunTriggeredWithType.TEST, run_after=run_after)
 
                 dr = dag.create_dagrun(
                     run_id="abcrhroceuh",

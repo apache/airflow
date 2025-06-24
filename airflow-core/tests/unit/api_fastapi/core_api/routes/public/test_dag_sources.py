@@ -28,7 +28,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 from unit.serialization.test_dag_serialization import AIRFLOW_REPO_ROOT_PATH
@@ -118,7 +118,7 @@ class TestGetDAGSource:
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
-            triggered_by=DagRunTriggeredByType.TEST,
+            triggered_with=DagRunTriggeredWithType.TEST,
             run_type=DagRunType.MANUAL,
         )
         # force reserialization

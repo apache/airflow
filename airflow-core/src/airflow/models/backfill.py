@@ -32,6 +32,7 @@ from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
     Integer,
+    String,
     UniqueConstraint,
     desc,
     func,
@@ -48,7 +49,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -132,6 +133,10 @@ class Backfill(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at = Column(UtcDateTime, nullable=True)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    triggered_by = Column(
+        String(512),
+        nullable=True,
+    )  # The user that triggered the Backfill, if applicable
 
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
 
@@ -285,6 +290,7 @@ def _create_backfill_dag_run(
     backfill_id,
     dag_run_conf,
     backfill_sort_ordinal,
+    triggered_by,
     session,
 ):
     from airflow.models.dagrun import DagRun
@@ -345,7 +351,8 @@ def _create_backfill_dag_run(
                 run_after=info.run_after,
                 conf=dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
-                triggered_by=DagRunTriggeredByType.BACKFILL,
+                triggered_with=DagRunTriggeredWithType.BACKFILL,
+                triggered_by=triggered_by,
                 state=DagRunState.QUEUED,
                 start_date=timezone.utcnow(),
                 backfill_id=backfill_id,
@@ -417,7 +424,7 @@ def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal):
         .values(
             backfill_id=backfill_id,
             run_type=DagRunType.BACKFILL_JOB,
-            triggered_by=DagRunTriggeredByType.BACKFILL,
+            triggered_with=DagRunTriggeredWithType.BACKFILL,
         )
     )
     session.add(
@@ -438,6 +445,7 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
+    triggered_by: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
 ) -> Backfill | None:
     from airflow.models import DagModel
@@ -476,6 +484,7 @@ def _create_backfill(
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
             dag_model=dag,
+            triggered_by=triggered_by,
         )
         session.add(br)
         session.commit()
@@ -500,6 +509,7 @@ def _create_backfill(
                 dag_run_conf=br.dag_run_conf,
                 reprocess_behavior=br.reprocess_behavior,
                 backfill_sort_ordinal=backfill_sort_ordinal,
+                triggered_by=br.triggered_by,
                 session=session,
             )
             log.info(

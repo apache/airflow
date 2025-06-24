@@ -61,7 +61,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredWithType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -458,7 +458,7 @@ class BaseOperator(TaskSDKBaseOperator):
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,
                     run_after=info.run_after,
-                    triggered_by=DagRunTriggeredByType.TEST,
+                    triggered_with=DagRunTriggeredWithType.TEST,
                     state=DagRunState.RUNNING,
                 )
                 ti = TaskInstance(self, run_id=dr.run_id)

@@ -52,7 +52,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
-    from airflow.utils.types import DagRunTriggeredByType
+    from airflow.utils.types import DagRunTriggeredWithType
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
@@ -1197,7 +1197,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
@@ -1247,7 +1247,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
@@ -1295,7 +1295,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
@@ -1352,7 +1352,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
@@ -1398,7 +1398,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
@@ -1429,7 +1429,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
@@ -1470,7 +1470,7 @@ class TestSqlBranch:
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
+                "triggered_with": DagRunTriggeredWithType.TEST,
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}

@@ -1044,7 +1044,7 @@ class DAG:
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils import timezone
         from airflow.utils.state import DagRunState, State, TaskInstanceState
-        from airflow.utils.types import DagRunTriggeredByType, DagRunType
+        from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
         if TYPE_CHECKING:
             from airflow.models.taskinstance import TaskInstance
@@ -1116,7 +1116,8 @@ class DAG:
                 ),
                 session=session,
                 conf=run_conf,
-                triggered_by=DagRunTriggeredByType.TEST,
+                triggered_with=DagRunTriggeredWithType.TEST,
+                triggered_by="dag_test",
             )
             # Start a mock span so that one is present and not started downstream. We
             # don't care about otel in dag.test and starting the span during dagrun update

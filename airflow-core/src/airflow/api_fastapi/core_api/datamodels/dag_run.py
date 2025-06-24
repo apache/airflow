@@ -29,7 +29,7 @@ from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     from airflow.models import DAG
@@ -73,7 +73,8 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
-    triggered_by: DagRunTriggeredByType | None
+    triggered_with: DagRunTriggeredWithType | None
+    triggered_by: str | None
     conf: dict | None
     note: str | None
     dag_versions: list[DagVersionResponse]

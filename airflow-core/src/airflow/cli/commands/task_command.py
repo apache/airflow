@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
 from airflow.models.dagrun import DagRun
@@ -47,11 +47,12 @@ from airflow.utils.cli import (
     get_dags,
     suppress_logs_and_warning,
 )
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -121,6 +122,11 @@ def _get_dag_run(
         else None
     )
     run_after = data_interval.end if data_interval else timezone.utcnow()
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s", e)
+        user = None
     if create_if_necessary == "memory":
         dag_run = DagRun(
             dag_id=dag.dag_id,
@@ -129,7 +135,8 @@ def _get_dag_run(
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
             run_after=run_after,
-            triggered_by=DagRunTriggeredByType.CLI,
+            triggered_with=DagRunTriggeredWithType.CLI,
+            triggered_by=user,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
@@ -141,7 +148,8 @@ def _get_dag_run(
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
             run_after=run_after,
-            triggered_by=DagRunTriggeredByType.CLI,
+            triggered_with=DagRunTriggeredWithType.CLI,
+            triggered_by=user,
             session=session,
             start_date=logical_date or run_after,
             conf=None,

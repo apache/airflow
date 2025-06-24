@@ -75,7 +75,7 @@ from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 log = structlog.get_logger(__name__)
 
@@ -417,7 +417,8 @@ def trigger_dag_run(
             run_after=params["run_after"],
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.REST_API,
+            triggered_with=DagRunTriggeredWithType.REST_API,
+            triggered_by=user.get_name(),
             state=DagRunState.QUEUED,
             session=session,
         )

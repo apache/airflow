@@ -32,7 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredWithType, DagRunType
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.mock_operators import MockOperator
@@ -614,7 +614,7 @@ def setup(dag_maker, session=None):
         # Mapped but never expanded. API should not crash, but count this as one no-status ti.
         MockOperator.partial(task_id=MAPPED_TASK_ID_2).expand(arg1=task.output)
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
+    triggered_with_kwargs = {"triggered_with": DagRunTriggeredWithType.TEST}
     logical_date = timezone.datetime(2024, 11, 30)
     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
     run_1 = dag_maker.create_dagrun(
@@ -623,7 +623,7 @@ def setup(dag_maker, session=None):
         run_type=DagRunType.SCHEDULED,
         logical_date=logical_date,
         data_interval=data_interval,
-        **triggered_by_kwargs,
+        **triggered_with_kwargs,
     )
     run_2 = dag_maker.create_dagrun(
         run_id="run_2",
@@ -631,7 +631,7 @@ def setup(dag_maker, session=None):
         state=DagRunState.FAILED,
         logical_date=logical_date + timedelta(days=1),
         data_interval=data_interval,
-        **triggered_by_kwargs,
+        **triggered_with_kwargs,
     )
     for ti in run_1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
@@ -668,7 +668,7 @@ def setup(dag_maker, session=None):
         start_date=logical_date,
         logical_date=logical_date,
         data_interval=data_interval,
-        **triggered_by_kwargs,
+        **triggered_with_kwargs,
     )
 
     # Serialize DAG with only one task
@@ -682,7 +682,7 @@ def setup(dag_maker, session=None):
         start_date=logical_date,
         logical_date=logical_date + timedelta(days=1),
         data_interval=data_interval,
-        **triggered_by_kwargs,
+        **triggered_with_kwargs,
     )
 
     for ti in run_3.task_instances:

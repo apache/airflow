@@ -1008,7 +1008,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.utils.types import DagRunType
 
             if AIRFLOW_V_3_0_PLUS:
-                from airflow.utils.types import DagRunTriggeredByType
+                from airflow.utils.types import DagRunTriggeredWithType
             else:
                 DagRunType.ASSET_TRIGGERED = DagRunType.DATASET_TRIGGERED
 
@@ -1073,7 +1073,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             kwargs["run_type"] = run_type
 
             if AIRFLOW_V_3_0_PLUS:
-                kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
+                kwargs.setdefault("triggered_with", DagRunTriggeredWithType.TEST)
                 kwargs["logical_date"] = logical_date
                 kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
