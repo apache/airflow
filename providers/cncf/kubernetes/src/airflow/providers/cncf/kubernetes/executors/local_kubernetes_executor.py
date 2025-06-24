@@ -33,7 +33,11 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import (
+        SimpleTaskInstance,  # type: ignore[attr-defined]
+        TaskInstance,
+        TaskInstanceKey,
+    )
 
     CommandType = Sequence[str]
 
@@ -171,7 +175,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         **kwargs,
     ) -> None:
         """Queues task instance via local or kubernetes executor."""
-        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.models.taskinstance import SimpleTaskInstance  # type: ignore[attr-defined]
 
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
