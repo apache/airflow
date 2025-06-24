@@ -48,7 +48,7 @@ class HITLInputRequestModel(Base):
         ForeignKeyConstraint(
             (ti_id,),
             ("task_instance.id",),
-            name="hitl_response_ti_fkey",
+            name="hitl_input_request_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
