@@ -3341,7 +3341,7 @@
             "date_released": "2025-05-08T08:02:07Z"
         },
         "1.0.2": {
-            "associated_airflow_version": "3.0.2",
+            "associated_airflow_version": "3.0.1",
             "date_released": "2025-05-18T10:44:29Z"
         },
         "1.0.3": {
@@ -4867,7 +4867,7 @@
             "date_released": "2025-06-07T18:42:53Z"
         },
         "2.2.1": {
-            "associated_airflow_version": "3.0.1",
+            "associated_airflow_version": "3.0.2",
             "date_released": "2025-06-24T05:30:54Z"
         }
     },
