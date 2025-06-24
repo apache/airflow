@@ -222,7 +222,6 @@ def create_context(task):
     }
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -473,7 +472,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
