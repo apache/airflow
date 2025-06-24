@@ -130,7 +130,6 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
-        from argparse import Namespace
         from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
