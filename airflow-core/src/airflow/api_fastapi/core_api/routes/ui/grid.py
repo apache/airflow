@@ -488,7 +488,7 @@ def get_grid_ti_summaries(
     session: SessionDep,
 ) -> GridTISummaries:
     """
-    Get states for TIs / "groups" of TIs
+    Get states for TIs / "groups" of TIs.
 
     Essentially this is to know what color to put in the squares in the grid.
 

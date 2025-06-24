@@ -779,7 +779,7 @@ paths:
       tags:
       - Grid
       summary: Get Grid Ti Summaries
-      description: 'Get states for TIs / "groups" of TIs
+      description: 'Get states for TIs / "groups" of TIs.
 
 
         Essentially this is to know what color to put in the squares in the grid.
