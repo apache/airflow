@@ -39,7 +39,10 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import EventBufferValueType
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+    from airflow.models.taskinstance import (
+        SimpleTaskInstance,  # type: ignore[attr-defined]
+        TaskInstance,
+    )
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     CommandType = Sequence[str]
@@ -180,7 +183,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         **kwargs,
     ) -> None:
         """Queues task instance via celery or kubernetes executor."""
-        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.models.taskinstance import SimpleTaskInstance  # type: ignore[attr-defined]
 
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
