@@ -192,12 +192,7 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
 
 
 def _do_delete(
-    *,
-    query: Query,
-    orm_model: Base,
-    skip_archive: bool,
-    session: Session,
-    batch_size: int | None,
+    *, query: Query, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
 ) -> None:
     import itertools
     import re
