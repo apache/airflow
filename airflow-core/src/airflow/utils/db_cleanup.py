@@ -458,10 +458,9 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
         if table in visited:
             return
         visited.add(table)
-        config = config_dict.get(table)
-        if config:
-            for dep in config.dependent_tables or []:
-                collect_deps(dep)
+        config = config_dict[table]
+        for dep in config.dependent_tables or []:
+            collect_deps(dep)
         effective_table_names.append(table)
 
     for table_name in desired_table_names:
