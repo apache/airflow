@@ -697,6 +697,10 @@
         "6.1.0": {
             "associated_airflow_version": "2.11.0",
             "date_released": "2025-05-18T10:44:29Z"
+        },
+        "6.1.1": {
+            "associated_airflow_version": "2.11.0",
+            "date_released": "2025-06-24T05:30:54Z"
         }
     },
     "apache.cassandra": {
@@ -3339,6 +3343,10 @@
         "1.0.2": {
             "associated_airflow_version": "3.0.2",
             "date_released": "2025-05-18T10:44:29Z"
+        },
+        "1.0.3": {
+            "associated_airflow_version": "3.0.2",
+            "date_released": "2025-06-24T05:30:54Z"
         }
     },
     "common.sql": {
@@ -4857,6 +4865,10 @@
         "2.2.0": {
             "associated_airflow_version": "3.0.1",
             "date_released": "2025-06-07T18:42:53Z"
+        },
+        "2.2.1": {
+            "associated_airflow_version": "3.0.1",
+            "date_released": "2025-06-24T05:30:54Z"
         }
     },
     "facebook": {
