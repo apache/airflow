@@ -333,7 +333,7 @@ EOF
 Content is generated with:
 
 ```shell
-breeze release-management generate-issue-content-helm-chart
+breeze release-management generate-issue-content-helm-chart \
 --previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
