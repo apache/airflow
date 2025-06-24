@@ -16,16 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
+    get_sync_default_azure_credential,
 )
 
 
@@ -85,7 +88,7 @@ class AzureBaseHook(BaseHook):
             },
         }
 
-    def __init__(self, sdk_client: Any, conn_id: str = "azure_default"):
+    def __init__(self, sdk_client: Any = None, conn_id: str = "azure_default"):
         self.sdk_client = sdk_client
         self.conn_id = conn_id
         super().__init__()
@@ -96,6 +99,10 @@ class AzureBaseHook(BaseHook):
 
         :return: the authenticated client.
         """
+        if not self.sdk_client:
+            raise ValueError(
+                "`sdk_client` must be provided to AzureBaseHook to use `get_conn` method."
+            )
         conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get("tenantId")
         subscription_id = conn.extra_dejson.get("subscriptionId")
@@ -111,22 +118,67 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter
-        if all([conn.login, conn.password, tenant]):
-            self.log.info("Getting connection using specific credentials and subscription_id.")
-            credentials = ServicePrincipalCredentials(
-                client_id=conn.login, secret=conn.password, tenant=tenant
-            )
-        else:
-            self.log.info("Using DefaultAzureCredential as credential")
-            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
-            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
-            credentials = AzureIdentityCredentialAdapter(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            )
+        credentials = self.get_credentials(conn=conn)
 
         return self.sdk_client(
             credentials=credentials,
             subscription_id=subscription_id,
         )
+
+    def get_credentials(
+        self, *, conn: Optional[Connection] = None
+    ) -> ServicePrincipalCredentials | AzureIdentityCredentialAdapter | ClientSecretCredential | DefaultAzureCredential:
+        """
+        Get Azure credentials object for the connection.
+
+        Azure Identity based credentials object can be used to get token.
+        Older Credential object are supported for backward compatibility.
+
+        :return: The Azure credentials object
+        """
+        if not conn:
+            conn = self.get_connection(self.conn_id)
+        tenant = conn.extra_dejson.get("tenantId")
+        if not tenant and conn.extra_dejson.get("extra__azure__tenantId"):
+            warnings.warn(
+                "`extra__azure__tenantId` is deprecated in azure connection extra, "
+                "please use `tenantId` instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            tenant = conn.extra_dejson.get("extra__azure__tenantId")
+        use_azure_identity_creds_object = conn.extra_dejson.get(
+            "use_azure_identity_creds_object", False
+        )
+        credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter | ClientSecretCredential | DefaultAzureCredential
+        if all([conn.login, conn.password, tenant]):
+            self.log.info(
+                "Getting credentials using specific credentials and subscription_id."
+            )
+            if use_azure_identity_creds_object:
+                credentials = ClientSecretCredential(
+                    client_id=conn.login, client_secret=conn.password, tenant_id=tenant
+                )
+            else:
+                credentials = ServicePrincipalCredentials(
+                    client_id=conn.login, secret=conn.password, tenant=tenant
+                )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            managed_identity_client_id = conn.extra_dejson.get(
+                "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = conn.extra_dejson.get(
+                "workload_identity_tenant_id"
+            )
+            if use_azure_identity_creds_object:
+                credentials = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+            else:
+                credentials = AzureIdentityCredentialAdapter(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+        return credentials
