@@ -118,11 +118,7 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
             message = f"Error: AWS Glue Job: {validated_event}"
             raise AirflowException(message)
 
-        self.log.info(
-            "AWS Glue Job completed. Job Name: %s, Run ID: %s",
-            self.job_name,
-            self.run_id,
-        )
+        self.log.info("AWS Glue Job completed.")
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)

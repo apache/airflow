@@ -78,8 +78,6 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         self.job_name = job_name
         self.run_id = run_id
         self.verbose = verbose
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
 
     def hook(self) -> AwsGenericHook:
         return GlueJobHook(
