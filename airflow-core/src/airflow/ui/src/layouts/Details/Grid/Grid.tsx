@@ -19,17 +19,15 @@
 import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
-import { HasActiveRunContext } from "src/layouts/Details/context.ts";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
-import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -46,19 +44,11 @@ type Props = {
 export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
 
-  const { setHasActiveRun } = useContext(HasActiveRunContext);
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
-
-  useEffect(() => {
-    const hasActive = gridRuns?.some((run: GridRunsResponse) => isStatePending(run.state));
-
-    // @ts-expect-error it does compile
-    setHasActiveRun(hasActive ?? false);
-  }, [gridRuns, setHasActiveRun]);
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better

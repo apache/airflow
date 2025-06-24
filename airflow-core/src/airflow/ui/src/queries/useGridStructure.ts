@@ -16,19 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useContext } from "react";
 import { useParams } from "react-router-dom";
 
 import { useGridServiceGetDagStructure } from "openapi/queries";
-import { HasActiveRunContext } from "src/layouts/Details/context.ts";
 import { useAutoRefresh } from "src/utils";
 
 export const useGridStructure = ({ limit }: { limit: number }) => {
   const { dagId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
-  // This is necessary for keepPreviousData
-  const { hasActiveRun } = useContext(HasActiveRunContext);
 
+  // This is necessary for keepPreviousData
   const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
     {
       dagId,
@@ -39,7 +36,7 @@ export const useGridStructure = ({ limit }: { limit: number }) => {
     undefined,
     {
       placeholderData: (prev) => prev,
-      refetchInterval: hasActiveRun ? refetchInterval : false,
+      refetchInterval,
     },
   );
 
