@@ -23,6 +23,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { GridTask, RunWithDuration } from "src/layouts/Details/Grid/utils";
 import { getTaskNavigationPath } from "src/utils/links";
 
+const ARROW_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"] as const;
+
+type ArrowKey = (typeof ARROW_KEYS)[number];
+
 type UseGridNavigationProps = {
   flatNodes: Array<GridTask>;
   isGridFocused: boolean;
@@ -78,46 +82,48 @@ export const useGridNavigation = ({ flatNodes, isGridFocused, runs }: UseGridNav
   );
 
   const handleKeyNavigation = useCallback(
-    (key: "ArrowDown" | "ArrowUp" | "ArrowLeft" | "ArrowRight", isQuickJump: boolean) => {
+    (key: ArrowKey, isQuickJump: boolean) => {
       const { runIndex, taskIndex } = getCurrentIndices();
-      
-      const navigationConfig = {
-        ArrowDown: {
-          runIndex,
-          taskIndex: isQuickJump ? flatNodes.length - 1 : Math.min(flatNodes.length - 1, taskIndex + 1),
-        },
-        ArrowUp: {
-          runIndex,
-          taskIndex: isQuickJump ? 0 : Math.max(0, taskIndex - 1),
-        },
-        ArrowLeft: {
-          runIndex: isQuickJump ? runs.length - 1 : Math.min(runs.length - 1, runIndex + 1),
-          taskIndex,
-        },
-        ArrowRight: {
-          runIndex: isQuickJump ? 0 : Math.max(0, runIndex - 1),
-          taskIndex,
-        },
-      };
+      const maxTaskIndex = flatNodes.length - 1;
+      const maxRunIndex = runs.length - 1;
 
-      const { runIndex: newRunIndex, taskIndex: newTaskIndex } = navigationConfig[key];
+      const getTaskIndex = (direction: -1 | 1) =>
+        isQuickJump
+          ? direction > 0
+            ? maxTaskIndex
+            : 0
+          : Math.max(0, Math.min(maxTaskIndex, taskIndex + direction));
+
+      const getRunIndex = (direction: -1 | 1) =>
+        isQuickJump
+          ? direction > 0
+            ? maxRunIndex
+            : 0
+          : Math.max(0, Math.min(maxRunIndex, runIndex + direction));
+
+      const navigationConfig = {
+        ArrowDown: [runIndex, getTaskIndex(1)],
+        ArrowLeft: [getRunIndex(1), taskIndex],
+        ArrowRight: [getRunIndex(-1), taskIndex],
+        ArrowUp: [runIndex, getTaskIndex(-1)],
+      } as const;
+
+      const [newRunIndex, newTaskIndex] = navigationConfig[key];
+
       navigateToPosition(newRunIndex, newTaskIndex);
     },
     [getCurrentIndices, navigateToPosition, flatNodes.length, runs.length],
   );
 
+  const hotkeys = ARROW_KEYS.flatMap((key) => [key, `mod+${key}`]);
 
   useHotkeys(
-    [
-      "ArrowDown", "meta+ArrowDown", "ctrl+ArrowDown",
-      "ArrowUp", "meta+ArrowUp", "ctrl+ArrowUp",
-      "ArrowLeft", "meta+ArrowLeft", "ctrl+ArrowLeft", 
-      "ArrowRight", "meta+ArrowRight", "ctrl+ArrowRight",
-    ],
+    hotkeys,
     (event, _handler) => {
       event.stopPropagation();
       const isQuickJump = event.metaKey || event.ctrlKey;
-      handleKeyNavigation(event.key as "ArrowDown" | "ArrowUp" | "ArrowLeft" | "ArrowRight", isQuickJump);
+
+      handleKeyNavigation(event.key as ArrowKey, isQuickJump);
     },
     {
       enabled: isGridFocused,
