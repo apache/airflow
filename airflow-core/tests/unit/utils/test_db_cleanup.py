@@ -312,41 +312,36 @@ class TestDBCleanup:
             ),
         ],
     )
-    def test_archival_integration(self, table_name, expected_archived):
+    def test_run_cleanup_archival_integration(self, table_name, expected_archived):
         """
         Integration test that verifies:
-
-        1. All expected foreign key dependent tables are detected for a given table (e.g., dag_run).
-        2. The cleanup logic correctly archives only those tables that actually contain data.
-        3. Archive tables are created only for populated tables, and not for empty FK dependencies.
-
-        Steps:
-        - Use `create_tis()` to populate dag_run and task_instance tables.
-        - Detect FK dependencies for `table_name` and assert all expected ones are found.
-        - Run `_cleanup_table()` with a future timestamp to ensure all rows are archived.
-        - Inspect database to check which archive tables were actually created.
-        - Assert that only tables with data were archived.
+        1. Recursive FK-dependent tables are resolved via _effective_table_names().
+        2. run_cleanup() archives only tables with data.
+        3. Archive tables are not created for empty dependent tables.
         """
         base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
-
         num_tis = 5
-        create_tis(base_date=base_date, num_tis=num_tis, run_type=DagRunType.MANUAL)
+
+        # Create test data for DAG Run and TIs
+        if table_name in {"dag_run", "task_instance"}:
+            create_tis(base_date=base_date, num_tis=num_tis, run_type=DagRunType.MANUAL)
+
+        clean_before_date = base_date.add(days=10)
 
         with create_session() as session:
-            # dep_table_names = config_dict[table_name.name].dependent_tables
-            # assert expected_deps <= dep_table_names, f"Missing FK tables: {expected_deps - dep_table_names}"
-
-            clean_before_date = base_date.add(days=10)
-            _cleanup_table(
-                **config_dict[table_name].__dict__,
+            run_cleanup(
                 clean_before_timestamp=clean_before_date,
-                dry_run=False,
-                session=session,
                 table_names=[table_name],
+                dry_run=False,
+                confirm=False,
+                session=session,
             )
 
+            # Inspect archive tables created
             inspector = inspect(session.bind)
-            archive_tables = set(t for t in inspector.get_table_names() if t.startswith(ARCHIVE_TABLE_PREFIX))
+            archive_tables = {
+                name for name in inspector.get_table_names() if name.startswith(ARCHIVE_TABLE_PREFIX)
+            }
             actual_archived = {t.split("__", 1)[-1].split("__")[0] for t in archive_tables}
 
             assert expected_archived <= actual_archived, (

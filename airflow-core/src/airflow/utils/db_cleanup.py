@@ -358,66 +358,34 @@ def _cleanup_table(
     skip_archive: bool = False,
     session: Session,
     batch_size: int | None = None,
+    skip_delete: bool = False,
     **kwargs,
 ) -> None:
     print()
     if dry_run:
         print(f"Performing dry run for table {orm_model.name}")
-
-    def _cleanup_single_table(model, recency_col, keep_last_args=None, skip_delete=False):
-        print(f"Checking table {model.name}")
-        query = _build_query(
-            orm_model=model,
-            recency_column=recency_col,
-            keep_last=keep_last_args.get("keep_last") if keep_last_args else None,
-            keep_last_filters=keep_last_args.get("keep_last_filters") if keep_last_args else None,
-            keep_last_group_by=keep_last_args.get("keep_last_group_by") if keep_last_args else None,
-            clean_before_timestamp=clean_before_timestamp,
-            session=session,
-        )
-        logger.debug("old rows query:\n%s", query.selectable.compile())
-        num_rows = _check_for_rows(query=query, print_rows=False)
-
-        if num_rows and not dry_run:
-            _do_delete(
-                query=query,
-                orm_model=model,
-                skip_archive=skip_archive,
-                session=session,
-                batch_size=batch_size,
-                skip_delete=skip_delete,
-            )
-
-    def get_recursive_deps(table_name: str, seen: set[str]) -> list[str]:
-        deps = config_dict[table_name].dependent_tables or []
-        all_deps = []
-        for dep in deps:
-            if dep not in seen:
-                seen.add(dep)
-                all_deps.append(dep)
-                all_deps.extend(get_recursive_deps(dep, seen))
-        return all_deps
-
-    dep_table_names = get_recursive_deps(orm_model.name, seen=set())
-    if dep_table_names:
-        print(f"archiving dependent tables {dep_table_names}")
-        for table_name in dep_table_names:
-            metadata = reflect_tables([table_name], session)
-            model = metadata.tables[table_name]
-            recency_col_name = config_dict[model.name].recency_column_name
-            recency_col = column(recency_col_name)
-            _cleanup_single_table(model, recency_col, skip_delete=True)
-
-    # Cleanup original table
-    _cleanup_single_table(
-        orm_model,
-        recency_column,
-        keep_last_args={
-            "keep_last": keep_last,
-            "keep_last_filters": keep_last_filters,
-            "keep_last_group_by": keep_last_group_by,
-        },
+    query = _build_query(
+        orm_model=orm_model,
+        recency_column=recency_column,
+        keep_last=keep_last,
+        keep_last_filters=keep_last_filters,
+        keep_last_group_by=keep_last_group_by,
+        clean_before_timestamp=clean_before_timestamp,
+        session=session,
     )
+    logger.debug("old rows query:\n%s", query.selectable.compile())
+    print(f"Checking table {orm_model.name}")
+    num_rows = _check_for_rows(query=query, print_rows=False)
+
+    if num_rows and not dry_run:
+        _do_delete(
+            query=query,
+            orm_model=orm_model,
+            skip_archive=skip_archive,
+            session=session,
+            batch_size=batch_size,
+            skip_delete=skip_delete,
+        )
 
     session.commit()
 
@@ -480,17 +448,37 @@ def _suppress_with_logging(table: str, session: Session):
             session.rollback()
 
 
-def _effective_table_names(*, table_names: list[str] | None) -> tuple[set[str], dict[str, _TableConfig]]:
+def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
-    effective_table_names = set(effective_config_dict)
-    if desired_table_names != effective_table_names:
-        outliers = desired_table_names - effective_table_names
+
+    visited: set[str] = set()
+    effective_table_names: list[str] = []
+
+    def collect_deps(table: str):
+        if table in visited:
+            return
+        visited.add(table)
+        config = config_dict.get(table)
+        if config:
+            for dep in config.dependent_tables or []:
+                collect_deps(dep)
+        effective_table_names.append(table)
+
+    for table_name in desired_table_names:
+        collect_deps(table_name)
+
+    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
+
+    outliers = desired_table_names - set(effective_config_dict)
+    if outliers:
         logger.warning(
-            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+            "The following table(s) are not valid choices and will be skipped: %s",
+            sorted(outliers),
         )
-    if not effective_table_names:
+
+    if not effective_config_dict:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+
     return effective_table_names, effective_config_dict
 
 
@@ -546,6 +534,8 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
+
+    # Get all tables to clean (root + dependents)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
     if dry_run:
         print("Performing dry run for db cleanup.")
@@ -557,7 +547,9 @@ def run_cleanup(
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
-    for table_name, table_config in effective_config_dict.items():
+
+    for table_name in effective_table_names:
+        table_config = effective_config_dict[table_name]
         if table_name in existing_tables:
             with _suppress_with_logging(table_name, session):
                 _cleanup_table(
@@ -568,6 +560,7 @@ def run_cleanup(
                     skip_archive=skip_archive,
                     session=session,
                     batch_size=batch_size,
+                    skip_delete=(table_names is not None and table_name not in table_names),
                 )
                 session.commit()
         else:
