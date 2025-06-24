@@ -24,7 +24,7 @@ import ydb
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.ydb.hooks.ydb import YDBHook
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
@@ -64,7 +64,7 @@ def sanitize_date(value: str) -> str:
     return value
 
 
-def transform_dates(**kwargs):
+def transform_dates_func(**kwargs):
     begin_date = sanitize_date(kwargs.get("begin_date"))
     end_date = sanitize_date(kwargs.get("end_date"))
     return {"begin_date": begin_date, "end_date": end_date}
@@ -110,7 +110,7 @@ with DAG(
     # [END ydb_operator_howto_guide_get_all_pets]
     transform_dates = PythonOperator(
         task_id="transform_dates",
-        python_callable=transform_dates,
+        python_callable=transform_dates_func,
         op_kwargs={"begin_date": "{{params.begin_date}}", "end_date": "{{params.end_date}}"},
         params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
     )
