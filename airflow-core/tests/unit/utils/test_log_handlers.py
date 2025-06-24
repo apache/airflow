@@ -725,19 +725,103 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 """
 
 
-def test__stream_lines_by_chunk():
+@pytest.mark.parametrize(
+    "chunk_size, expected_read_calls",
+    [
+        (10, 4),
+        (20, 3),
+        # will read all logs in one call, but still need another call to get empty string at the end to escape the loop
+        (50, 2),
+        (100, 2),
+    ],
+)
+def test__stream_lines_by_chunk(chunk_size, expected_read_calls):
     # Mock CHUNK_SIZE to a smaller value to test
-    with mock.patch("airflow.utils.log.file_task_handler.CHUNK_SIZE", 10):
-        # Input data
-        input_data = "line1\nline2\nline3\nline4\n"
-        log_io = io.StringIO(input_data)
+    with mock.patch("airflow.utils.log.file_task_handler.CHUNK_SIZE", chunk_size):
+        log_io = io.StringIO("line1\nline2\nline3\nline4\n")
+        log_io.read = mock.MagicMock(wraps=log_io.read)
 
         # Stream lines using the function
         streamed_lines = list(_stream_lines_by_chunk(log_io))
 
         # Verify the output matches the input split by lines
         expected_output = ["line1", "line2", "line3", "line4"]
+        assert log_io.read.call_count == expected_read_calls, (
+            f"Expected {expected_read_calls} calls to read, got {log_io.read.call_count}"
+        )
         assert streamed_lines == expected_output, f"Expected {expected_output}, got {streamed_lines}"
+
+
+@pytest.mark.parametrize(
+    "seekable",
+    [
+        pytest.param(True, id="seekable_stream"),
+        pytest.param(False, id="non_seekable_stream"),
+    ],
+)
+@pytest.mark.parametrize(
+    "closed",
+    [
+        pytest.param(False, id="not_closed_stream"),
+        pytest.param(True, id="closed_stream"),
+    ],
+)
+@pytest.mark.parametrize(
+    "unexpected_exception",
+    [
+        pytest.param(None, id="no_exception"),
+        pytest.param(ValueError, id="value_error"),
+        pytest.param(IOError, id="io_error"),
+        pytest.param(Exception, id="generic_exception"),
+    ],
+)
+@mock.patch(
+    "airflow.utils.log.file_task_handler.CHUNK_SIZE", 10
+)  # Mock CHUNK_SIZE to a smaller value for testing
+def test__stream_lines_by_chunk_error_handling(seekable, closed, unexpected_exception):
+    """
+    Test that _stream_lines_by_chunk handles errors correctly.
+    """
+    log_io = io.StringIO("line1\nline2\nline3\nline4\n")
+    log_io.seekable = mock.MagicMock(return_value=seekable)
+    log_io.seek = mock.MagicMock(wraps=log_io.seek)
+    # Mock the read method to check the call count and handle exceptions
+    if unexpected_exception:
+        expected_error = unexpected_exception("An error occurred while reading the log stream.")
+        log_io.read = mock.MagicMock(side_effect=expected_error)
+    else:
+        log_io.read = mock.MagicMock(wraps=log_io.read)
+
+    # Setup closed state if needed - must be done before starting the test
+    if closed:
+        log_io.close()
+
+    # If an exception is expected, we mock the read method to raise it
+    if unexpected_exception and not closed:
+        # Only expect logger error if stream is not closed and there's an exception
+        with mock.patch("airflow.utils.log.file_task_handler.logger.error") as mock_logger_error:
+            result = list(_stream_lines_by_chunk(log_io))
+            mock_logger_error.assert_called_once_with("Error reading log stream: %s", expected_error)
+    else:
+        # For normal case or closed stream with exception, collect the output
+        result = list(_stream_lines_by_chunk(log_io))
+
+    # Check if seekable was called properly
+    if seekable and not closed:
+        log_io.seek.assert_called_once_with(0)
+    if not seekable:
+        log_io.seek.assert_not_called()
+
+    # Validate the results based on the conditions
+    if not closed and not unexpected_exception:  # Non-seekable streams without errors should still get lines
+        assert log_io.read.call_count > 1, "Expected read method to be called at least once."
+        assert result == ["line1", "line2", "line3", "line4"]
+    elif closed:
+        assert log_io.read.call_count == 0, "Read method should not be called on a closed stream."
+        assert result == [], "Expected no lines to be yield from a closed stream."
+    elif unexpected_exception:  # If an exception was raised
+        assert log_io.read.call_count == 1, "Read method should be called once."
+        assert result == [], "Expected no lines to be yield from a stream that raised an exception."
 
 
 def test__log_stream_to_parsed_log_stream():

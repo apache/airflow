@@ -207,11 +207,30 @@ def _stream_lines_by_chunk(
     :param log_io: A file-like IO object to read from.
     :return: A generator that yields individual lines within the specified range.
     """
-    log_io.seek(0)
+    # Skip processing if file is already closed
+    if log_io.closed:
+        return
+
+    # Seek to beginning if possible
+    if log_io.seekable():
+        try:
+            log_io.seek(0)
+        except Exception as e:
+            logger.error("Error seeking in log stream: %s", e)
+            return
 
     buffer = ""
     while True:
-        chunk = log_io.read(CHUNK_SIZE)
+        # Check if file is already closed
+        if log_io.closed:
+            break
+
+        try:
+            chunk = log_io.read(CHUNK_SIZE)
+        except Exception as e:
+            logger.error("Error reading log stream: %s", e)
+            break
+
         if not chunk:
             break
 
