@@ -39,6 +39,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     container_is_terminated,
 )
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
 from airflow.utils.timezone import utc
 
 from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
@@ -343,6 +344,30 @@ class TestPodManager:
                 mock.call(line=message, client=self.pod_manager._client, mode="sync"),
                 mock.call(line=no_ts_message, client=self.pod_manager._client, mode="sync"),
             ]
+        )
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_fetch_container_logs_invoke_progress_callback_non_repeat_line(
+        self, mock_read_pod_logs, mock_container_is_running
+    ):
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        messages = [
+            "2020-10-08T14:16:17.793417674Z message 1",
+            "2020-10-08T15:16:17.793417674Z message 2",
+            "2020-10-08T16:16:17.793417674Z message 3",
+        ]
+        mock_read_pod_logs.return_value = [bytes(message, "utf-8") for message in messages]
+        mock_container_is_running.return_value = False
+
+        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        mock_callbacks.progress_callback.assert_has_calls(
+            [
+                mock.call(line=message, client=self.pod_manager._client, mode=ExecutionMode.SYNC)
+                for message in messages
+            ],
+            any_order=False,
         )
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
