@@ -39,8 +39,8 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import EventBufferValueType
-    from airflow.models.taskinstance import (
-        SimpleTaskInstance,  # type: ignore[attr-defined]
+    from airflow.models.taskinstance import (  # type: ignore[attr-defined]
+        SimpleTaskInstance,
         TaskInstance,
     )
     from airflow.models.taskinstancekey import TaskInstanceKey
