@@ -380,7 +380,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         try:
             result = client.introspect(user.access_token)
             if not result["active"]:
-                log.warning("Nonono is not active")
                 return True
         except Exception as e:
             log.warning("Token introspection failed: %s", e)
