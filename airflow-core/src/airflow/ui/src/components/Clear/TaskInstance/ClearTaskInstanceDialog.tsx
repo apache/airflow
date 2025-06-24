@@ -24,7 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import Time from "src/components/Time";
-import { Button, Dialog } from "src/components/ui";
+import { Button, Dialog, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
@@ -57,6 +57,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -79,6 +80,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
       include_past: past,
       include_upstream: upstream,
       only_failed: onlyFailed,
+      run_on_latest_version: runOnLatestVersion,
       task_ids: [[taskId, mapIndex]],
     },
   });
@@ -140,7 +142,13 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex justifyContent="end" mt={3}>
+          <Flex alignItems="center" justifyContent="space-between" mt={3}>
+            <Checkbox
+              checked={runOnLatestVersion}
+              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            </Checkbox>
             <Button
               colorPalette="blue"
               disabled={affectedTasks.total_entries === 0}
@@ -156,6 +164,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                     include_past: past,
                     include_upstream: upstream,
                     only_failed: onlyFailed,
+                    run_on_latest_version: runOnLatestVersion,
                     task_ids: [[taskId, mapIndex]],
                   },
                 });
