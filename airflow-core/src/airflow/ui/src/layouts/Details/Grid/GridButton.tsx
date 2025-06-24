@@ -21,12 +21,19 @@ import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
 
+import { GridTooltips } from "./GridTooltips";
+
 type Props = {
   readonly dagId: string;
+  readonly endDate?: string | null;
   readonly isGroup?: boolean;
   readonly label: string;
+  readonly logicalDate?: string | null;
+  readonly note?: string | null;
   readonly runId: string;
+  readonly runType?: string;
   readonly searchParams: string;
+  readonly startDate?: string | null;
   readonly state: DagRunState | TaskInstanceState | null | undefined;
   readonly taskId?: string;
 } & FlexProps;
@@ -34,46 +41,64 @@ type Props = {
 export const GridButton = ({
   children,
   dagId,
+  endDate,
   isGroup,
   label,
+  logicalDate,
+  note,
   runId,
+  runType,
   searchParams,
+  startDate,
   state,
   taskId,
   ...rest
-}: Props) =>
-  isGroup ? (
-    <Flex
-      background={`${state}.solid`}
-      borderRadius={2}
-      height="10px"
-      minW="14px"
-      pb="2px"
-      px="2px"
-      title={`${label}\n${state}`}
-      {...rest}
-    >
-      {children}
-    </Flex>
-  ) : (
-    <Link
-      replace
-      to={{
-        pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-        search: searchParams.toString(),
-      }}
-    >
+}: Props) => {
+  const tooltipProps = {
+    endDate,
+    logicalDate,
+    note,
+    runId,
+    runType,
+    startDate,
+    state,
+  };
+
+  return isGroup ? (
+    <GridTooltips {...tooltipProps}>
       <Flex
         background={`${state}.solid`}
         borderRadius={2}
         height="10px"
+        minW="14px"
         pb="2px"
         px="2px"
-        title={`${label}\n${state}`}
-        width="14px"
         {...rest}
       >
         {children}
       </Flex>
-    </Link>
+    </GridTooltips>
+  ) : (
+    <GridTooltips {...tooltipProps}>
+      <Link
+        replace
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+          search: searchParams.toString(),
+        }}
+      >
+        <Flex
+          background={`${state}.solid`}
+          borderRadius={2}
+          height="10px"
+          pb="2px"
+          px="2px"
+          width="14px"
+          {...rest}
+        >
+          {children}
+        </Flex>
+      </Link>
+    </GridTooltips>
   );
+};
