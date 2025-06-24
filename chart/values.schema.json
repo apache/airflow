@@ -1482,6 +1482,15 @@
             "x-docsSection": "Airflow",
             "default": null
         },
+        "jwtSecretAnnotations": {
+            "description": "Annotations to add to the JWT secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [

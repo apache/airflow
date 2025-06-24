@@ -559,6 +559,8 @@ webserverSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
 jwtSecret: ~
+# Add custom annotations to the JWT secret
+jwtSecretAnnotations: {}
 jwtSecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
