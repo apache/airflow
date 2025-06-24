@@ -31,7 +31,6 @@ import yaml
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
-from sqlalchemy.orm import make_transient
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
@@ -79,16 +78,18 @@ DEFAULT_CONN_ID = "kubernetes_default"
 
 
 @pytest.fixture
-def remove_default_conn(session):
-    before_conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).one_or_none()
-    if before_conn:
-        session.delete(before_conn)
-        session.commit()
+def remove_default_conn(monkeypatch):
+    original_env_var = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
+
+    # remove the env variable to simulate no default connection
+    if original_env_var:
+        monkeypatch.delenv(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
+
     yield
-    if before_conn:
-        make_transient(before_conn)
-        session.add(before_conn)
-        session.commit()
+
+    # restore the original env variable
+    if original_env_var:
+        monkeypatch.setenv(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}", original_env_var)
 
 
 class TestKubernetesHook:
