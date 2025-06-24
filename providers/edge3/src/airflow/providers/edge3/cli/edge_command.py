@@ -26,6 +26,7 @@ from datetime import datetime
 from getpass import getuser
 from pathlib import Path
 from time import sleep, time
+from urllib.parse import urlparse
 
 import psutil
 
@@ -44,6 +45,7 @@ from airflow.providers.edge3.cli.signalling import (
 )
 from airflow.providers.edge3.cli.worker import SIG_STATUS, EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.net import getfqdn
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -64,7 +66,7 @@ EDGE_WORKER_HEADER = "\n".join(
 @providers_configuration_loaded
 def force_use_internal_api_on_edge_worker():
     """
-    Ensure that the environment is configured for the internal API without needing to declare it outside.
+    Ensure the environment is configured for internal/execution (Airflow 2/3+) API without explicit declaration.
 
     This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
     That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
@@ -73,12 +75,24 @@ def force_use_internal_api_on_edge_worker():
     # export Edge API to be used for internal API
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
-    if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
-        api_url = conf.get("edge", "api_url")
-        if not api_url:
-            raise SystemExit("Error: API URL is not configured, please correct configuration.")
-        logger.info("Starting worker with API endpoint %s", api_url)
-        os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
+    if not ("airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]):
+        return
+
+    api_url = conf.get("edge", "api_url")
+    if not api_url:
+        raise SystemExit("Error: API URL is not configured, please correct configuration.")
+    logger.info("Starting worker with API endpoint %s", api_url)
+    os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
+
+    if not AIRFLOW_V_3_0_PLUS:
+        return
+
+    execution_api_server_url = conf.get("core", "execution_api_server_url")
+    if not execution_api_server_url:
+        parsed = urlparse(api_url)
+        execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
+        logger.info("Starting worker with execution API endpoint %s", execution_api_server_url)
+        os.environ["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"] = execution_api_server_url
 
 
 force_use_internal_api_on_edge_worker()
