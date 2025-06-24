@@ -16,16 +16,47 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, String, Text
+import sqlalchemy_jsonfield
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, String, Text
 from sqlalchemy.dialects import postgresql
 
 from airflow.models.base import Base
+from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
+class HITLInputRequestModel(Base):
+    """Human-in-the-loop input request."""
+
+    __tablename__ = "hitl_input_request"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    options = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default=[])
+    subject = Column(Text, nullable=False)
+    body = Column(Text, nullable=True)
+    # Allow multiple defaults
+    default = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    multiple = Column(Boolean, unique=False, default=False)
+
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (ti_id,),
+            ("task_instance.id",),
+            name="hitl_response_ti_fkey",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+    )
+
+
 class HITLResponseModel(Base):
-    """AIP-90."""
+    """Human-in-the-loop received response."""
 
     __tablename__ = "hitl_response"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -33,6 +64,7 @@ class HITLResponseModel(Base):
     content = Column(Text)
     user_id = Column(String(128), nullable=False)
 
+    # TODO: set foreign key to HITLInputRequestModel instead
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         nullable=False,
