@@ -1228,11 +1228,9 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     mapped_length: int | None = None
     if not ti.is_mapped and has_mapped_dep:
         from airflow.sdk.definitions.mappedoperator import is_mappable_value
-        from airflow.sdk.exceptions import UnmappableXComTypePushed
 
-        if not is_mappable_value(xcom_value):
-            raise UnmappableXComTypePushed(xcom_value)
-        mapped_length = len(xcom_value)
+        if is_mappable_value(xcom_value):
+            mapped_length = len(xcom_value)
 
     log.info("Pushing xcom", ti=ti)
 
