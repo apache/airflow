@@ -467,7 +467,7 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
     for table_name in desired_table_names:
         collect_deps(table_name)
 
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
+    effective_config_dict = {n: config_dict[n] for n in effective_table_names}
 
     outliers = desired_table_names - set(effective_config_dict)
     if outliers:
@@ -548,8 +548,7 @@ def run_cleanup(
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
 
-    for table_name in effective_table_names:
-        table_config = effective_config_dict[table_name]
+    for table_name, table_config in effective_config_dict.items():
         if table_name in existing_tables:
             with _suppress_with_logging(table_name, session):
                 _cleanup_table(
