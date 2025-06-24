@@ -37,6 +37,22 @@ class TestAsanaTaskOperators:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
         create_connection_without_db(Connection(conn_id="asana_test", conn_type="asana", password="test"))
+        create_connection_without_db(Connection(conn_id="asana_default", conn_type="asana", password="test"))
+
+    @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
+    def test_asana_create_task_operator_with_default_conn(self, mock_tasks_api):
+        """
+        Tests that the AsanaCreateTaskOperator uses the default connection.
+        """
+
+        mock_tasks_api.return_value.create_task.return_value = {"gid": "1"}
+        create_task = AsanaCreateTaskOperator(
+            task_id="create_task",
+            name="test",
+            task_parameters={"workspace": "1"},
+        )
+        assert create_task.conn_id == "asana_default"
+        create_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @patch("airflow.providers.asana.operators.asana_tasks.AsanaHook")
     def test_asana_create_task_operator(self, mock_asana_hook):
@@ -58,6 +74,19 @@ class TestAsanaTaskOperators:
         mock_hook_instance.create_task.assert_called_once_with("test", {"workspace": "1"})
         assert result == "1"
 
+    @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
+    def test_asana_find_task_operator_with_default_conn(self, mock_tasks_api):
+        """
+        Tests that the AsanaFindTaskOperator uses the default connection.
+        """
+        mock_tasks_api.return_value.tasks.create.return_value = {"gid": "1"}
+        find_task = AsanaFindTaskOperator(
+            task_id="find_task",
+            search_parameters={"project": "test"},
+        )
+        assert find_task.conn_id == "asana_default"
+        find_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
     @patch("airflow.providers.asana.operators.asana_tasks.AsanaHook")
     def test_asana_find_task_operator(self, mock_asana_hook):
         """
@@ -77,6 +106,19 @@ class TestAsanaTaskOperators:
         mock_hook_instance.find_task.assert_called_once_with({"project": "test"})
         assert result == {"gid": "1"}
 
+    @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
+    def test_asana_update_task_operator_default_conn(self, mock_tasks_api):
+        """
+        Tests that the AsanaUpdateTaskOperator uses the default connection.
+        """
+        update_task = AsanaUpdateTaskOperator(
+            task_id="update_task",
+            asana_task_gid="test",
+            task_parameters={"completed": True},
+        )
+        assert update_task.conn_id == "asana_default"
+        assert mock_tasks_api.return_value.update_task.called
+
     @patch("airflow.providers.asana.operators.asana_tasks.AsanaHook")
     def test_asana_update_task_operator(self, mock_asana_hook):
         """
@@ -92,6 +134,23 @@ class TestAsanaTaskOperators:
         )
         update_task.execute({})
         mock_hook_instance.update_task.assert_called_once_with("test", {"completed": True})
+
+    @patch("airflow.providers.asana.operators.asana_tasks.AsanaHook")
+    def test_asana_delete_task_operator_with_default_conn(self, mock_asana_hook):
+        """
+        Tests that the AsanaDeleteTaskOperator uses the default connection.
+        """
+
+        mock_hook_instance = MagicMock()
+        mock_asana_hook.return_value = mock_hook_instance
+
+        delete_task = AsanaDeleteTaskOperator(
+            task_id="delete_task",
+            asana_task_gid="test",
+        )
+        delete_task.execute({})
+        assert delete_task.conn_id == "asana_default"
+        mock_hook_instance.delete_task.assert_called_once_with("test")
 
     @patch("airflow.providers.asana.operators.asana_tasks.AsanaHook")
     def test_asana_delete_task_operator(self, mock_asana_hook):
