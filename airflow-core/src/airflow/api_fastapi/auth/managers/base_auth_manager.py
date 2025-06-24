@@ -136,7 +136,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Refresh the JWT token if needed.
 
-        This method is called when the JWT token expired. Returns the user if the token were being refreshed, None otherwise.
+        This method is called when the JWT token expired. Returns the user if the token was being refreshed, None otherwise.
         Implementing this method should check whether token needs a refresh before refreshing.
         """
         return None
