@@ -294,3 +294,12 @@ class WinRMHook(BaseHook):
             raise AirflowException(f"WinRM operator error: {e}")
         finally:
             winrm_client.close_shell(shell_id)  # type: ignore[attr-defined]
+
+    def test_connection(self):
+        try:
+            (r_code, std_out, std_err) = self.run("cd")
+            if r_code != 0:
+                raise RuntimeError(std_err)
+            return True, "Connection successful."
+        except Exception as e:
+            return False, str(e)
