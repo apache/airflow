@@ -23,6 +23,55 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.17.0 (2025-06-21)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``3.0.2`` (#51594)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``3.0.2``, previously it was ``2.10.5``.
+
+New Features
+^^^^^^^^^^^^
+- Add extra secret annotations to most secrets (#48890)
+- Add support for EdgeExecutor (#50897)
+
+Improvements
+^^^^^^^^^^^^
+- Unify k8s labels & add some missing k8s labels (#49522)
+
+Bug Fixes
+^^^^^^^^^
+- Fix missing api server ingress (#49727)
+- Replace break function in ``pod-launcher-rolebinding`` template (#49219)
+- Add ``webserver_config.py`` file to api-server (#50108)
+- Declare missing API server properties (#51012)
+- Add missing api server replicas parameter (#50814)
+- Fix FAB ``enable_proxy_fix`` default for Airflow 3 (#50056)
+- Add the dag processor ServiceAccount to SecurityContextConstraints role binding (#51080)
+- Generate JWT secret during HELM install (#49923)
+- Always deploy JWT secret (#51799)
+- Add missing ``workers.kerberosInitContainer`` configuration in values (#51405)
+- Truncate the executor label length (#51817)
+- Fix execution_api_server_url when base_url has a subpath (#51454)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Bump minimum helm version in docs (#48700)
+- Clarify which worker fields apply to Celery and Kubernetes worker pods (#50458)
+- Capitalize the term airflow (#49450)
+- Add EdgeExecutor to readme (#51017)
+- Add 3.X/2.X clarification for CeleryKubernetesExecutor (#49916)
+
+Misc
+^^^^
+- Default Airflow image is updated to ``3.0.2`` (#51594)
+- Bump minimal Kubernetes version to 1.30 (#51515)
+- Delete unneeded ``and`` operator (#51114)
+
 Airflow Helm Chart 1.16.0 (2025-04-01)
 --------------------------------------
 

@@ -93,6 +93,10 @@ class CohereEmbeddingOperator(BaseOperator):
     def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""
         embedding_response = self.hook.create_embeddings(self.input_text)
-
-        # Extract just the embeddings list, which is serializable
+        # NOTE: Return type `EmbedByTypeResponseEmbeddings` was removed temporarily due to limitations
+        # in XCom serialization/deserialization of complex types like Cohere embeddings and Pydantic models.
+        #
+        # Tracking issue: https://github.com/apache/airflow/issues/50867
+        # Once that issue is resolved, XCom (de)serialization of such types will be supported, and
+        # we can safely restore the `EmbedByTypeResponseEmbeddings` return type here.
         return embedding_response

@@ -101,7 +101,6 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
         project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")
         BigQueryTableLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_id,
             project_id=project_id,
             table_id=table_id,

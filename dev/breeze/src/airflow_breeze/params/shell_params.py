@@ -141,6 +141,7 @@ class ShellParams:
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
     airflow_skip_constraints: bool = False
+    allow_pre_releases: bool = False
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
@@ -345,6 +346,16 @@ class ShellParams:
                     )
                     self.airflow_extras = (
                         ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
+                    )
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "fab" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
+                    )
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["fab"]) if current_extras else "fab"
                     )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
@@ -553,6 +564,7 @@ class ShellParams:
             port = 8080
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
+        _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")

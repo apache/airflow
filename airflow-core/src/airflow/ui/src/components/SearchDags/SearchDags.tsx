@@ -37,7 +37,7 @@ export const SearchDags = ({
 }: {
   readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  const { t: translate } = useTranslation("components");
+  const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
@@ -86,7 +86,7 @@ export const SearchDags = ({
         loadOptions={searchDagDebounced}
         menuIsOpen
         onChange={onSelect}
-        placeholder={translate("searchDags.placeholder")}
+        placeholder={translate("search.dags")}
         // eslint-disable-next-line unicorn/no-null
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />

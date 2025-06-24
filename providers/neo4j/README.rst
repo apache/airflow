@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-neo4j``
 
-Release: ``3.9.0``
+Release: ``3.9.1``
 
 
 `Neo4j <https://neo4j.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``neo4j`` provider. All classes for this provider
 are in ``airflow.providers.neo4j`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-neo4j/3.9.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-neo4j/3.9.1/>`_.
 
 Installation
 ------------
@@ -54,8 +54,8 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``neo4j``           ``>=4.2.1``
+``neo4j``           ``>=5.20.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-neo4j/3.9.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-neo4j/3.9.1/changelog.html>`_.

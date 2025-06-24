@@ -144,7 +144,6 @@ class CloudDLPCancelDLPJobOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=self.dlp_job_id,
             )
@@ -251,7 +250,6 @@ class CloudDLPCreateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         if project_id and template_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 template_name=template_id,
             )
@@ -363,7 +361,6 @@ class CloudDLPCreateDLPJobOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=result["name"].split("/")[-1] if result["name"] else None,
             )
@@ -473,7 +470,6 @@ class CloudDLPCreateInspectTemplateOperator(GoogleCloudBaseOperator):
         if project_id and template_id:
             CloudDLPInspectTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 template_name=template_id,
             )
@@ -578,7 +574,6 @@ class CloudDLPCreateJobTriggerOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobTriggerDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 trigger_name=trigger_name,
             )
@@ -692,7 +687,6 @@ class CloudDLPCreateStoredInfoTypeOperator(GoogleCloudBaseOperator):
         if project_id and stored_info_type_id:
             CloudDLPInfoTypeDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 info_type_name=stored_info_type_id,
             )
@@ -880,7 +874,6 @@ class CloudDLPDeleteDeidentifyTemplateOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudDLPDeidentifyTemplatesListLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
                 )
         except NotFound:
@@ -966,7 +959,6 @@ class CloudDLPDeleteDLPJobOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudDLPJobsListLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
                 )
 
@@ -1056,7 +1048,6 @@ class CloudDLPDeleteInspectTemplateOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudDLPInspectTemplatesListLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
                 )
 
@@ -1140,7 +1131,6 @@ class CloudDLPDeleteJobTriggerOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudDLPJobTriggersListLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
                 )
 
@@ -1232,7 +1222,6 @@ class CloudDLPDeleteStoredInfoTypeOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInfoTypesListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -1318,7 +1307,9 @@ class CloudDLPGetDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
-                context=context, task_instance=self, project_id=project_id, template_name=self.template_id
+                context=context,
+                project_id=project_id,
+                template_name=self.template_id,
             )
 
         return DeidentifyTemplate.to_dict(template)
@@ -1400,7 +1391,6 @@ class CloudDLPGetDLPJobOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=self.dlp_job_id,
             )
@@ -1490,7 +1480,6 @@ class CloudDLPGetInspectTemplateOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInspectTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 template_name=self.template_id,
             )
@@ -1574,7 +1563,6 @@ class CloudDLPGetDLPJobTriggerOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobTriggerDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 trigger_name=self.job_trigger_id,
             )
@@ -1664,7 +1652,6 @@ class CloudDLPGetStoredInfoTypeOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInfoTypeDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 info_type_name=self.stored_info_type_id,
             )
@@ -1844,7 +1831,6 @@ class CloudDLPListDeidentifyTemplatesOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPDeidentifyTemplatesListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -1940,7 +1926,6 @@ class CloudDLPListDLPJobsOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobsListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -2025,7 +2010,6 @@ class CloudDLPListInfoTypesOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPPossibleInfoTypesListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -2119,7 +2103,6 @@ class CloudDLPListInspectTemplatesOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInspectTemplatesListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -2211,7 +2194,6 @@ class CloudDLPListJobTriggersOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobTriggersListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -2305,7 +2287,6 @@ class CloudDLPListStoredInfoTypesOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInfoTypesListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 
@@ -2592,7 +2573,6 @@ class CloudDLPUpdateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 template_name=self.template_id,
             )
@@ -2692,7 +2672,6 @@ class CloudDLPUpdateInspectTemplateOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInspectTemplateDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 template_name=self.template_id,
             )
@@ -2786,7 +2765,6 @@ class CloudDLPUpdateJobTriggerOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPJobTriggerDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 trigger_name=self.job_trigger_id,
             )
@@ -2887,7 +2865,6 @@ class CloudDLPUpdateStoredInfoTypeOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudDLPInfoTypeDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 info_type_name=self.stored_info_type_id,
             )

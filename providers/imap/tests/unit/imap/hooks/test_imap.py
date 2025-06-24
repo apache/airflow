@@ -26,12 +26,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.imap.hooks.imap import ImapHook
-from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
-
-pytestmark = pytest.mark.db_test
-
 
 imaplib_string = "airflow.providers.imap.hooks.imap.imaplib"
 open_string = "airflow.providers.imap.hooks.imap.open"
@@ -66,8 +62,9 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv"
 
 
 class TestImapHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="imap_default",
                 conn_type="imap",
@@ -77,7 +74,7 @@ class TestImapHook:
                 port=1993,
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="imap_nonssl",
                 conn_type="imap",
@@ -120,9 +117,11 @@ class TestImapHook:
 
     @patch(imaplib_string)
     @patch("ssl.create_default_context")
-    def test_connect_and_disconnect_imap_ssl_context_from_extra(self, create_default_context, mock_imaplib):
+    def test_connect_and_disconnect_imap_ssl_context_from_extra(
+        self, create_default_context, mock_imaplib, create_connection_without_db
+    ):
         mock_conn = _create_fake_imap(mock_imaplib)
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="imap_ssl_context_from_extra",
                 conn_type="imap",
