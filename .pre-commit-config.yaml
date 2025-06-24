@@ -599,6 +599,7 @@ repos:
             ^providers/apache/iceberg/.*\.py$|
             ^providers/apache/kafka/.*\.py$|
             ^providers/arangodb/.*\.py$|
+            ^providers/asana/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/common/compat/.*\.py$|
@@ -623,6 +624,7 @@ repos:
             ^providers/openai/.*\.py$|
             ^providers/openfaas/.*\.py$|
             ^providers/oracle/.*\.py$|
+            ^providers/pagerduty/.*\.py$|
             ^providers/pgvector/.*\.py$|
             ^providers/pinecone/.*\.py$|
             ^providers/postgres/.*\.py$|

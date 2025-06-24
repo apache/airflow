@@ -157,7 +157,6 @@ class TestAirflowKubernetesScheduler:
 
         assert datetime_obj == new_datetime_obj
 
-    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -180,7 +179,6 @@ class TestAirflowKubernetesScheduler:
         finally:
             kube_executor.end()
 
-    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -204,7 +202,6 @@ class TestAirflowKubernetesScheduler:
             kube_executor.kube_scheduler.delete_pod(pod_name, namespace)
         mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
 
-    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -253,7 +250,6 @@ class TestKubernetesExecutor:
         self.kubernetes_executor = KubernetesExecutor()
         self.kubernetes_executor.job_id = 5
 
-    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -455,7 +451,6 @@ class TestKubernetesExecutor:
             finally:
                 kubernetes_executor.end()
 
-    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -495,7 +490,6 @@ class TestKubernetesExecutor:
         finally:
             kubernetes_executor.end()
 
-    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -561,7 +555,6 @@ class TestKubernetesExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
-    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_invalid_executor_config(self, mock_get_kube_client, mock_kubernetes_job_watcher):
@@ -584,7 +577,6 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @pytest.mark.db_test
     @pytest.mark.execution_timeout(10)
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
@@ -801,7 +793,6 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "multi_namespace_mode_namespace_list, watchers_keys",
         [

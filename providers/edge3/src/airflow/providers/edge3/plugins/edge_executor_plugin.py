@@ -53,7 +53,7 @@ if AIRFLOW_V_3_0_PLUS:
         }
 
 else:
-    # This is for back-compatability with Airflow 2.x and we only make this
+    # This is for back-compatibility with Airflow 2.x and we only make this
     # to prevents dependencies and breaking imports in Airflow 3.x
     import re
     from datetime import datetime, timedelta

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 
@@ -75,6 +76,16 @@ def workflow_run_publish(
     doc_packages: tuple[str, ...],
     skip_write_to_stable_folder: bool = False,
 ):
+    if os.environ.get("GITHUB_TOKEN", ""):
+        get_console().print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
+        get_console().print(
+            "\nThis might not be what you want unless your token has "
+            "sufficient permissions to trigger workflows."
+        )
+        get_console().print(
+            "If you remove GITHUB_TOKEN, workflow_run will use the authentication you already "
+            "set-up with `gh auth login`.\n"
+        )
     get_console().print(
         f"[blue]Validating ref: {ref}[/blue]",
     )
