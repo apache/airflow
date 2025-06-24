@@ -206,7 +206,11 @@ repos:
         entry: ./scripts/ci/pre_commit/update_installers_and_pre_commit.py
         stages: ['manual']
         language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/update_installers_and_pre_commit\.py$
+        files: >
+          (?x)
+          ^\.pre-commit-config\.yaml$|
+          ^\.github/\.pre-commit-config\.yaml$|
+          ^scripts/ci/pre_commit/update_installers_and_pre_commit\.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0']
@@ -537,6 +541,16 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: prevent-deprecated-sqlalchemy-usage
+        name: Prevent deprecated sqlalchemy usage
+        entry: ./scripts/ci/pre_commit/prevent_deprecated_sqlalchemy_usage.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: >
+            (?x)
+            ^airflow-ctl.*\.py$|
+            ^task_sdk.*\.py$
+        pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/supported_versions.py
@@ -583,8 +597,12 @@ repos:
             ^providers/apache/beam/.*\.py$|
             ^providers/apache/flink/.*\.py$|
             ^providers/apache/iceberg/.*\.py$|
+            ^providers/apache/kafka/.*\.py$|
+            ^providers/arangodb/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
+            ^providers/common/compat/.*\.py$|
+            ^providers/common/messaging/.*\.py$|
             ^providers/datadog/.*\.py$|
             ^providers/dingding/.*\.py$|
             ^providers/discord/.*\.py$|
@@ -598,6 +616,8 @@ repos:
             ^providers/jdbc/.*\.py$|
             ^providers/jenkins/.*\.py$|
             ^providers/mongo/.*\.py$|
+            ^providers/microsoft/psrp/.*\.py$|
+            ^providers/microsoft/winrm/.*\.py$|
             ^providers/neo4j/.*\.py$|
             ^providers/odbc/.*\.py$|
             ^providers/openai/.*\.py$|

@@ -347,6 +347,16 @@ class ShellParams:
                     self.airflow_extras = (
                         ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
                     )
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "fab" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
+                    )
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["fab"]) if current_extras else "fab"
+                    )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
