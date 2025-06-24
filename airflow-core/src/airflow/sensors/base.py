@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-WORKFLOW_RUN_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Airflow github actions workflow commands",
-    "commands": ["publish-docs"],
-}
-
-WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
-    "breeze workflow-run publish-docs": [
-        {
-            "name": "Trigger publish docs workflow",
-            "options": [
-                "--ref",
-                "--skip-tag-validation",
-                "--exclude-docs",
-                "--site-env",
-                "--skip-write-to-stable-folder",
-            ],
-        },
-    ],
-}
+from airflow.sdk.bases.sensor import (
+    BaseSensorOperator as BaseSensorOperator,
+    PokeReturnValue as PokeReturnValue,
+    poke_mode_only as poke_mode_only,
+)
