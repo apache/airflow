@@ -241,7 +241,7 @@ class TestGoogleCloudSecretManagerHook:
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             page_size=100,
             secret_filter=secret_filter,
-            location_id=None,
+            location=None,
         )
 
     @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
