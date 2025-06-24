@@ -340,6 +340,14 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
     ),
     choices=("none", "completed", "failed"),
 )
+ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
+    ("--run-on-latest-version",),
+    help=(
+        "If set, the backfill will run tasks using the latest DAG version instead of "
+        "the version that was active when the original DAG run was created."
+    ),
+    action="store_true",
+)
 
 
 # misc
@@ -968,6 +976,7 @@ BACKFILL_COMMANDS = (
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
             ARG_BACKFILL_REPROCESS_BEHAVIOR,
+            ARG_BACKFILL_RUN_ON_LATEST_VERSION,
             ARG_BACKFILL_DRY_RUN,
         ),
     ),

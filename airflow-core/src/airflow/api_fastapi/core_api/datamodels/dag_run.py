@@ -55,6 +55,7 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
+    run_on_latest_version: bool = False
 
 
 class DAGRunResponse(BaseModel):

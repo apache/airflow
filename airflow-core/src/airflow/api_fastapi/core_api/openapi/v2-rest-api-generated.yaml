@@ -8396,6 +8396,10 @@ components:
           type: boolean
           title: Include Past
           default: false
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
+          default: false
       additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
@@ -9048,6 +9052,10 @@ components:
         only_failed:
           type: boolean
           title: Only Failed
+          default: false
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
           default: false
       additionalProperties: false
       type: object

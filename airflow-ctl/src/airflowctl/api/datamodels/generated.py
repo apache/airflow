@@ -201,6 +201,7 @@ class ClearTaskInstancesBody(BaseModel):
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
+    run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = False
 
 
 class Value(RootModel[list]):
@@ -308,6 +309,7 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = False
 
 
 class DAGRunPatchStates(str, Enum):
