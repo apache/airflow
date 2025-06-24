@@ -112,7 +112,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="dag",
         recency_column_name="last_parsed_time",
-        dependent_tables=["dag_version"],
+        dependent_tables=["dag_version", "deadline"],
     ),
     _TableConfig(
         table_name="dag_run",
