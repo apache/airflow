@@ -670,6 +670,7 @@ class TestHttpHook:
             "trust_env": False,
         }
         assert actual_conn_extra == {"bearer": "test"}
+        assert extra_options == {}
 
 
 class TestHttpAsyncHook:
