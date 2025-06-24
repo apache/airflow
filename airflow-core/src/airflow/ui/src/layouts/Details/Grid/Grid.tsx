@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
+import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { HasActiveRunContext } from "src/layouts/Details/context.ts";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -46,21 +47,41 @@ export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
 
   const { setHasActiveRun } = useContext(HasActiveRunContext);
-  const [runAfter] = useState<string | undefined>();
+  const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds } = useOpenGroups();
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
 
   useEffect(() => {
-    const hasActive = gridRuns?.some((run) => isStatePending(run.state));
+    const hasActive = gridRuns?.some((run: GridRunsResponse) => isStatePending(run.state));
 
+    // @ts-expect-error it does compile
     setHasActiveRun(hasActive ?? false);
-  }, [gridRuns]);
+  }, [gridRuns, setHasActiveRun]);
+
+  // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
+  // Eventually we should redo the api endpoint to make this work better
+  useEffect(() => {
+    if (gridRuns && runId) {
+      const run = gridRuns.find((dr: GridRunsResponse) => dr.run_id === runId);
+
+      if (!run) {
+        setSelectedIsVisible(false);
+      }
+    }
+  }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
   const { data: dagStructure } = useGridStructure({ limit });
   // calculate dag run bar heights relative to max
-  const max = Math.max.apply(undefined, gridRuns === undefined ? [] : gridRuns.map((dr) => dr.duration));
+  const max = Math.max.apply(
+    undefined,
+    gridRuns === undefined
+      ? []
+      : gridRuns
+          .map((dr: GridRunsResponse) => dr.duration)
+          .filter((duration: number | null): duration is number => duration !== null),
+  );
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   return (
@@ -83,9 +104,11 @@ export const Grid = ({ limit }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr) => <Bar key={dr.run_id} max={max} nodes={flatNodes} run={dr} />)}
+            {gridRuns?.map((dr: GridRunsResponse) => (
+              <Bar key={dr.run_id} max={max} nodes={flatNodes} run={dr} />
+            ))}
           </Flex>
-          {runAfter === undefined ? undefined : (
+          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
             <Link to={`/dags/${dagId}`}>
               <IconButton
                 aria-label={translate("grid.buttons.resetToLatest")}

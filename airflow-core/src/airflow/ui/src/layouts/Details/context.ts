@@ -18,4 +18,5 @@
  */
 import { createContext } from "react";
 
+// eslint-disable-next-line no-empty-function, @typescript-eslint/no-empty-function
 export const HasActiveRunContext = createContext({ hasActiveRun: true, setHasActiveRun: () => {} });
