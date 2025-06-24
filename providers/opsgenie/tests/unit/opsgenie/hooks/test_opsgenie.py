@@ -26,8 +26,6 @@ from opsgenie_sdk.exceptions import AuthenticationException
 from airflow.models import Connection
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestOpsgenieAlertHook:
     conn_id = "opsgenie_conn_id_test"
@@ -83,6 +81,7 @@ class TestOpsgenieAlertHook:
         api_key = hook._get_api_key()
         assert api_key == "eb243592-faa2-4ba2-a551q-1afdf565c889"
 
+    @pytest.mark.db_test
     def test_get_conn_defaults_host(self):
         hook = OpsgenieAlertHook()
         assert hook.get_conn().api_client.configuration.host == "https://api.opsgenie.com"
@@ -108,6 +107,7 @@ class TestOpsgenieAlertHook:
             == "eb243592-faa2-4ba2-a551q-1afdf565c889"
         )
 
+    @pytest.mark.db_test
     def test_create_alert_api_key_not_set(self):
         hook = OpsgenieAlertHook()
         with pytest.raises(AuthenticationException):

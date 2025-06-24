@@ -548,7 +548,7 @@ manually by running:
 .. code-block:: bash
 
     export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual
+    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
 
 
 Mypy checks
