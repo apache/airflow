@@ -31,6 +31,11 @@
           "state": "failure"
         }
       ]
+    },
+    "mwaa_task_complete": {
+      "delay": 60,
+      "maxAttempts": 20,
+      "operation": "InvokeRestApi"
     }
   }
 }

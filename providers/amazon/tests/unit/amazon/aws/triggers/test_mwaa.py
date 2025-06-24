@@ -86,6 +86,16 @@ class TestMwaaDagRunCompletedTrigger:
                 **TRIGGER_DAG_RUN_KWARGS, success_states=("a", "b"), failure_states=("b", "c")
             )
 
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = MwaaDagRunCompletedTrigger(**TRIGGER_DAG_RUN_KWARGS, aws_conn_id=OVERWRITTEN_CONN)
+        assert op.hook().aws_conn_id == OVERWRITTEN_CONN
+
+    def test_no_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = MwaaDagRunCompletedTrigger(**TRIGGER_DAG_RUN_KWARGS)
+        assert op.hook().aws_conn_id == DEFAULT_CONN
+
     def test_serialization(self):
         success_states = ["a", "b"]
         failure_states = ["c", "d"]
@@ -202,6 +212,58 @@ class TestMwaaTaskCompletedTrigger:
         assert {tuple(sorted(a.items())) for a in acceptors} == {
             tuple(sorted(a.items())) for a in expected_acceptors
         }
+
+    def test_all_task_instance_states_are_categorized(self):
+        """
+        Defensive test to ensure all TaskInstanceState values are properly categorized.
+        This test will fail if new states are added to TaskInstanceState without
+        updating the state categorization logic.
+        """
+        expected_terminal_states = {
+            TaskInstanceState.SUCCESS.value,
+            TaskInstanceState.FAILED.value,
+            TaskInstanceState.SKIPPED.value,
+            TaskInstanceState.REMOVED.value,
+        }
+
+        # In-progress states - task is still active or could transition to other states
+        expected_in_progress_states = {
+            TaskInstanceState.SCHEDULED.value,
+            TaskInstanceState.QUEUED.value,
+            TaskInstanceState.RUNNING.value,
+            TaskInstanceState.RESTARTING.value,
+            TaskInstanceState.UP_FOR_RETRY.value,
+            TaskInstanceState.UP_FOR_RESCHEDULE.value,
+            TaskInstanceState.UPSTREAM_FAILED.value,
+            TaskInstanceState.DEFERRED.value,
+        }
+
+        # Get all actual states
+        all_actual_states = {s.value for s in TaskInstanceState}
+        all_expected_states = expected_terminal_states | expected_in_progress_states
+
+        # Test that we haven't missed any states and no unexpected states exist
+        assert all_actual_states == all_expected_states, (
+            f"TaskInstanceState enum has changed! "
+            f"New states: {all_actual_states - all_expected_states}, "
+            f"Removed states: {all_expected_states - all_actual_states}. "
+            f"Please update the state categorization logic in the sensor class."
+        )
+
+        # Ensure terminal and in-progress states don't overlap
+        assert not (expected_terminal_states & expected_in_progress_states), (
+            "Terminal and in-progress states must not overlap"
+        )
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = MwaaTaskCompletedTrigger(**TRIGGER_TASK_KWARGS, aws_conn_id=OVERWRITTEN_CONN)
+        assert op.hook().aws_conn_id == OVERWRITTEN_CONN
+
+    def test_no_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = MwaaTaskCompletedTrigger(**TRIGGER_TASK_KWARGS)
+        assert op.hook().aws_conn_id == DEFAULT_CONN
 
     def test_init_fail(self):
         with pytest.raises(ValueError, match=r".*success_states.*failure_states.*"):

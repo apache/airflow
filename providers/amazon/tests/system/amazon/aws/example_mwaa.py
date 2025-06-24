@@ -35,6 +35,7 @@ DAG_ID = "example_mwaa"
 # Externally fetched variables:
 EXISTING_ENVIRONMENT_NAME_KEY = "ENVIRONMENT_NAME"
 EXISTING_DAG_ID_KEY = "DAG_ID"
+EXISTING_TASK_ID_KEY = "TASK_ID"
 ROLE_WITHOUT_INVOKE_REST_API_ARN_KEY = "ROLE_WITHOUT_INVOKE_REST_API_ARN"
 
 sys_test_context_task = (
@@ -53,6 +54,7 @@ sys_test_context_task = (
     .add_variable(EXISTING_ENVIRONMENT_NAME_KEY)
     .add_variable(EXISTING_DAG_ID_KEY)
     .add_variable(ROLE_WITHOUT_INVOKE_REST_API_ARN_KEY)
+    .add_variable(EXISTING_TASK_ID_KEY)
     .build()
 )
 
@@ -64,22 +66,6 @@ def unpause_dag(env_name: str, dag_id: str):
         env_name=env_name, path=f"/dags/{dag_id}", method="PATCH", body={"is_paused": False}
     )
     return not response["RestApiResponse"]["is_paused"]
-
-
-# Can only be run after 'trigger_dag_run' task is run.
-@task
-def get_task_id(env_name: str, dag_id: str):
-    mwaa_hook = MwaaHook()
-    dag_runs = mwaa_hook.invoke_rest_api(env_name=env_name, path=f"/dags/{dag_id}/dagRuns", method="GET")
-    dag_run_id = dag_runs["RestApiResponse"]["dag_runs"][0]["dag_run_id"]
-
-    response = mwaa_hook.invoke_rest_api(
-        env_name=env_name, path=f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances", method="GET"
-    )
-    print("test debug")
-    print(response)
-
-    return response["RestApiResponse"]["task_instances"][0]["task_id"]
 
 
 # This task in the system test verifies that the MwaaHook's IAM fallback mechanism continues to work with
@@ -115,6 +101,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_name = test_context[EXISTING_ENVIRONMENT_NAME_KEY]
     trigger_dag_id = test_context[EXISTING_DAG_ID_KEY]
+    task_id = test_context[EXISTING_TASK_ID_KEY]
     restricted_role_arn = test_context[ROLE_WITHOUT_INVOKE_REST_API_ARN_KEY]
 
     # [START howto_operator_mwaa_trigger_dag_run]
@@ -123,10 +110,8 @@ with DAG(
         env_name=env_name,
         trigger_dag_id=trigger_dag_id,
         wait_for_completion=True,
-        deferrable=True,
     )
     # [END howto_operator_mwaa_trigger_dag_run]
-    task_id = get_task_id(env_name, trigger_dag_id)
 
     # [START howto_sensor_mwaa_task]
     wait_for_task = MwaaTaskSensor(
@@ -134,8 +119,8 @@ with DAG(
         external_env_name=env_name,
         external_dag_id=trigger_dag_id,
         external_task_id=task_id,
-        external_dag_run_id="{{ task_instance.xcom_pull(task_ids='trigger_dag_run')['RestApiResponse']['dag_run_id'] }}",
         poke_interval=5,
+        deferrable=True,
     )
     # [END howto_sensor_mwaa_task]
 
@@ -146,20 +131,34 @@ with DAG(
         external_dag_id=trigger_dag_id,
         external_dag_run_id="{{ task_instance.xcom_pull(task_ids='trigger_dag_run')['RestApiResponse']['dag_run_id'] }}",
         poke_interval=5,
+        deferrable=True,
     )
     # [END howto_sensor_mwaa_dag_run]
 
-    chain(
-        # TEST SETUP
-        test_context,
-        # TEST BODY
-        unpause_dag(env_name, trigger_dag_id),
-        trigger_dag_run,
-        get_task_id(env_name, trigger_dag_id),
-        wait_for_task,
-        wait_for_dag_run,
-        test_iam_fallback(restricted_role_arn, env_name),
+    trigger_dag_run_dont_wait = MwaaTriggerDagRunOperator(
+        task_id="trigger_dag_run_dont_wait",
+        env_name=env_name,
+        trigger_dag_id=trigger_dag_id,
+        wait_for_completion=False,
     )
+
+    wait_for_task_concurrent = MwaaTaskSensor(
+        task_id="wait_for_task_concurrent",
+        external_env_name=env_name,
+        external_dag_id=trigger_dag_id,
+        external_task_id=task_id,
+        poke_interval=5,
+        deferrable=True,
+    )
+
+    test_context >> [
+        unpause_dag(env_name, trigger_dag_id),
+        test_iam_fallback(restricted_role_arn, env_name),
+        trigger_dag_run,
+        trigger_dag_run_dont_wait,
+    ]
+    chain(trigger_dag_run, wait_for_task, wait_for_dag_run)
+    chain(trigger_dag_run_dont_wait, wait_for_task_concurrent)
 
     from tests_common.test_utils.watcher import watcher
 

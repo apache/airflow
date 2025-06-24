@@ -48,7 +48,7 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
-        *,
+        *args,
         external_env_name: str,
         external_dag_id: str,
         external_dag_run_id: str,
@@ -56,7 +56,7 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
         failure_states: Collection[str] | None = None,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 720,
-        aws_conn_id: str | None = None,
+        **kwargs,
     ) -> None:
         self.success_states = set(success_states) if success_states else {DagRunState.SUCCESS.value}
         self.failure_states = set(failure_states) if failure_states else {DagRunState.FAILED.value}
@@ -87,7 +87,6 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
             return_value=external_dag_run_id,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
-            aws_conn_id=aws_conn_id,
             waiter_config_overrides={
                 "acceptors": _build_waiter_acceptors(
                     success_states=self.success_states,
@@ -95,6 +94,7 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
                     in_progress_states=in_progress_states,
                 )
             },
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
@@ -114,7 +114,8 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
         (templated)
     :param external_dag_id: The DAG ID in the external MWAA environment that contains the DAG Run you want to wait for
         (templated)
-    :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated)
+    :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated).
+        If not provided, the latest DAG run is used by default.
     :param external_task_id: The Task ID in the external MWAA environment that you want to wait for (templated)
     :param success_states: Collection of task instance states that would make this task marked as successful, default is
         ``{airflow.utils.state.TaskInstanceState.SUCCESS}`` (templated)
@@ -127,16 +128,16 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
-        *,
+        *args,
         external_env_name: str,
         external_dag_id: str,
-        external_dag_run_id: str,
+        external_dag_run_id: str | None = None,
         external_task_id: str,
         success_states: Collection[str] | None = None,
         failure_states: Collection[str] | None = None,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 720,
-        aws_conn_id: str | None = None,
+        **kwargs,
     ) -> None:
         self.success_states = set(success_states) if success_states else {TaskInstanceState.SUCCESS.value}
         self.failure_states = set(failure_states) if failure_states else {TaskInstanceState.FAILED.value}
@@ -145,7 +146,6 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
             raise ValueError("success_states and failure_states must not have any values in common")
 
         in_progress_states = {s.value for s in TaskInstanceState} - self.success_states - self.failure_states
-
         super().__init__(
             serialized_fields={
                 "external_env_name": external_env_name,
@@ -158,7 +158,7 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
             waiter_name="mwaa_task_complete",
             waiter_args={
                 "Name": external_env_name,
-                "Path": f"/dags/{external_dag_id}/dagRuns/{external_dag_run_id}/taskInstance/{external_task_id}",
+                "Path": f"/dags/{external_dag_id}/dagRuns/{external_dag_run_id}/taskInstances/{external_task_id}",
                 "Method": "GET",
             },
             failure_message=f"The task {external_task_id} of DAG run {external_dag_run_id} of DAG {external_dag_id} in MWAA environment {external_env_name} failed with state",
@@ -168,7 +168,6 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
             return_value=external_task_id,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
-            aws_conn_id=aws_conn_id,
             waiter_config_overrides={
                 "acceptors": _build_waiter_acceptors(
                     success_states=self.success_states,
@@ -176,6 +175,7 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
                     in_progress_states=in_progress_states,
                 )
             },
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:

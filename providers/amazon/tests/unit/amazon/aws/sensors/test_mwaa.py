@@ -41,7 +41,7 @@ SENSOR_TASK_KWARGS = {
     "external_dag_id": "test_dag",
     "external_dag_run_id": "test_run_id",
     "external_task_id": "test_task_id",
-    "deferrable": False,
+    "deferrable": True,
     "poke_interval": 5,
     "max_retries": 100,
 }

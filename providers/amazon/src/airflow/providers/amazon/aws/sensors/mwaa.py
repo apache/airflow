@@ -132,7 +132,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
+                f"The DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name}"
                 f"failed with state: {state}"
             )
 
@@ -150,8 +150,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
                     external_dag_run_id=self.external_dag_run_id,
                     success_states=self.success_states,
                     failure_states=self.failure_states,
-                    # somehow the type of poke_interval is derived as float ??
-                    waiter_delay=self.poke_interval,  # type: ignore[arg-type]
+                    waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                 ),
@@ -216,7 +215,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         *,
         external_env_name: str,
         external_dag_id: str,
-        external_dag_run_id: str,
+        external_dag_run_id: str | None = None,
         external_task_id: str,
         success_states: Collection[str] | None = None,
         failure_states: Collection[str] | None = None,
@@ -249,12 +248,12 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
             self.external_dag_id,
             self.external_env_name,
         )
+
         response = self.hook.invoke_rest_api(
             env_name=self.external_env_name,
             path=f"/dags/{self.external_dag_id}/dagRuns/{self.external_dag_run_id}/taskInstances/{self.external_task_id}",
             method="GET",
         )
-
         # If RestApiStatusCode == 200, the RestApiResponse must have the "state" key, otherwise something terrible has
         # happened in the API and KeyError would be raised
         # If RestApiStatusCode >= 300, a botocore exception would've already been raised during the
@@ -265,7 +264,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The task {self.external_task_id} of DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
+                f"The task {self.external_task_id} of DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name}"
                 f"failed with state: {state}"
             )
 
@@ -275,6 +274,14 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         validate_execute_complete_event(event)
 
     def execute(self, context: Context):
+        if self.external_dag_run_id is None:
+            response = self.hook.invoke_rest_api(
+                env_name=self.external_env_name,
+                path=f"/dags/{self.external_dag_id}/dagRuns",
+                method="GET",
+            )
+            self.external_dag_run_id = response["RestApiResponse"]["dag_runs"][-1]["dag_run_id"]
+
         if self.deferrable:
             self.defer(
                 trigger=MwaaTaskCompletedTrigger(
@@ -284,8 +291,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
                     external_task_id=self.external_task_id,
                     success_states=self.success_states,
                     failure_states=self.failure_states,
-                    # somehow the type of poke_interval is derived as float ??
-                    waiter_delay=self.poke_interval,  # type: ignore[arg-type]
+                    waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                 ),

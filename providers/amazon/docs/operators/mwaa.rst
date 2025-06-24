@@ -81,7 +81,7 @@ In the following example, the task ``wait_for_dag_run`` waits for the DAG run cr
 Wait on the state of an AWS MWAA Task
 ========================================
 
-To wait for a Task Instance within a DAG Run running on Amazon MWAA until it reaches one of the given states, you can use the
+To wait for a DAG task instance across MWAA environments until it reaches one of the given states, you can use the
 :class:`~airflow.providers.amazon.aws.sensors.mwaa.MwaaTaskSensor`
 
 In the following example, the task ``wait_for_task`` waits for the DAG run created in the above task to complete.
