@@ -34,9 +34,6 @@ from paramiko.sftp_client import SFTPClient
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
-from airflow.utils.session import provide_session
-
-pytestmark = pytest.mark.db_test
 
 
 def generate_host_key(pkey: paramiko.PKey):
@@ -62,14 +59,19 @@ TEST_KEY_FILE = "~/.ssh/id_rsa"
 
 
 class TestSFTPHook:
-    @provide_session
-    def update_connection(self, login, session=None):
-        connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
-        old_login = connection.login
-        connection.login = login
-        connection.extra = ""  # clear out extra so it doesn't look for a key file
-        session.commit()
-        return old_login
+    def update_connection(self, login):
+        import os
+
+        # Set the connection as an environment variable
+        conn = Connection(
+            conn_id="sftp_default",
+            conn_type="sftp",
+            host="localhost",
+            login=login,
+            password="airflow",
+            extra="",  # clear out extra so it doesn't look for a key file
+        )
+        os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.as_json()
 
     def _create_additional_test_file(self, file_name):
         with open(os.path.join(self.temp_dir, file_name), "a") as file:
@@ -79,7 +81,8 @@ class TestSFTPHook:
     def setup_test_cases(self, tmp_path_factory):
         """Define default connection during tests and create directory structure."""
         temp_dir = tmp_path_factory.mktemp("sftp-temp")
-        self.old_login = self.update_connection(SFTP_CONNECTION_USER)
+        self.old_login = "airflow"
+        self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR))
 
@@ -100,7 +103,6 @@ class TestSFTPHook:
         shutil.rmtree(os.path.join(temp_dir, TMP_DIR_FOR_TESTS))
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
             os.remove(os.path.join(temp_dir, file_name))
-        self.update_connection(self.old_login)
 
     def test_get_conn(self):
         output = self.hook.get_conn()
