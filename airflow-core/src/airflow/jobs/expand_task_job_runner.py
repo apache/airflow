@@ -30,7 +30,7 @@ from airflow.sdk import XComArg
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -105,46 +105,40 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         self.log.info("dag_run: %s", dag_run)
         self.log.info("unmapped_ti state: %s", unmapped_ti.state)
 
-        try:
-            task_instances_batch = []
+        task_instances_batch = []
 
-            context = unmapped_ti.get_template_context(session=session)
-            expand_input = unmapped_ti.task.expand_input.values()
+        context = unmapped_ti.get_template_context(session=session)
+        expand_input = unmapped_ti.task.expand_input.values()
 
-            if isinstance(expand_input, XComArg):
-                expand_input = expand_input.resolve(context)
+        if isinstance(expand_input, XComArg):
+            expand_input = expand_input.resolve(context)
 
-            for map_index, mapped_kwargs in enumerate(expand_input):
-                if map_index > 40:
-                    self.log.warning("Stop expanding tasks over %s!", map_index)
-                    break
-                if map_index == 0:
-                    task_instance = unmapped_ti
-                    task_instance.map_index = map_index
-                else:
-                    task_instance = TaskInstance(
-                        task=unmapped_ti.task,
-                        run_id=dag_run.run_id,
-                        map_index=map_index,
-                        dag_version_id=unmapped_ti.dag_version_id,
-                    )
+        for map_index, mapped_kwargs in enumerate(expand_input):
+            if map_index == 0:
+                task_instance = unmapped_ti
+                task_instance.map_index = map_index
+            else:
+                task_instance = TaskInstance(
+                    task=unmapped_ti.task,
+                    run_id=dag_run.run_id,
+                    map_index=map_index,
+                    dag_version_id=unmapped_ti.dag_version_id,
+                )
 
-                if isinstance(mapped_kwargs, XComArg):
-                    context = task_instance.get_template_context(session=session)
-                    self.log.info("context: %s", context)
-                    mapped_kwargs = mapped_kwargs.resolve(context)
-                self.log.info("mapped_kwargs: %s", mapped_kwargs)
-                task_instance = self.expand_task(task_instance, mapped_kwargs)
-                task_instances_batch.append(task_instance)
+            if isinstance(mapped_kwargs, XComArg):
+                context = task_instance.get_template_context(session=session)
+                self.log.info("context: %s", context)
+                mapped_kwargs = mapped_kwargs.resolve(context)
+            self.log.info("mapped_kwargs: %s", mapped_kwargs)
+            task_instance = self.expand_task(task_instance, mapped_kwargs)
+            task_instances_batch.append(task_instance)
 
-                if len(task_instances_batch) == task_expansion_batch_size:
-                    dag_run = DagRun.get_dag_run(dag_id=unmapped_ti.dag_id, run_id=dag_run.run_id, session=session)
-                    self._check_dag_run_state(dag_run)
-                    self._persist_task_instances(dag_run, task_instances_batch, session=session)
+            if len(task_instances_batch) == task_expansion_batch_size:
+                dag_run = DagRun.get_dag_run(dag_id=unmapped_ti.dag_id, run_id=dag_run.run_id, session=session)
+                self._check_dag_run_state(dag_run)
+                self._persist_task_instances(dag_run, task_instances_batch, session=session)
 
             self._persist_task_instances(dag_run, task_instances_batch, session=session)
-        except Exception:
-            self.log.exception("Unexpected error occurred during task expansion of %s", unmapped_ti)
 
     @staticmethod
     def get_task(dag: DAG, task_instance: TaskInstance) -> TaskInstance:
@@ -153,7 +147,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def has_mapped_operator(task_instance: TaskInstance) -> bool:
-        return isinstance(task_instance.task, MappedOperator) and task_instance.map_index == -1
+        return isinstance(task_instance.task, MappedOperator) and task_instance.map_index == -1 and task_instance.state in State.unfinished
 
     def expand_tasks(self, session: Session):
         dag_bag = DagBag()
@@ -163,7 +157,13 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             dag = dag_bag.get_dag(dag_run.dag_id)
             self.log.info("Checking for unmapped task instances on: %s", dag_run)
             for unmapped_ti in filter(self.has_mapped_operator, map(lambda task: self.get_task(dag, task), dag_run.task_instances)):
-                self.expand_unmapped_task_instance(dag_run, unmapped_ti, session=session)
+                try:
+                    are_dependencies_met = unmapped_ti.are_dependencies_met(session=session, verbose=True)
+                    self.log.info("Are dependencies met on %s: %s", unmapped_ti, are_dependencies_met)
+                    if are_dependencies_met:
+                        self.expand_unmapped_task_instance(dag_run, unmapped_ti, session=session)
+                except Exception:
+                    self.log.exception("Unexpected error occurred during task expansion of %s", unmapped_ti)
 
     def _execute(self, session: Session = NEW_SESSION) -> int | None:
         self.log.info("TaskExpansionJobRunner started")
