@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+from airflow import DAG
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.providers.pagerduty.notifications.pagerduty import (
     PagerdutyNotifier,
@@ -31,8 +32,6 @@ PAGERDUTY_API_DEFAULT_CONN_ID = PagerdutyEventsHook.default_conn_name
 class TestPagerdutyNotifier:
     @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
     def test_notifier(self, mock_pagerduty_event_hook):
-        from airflow.sdk.definitions.dag import DAG
-
         dag = DAG("test_notifier")
         notifier = send_pagerduty_notification(summary="DISK at 99%", severity="critical", action="trigger")
         notifier({"dag": dag})
@@ -52,8 +51,6 @@ class TestPagerdutyNotifier:
 
     @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
     def test_notifier_with_notifier_class(self, mock_pagerduty_event_hook):
-        from airflow.sdk.definitions.dag import DAG
-
         dag = DAG("test_notifier")
         notifier = PagerdutyNotifier(summary="DISK at 99%", severity="critical", action="trigger")
         notifier({"dag": dag})
@@ -73,8 +70,6 @@ class TestPagerdutyNotifier:
 
     @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
     def test_notifier_templated(self, mock_pagerduty_event_hook):
-        from airflow.sdk.definitions.dag import DAG
-
         dag = DAG("test_notifier")
 
         notifier = PagerdutyNotifier(
