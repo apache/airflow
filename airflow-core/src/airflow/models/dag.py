@@ -227,13 +227,6 @@ def get_asset_triggered_next_run_info(
     }
 
 
-def _triggerer_is_healthy(session: Session):
-    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-
-    job = TriggererJobRunner.most_recent_job(session=session)
-    return job and job.is_alive()
-
-
 @provide_session
 def _create_orm_dagrun(
     *,
@@ -714,15 +707,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-        )
-
-    @provide_session
-    def has_dag_runs(self, session=NEW_SESSION, include_manually_triggered=True) -> bool:
-        return (
-            get_last_dagrun(
-                self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-            )
-            is not None
         )
 
     @property
