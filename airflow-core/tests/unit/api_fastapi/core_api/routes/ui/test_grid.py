@@ -1217,13 +1217,15 @@ class TestGetGridDataEndpoint:
             "dag_id": "test_dag_4",
             "run_id": "run_4-1",
             "task_instances": [
-                {"state": "success", "task_id": "task_group"},
                 {"state": "success", "task_id": "t1"},
                 {"state": "success", "task_id": "t2"},
-                {"state": "success", "task_id": "t5"},
-                {"state": "success", "task_id": "task_group.t3"},
-                {"state": "success", "task_id": "task_group.t4"},
-                {"state": "success", "task_id": "task_group.t5"},
+                {"state": "success", "task_id": "t7"},
+                {"state": "success", "task_id": "task_group-1"},
+                {"state": "success", "task_id": "task_group-1.t6"},
+                {"state": "success", "task_id": "task_group-1.task_group-2"},
+                {"state": "success", "task_id": "task_group-1.task_group-2.t3"},
+                {"state": "success", "task_id": "task_group-1.task_group-2.t4"},
+                {"state": "success", "task_id": "task_group-1.task_group-2.t5"},
             ],
         }
         for obj in actual, expected:
