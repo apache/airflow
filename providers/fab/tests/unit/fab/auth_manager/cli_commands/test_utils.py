@@ -32,8 +32,6 @@ from tests_common.test_utils.config import conf_vars
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
-pytestmark = pytest.mark.db_test
-
 
 @pytest.fixture
 def flask_app():
