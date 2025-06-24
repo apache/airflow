@@ -47,7 +47,6 @@ from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     create_expand_input,
 )
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
@@ -101,6 +100,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.expandinput import SchedulerExpandInput
+    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
@@ -822,11 +822,6 @@ class BaseSerialization:
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
         elif isinstance(var, AssetRef):
             return cls._encode(attrs.asdict(var), type_=DAT.ASSET_REF)
-        elif isinstance(var, SimpleTaskInstance):
-            return cls._encode(
-                cls.serialize(var.__dict__, strict=strict),
-                type_=DAT.SIMPLE_TASK_INSTANCE,
-            )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
         elif isinstance(var, TaskCallbackRequest):
@@ -939,8 +934,6 @@ class BaseSerialization:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_REF:
             return Asset.ref(**var)
-        elif type_ == DAT.SIMPLE_TASK_INSTANCE:
-            return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif type_ == DAT.TASK_CALLBACK_REQUEST:
