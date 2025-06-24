@@ -1106,10 +1106,10 @@ scheduler:
     enabled: false
 
     # PDB configuration
-    config:
-      # minAvailable and maxUnavailable are mutually exclusive
-      maxUnavailable: 1
-      # minAvailable: 1
+    # minAvailable and maxUnavailable are mutually exclusive
+    # config:
+    #   maxUnavailable: 1
+    #   # minAvailable: 1
 
   resources: {}
   #  limits:
@@ -1452,10 +1452,10 @@ apiServer:
     enabled: false
 
     # PDB configuration
-    config:
-      # minAvailable and maxUnavailable are mutually exclusive
-      maxUnavailable: 1
-      # minAvailable: 1
+    # minAvailable and maxUnavailable are mutually exclusive
+    # config:
+    #   maxUnavailable: 1
+    #   # minAvailable: 1
 
   # Allow overriding Update Strategy for API server
   strategy: ~
@@ -1659,10 +1659,10 @@ webserver:
     enabled: false
 
     # PDB configuration
-    config:
-      # minAvailable and maxUnavailable are mutually exclusive
-      maxUnavailable: 1
-      # minAvailable: 1
+    # minAvailable and maxUnavailable are mutually exclusive
+    # config:
+    #   maxUnavailable: 1
+    #   # minAvailable: 1
 
   # Allow overriding Update Strategy for Webserver
   strategy: ~
@@ -2476,10 +2476,10 @@ pgbouncer:
     enabled: false
 
     # PDB configuration
-    config:
-      # minAvailable and maxUnavailable are mutually exclusive
-      maxUnavailable: 1
-      # minAvailable: 1
+    # minAvailable and maxUnavailable are mutually exclusive
+    # config:
+    #   maxUnavailable: 1
+    #   # minAvailable: 1
 
   # Limit the resources to PgBouncer.
   # When you specify the resource request the k8s scheduler uses this information to decide which node to
