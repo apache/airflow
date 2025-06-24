@@ -27,9 +27,11 @@ Create Date: 2025-06-13 17:06:38.040510
 from __future__ import annotations
 
 import sqlalchemy as sa
+import sqlalchemy_jsonfield
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -41,6 +43,24 @@ standard_provider_verison = "1.3.0"
 
 
 def upgrade() -> None:
+    op.create_table(
+        "hitl_input_request",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("options", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default=[]),
+        sa.Column("subject", sa.Text(), nullable=False),
+        sa.Column("body", sa.Text(), nullable=True),
+        sa.Column("defaults", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        sa.Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        sa.Column("multiple", sa.Boolean, default=False, nullable=False, server_default="0"),
+        sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
+        sa.ForeignKeyConstraint(
+            ["ti_id"],
+            ["task_instance.id"],
+            name="hitl_input_request_ti_fkey",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+    )
     op.create_table(
         "hitl_response",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
