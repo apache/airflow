@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
@@ -147,7 +147,7 @@ class DateTimeSensorAsync(DateTimeSensor):
                 end_from_trigger=self.end_from_trigger,
             )
 
-    def execute(self, context: Context) -> NoReturn:
+    def execute(self, context: Context) -> None:
         self.defer(
             method_name="execute_complete",
             trigger=DateTimeTrigger(

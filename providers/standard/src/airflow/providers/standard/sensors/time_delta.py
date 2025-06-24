@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime, timedelta
 from time import sleep
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 from deprecated.classic import deprecated
 from packaging.version import Version
@@ -106,7 +106,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     Asynchronous execution
     """
 
-    def execute(self, context: Context) -> bool | NoReturn:
+    def execute(self, context: Context) -> bool | None:
         """
         Depending on the deferrable flag, either execute the sensor in a blocking way or defer it.
 
@@ -146,6 +146,8 @@ class TimeDeltaSensor(BaseSensorOperator):
             method_name="execute_complete",
             timeout=timeout,
         )
+
+        return None
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""
