@@ -25,9 +25,9 @@ runs:
       shell: bash
       run: |
         breeze shell "${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.11.0 --answer y &&
-        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1'" &&
-        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANGERS}}
-                    ${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
+        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANGERS}} &&
+        ${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
         DB_RESET: "false"
@@ -48,9 +48,9 @@ runs:
       shell: bash
       run: >
         breeze shell "${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.11.0 --answer y &&
-        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1'" &&
-        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANGERS}}
-             ${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
+        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANGERS}} &&
+        ${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
         DB_RESET: "false"
@@ -69,8 +69,8 @@ runs:
     - name: "Test ORM migration ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1'" &&
-        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANAGERS}} &&
+        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANAGERS}} &&
         airflow db reset -y &&
         airflow db migrate --to-revision heads &&
         airflow db downgrade -n 2.7.0 -y &&
@@ -86,8 +86,8 @@ runs:
     - name: "Test offline migration ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1'" &&
-        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANAGERS}} &&
+        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANAGERS}} &&
         airflow db reset -y &&
         airflow db downgrade -n 2.7.0 -y &&
         airflow db migrate -s"
