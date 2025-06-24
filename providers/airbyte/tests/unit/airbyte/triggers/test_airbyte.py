@@ -229,7 +229,9 @@ class TestAirbyteSyncTrigger:
         ],
     )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
-    async def test_airbyte_job_is_still_running_success(self, mock_response, expected_status):
+    async def test_airbyte_job_is_still_running_success(
+        self, mock_get_job_status, mock_response, expected_status
+    ):
         """Test is_still_running with mocked response job status and assert
         the return response with expected value"""
         hook = mock.AsyncMock(AirbyteHook)
@@ -251,7 +253,9 @@ class TestAirbyteSyncTrigger:
         ],
     )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
-    async def test_airbyte_sync_run_is_still_running(self, mock_response, expected_status):
+    async def test_airbyte_sync_run_is_still_running(
+        self, mock_get_job_status, mock_response, expected_status
+    ):
         """Test is_still_running with mocked response job status and assert
         the return response with expected value"""
         airbyte_hook = mock.AsyncMock(AirbyteHook)
