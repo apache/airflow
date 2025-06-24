@@ -63,6 +63,7 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
+from airflow.providers.standard.api.client import HITLInputRequestResponse
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
     FetchHITLResponsePayload,
     HITLResponse,
@@ -561,6 +562,14 @@ class SentFDs(BaseModel):
     fds: list[int]
 
 
+class CreateHITLInputRequestPayload(HITLInputRequestResponse):
+    type: Literal["CreateHITLInputRequestPayload"] = "CreateHITLInputRequestPayload"
+
+
+class HITLInputRequestResponseResult(HITLInputRequestResponse):
+    type: Literal["HITLInputRequestResponseResult"] = "HITLInputRequestResponseResult"
+
+
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
@@ -580,6 +589,8 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
+    | CreateHITLInputRequestPayload
+    | HITLInputRequestResponseResult
     | OKResponse,
     Field(discriminator="type"),
 ]
@@ -893,6 +904,7 @@ ToSupervisor = Annotated[
     | DeleteVariable
     | ResendLoggingFD
     # HITL response from standard provider
+    | CreateHITLInputRequestPayload
     | FetchHITLResponse,
     Field(discriminator="type"),
 ]

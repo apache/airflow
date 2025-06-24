@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
+from airflow.providers.standard.execution_time.hitl import add_input_request
 from airflow.providers.standard.triggers.hitl import HITLTrigger
 
 if TYPE_CHECKING:
@@ -51,6 +52,14 @@ class HITLOperator(BaseOperator):
 
     def execute(self, context: Context):
         ti_id = context["task_instance"].id
+        add_input_request(
+            ti_id=ti_id,
+            options=self.options,
+            subject=self.subject,
+            body=self.body,
+            params=self.params,
+            default=self.default,
+        )
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,

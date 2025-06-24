@@ -17,9 +17,13 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import MutableMapping
 from typing import TYPE_CHECKING
 
-from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import HITLResponse
+from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
+    HITLInputRequestResponse,
+    HITLResponse,
+)
 
 if TYPE_CHECKING:
     from airflow.sdk.api.client import Client
@@ -33,7 +37,32 @@ class HITLOperations:
     def __init__(self, client: Client) -> None:
         self.client = client
 
+    def add_input_request(
+        self,
+        ti_id: uuid.UUID,
+        options: list[str],
+        subject: str,
+        body: str | None = None,
+        default: str | None = None,
+        params: MutableMapping | None = None,
+        multiple: bool = False,
+    ):# -> HITLInputRequestResponseResult:
+        """Add the Human-in-the-loop input request of a specific Task Instance."""
+        from airflow.sdk.execution_time.comms import CreateHITLInputRequestPayload, HITLInputRequestResponseResult
+
+        payload = CreateHITLInputRequestPayload(
+            ti_id=ti_id,
+            options=options,
+            subject=subject,
+            body=body,
+            default=default,
+            params=params,
+            multiple=multiple,
+        )
+        resp = self.client.post(f"/hitl/input-requests/{ti_id}", content=payload.model_dump_json())
+        return HITLInputRequestResponseResult.model_validate_json(resp.read())
+
     def get_response(self, ti_id: uuid.UUID) -> HITLResponse:
-        """Get the HITL Response of a specific Task Instance."""
-        resp = self.client.get(f"/hitl/{ti_id}/response")
+        """Get the Human-in-the-loop response of a specific Task Instance."""
+        resp = self.client.get(f"/hitl/response/{ti_id}")
         return HITLResponse.model_validate_json(resp.read())

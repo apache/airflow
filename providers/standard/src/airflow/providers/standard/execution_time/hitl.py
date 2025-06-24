@@ -16,10 +16,39 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from airflow.sdk.execution_time.comms import FetchHITLResponse, HITLResponseResult
+from airflow.sdk.execution_time.comms import (
+    CreateHITLInputRequestPayload,
+    FetchHITLResponse,
+    HITLResponseResult,
+)
+
+
+def add_input_request(
+    ti_id: UUID,
+    options: list[str],
+    subject: str,
+    body: str | None = None,
+    default: str | None = None,
+    params: MutableMapping | None = None,
+    multiple: bool = False,
+) -> None:
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    SUPERVISOR_COMMS.send(
+        msg=CreateHITLInputRequestPayload(
+            ti_id=ti_id,
+            options=options,
+            subject=subject,
+            body=body,
+            default=default,
+            params=params,
+            multiple=multiple,
+        )
+    )
 
 
 def fetch_response_content(ti_id: UUID) -> str | None:

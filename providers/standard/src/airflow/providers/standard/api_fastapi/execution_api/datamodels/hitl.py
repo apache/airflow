@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from uuid import UUID
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -32,3 +33,15 @@ class HITLResponse(BaseModel):
 
     ti_id: UUID
     content: str | None
+
+
+class HITLInputRequestResponse(BaseModel):
+    """Schema for an Human-in-the-loop input request for a specific task instance."""
+
+    ti_id: UUID
+    options: list[str]
+    subject: str
+    body: str | None = None
+    default: str | None = None
+    params: MutableMapping | None = None
+    multiple: bool = False
