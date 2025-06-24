@@ -69,7 +69,7 @@ async def run_trigger(trigger: BaseTrigger) -> TriggerEvent | None:
     return next(iter(events), None)
 
 
-class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
+class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
     def __init__(
@@ -147,17 +147,6 @@ class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
 
         self.trigger = None
         return results
-
-    def __len__(self):
-        self.log.info("__len__: %s", self)
-        # TODO: maybe we should raise an exception here as you can't know the total length of an iterable in advance, but won't atm to keep Airflow happy
-        return len(self.results)
-
-    def __getitem__(self, index: int):
-        if not (0 <= index < len(self)):
-            raise IndexError
-
-        return self.results[index]
 
     def serialize(self):
         """Ensure the object is JSON serializable."""
