@@ -53,6 +53,7 @@ def create_backfill(args) -> None:
             reverse=args.run_backwards,
             dag_run_conf=args.dag_run_conf,
             reprocess_behavior=reprocess_behavior,
+            run_on_latest_version=args.run_on_latest_version,
         )
         for k, v in params.items():
             console.print(f"    - {k} = {v}")
@@ -78,4 +79,5 @@ def create_backfill(args) -> None:
         reverse=args.run_backwards,
         dag_run_conf=args.dag_run_conf,
         reprocess_behavior=reprocess_behavior,
+        run_on_latest_version=args.run_on_latest_version,
     )

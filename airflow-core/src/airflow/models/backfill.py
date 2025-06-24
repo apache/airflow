@@ -285,6 +285,7 @@ def _create_backfill_dag_run(
     backfill_id,
     dag_run_conf,
     backfill_sort_ordinal,
+    run_on_latest_version,
     session,
 ):
     from airflow.models.dagrun import DagRun
@@ -322,6 +323,7 @@ def _create_backfill_dag_run(
                     info=info,
                     backfill_id=backfill_id,
                     sort_ordinal=backfill_sort_ordinal,
+                    run_on_latest=run_on_latest_version,
                 )
             else:
                 session.add(
@@ -394,7 +396,7 @@ def _get_info_list(
     return dagrun_info_list
 
 
-def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal):
+def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal, run_on_latest=False):
     """Clear the existing DAG run and update backfill metadata."""
     from sqlalchemy.sql import update
 
@@ -408,6 +410,7 @@ def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal):
         session=session,
         confirm_prompt=False,
         dry_run=False,
+        run_on_latest_version=run_on_latest,
     )
 
     # Update backfill_id and run_type in DagRun table
@@ -439,6 +442,7 @@ def _create_backfill(
     reverse: bool,
     dag_run_conf: dict | None,
     reprocess_behavior: ReprocessBehavior | None = None,
+    run_on_latest_version: bool = False,
 ) -> Backfill | None:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -500,6 +504,7 @@ def _create_backfill(
                 dag_run_conf=br.dag_run_conf,
                 reprocess_behavior=br.reprocess_behavior,
                 backfill_sort_ordinal=backfill_sort_ordinal,
+                run_on_latest_version=run_on_latest_version,
                 session=session,
             )
             log.info(
