@@ -62,8 +62,19 @@ class TestSFTPHook:
     def update_connection(self, login):
         import os
 
+        # Get the current connection from environment variable to find the old login
+        old_connection = os.environ.get("AIRFLOW_CONN_SFTP_DEFAULT")
+        old_login = "airflow"  # default fallback
+
+        if old_connection:
+            try:
+                old_conn = Connection.from_json(old_connection)
+                old_login = old_conn.login
+            except Exception:
+                pass
+
         # Set the connection as an environment variable
-        conn = Connection(
+        new_connection = Connection(
             conn_id="sftp_default",
             conn_type="sftp",
             host="localhost",
@@ -71,7 +82,9 @@ class TestSFTPHook:
             password="airflow",
             extra="",  # clear out extra so it doesn't look for a key file
         )
-        os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.as_json()
+        os.environ[f"AIRFLOW_CONN_{new_connection.conn_id.upper()}"] = new_connection.as_json()
+
+        return old_login
 
     def _create_additional_test_file(self, file_name):
         with open(os.path.join(self.temp_dir, file_name), "a") as file:
@@ -81,8 +94,7 @@ class TestSFTPHook:
     def setup_test_cases(self, tmp_path_factory):
         """Define default connection during tests and create directory structure."""
         temp_dir = tmp_path_factory.mktemp("sftp-temp")
-        self.old_login = "airflow"
-        self.update_connection(SFTP_CONNECTION_USER)
+        self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR))
 
@@ -103,6 +115,7 @@ class TestSFTPHook:
         shutil.rmtree(os.path.join(temp_dir, TMP_DIR_FOR_TESTS))
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
             os.remove(os.path.join(temp_dir, file_name))
+        self.update_connection(self.old_login)
 
     def test_get_conn(self):
         output = self.hook.get_conn()
@@ -551,7 +564,17 @@ class TestSFTPHook:
 
     @patch("paramiko.SSHClient")
     @patch("paramiko.ProxyCommand")
-    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_sftp_hook_with_proxy_command(self, mock_get_connection, mock_proxy_command, mock_ssh_client):
+        # Mock the connection to not have a password
+        mock_connection = MagicMock()
+        mock_connection.login = "user"
+        mock_connection.password = None
+        mock_connection.host = "example.com"
+        mock_connection.port = 22
+        mock_connection.extra = None
+        mock_get_connection.return_value = mock_connection
+
         mock_sftp_client = MagicMock(spec=SFTPClient)
         mock_ssh_client.open_sftp.return_value = mock_sftp_client
 
@@ -564,7 +587,6 @@ class TestSFTPHook:
         hook = SFTPHook(
             remote_host="example.com",
             username="user",
-            password=None,
             host_proxy_cmd=host_proxy_cmd,
         )
 
