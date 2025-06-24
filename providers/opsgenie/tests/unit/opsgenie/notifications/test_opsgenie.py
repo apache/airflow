@@ -25,8 +25,6 @@ from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.providers.opsgenie.notifications.opsgenie import OpsgenieNotifier, send_opsgenie_notification
 from airflow.providers.standard.operators.empty import EmptyOperator
 
-pytestmark = pytest.mark.db_test
-
 
 class TestOpsgenieNotifier:
     _config = {
@@ -76,6 +74,7 @@ class TestOpsgenieNotifier:
     }
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
+    @pytest.mark.db_test
     def test_notifier(self, mock_opsgenie_alert_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
@@ -84,6 +83,7 @@ class TestOpsgenieNotifier:
         mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
+    @pytest.mark.db_test
     def test_notifier_with_notifier_class(self, mock_opsgenie_alert_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
@@ -92,6 +92,7 @@ class TestOpsgenieNotifier:
         mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
+    @pytest.mark.db_test
     def test_notifier_templated(self, mock_opsgenie_alert_hook, dag_maker):
         dag_id = "test_notifier"
         with dag_maker(dag_id) as dag:
