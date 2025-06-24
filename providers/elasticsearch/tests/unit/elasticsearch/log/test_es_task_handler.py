@@ -51,8 +51,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.elasticsearch.log.elasticmock import elasticmock
 from unit.elasticsearch.log.elasticmock.utilities import SearchFailedException
 
-pytestmark = pytest.mark.db_test
-
 ES_PROVIDER_YAML_FILE = AIRFLOW_PROVIDERS_ROOT_PATH / "elasticsearch" / "provider.yaml"
 
 
@@ -202,6 +200,7 @@ class TestElasticsearchTaskHandler:
         )
         assert handler.index_patterns == patterns
 
+    @pytest.mark.db_test
     def test_read(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
@@ -227,6 +226,7 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "1"
         assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
+    @pytest.mark.db_test
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="test_*,other_*"):
@@ -253,6 +253,7 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "1"
         assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
+    @pytest.mark.db_test
     def test_read_with_patterns_no_match(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="test_other_*,test_another_*"):
@@ -276,6 +277,7 @@ class TestElasticsearchTaskHandler:
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
+    @pytest.mark.db_test
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
@@ -286,6 +288,7 @@ class TestElasticsearchTaskHandler:
                     {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False},
                 )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, seconds, create_task_instance):
         """
@@ -330,6 +333,7 @@ class TestElasticsearchTaskHandler:
             assert metadatas[0]["offset"] == "0"
             assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @pytest.mark.db_test
     def test_read_with_match_phrase_query(self, ti):
         similar_log_id = (
             f"{TestElasticsearchTaskHandler.TASK_ID}-"
@@ -374,6 +378,7 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "1"
         assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
+    @pytest.mark.db_test
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.es_task_handler.read(ti, 1)
         if AIRFLOW_V_3_0_PLUS:
@@ -395,6 +400,7 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "1"
         assert timezone.parse(metadata["last_log_timestamp"]) < pendulum.now()
 
+    @pytest.mark.db_test
     def test_read_nonexistent_log(self, ti):
         ts = pendulum.now()
         # In ElasticMock, search is going to return all documents with matching index
@@ -420,6 +426,7 @@ class TestElasticsearchTaskHandler:
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
+    @pytest.mark.db_test
     def test_read_with_empty_metadata(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(ti, 1, {})
@@ -466,6 +473,7 @@ class TestElasticsearchTaskHandler:
         # if not last_log_timestamp is provided.
         assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
+    @pytest.mark.db_test
     def test_read_timeout(self, ti):
         ts = pendulum.now().subtract(minutes=5)
 
@@ -498,6 +506,7 @@ class TestElasticsearchTaskHandler:
         assert str(offset) == metadata["offset"]
         assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
+    @pytest.mark.db_test
     def test_read_as_download_logs(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
@@ -529,6 +538,7 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "1"
         assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
+    @pytest.mark.db_test
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
             with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
@@ -552,10 +562,12 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "0"
         assert not metadata["end_of_log"]
 
+    @pytest.mark.db_test
     def test_set_context(self, ti):
         self.es_task_handler.set_context(ti)
         assert self.es_task_handler.mark_end_on_close
 
+    @pytest.mark.db_test
     def test_set_context_w_json_format_and_write_stdout(self, ti):
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         self.es_task_handler.formatter = formatter
@@ -563,6 +575,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.json_format = True
         self.es_task_handler.set_context(ti)
 
+    @pytest.mark.db_test
     def test_read_with_json_format(self, ti):
         ts = pendulum.now()
         formatter = logging.Formatter(
@@ -592,6 +605,7 @@ class TestElasticsearchTaskHandler:
         else:
             assert logs[0][0][1] == expected_message
 
+    @pytest.mark.db_test
     def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
         formatter = logging.Formatter(
@@ -624,6 +638,7 @@ class TestElasticsearchTaskHandler:
         else:
             assert logs[0][0][1] == expected_message
 
+    @pytest.mark.db_test
     def test_read_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
         # Delete the existing log entry as it doesn't have the new offset and host fields
@@ -648,6 +663,7 @@ class TestElasticsearchTaskHandler:
         else:
             assert self.test_message == logs[0][0][1]
 
+    @pytest.mark.db_test
     def test_close(self, ti):
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         self.es_task_handler.formatter = formatter
@@ -664,6 +680,7 @@ class TestElasticsearchTaskHandler:
             assert log_line.endswith(self.end_of_log_mark.strip())
         assert self.es_task_handler.closed
 
+    @pytest.mark.db_test
     def test_close_no_mark_end(self, ti):
         ti.raw = True
         self.es_task_handler.set_context(ti)
@@ -674,6 +691,7 @@ class TestElasticsearchTaskHandler:
             assert self.end_of_log_mark not in log_file.read()
         assert self.es_task_handler.closed
 
+    @pytest.mark.db_test
     def test_close_closed(self, ti):
         self.es_task_handler.closed = True
         self.es_task_handler.set_context(ti)
@@ -683,6 +701,7 @@ class TestElasticsearchTaskHandler:
         ) as log_file:
             assert len(log_file.read()) == 0
 
+    @pytest.mark.db_test
     def test_close_with_no_handler(self, ti):
         self.es_task_handler.set_context(ti)
         self.es_task_handler.handler = None
@@ -693,6 +712,7 @@ class TestElasticsearchTaskHandler:
             assert len(log_file.read()) == 0
         assert self.es_task_handler.closed
 
+    @pytest.mark.db_test
     def test_close_with_no_stream(self, ti):
         self.es_task_handler.set_context(ti)
         self.es_task_handler.handler.stream = None
@@ -712,6 +732,7 @@ class TestElasticsearchTaskHandler:
             assert self.end_of_log_mark in log_file.read()
         assert self.es_task_handler.closed
 
+    @pytest.mark.db_test
     def test_render_log_id(self, ti):
         assert self.es_task_handler._render_log_id(ti, 1) == self.LOG_ID
 
@@ -722,6 +743,7 @@ class TestElasticsearchTaskHandler:
         clean_logical_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "json_format, es_frontend, expected_url",
         [
@@ -781,6 +803,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.frontend = frontend
         assert self.es_task_handler.supports_external_link == expected
 
+    @pytest.mark.db_test
     @mock.patch("sys.__stdout__", new_callable=StringIO)
     def test_dynamic_offset(self, stdout_mock, ti, time_machine):
         # arrange
@@ -843,6 +866,7 @@ class TestElasticsearchTaskHandler:
             filename_template=None,
         )
 
+    @pytest.mark.db_test
     def test_write_to_es(self, ti):
         self.es_task_handler.write_to_es = True
         self.es_task_handler.json_format = True
