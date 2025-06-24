@@ -134,8 +134,8 @@ class AzureBaseHook(BaseHook):
         """
         Get Azure credential object for the connection.
 
-        Azure Identity based credential object can be used to get token.
-        Older Credential object are supported for backward compatibility.
+        Azure Identity based credential object (ClientSecretCredential, DefaultAzureCredential) can be used to get OAuth token using `get_token` method.
+        Older Credential objects (ServicePrincipalCredentials, AzureIdentityCredentialAdapter) are supported for backward compatibility.
 
         :return: The Azure credential object
         """
