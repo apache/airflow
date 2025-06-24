@@ -62,7 +62,6 @@ class DagAttributeTypes(str, Enum):
     ASSET_REF = "asset_ref"
     ASSET_UNIQUE_KEY = "asset_unique_key"
     ASSET_ALIAS_UNIQUE_KEY = "asset_alias_unique_key"
-    SIMPLE_TASK_INSTANCE = "simple_task_instance"
     BASE_JOB = "Job"
     TASK_INSTANCE = "task_instance"
     DAG_RUN = "dag_run"
