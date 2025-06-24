@@ -198,7 +198,6 @@ def _do_delete(
     skip_archive: bool,
     session: Session,
     batch_size: int | None,
-    skip_delete: bool = False,
 ) -> None:
     import itertools
     import re
@@ -259,9 +258,6 @@ def _do_delete(
                 delete = source_table.delete().where(
                     and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
                 )
-            if skip_delete:
-                print(f"Skipping deletion for FK table {orm_model.name}; relying on ON DELETE CASCADE.")
-                return
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
             session.commit()
@@ -358,7 +354,6 @@ def _cleanup_table(
     skip_archive: bool = False,
     session: Session,
     batch_size: int | None = None,
-    skip_delete: bool = False,
     **kwargs,
 ) -> None:
     print()
@@ -384,7 +379,6 @@ def _cleanup_table(
             skip_archive=skip_archive,
             session=session,
             batch_size=batch_size,
-            skip_delete=skip_delete,
         )
 
     session.commit()
@@ -559,7 +553,6 @@ def run_cleanup(
                     skip_archive=skip_archive,
                     session=session,
                     batch_size=batch_size,
-                    skip_delete=(table_names is not None and table_name not in table_names),
                 )
                 session.commit()
         else:
