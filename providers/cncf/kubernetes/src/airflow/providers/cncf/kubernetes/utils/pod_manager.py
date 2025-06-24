@@ -524,10 +524,10 @@ class PodManager(LoggingMixin):
                                 message_timestamp = line_timestamp
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
-                                for line in progress_callback_lines:
+                                for progress_line in progress_callback_lines:
                                     for callback in self._callbacks:
                                         callback.progress_callback(
-                                            line=line, client=self._client, mode=ExecutionMode.SYNC
+                                            line=progress_line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
                                     if is_log_group_marker(message_to_log):
