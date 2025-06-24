@@ -213,7 +213,9 @@ class GitDagBundle(BaseDagBundle):
             if self.supports_versioning:
                 new_version = self.get_current_version()
                 if new_version != pre_version:
-                    self._log.info("New version detected for %s: %s (was %s)", self.name, new_version, pre_version)
+                    self._log.info(
+                        "New version detected for %s: %s (was %s)", self.name, new_version, pre_version
+                    )
                     try:
                         self._materialize_version(new_version)
                     except Exception as exc:
@@ -260,10 +262,7 @@ class GitDagBundle(BaseDagBundle):
         return None
 
     def _materialize_version(self, version: str) -> None:
-        """
-        Ensure versions/<version> exists and is checked out to that commit.
-        Needed by the DAG Processor to import the DAG for callbacks.
-        """
+        """Clone and checkout the commit into versions/<version> for DAG Processor callbacks."""
         version_path = self.versions_dir / version
         if version_path.exists():
             self._log.debug("Version folder already exists: %s", version_path)
