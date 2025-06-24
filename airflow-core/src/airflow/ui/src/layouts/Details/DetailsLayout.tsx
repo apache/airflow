@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Flex, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, Flex, useDisclosure, IconButton } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
@@ -66,6 +67,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     dagId,
   });
   const { onClose, onOpen, open } = useDisclosure();
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -79,6 +81,23 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Toaster />
       <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
+        {isRightPanelCollapsed ? (
+          <IconButton
+            aria-label={translate("common:showDetailsPanel")}
+            bg="bg.surface"
+            borderRadius="full"
+            boxShadow="md"
+            cursor="pointer"
+            onClick={() => setIsRightPanelCollapsed(false)}
+            position="absolute"
+            right={0}
+            size="sm"
+            top="50%"
+            zIndex={10}
+          >
+            <FaChevronLeft />
+          </IconButton>
+        ) : undefined}
         <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
             <Box height="100%" overflowY="auto" position="relative" pr={2}>
@@ -92,50 +111,76 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
             </Box>
           </Panel>
-          <PanelResizeHandle
-            className="resize-handle"
-            onDragging={(isDragging) => {
-              if (!isDragging) {
-                const zoom = getZoom();
+          {!isRightPanelCollapsed && (
+            <PanelResizeHandle
+              className="resize-handle"
+              onDragging={(isDragging) => {
+                if (!isDragging) {
+                  const zoom = getZoom();
 
-                void fitView({ maxZoom: zoom, minZoom: zoom });
-              }
-            }}
-          >
-            <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
-          </PanelResizeHandle>
-          <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
-            <Box display="flex" flexDirection="column" h="100%">
-              {children}
-              {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                <>
-                  <ActionButton
-                    actionName={translate("common:dagWarnings")}
-                    colorPalette={Boolean(error) ? "red" : "orange"}
-                    icon={<LuFileWarning />}
-                    margin="2"
-                    marginBottom="-1"
-                    onClick={onOpen}
-                    rounded="full"
-                    text={String(warningData?.total_entries ?? 0 + Number(error))}
-                    variant="solid"
-                  />
-
-                  <DAGWarningsModal
-                    error={error}
-                    onClose={onClose}
-                    open={open}
-                    warnings={warningData?.dag_warnings}
-                  />
-                </>
-              ) : undefined}
-              <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-              <NavTabs tabs={tabs} />
-              <Box h="100%" overflow="auto" px={2}>
-                <Outlet />
+                  void fitView({ maxZoom: zoom, minZoom: zoom });
+                }
+              }}
+            >
+              <Box
+                alignItems="center"
+                bg="fg.subtle"
+                cursor="col-resize"
+                display="flex"
+                h="100%"
+                justifyContent="center"
+                position="relative"
+                w={0.5}
+              >
+                <IconButton
+                  aria-label={translate("common:collapseDetailsPanel")}
+                  bg="bg.surface"
+                  borderRadius="full"
+                  boxShadow="md"
+                  cursor="pointer"
+                  onClick={() => setIsRightPanelCollapsed(true)}
+                  size="xs"
+                  zIndex={2}
+                >
+                  <FaChevronRight />
+                </IconButton>
               </Box>
-            </Box>
-          </Panel>
+            </PanelResizeHandle>
+          )}
+          {!isRightPanelCollapsed && (
+            <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
+              <Box display="flex" flexDirection="column" h="100%">
+                {children}
+                {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                  <>
+                    <ActionButton
+                      actionName={translate("common:dagWarnings")}
+                      colorPalette={Boolean(error) ? "red" : "orange"}
+                      icon={<LuFileWarning />}
+                      margin="2"
+                      marginBottom="-1"
+                      onClick={onOpen}
+                      rounded="full"
+                      text={String(warningData?.total_entries ?? 0 + Number(error))}
+                      variant="solid"
+                    />
+
+                    <DAGWarningsModal
+                      error={error}
+                      onClose={onClose}
+                      open={open}
+                      warnings={warningData?.dag_warnings}
+                    />
+                  </>
+                ) : undefined}
+                <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+                <NavTabs tabs={tabs} />
+                <Box h="100%" overflow="auto" px={2}>
+                  <Outlet />
+                </Box>
+              </Box>
+            </Panel>
+          )}
         </PanelGroup>
       </Box>
     </OpenGroupsProvider>

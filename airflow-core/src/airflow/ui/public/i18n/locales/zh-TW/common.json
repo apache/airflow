@@ -17,6 +17,7 @@
     "auditLog": "審計日誌",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "收起詳細資訊",
   "createdAssetEvent_one": "已建立資源事件",
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
@@ -144,6 +145,7 @@
     "users": "使用者"
   },
   "selectLanguage": "選擇語言",
+  "showDetailsPanel": "顯示詳細資訊",
   "sourceAssetEvent_one": "來源資源事件",
   "sourceAssetEvent_other": "來源資源事件",
   "startDate": "開始日期",
