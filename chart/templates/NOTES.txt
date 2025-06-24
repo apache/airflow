@@ -98,7 +98,11 @@ Flower dashboard:
 {{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
+{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
 Airflow Webserver:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+{{- else }}
+Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-api-server {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+{{- end }}
 
 {{- if .Values.flower.enabled }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)}}
