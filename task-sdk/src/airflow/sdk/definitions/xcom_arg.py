@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
 # safety (those callables are arbitrary user code).
+FilterCallables = Sequence[Callable[[Any], bool]]
 MapCallables = Sequence[Callable[[Any], Any]]
 
 
@@ -377,20 +378,83 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
-        self.value = value
+class _MappableResult(Sequence):
+    def __init__(
+        self, value: Sequence | dict, callables: FilterCallables | MapCallables
+    ) -> None:
+        self.value = self._convert(value)
         self.callables = callables
 
     def __getitem__(self, index: Any) -> Any:
-        value = self.value[index]
+        raise NotImplementedError
 
-        for f in self.callables:
-            value = f(value)
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def _convert(value: Sequence | dict) -> list:
+        if isinstance(value, (dict, set)):
+            return list(value)
+        if isinstance(value, list):
+            return value
+        raise ValueError(
+            f"XCom filter expects sequence or dict, not {type(value).__name__}"
+        )
+
+    def _apply_callables(self, value) -> Any:
+        for func in self.callables:
+            value = func(value)
+        return value
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.value}, {self.callables})"
+
+
+class _MapResult(_MappableResult):
+    def __getitem__(self, index: Any) -> Any:
+        value = self._apply_callables(self.value[index])
         return value
 
     def __len__(self) -> int:
         return len(self.value)
+
+
+class _LazyMapResult(_MappableResult):
+    def __init__(self, value: Iterable, callables: MapCallables) -> None:
+        super().__init__([], callables)
+        self._iterator = iter(value)
+
+    def __next__(self) -> Any:
+        value = self._apply_callables(next(self._iterator))
+        self.value.append(value)
+        return value
+
+    def __getitem__(self, index: Any) -> Any:
+        if index < 0:
+            raise IndexError
+
+        while len(self.value) <= index:
+            try:
+                next(self)
+            except StopIteration:
+                raise IndexError
+        return self.value[index]
+
+    def __len__(self) -> int:
+        while True:
+            try:
+                next(self)
+            except StopIteration:
+                break
+        return len(self.value)
+
+    def __iter__(self) -> Iterator:
+        yield from self.value
+        while True:
+            try:
+                yield next(self)
+            except StopIteration:
+                break
 
 
 class MapXComArg(XComArg):
@@ -429,9 +493,11 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-        if not isinstance(value, (Sequence, dict)):
-            raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
-        return _MapResult(value, self.callables)
+        if isinstance(value, (Sequence, dict)):
+            return _MapResult(value, self.callables)
+        if isinstance(value, Iterable):
+            return _LazyMapResult(value, self.callables)
+        raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
 
 
 class _ZipResult(Sequence):
