@@ -83,7 +83,7 @@ For example, adding multiple dag bundles to your ``airflow.cfg`` file:
 You can also override the :ref:`config:dag_processor__refresh_interval` per dag bundle by passing it in kwargs.
 This controls how often the dag processor refreshes, or looks for new files, in the dag bundles.
 
-Starting Airflow 3.0.2 git is pre installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image. 
+Starting Airflow 3.0.2 git is pre installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image.
 
 .. code-block:: Dockerfile
 
