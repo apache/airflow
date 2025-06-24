@@ -100,7 +100,7 @@ def get_workflow_run_id(workflow_name: str, repo: str) -> int:
     run_id = json.loads(runs_data)[0].get("databaseId")
 
     get_console().print(
-        f"[blue]Running workflow at https://github.com/{repo}/actions/runs/{run_id}[/blue]",
+        f"[blue]Running workflow {workflow_name} at https://github.com/{repo}/actions/runs/{run_id}[/blue]",
     )
 
     return run_id
