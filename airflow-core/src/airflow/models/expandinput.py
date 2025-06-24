@@ -59,13 +59,16 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, SchedulerXComArg))
 
 
-class ExpandInput(LoggingMixin):
-    def resolve(self, context: Mapping[str, Any], session: Session):
+class SchedulerExpandInput(LoggingMixin):
+    def get_parse_time_mapped_ti_count(self) -> int:
+        raise NotImplementedError()
+
+    def get_total_map_length(self, run_id: str, *, session: Session) -> int:
         raise NotImplementedError()
 
 
 @attrs.define
-class SchedulerDictOfListsExpandInput(ExpandInput):
+class SchedulerDictOfListsExpandInput(SchedulerExpandInput):
     value: dict
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
@@ -117,26 +120,9 @@ class SchedulerDictOfListsExpandInput(ExpandInput):
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
-    def resolve(
-        self, context: Mapping[str, Any], session: Session
-    ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-        value = (
-            self.value.resolve(context, session) if _needs_run_time_resolution(self.value) else self.value
-        )
-
-        self.log.debug("resolved value: %s", value)
-
-        for key, item in value.items():
-            result = item.resolve(context, session) if _needs_run_time_resolution(item) else item
-
-            for index, sub_item in enumerate(result):
-                yield {key: sub_item}
-
-        return []
-
 
 @attrs.define
-class SchedulerListOfDictsExpandInput(ExpandInput):
+class SchedulerListOfDictsExpandInput(SchedulerExpandInput):
     value: list
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
@@ -156,29 +142,11 @@ class SchedulerListOfDictsExpandInput(ExpandInput):
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
 
-    def resolve(
-        self, context: Mapping[str, Any], session: Session
-    ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-        value = self.value.resolve(context, session) if _needs_run_time_resolution(self.value) else self.value
-
-        self.log.debug("resolved value: %s", value)
-
-        for index, entry in enumerate(value):
-            for key, item in entry.items():
-                if _needs_run_time_resolution(item):
-                    entry[key] = item.resolve(context, session)
-
-            yield entry
-
-        return []
-
 
 _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
     "dict-of-lists": SchedulerDictOfListsExpandInput,
     "list-of-dicts": SchedulerListOfDictsExpandInput,
 }
-
-SchedulerExpandInput = Union[SchedulerDictOfListsExpandInput, SchedulerListOfDictsExpandInput]
 
 
 def create_expand_input(kind: str, value: Any) -> SchedulerExpandInput:
