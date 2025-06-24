@@ -56,7 +56,7 @@ export const Grid = ({ limit }: Props) => {
     const hasActive = gridRuns?.some((run) => isStatePending(run.state));
 
     setHasActiveRun(hasActive ?? false);
-  }, [gridRuns, setHasActiveRun]);
+  }, [gridRuns]);
 
   const { data: dagStructure } = useGridStructure({ limit });
   // calculate dag run bar heights relative to max

@@ -21,10 +21,10 @@ import { forwardRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests/types.gen";
+import {GridRunsResponse} from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { useGridRuns } from "src/queries/useGridRuns.ts";
+import {useGridRuns} from "src/queries/useGridRuns.ts";
 
 type DagRunSelected = {
   run: GridRunsResponse;

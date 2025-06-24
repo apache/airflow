@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from operator import attrgetter
 
 import pendulum
 import pytest
@@ -553,14 +552,8 @@ def setup(dag_maker, session=None):
         data_interval=data_interval,
         **triggered_by_kwargs,
     )
-    end_date = pendulum.datetime(2025, 3, 2)
-    start_date = end_date.add(seconds=-2)
-    for ti in sorted(run_4.task_instances, key=attrgetter("task_id")):
+    for ti in run_4.task_instances:
         ti.state = "success"
-        ti.start_date = start_date
-        ti.end_date = end_date
-        start_date = end_date
-        end_date = start_date.add(seconds=2)
     session.commit()
 
 
@@ -1224,27 +1217,13 @@ class TestGetGridDataEndpoint:
             "dag_id": "test_dag_4",
             "run_id": "run_4-1",
             "task_instances": [
+                {"state": "success", "task_id": "task_group"},
                 {"state": "success", "task_id": "t1"},
                 {"state": "success", "task_id": "t2"},
-                {"state": "success", "task_id": "t7"},
-                {
-                    "child_states": {"success": 2},
-                    "max_end_date": "2025-03-02T00:00:12Z",
-                    "min_start_date": "2025-03-02T00:00:04Z",
-                    "state": "success",
-                    "task_id": "task_group-1",
-                },
-                {"state": "success", "task_id": "task_group-1.t6"},
-                {
-                    "child_states": {"success": 3},
-                    "max_end_date": "2025-03-02T00:00:12Z",
-                    "min_start_date": "2025-03-02T00:00:06Z",
-                    "state": "success",
-                    "task_id": "task_group-1.task_group-2",
-                },
-                {"state": "success", "task_id": "task_group-1.task_group-2.t3"},
-                {"state": "success", "task_id": "task_group-1.task_group-2.t4"},
-                {"state": "success", "task_id": "task_group-1.task_group-2.t5"},
+                {"state": "success", "task_id": "t5"},
+                {"state": "success", "task_id": "task_group.t3"},
+                {"state": "success", "task_id": "task_group.t4"},
+                {"state": "success", "task_id": "task_group.t5"},
             ],
         }
         for obj in actual, expected:

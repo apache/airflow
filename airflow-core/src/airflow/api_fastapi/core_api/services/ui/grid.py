@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import contextlib
 from collections import Counter
-from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
@@ -323,67 +322,42 @@ def agg_state(states):
     for state in state_priority:
         if state in states:
             return state
-    return None
-
-
-def _get_aggs_for_node(detail):
-    states = [x["state"] for x in detail if x["state"] is not None]
-    try:
-        min_start_date = min(x["start_date"] for x in detail if x["start_date"])
-    except ValueError:
-        min_start_date = None
-    try:
-        max_end_date = max(x["end_date"] for x in detail if x["end_date"])
-    except ValueError:
-        max_end_date = None
-    return {
-        "state": agg_state(states),
-        "min_start_date": min_start_date,
-        "max_end_date": max_end_date,
-        "child_states": dict(Counter(states)),
-    }
+    return "no_status"
 
 
 def _find_aggregates(
-    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap,
+    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
     parent_node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
-    ti_details: dict[str, list],
-) -> Iterable[dict]:
+    ti_states: dict[str, list[str]],
+) -> dict | None:
     """Recursively fill the Task Group Map."""
     node_id = node.node_id
     parent_id = parent_node.node_id if parent_node else None
-    details = ti_details[node_id]
 
     if node is None:
         return
+
     if isinstance(node, MappedOperator):
         yield {
             "task_id": node_id,
             "type": "mapped_task",
             "parent_id": parent_id,
-            **_get_aggs_for_node(details),
+            "state": agg_state(ti_states[node_id]),
         }
 
         return
     if isinstance(node, TaskGroup):
-        children = []
+        states = []
         for child in get_task_group_children_getter()(node):
-            for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):
-                if child_node["parent_id"] == node_id:
-                    children.append(
-                        {
-                            "state": child_node["state"],
-                            "start_date": child_node["min_start_date"],
-                            "end_date": child_node["max_end_date"],
-                        }
-                    )
+            for child_node in _find_aggregates(node=child, parent_node=node, ti_states=ti_states):
+                states.append(child_node["state"])
                 yield child_node
         if node_id:
             yield {
                 "task_id": node_id,
                 "type": "group",
                 "parent_id": parent_id,
-                **_get_aggs_for_node(children),
+                "state": agg_state(states),
             }
         return
     if isinstance(node, BaseOperator):
@@ -391,6 +365,6 @@ def _find_aggregates(
             "task_id": node_id,
             "type": "task",
             "parent_id": parent_id,
-            **_get_aggs_for_node(details),
+            "state": agg_state(ti_states[node_id]),
         }
         return

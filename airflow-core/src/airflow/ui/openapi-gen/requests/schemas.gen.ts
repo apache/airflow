@@ -7060,44 +7060,10 @@ export const $LightGridTaskInstanceSummary = {
                     type: 'null'
                 }
             ]
-        },
-        child_states: {
-            additionalProperties: {
-                type: 'integer'
-            },
-            propertyNames: {
-                '$ref': '#/components/schemas/TaskInstanceState'
-            },
-            type: 'object',
-            title: 'Child States'
-        },
-        min_start_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Min Start Date'
-        },
-        max_end_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Max End Date'
         }
     },
     type: 'object',
-    required: ['task_id', 'state', 'child_states', 'min_start_date', 'max_end_date'],
+    required: ['task_id', 'state'],
     title: 'LightGridTaskInstanceSummary',
     description: 'Task Instance Summary model for the Grid UI.'
 } as const;

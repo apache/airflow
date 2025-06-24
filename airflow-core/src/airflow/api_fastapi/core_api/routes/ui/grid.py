@@ -17,13 +17,9 @@
 
 from __future__ import annotations
 
-# import os
-#
-# os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"]="postgresql+psycopg2://postgres:airflow@localhost:25433/airflow"
 import collections
 import itertools
-import json
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -511,8 +507,6 @@ def get_grid_ti_summaries(
                 TaskInstance.task_id,
                 TaskInstance.state,
                 TaskInstance.dag_version_id,
-                TaskInstance.start_date,
-                TaskInstance.end_date,
             )
             .where(TaskInstance.dag_id == dag_id)
             .where(
@@ -525,43 +519,27 @@ def get_grid_ti_summaries(
         return_total_entries=False,
     )
     task_instances = list(session.execute(tis_of_dag_runs))
-    if not task_instances:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
-        )
-    ti_details = collections.defaultdict(list)
+    task_id_states = collections.defaultdict(list)
     for ti in task_instances:
-        ti_details[ti.task_id].append(
-            {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-            }
-        )
+        task_id_states[ti.task_id].append(ti.state)
+
     serdag = _get_serdag(
         dag_id=dag_id,
         dag_version_id=task_instances[0].dag_version_id,
         session=session,
     )
-    if TYPE_CHECKING:
-        assert serdag.dag
-
-    def get_node_sumaries():
-        for node in _find_aggregates(
+    tis = list(
+        _find_aggregates(
             node=serdag.dag.task_group,
             parent_node=None,
-            ti_details=ti_details,
-        ):
-            if node["type"] == "task":
-                node["child_states"] = None
-                node["min_start_date"] = None
-                node["max_end_date"] = None
-            yield node
+            ti_states=task_id_states,
+        )
+    )
 
     return {
         "run_id": run_id,
         "dag_id": dag_id,
-        "task_instances": list(get_node_sumaries()),
+        "task_instances": list(tis),
     }
 
 
@@ -609,50 +587,3 @@ def get_latest_run(
         .order_by(DagRun.run_after.desc())
         .limit(1)
     ).one_or_none()
-
-
-if __name__ == "__main__":
-    from airflow.settings import Session
-
-    session = Session()
-    dag_id = "bighello_deeper_only_normal"
-    run_id = "manual__2025-06-19T21:18:02.613973+00:00"
-    tis = list(
-        session.execute(
-            select(
-                TaskInstance.task_id,
-                TaskInstance.state,
-                TaskInstance.dag_version_id,
-                TaskInstance.start_date,
-                TaskInstance.end_date,
-            )
-            .where(TaskInstance.dag_id == dag_id)
-            .where(
-                TaskInstance.run_id == run_id,
-            )
-        )
-    )
-    ti_details = collections.defaultdict(list)
-    for ti in tis:
-        detail = ti_details[ti.task_id]
-        detail.append(
-            {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-            }
-        )
-
-    serdag = _get_serdag(
-        dag_id=dag_id,
-        dag_version_id=tis[0].dag_version_id,
-        session=session,
-    )
-    info = list(
-        _find_aggregates(
-            node=serdag.dag.task_group,
-            parent_node=None,
-            ti_details=ti_details,
-        )
-    )
-    print(json.dumps(info, indent=2))

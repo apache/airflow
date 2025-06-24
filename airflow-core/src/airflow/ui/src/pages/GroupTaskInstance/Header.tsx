@@ -20,7 +20,7 @@ import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { MdOutlineTask } from "react-icons/md";
 
-import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type { GridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
@@ -30,24 +30,23 @@ export const Header = ({
   taskInstance,
 }: {
   readonly isRefreshing?: boolean;
-  readonly taskInstance: LightGridTaskInstanceSummary;
+  readonly taskInstance: GridTaskInstanceSummary;
 }) => {
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
-    entries.push({ label: `Total ${state}`, value: count });
-  });
+  if (taskInstance.child_states !== null) {
+    Object.entries(taskInstance.child_states).forEach(([state, count]) => {
+      if (count > 0) {
+        entries.push({ label: `Total ${state}`, value: count });
+      }
+    });
+  }
   const stats = [
     ...entries,
-    { label: "Earliest Start", value: <Time datetime={taskInstance.min_start_date} /> },
-    { label: "Latest End", value: <Time datetime={taskInstance.max_end_date} /> },
-    ...(Boolean(taskInstance.max_end_date)
-      ? [
-          {
-            label: "Total Duration",
-            value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date),
-          },
-        ]
+    { label: "Earliest Start", value: <Time datetime={taskInstance.start_date} /> },
+    { label: "Latest End", value: <Time datetime={taskInstance.end_date} /> },
+    ...(Boolean(taskInstance.start_date)
+      ? [{ label: "Total Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
       : []),
   ];
 
@@ -58,7 +57,7 @@ export const Header = ({
         isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
-        subTitle={<Time datetime={taskInstance.min_start_date} />}
+        subTitle={<Time datetime={taskInstance.start_date} />}
         title={taskInstance.task_id}
       />
     </Box>
