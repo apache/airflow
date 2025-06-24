@@ -127,7 +127,7 @@ apache-airflow-providers-cncf-kubernetes==10.5.0
 apache-airflow-providers-cohere==1.5.0
 apache-airflow-providers-common-compat==1.7.0
 apache-airflow-providers-common-io==1.6.0
-apache-airflow-providers-common-messaging==1.0.2
+apache-airflow-providers-common-messaging==1.0.3
 apache-airflow-providers-common-sql==1.27.1
 apache-airflow-providers-databricks==7.4.0
 apache-airflow-providers-datadog==3.9.0
@@ -138,6 +138,7 @@ apache-airflow-providers-docker==4.4.0
 apache-airflow-providers-edge3==1.1.0
 apache-airflow-providers-elasticsearch==6.3.0
 apache-airflow-providers-exasol==4.8.0
+apache-airflow-providers-fab==2.2.1
 apache-airflow-providers-facebook==3.8.0
 apache-airflow-providers-ftp==3.13.0
 apache-airflow-providers-git==0.0.2
