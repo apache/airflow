@@ -623,6 +623,7 @@ repos:
             ^providers/openai/.*\.py$|
             ^providers/openfaas/.*\.py$|
             ^providers/oracle/.*\.py$|
+            ^providers/pagerduty/.*\.py$|
             ^providers/pgvector/.*\.py$|
             ^providers/pinecone/.*\.py$|
             ^providers/postgres/.*\.py$|
