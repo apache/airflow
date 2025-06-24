@@ -451,6 +451,14 @@ def _suppress_with_logging(table: str, session: Session):
 def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
 
+    outliers = desired_table_names - set(config_dict.keys())
+    if outliers:
+        logger.warning(
+            "The following table(s) are not valid choices and will be skipped: %s",
+            sorted(outliers),
+        )
+    desired_table_names = desired_table_names - outliers
+
     visited: set[str] = set()
     effective_table_names: list[str] = []
 
@@ -467,13 +475,6 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
         collect_deps(table_name)
 
     effective_config_dict = {n: config_dict[n] for n in effective_table_names}
-
-    outliers = desired_table_names - set(effective_config_dict)
-    if outliers:
-        logger.warning(
-            "The following table(s) are not valid choices and will be skipped: %s",
-            sorted(outliers),
-        )
 
     if not effective_config_dict:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
