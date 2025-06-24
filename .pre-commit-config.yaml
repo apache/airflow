@@ -607,7 +607,6 @@ repos:
             ^providers/dingding/.*\.py$|
             ^providers/discord/.*\.py$|
             ^providers/exasol/.*\.py$|
-            ^providers/fab/.*\.py$|
             ^providers/facebook/.*\.py$|
             ^providers/ftp/.*\.py$|
             ^providers/grpc/.*\.py$|
