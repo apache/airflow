@@ -528,6 +528,8 @@ def get_grid_ti_summaries(
         dag_version_id=task_instances[0].dag_version_id,
         session=session,
     )
+    if not serdag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     tis = list(
         _find_aggregates(
             node=serdag.dag.task_group,
@@ -536,7 +538,7 @@ def get_grid_ti_summaries(
         )
     )
 
-    return {
+    return {  # type: ignore[return-value]
         "run_id": run_id,
         "dag_id": dag_id,
         "task_instances": list(tis),

@@ -80,10 +80,10 @@ class GridRunsResponse(BaseModel):
     run_type: DagRunType
 
     @computed_field
-    @property
     def duration(self) -> int | None:
         if self.start_date and self.end_date:
             return (self.end_date - self.start_date).seconds
+        return None
 
 
 class BaseGraphResponse(BaseModel, Generic[E, N]):

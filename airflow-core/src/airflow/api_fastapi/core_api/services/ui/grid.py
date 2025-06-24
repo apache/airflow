@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 from collections import Counter
+from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
@@ -326,10 +327,10 @@ def agg_state(states):
 
 
 def _find_aggregates(
-    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
+    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap,
     parent_node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
     ti_states: dict[str, list[str]],
-) -> dict | None:
+) -> Iterable[dict]:
     """Recursively fill the Task Group Map."""
     node_id = node.node_id
     parent_id = parent_node.node_id if parent_node else None
