@@ -37,7 +37,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, or_
+from sqlalchemy import Column, and_, case, func, or_
 from sqlalchemy.inspection import inspect
 
 from airflow.api_fastapi.core_api.base import OrmClause
@@ -493,9 +493,12 @@ def datetime_range_filter_factory(
         lower_bound: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         upper_bound: datetime | None = Query(alias=f"{filter_name}_lte", default=None),
     ) -> RangeFilter:
+        attr = getattr(model, attribute_name or filter_name)
+        if filter_name in ("start_date", "end_date"):
+            attr = func.coalesce(attr, func.now())
         return RangeFilter(
             Range(lower_bound=lower_bound, upper_bound=upper_bound),
-            getattr(model, attribute_name or filter_name),
+            attr,
         )
 
     return depends_datetime
@@ -610,7 +613,7 @@ def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | N
         return None
 
     try:
-        return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
+        return [None if s in ("no_status", "none", None) else TaskInstanceState(s) for s in states]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
