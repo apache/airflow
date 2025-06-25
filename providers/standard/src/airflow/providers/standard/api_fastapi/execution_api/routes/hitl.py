@@ -38,7 +38,7 @@ log = structlog.get_logger(__name__)
 
 
 @router.post(
-    "/input-requests/{task_instance_id}",
+    "/{task_instance_id}/input-requests",
     status_code=status.HTTP_201_CREATED,
 )
 def add_hitl_input_request(
@@ -48,17 +48,13 @@ def add_hitl_input_request(
 ) -> HITLInputRequestResponse:
     """Get Human-in-the-loop Response for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
-
-    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti:
-        log.error("Task Instance not found")
+    input_request_id = session.scalar(
+        select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
+    )
+    if input_request_id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            status.HTTP_409_CONFLICT,
+            f"Human-in-the-loop Input Request for Task Instance with id {ti_id_str} already exists.",
         )
 
     hitl_input_request = HITLInputRequestModel(
@@ -76,7 +72,7 @@ def add_hitl_input_request(
 
 
 @router.get(
-    "/response/{task_instance_id}",
+    "/{task_instance_id}/response",
     status_code=status.HTTP_200_OK,
 )
 def get_hitl_response(
@@ -86,7 +82,6 @@ def get_hitl_response(
     """Get Human-in-the-loop Response for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
-
     ti = session.scalar(select(TI).where(TI.id == ti_id_str))
     if not ti:
         log.error("Task Instance not found")
@@ -98,8 +93,19 @@ def get_hitl_response(
             },
         )
 
+    input_request_id = session.scalar(
+        select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
+    )
+    if not input_request_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Human-in-the-loop Input Request not found.",
+            },
+        )
     hitl_response = session.scalar(
-        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str),
+        select(HITLResponseModel).where(HITLResponseModel.input_request_id == input_request_id),
     )
     return HITLResponse(
         ti_id=task_instance_id,

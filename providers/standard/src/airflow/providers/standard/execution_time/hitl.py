@@ -20,7 +20,7 @@ from collections.abc import MutableMapping
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from airflow.sdk.execution_time.comms import (
+from airflow.providers.standard.execution_time.comms import (
     CreateHITLInputRequestPayload,
     FetchHITLResponse,
     HITLResponseResult,

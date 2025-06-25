@@ -43,7 +43,7 @@ log = structlog.get_logger(__name__)
 
 
 @hitl_router.post(
-    "/input-requests/{task_instance_id}/response",
+    "/{task_instance_id}/response",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [
@@ -55,7 +55,7 @@ log = structlog.get_logger(__name__)
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
 )
-def write_response(
+def write_hitl_response_by_ti_id(
     task_instance_id: UUID,
     add_response_payload: AddHITLResponsePayload,
     user: GetUserDep,
@@ -63,37 +63,40 @@ def write_response(
 ) -> HITLResponse:
     """Write an HITLResponse."""
     ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
-    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti:
-        log.error("Task Instance not found")
+    input_request_id = session.scalar(
+        select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
+    )
+    if not input_request_id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            status.HTTP_404_NOT_FOUND,
+            f"Human-in-the-loop Input Request does not exist for Task Instance with id {ti_id_str}",
         )
 
-    existing_response = session.scalar(select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str))
+    existing_response = session.scalar(
+        select(HITLResponseModel).where(HITLResponseModel.input_request_id == input_request_id)
+    )
     if existing_response:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"HITL Response exists for task task_instance id {ti_id_str}",
+            f"Human-in-the-loop Response exists for Task Instance with id {ti_id_str}",
         )
 
     hitl_response_model = HITLResponseModel(
-        ti_id=ti_id_str,
+        input_request_id=input_request_id,
         content=add_response_payload.content,
         user_id=user.get_id(),
     )
     session.add(hitl_response_model)
     session.commit()
-    return HITLResponse.model_validate(hitl_response_model)
+    return HITLResponse(
+        ti_id=ti_id_str,
+        content=hitl_response_model.content,
+        created_at=hitl_response_model.created_at,
+    )
 
 
 @hitl_router.get(
-    "/input-requests/{task_instance_id}",
+    "/{task_instance_id}/input-requests",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -105,7 +108,7 @@ def write_response(
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
 )
-def get_hitl_input_request(
+def get_hitl_input_request_by_ti_id(
     task_instance_id: UUID,
     session: SessionDep,
 ) -> HITLInputRequest:
@@ -122,6 +125,7 @@ def get_hitl_input_request(
                 "message": "Task Instance not found",
             },
         )
+
     input_request_model = session.scalar(
         select(HITLInputRequestModel).where(HITLInputRequestModel.ti_id == ti_id_str)
     )
