@@ -97,15 +97,17 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql.elements import Case
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
     from airflow.sdk import DAG as SDKDAG, Context
+    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
+
+    AttributeValueType = str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -980,12 +982,8 @@ class DagRun(Base, LoggingMixin):
         if self._state == DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
-        attribute_value_type = (
-            str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
-        )
-
         # Explicitly set the value type to Union[...] to avoid a mypy error.
-        attributes: dict[str, attribute_value_type] = {
+        attributes: dict[str, AttributeValueType] = {
             "airflow.category": "DAG runs",
             "airflow.dag_run.dag_id": str(self.dag_id),
             "airflow.dag_run.logical_date": str(self.logical_date),
@@ -1611,7 +1609,7 @@ class DagRun(Base, LoggingMixin):
         :return: Task IDs in the DAG run
 
         """
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.baseoperator import get_mapped_ti_count
         from airflow.models.expandinput import NotFullyPopulated
 
         tis = self.get_task_instances(session=session)
@@ -1649,7 +1647,7 @@ class DagRun(Base, LoggingMixin):
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
-                    total_length = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
+                    total_length = get_mapped_ti_count(task, self.run_id, session=session)
                 except NotFullyPopulated:
                     # Not all upstreams finished, so we can't tell what should be here. Remove everything.
                     if ti.map_index >= 0:
@@ -1752,13 +1750,13 @@ class DagRun(Base, LoggingMixin):
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
         """
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.baseoperator import get_mapped_ti_count
         from airflow.models.expandinput import NotFullyPopulated
 
         map_indexes: Iterable[int]
         for task in tasks:
             try:
-                count = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
+                count = get_mapped_ti_count(task, self.run_id, session=session)
             except (NotMapped, NotFullyPopulated):
                 map_indexes = (-1,)
             else:
@@ -1824,12 +1822,12 @@ class DagRun(Base, LoggingMixin):
         we delay expansion to the "last resort". See comments at the call site
         for more details.
         """
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.baseoperator import get_mapped_ti_count
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.settings import task_instance_mutation_hook
 
         try:
-            total_length = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
+            total_length = get_mapped_ti_count(task, self.run_id, session=session)
         except NotMapped:
             return  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:

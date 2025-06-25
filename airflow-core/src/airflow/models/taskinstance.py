@@ -117,7 +117,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.sdk.api.datamodels._generated import AssetProfile
@@ -126,6 +125,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
+    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
     from airflow.typing_compat import Literal
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
@@ -1908,7 +1908,7 @@ class TaskInstance(Base, LoggingMixin):
 
         from airflow import macros
         from airflow.models.abstractoperator import NotMapped
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.baseoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
@@ -2019,9 +2019,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         try:
-            expanded_ti_count: int | None = BaseOperator.get_mapped_ti_count(
-                task, self.run_id, session=session
-            )
+            expanded_ti_count: int | None = get_mapped_ti_count(task, self.run_id, session=session)
             context["expanded_ti_count"] = expanded_ti_count
             if expanded_ti_count:
                 setattr(
@@ -2380,7 +2378,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: Specific map index or map indexes to pull, or ``None`` if we
             want to "whole" return value (i.e. no mapped task groups involved).
         """
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.baseoperator import get_mapped_ti_count
 
         if TYPE_CHECKING:
             assert self.task
@@ -2405,7 +2403,7 @@ class TaskInstance(Base, LoggingMixin):
         # should use a "partial" value. Let's break down the mapped ti count
         # between the ancestor and further expansion happened inside it.
 
-        ancestor_ti_count = BaseOperator.get_mapped_ti_count(common_ancestor, self.run_id, session=session)
+        ancestor_ti_count = get_mapped_ti_count(common_ancestor, self.run_id, session=session)
         ancestor_map_index = self.map_index * ancestor_ti_count // ti_count
 
         # If the task is NOT further expanded inside the common ancestor, we

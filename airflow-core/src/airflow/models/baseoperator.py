@@ -26,9 +26,8 @@ from __future__ import annotations
 import functools
 import logging
 import operator
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Iterable, Iterator
 from datetime import datetime
-from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any
 
 import pendulum
@@ -69,10 +68,11 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
-    from airflow.sdk import BaseOperatorLink, Context
+    from airflow.sdk import Context
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
+    from airflow.typing_compat import Self
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
@@ -291,9 +291,6 @@ class BaseOperator(TaskSDKBaseOperator):
         if end_date := kwargs.get("end_date", None):
             kwargs["end_date"] = timezone.convert_to_utc(end_date)
         super().__init__(**kwargs)
-
-    # Defines the operator level extra links
-    operator_extra_links: Collection[BaseOperatorLink] = ()
 
     if TYPE_CHECKING:
 
@@ -561,7 +558,7 @@ class BaseOperator(TaskSDKBaseOperator):
         """Serialize; required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
+    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> Self:
         """
         Get the "normal" operator from the current operator.
 
@@ -594,100 +591,102 @@ class BaseOperator(TaskSDKBaseOperator):
         """
         return self.start_trigger_args
 
-    if TYPE_CHECKING:
+    @classmethod
+    def get_mapped_ti_count(cls, node: DAGNode | MappedTaskGroup, run_id: str, *, session: Session) -> int:
+        """
+        Return the number of mapped TaskInstances that can be created at run time.
 
-        @classmethod
-        def get_mapped_ti_count(
-            cls, node: DAGNode | MappedTaskGroup, run_id: str, *, session: Session
-        ) -> int:
-            """
-            Return the number of mapped TaskInstances that can be created at run time.
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
 
-            This considers both literal and non-literal mapped arguments, and the
-            result is therefore available when all depended tasks have finished. The
-            return value should be identical to ``parse_time_mapped_ti_count`` if
-            all mapped arguments are literal.
+        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+        :raise NotMapped: If the operator is neither mapped, nor has any parent
+            mapped task groups.
+        :return: Total number of mapped TIs this task should have.
+        """
+        return get_mapped_ti_count(node, run_id, session=session)
 
-            :raise NotFullyPopulated: If upstream tasks are not all complete yet.
-            :raise NotMapped: If the operator is neither mapped, nor has any parent
-                mapped task groups.
-            :return: Total number of mapped TIs this task should have.
-            """
+
+@functools.singledispatch
+def get_mapped_ti_count(task: DAGNode, run_id: str, *, session: Session) -> int:
+    raise NotImplementedError(f"Not implemented for {type(task)}")
+
+
+# https://github.com/python/cpython/issues/86153
+# While we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
+# register.
+@get_mapped_ti_count.register(TaskSDKAbstractOperator)
+def _(task: TaskSDKAbstractOperator, run_id: str, *, session: Session) -> int:
+    group = task.get_closest_mapped_task_group()
+    if group is None:
+        raise NotMapped()
+    return get_mapped_ti_count(group, run_id, session=session)
+
+
+@get_mapped_ti_count.register(MappedOperator)
+def _(task: MappedOperator, run_id: str, *, session: Session) -> int:
+    from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
+
+    exp_input = task._get_specified_expand_input()
+    if isinstance(exp_input, _ExpandInputRef):
+        exp_input = exp_input.deref(task.dag)
+    # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
+    # task sdk runner.
+    if not hasattr(exp_input, "get_total_map_length"):
+        if TYPE_CHECKING:
+            assert isinstance(task.dag, SchedulerDAG)
+        current_count = (
+            _ExpandInputRef(
+                exp_input.EXPAND_INPUT_TYPE,
+                BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+            )
+            .deref(task.dag)
+            .get_total_map_length(run_id, session=session)
+        )
     else:
+        current_count = exp_input.get_total_map_length(run_id, session=session)
 
-        @singledispatchmethod
-        @classmethod
-        def get_mapped_ti_count(cls, task: DAGNode, run_id: str, *, session: Session) -> int:
-            raise NotImplementedError(f"Not implemented for {type(task)}")
+    group = task.get_closest_mapped_task_group()
+    if group is None:
+        return current_count
+    parent_count = get_mapped_ti_count(group, run_id, session=session)
+    return parent_count * current_count
 
-        # https://github.com/python/cpython/issues/86153
-        # While we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
-        # register.
-        @get_mapped_ti_count.register(TaskSDKAbstractOperator)
-        @classmethod
-        def _(cls, task: TaskSDKAbstractOperator, run_id: str, *, session: Session) -> int:
-            group = task.get_closest_mapped_task_group()
-            if group is None:
-                raise NotMapped()
-            return cls.get_mapped_ti_count(group, run_id, session=session)
 
-        @get_mapped_ti_count.register(MappedOperator)
-        @classmethod
-        def _(cls, task: MappedOperator, run_id: str, *, session: Session) -> int:
-            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
+@get_mapped_ti_count.register(TaskGroup)
+def _(group: TaskGroup, run_id: str, *, session: Session) -> int:
+    """
+    Return the number of instances a task in this group should be mapped to at run time.
 
-            exp_input = task._get_specified_expand_input()
-            if isinstance(exp_input, _ExpandInputRef):
-                exp_input = exp_input.deref(task.dag)
-            # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
-            # task sdk runner.
-            if not hasattr(exp_input, "get_total_map_length"):
-                exp_input = _ExpandInputRef(
-                    type(exp_input).EXPAND_INPUT_TYPE,
-                    BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
-                )
-                exp_input = exp_input.deref(task.dag)
+    This considers both literal and non-literal mapped arguments, and the
+    result is therefore available when all depended tasks have finished. The
+    return value should be identical to ``parse_time_mapped_ti_count`` if
+    all mapped arguments are literal.
 
-            current_count = exp_input.get_total_map_length(run_id, session=session)
+    If this group is inside mapped task groups, all the nested counts are
+    multiplied and accounted.
 
-            group = task.get_closest_mapped_task_group()
-            if group is None:
-                return current_count
-            parent_count = cls.get_mapped_ti_count(group, run_id, session=session)
-            return parent_count * current_count
+    :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+    :return: Total number of mapped TIs this task should have.
+    """
+    from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
-        @get_mapped_ti_count.register(TaskGroup)
-        @classmethod
-        def _(cls, group: TaskGroup, run_id: str, *, session: Session) -> int:
-            """
-            Return the number of instances a task in this group should be mapped to at run time.
+    def iter_mapped_task_group_lengths(group) -> Iterator[int]:
+        while group is not None:
+            if isinstance(group, MappedTaskGroup):
+                exp_input = group._expand_input
+                # TODO: TaskSDK This is only needed to support `dag.test()` etc
+                # until we port it over to use the task sdk runner.
+                if not hasattr(exp_input, "get_total_map_length"):
+                    if TYPE_CHECKING:
+                        assert isinstance(group.dag, SchedulerDAG)
+                    exp_input = _ExpandInputRef(
+                        exp_input.EXPAND_INPUT_TYPE,
+                        BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+                    ).deref(group.dag)
+                yield exp_input.get_total_map_length(run_id, session=session)
+            group = group.parent_group
 
-            This considers both literal and non-literal mapped arguments, and the
-            result is therefore available when all depended tasks have finished. The
-            return value should be identical to ``parse_time_mapped_ti_count`` if
-            all mapped arguments are literal.
-
-            If this group is inside mapped task groups, all the nested counts are
-            multiplied and accounted.
-
-            :raise NotFullyPopulated: If upstream tasks are not all complete yet.
-            :return: Total number of mapped TIs this task should have.
-            """
-            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
-
-            def iter_mapped_task_group_lengths(group) -> Iterator[int]:
-                while group is not None:
-                    if isinstance(group, MappedTaskGroup):
-                        exp_input = group._expand_input
-                        # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
-                        # task sdk runner.
-                        if not hasattr(exp_input, "get_total_map_length"):
-                            exp_input = _ExpandInputRef(
-                                type(exp_input).EXPAND_INPUT_TYPE,
-                                BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
-                            )
-                            exp_input = exp_input.deref(group.dag)
-                        yield exp_input.get_total_map_length(run_id, session=session)
-                    group = group.parent_group
-
-            return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))
+    return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))

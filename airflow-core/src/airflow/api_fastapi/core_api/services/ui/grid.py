@@ -37,7 +37,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.datamodels.ui.structure import (
     StructureDataResponse,
 )
-from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
@@ -133,10 +132,12 @@ def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, A
 
 
 def _count_tis(node: int | MappedTaskGroup | MappedOperator, run_id: str, session: SessionDep) -> int:
+    from airflow.models.baseoperator import get_mapped_ti_count
+
     if not isinstance(node, (MappedTaskGroup, MappedOperator)):
         return node
     with contextlib.suppress(NotFullyPopulated, NotMapped):
-        return DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session)
+        return get_mapped_ti_count(node, run_id=run_id, session=session)
     # If the downstream is not actually mapped, or we don't have information to
     # determine the length yet, simply return 1 to represent the stand-in ti.
     return 1

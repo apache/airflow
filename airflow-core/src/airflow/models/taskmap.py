@@ -130,7 +130,7 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
-        from airflow.models.baseoperator import BaseOperator as DBBaseOperator
+        from airflow.models.baseoperator import get_mapped_ti_count
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
@@ -143,7 +143,7 @@ class TaskMap(TaskInstanceDependencies):
             )
 
         try:
-            total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)
+            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
                 task.log.error(

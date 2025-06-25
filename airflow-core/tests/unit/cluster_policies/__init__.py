@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicyViolation
-from airflow.models.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG

@@ -77,6 +77,7 @@ if TYPE_CHECKING:
 
     import jinja2
 
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -866,6 +867,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_ext: Sequence[str] = ()
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
+
+    operator_extra_links: Collection[BaseOperatorLink] = ()
 
     # Defines the color in the UI
     ui_color: str = "#fff"
