@@ -21,8 +21,13 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.providers.standard.utils.weekday import WeekDay
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.sensor import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     try:
