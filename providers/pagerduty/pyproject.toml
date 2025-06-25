@@ -59,7 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-compat>=1.6.1",
-    "pagerduty>=1.0.0",
+    "pagerduty>=2.3.0",
 ]
 
 [dependency-groups]
