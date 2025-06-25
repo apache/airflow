@@ -79,8 +79,9 @@ try:
         HITLResponseResult,
     )
 except ModuleNotFoundError:
-    FetchHITLResponse = None
-    HITLResponseResult = None
+    FetchHITLResponse = object  # type: ignore[misc, assignment]
+    HITLResponseResult = object  # type: ignore[misc, assignment]
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
