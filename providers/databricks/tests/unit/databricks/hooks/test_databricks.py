@@ -2000,10 +2000,12 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
     @mock.patch("azure.identity.aio.ClientSecretCredential")
     async def test_get_run_state(self, mock_client_secret_credential_class, mock_get):
         mock_credential = mock.Mock()
-        mock_credential.get_token = AsyncMock(side_effect=[
-            create_aad_token_for_resource(),  
-            create_aad_token_for_resource(), 
-        ])
+        mock_credential.get_token = AsyncMock(
+            side_effect=[
+                create_aad_token_for_resource(),
+                create_aad_token_for_resource(),
+            ]
+        )
 
         mock_cm = mock.AsyncMock()
         mock_cm.__aenter__.return_value = mock_credential
