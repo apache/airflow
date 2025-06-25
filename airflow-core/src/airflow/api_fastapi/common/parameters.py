@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, or_, select
+from sqlalchemy import Column, and_, case, func, not_, or_, select
 from sqlalchemy.inspection import inspect
 
 from airflow.api_fastapi.core_api.base import OrmClause
@@ -126,9 +126,11 @@ class _FavoriteFilter(BaseParam[bool]):
             )
         else:
             select_stmt = select_stmt.where(
-                ~select(DagFavorite)
-                .where((DagFavorite.dag_id == DagModel.dag_id) & (DagFavorite.user_id == self.user_id))
-                .exists()
+                not_(
+                    select(DagFavorite)
+                    .where(and_(DagFavorite.dag_id == DagModel.dag_id, DagFavorite.user_id == self.user_id))
+                    .exists()
+                )
             )
 
         return select_stmt
