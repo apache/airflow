@@ -99,7 +99,23 @@ class MsSqlHook(DbApiHook):
     def get_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""
         conn = self.connection
-        extra_conn_args = {key: val for key, val in conn.extra_dejson.items() if key != "sqlalchemy_scheme"}
+        valid_pymssql_kwargs = {
+            "timeout",
+            "login_timeout",
+            "charset",
+            "as_dict",
+            "host",
+            "appname",
+            "encryption",
+            "read_only",
+            "arraysize",
+            "conn_properties",
+            "autocommit",
+            "tds_version",
+            "use_datetime2",
+        }
+
+        extra_conn_args = {key: val for key, val in conn.extra_dejson.items() if key in valid_pymssql_kwargs}
         return pymssql.connect(
             server=conn.host,
             user=conn.login,

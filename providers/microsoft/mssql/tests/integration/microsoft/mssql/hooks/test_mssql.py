@@ -35,6 +35,13 @@ class TestMsSqlHook:
     def test_get_conn(self):
         assert isinstance(self.hook.get_conn(), Connection)
 
+    def test_get_conn_ignores_invalid_extras(self):
+        conn_string = "mssql://sa:airflow123@mssql:1433/?encrypt=yes"
+        os.environ["AIRFLOW_CONN_MSSQL_DEFAULT"] = conn_string
+
+        hook = MsSqlHook()
+        hook.get_conn()
+
     def test_autocommit(self):
         conn = self.hook.get_conn()
         self.hook.set_autocommit(conn=conn, autocommit=True)

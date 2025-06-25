@@ -112,6 +112,15 @@ def mssql_connections():
             port=8081,
             extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
         ),
+        "alt_3": Connection(
+            conn_type="mssql",
+            host="ip",
+            schema="",
+            login="username",
+            password="password",
+            port=8081,
+            extra={"SQlalchemy_Scheme": "mssql+testdriver", "encrypt": "yes"},
+        ),
     }
 
 
@@ -143,6 +152,18 @@ class TestMsSqlHook:
 
         assert mssql_get_conn.return_value == conn
         mssql_get_conn.assert_called_once()
+
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
+    def test_get_conn_should_raise_type_error_with_sqlalchemy_extras(
+        self, get_connection, mssql_get_conn, mssql_connections
+    ):
+        get_connection.return_value = mssql_connections["alt_3"]
+        mssql_get_conn.side_effect = TypeError("connect() got an unexpected keyword argument `encrypt`")
+
+        hook = MsSqlHook()
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
+            hook.get_conn()
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
