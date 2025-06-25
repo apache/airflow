@@ -250,12 +250,10 @@ class TestHttpHook:
             assert requests_mock.last_request.url == "http://test.com:1234/v1/test?test%20params"
             assert requests_mock.last_request.method == "GET"
 
-    @pytest.mark.db_test
     def test_hook_uses_provided_header(self):
         conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
         assert conn.headers.get("bearer") == "newT0k3n"
 
-    @pytest.mark.db_test
     def test_hook_has_no_header_from_extra(self):
         conn = self.get_hook.get_conn()
         assert conn.headers.get("bearer") is None
