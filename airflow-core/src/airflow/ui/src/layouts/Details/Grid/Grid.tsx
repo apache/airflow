@@ -28,6 +28,7 @@ import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -45,6 +46,7 @@ export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
+  const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
@@ -62,7 +64,17 @@ export const Grid = ({ limit }: Props) => {
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
-  const { data: dagStructure } = useGridStructure({ limit });
+  useEffect(() => {
+    if (gridRuns) {
+      const run = gridRuns.some((dr: GridRunsResponse) => isStatePending(dr.state));
+
+      if (!run) {
+        setHasActiveRun(false);
+      }
+    }
+  }, [gridRuns, setHasActiveRun]);
+
+  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,

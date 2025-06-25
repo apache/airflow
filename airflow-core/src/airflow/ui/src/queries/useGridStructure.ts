@@ -21,7 +21,13 @@ import { useParams } from "react-router-dom";
 import { useGridServiceGetDagStructure } from "openapi/queries";
 import { useAutoRefresh } from "src/utils";
 
-export const useGridStructure = ({ limit }: { limit: number }) => {
+export const useGridStructure = ({
+  hasActiveRun,
+  limit,
+}: {
+  hasActiveRun: boolean | undefined;
+  limit: number;
+}) => {
   const { dagId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -35,7 +41,7 @@ export const useGridStructure = ({ limit }: { limit: number }) => {
     undefined,
     {
       placeholderData: (prev) => prev,
-      refetchInterval,
+      refetchInterval: hasActiveRun ? refetchInterval : false,
     },
   );
 
