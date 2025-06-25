@@ -1261,7 +1261,7 @@ export const useGridServiceGridDataSuspense = <TData = Common.GridServiceGridDat
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }, queryKey), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) as TData, ...options });
 /**
 * Get Dag Structure
-* Return unified dag structure for grid view.
+* Return dag structure for grid view.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.offset
@@ -1282,7 +1282,7 @@ export const useGridServiceGetDagStructureSuspense = <TData = Common.GridService
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }, queryKey), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) as TData, ...options });
 /**
 * Get Grid Runs
-* Return unified dag structure for grid view.
+* Get info about a run for the grid.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.offset

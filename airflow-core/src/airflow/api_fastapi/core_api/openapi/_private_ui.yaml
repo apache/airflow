@@ -609,7 +609,7 @@ paths:
       tags:
       - Grid
       summary: Get Dag Structure
-      description: Return unified dag structure for grid view.
+      description: Return dag structure for grid view.
       operationId: get_dag_structure
       security:
       - OAuth2PasswordBearer: []
@@ -694,7 +694,7 @@ paths:
       tags:
       - Grid
       summary: Get Grid Runs
-      description: Return unified dag structure for grid view.
+      description: Get info about a run for the grid.
       operationId: get_grid_runs
       security:
       - OAuth2PasswordBearer: []

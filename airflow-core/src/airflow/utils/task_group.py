@@ -129,9 +129,6 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
     return {
         "id": task_group.group_id,
         "label": task_group.label,
-        # todo: it's weird that we look at whether it's mapped task group to set
-        #  the is_mapped attribute on task nodes. and weird that we propagate.
-        #  maybe there's a cleaner / more direct way to signal this
         "is_mapped": is_mapped_group or None,
         "children": children or None,
     }

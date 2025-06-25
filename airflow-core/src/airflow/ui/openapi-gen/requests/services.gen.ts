@@ -3483,7 +3483,7 @@ export class GridService {
     
     /**
      * Get Dag Structure
-     * Return unified dag structure for grid view.
+     * Return dag structure for grid view.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.offset
@@ -3518,7 +3518,7 @@ export class GridService {
     
     /**
      * Get Grid Runs
-     * Return unified dag structure for grid view.
+     * Get info about a run for the grid.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.offset

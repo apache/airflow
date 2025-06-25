@@ -1261,7 +1261,7 @@ export const prefetchUseGridServiceGridData = (queryClient: QueryClient, { dagId
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) });
 /**
 * Get Dag Structure
-* Return unified dag structure for grid view.
+* Return dag structure for grid view.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.offset
@@ -1282,7 +1282,7 @@ export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, 
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
 /**
 * Get Grid Runs
-* Return unified dag structure for grid view.
+* Get info about a run for the grid.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.offset

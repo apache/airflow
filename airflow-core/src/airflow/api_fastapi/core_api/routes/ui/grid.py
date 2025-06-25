@@ -330,7 +330,7 @@ def get_dag_structure(
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
 ) -> list[GridNodeResponse]:
-    """Return unified dag structure for grid view."""
+    """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
 
@@ -426,7 +426,7 @@ def get_grid_runs(
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
 ) -> list[GridRunsResponse]:
-    """Return unified dag structure for grid view."""
+    """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
     base_query = select(
         DagRun.dag_id,
