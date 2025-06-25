@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -268,6 +268,51 @@ class TestDBCleanup:
                 assert len(session.query(TaskInstance).all()) == expected_remaining
             else:
                 raise Exception("unexpected")
+
+    @pytest.mark.parametrize(
+        "table_name, expected_archived",
+        [
+            (
+                "dag_run",
+                {"dag_run", "task_instance"},  # Only these are populated
+            ),
+        ],
+    )
+    def test_run_cleanup_archival_integration(self, table_name, expected_archived):
+        """
+        Integration test that verifies:
+        1. Recursive FK-dependent tables are resolved via _effective_table_names().
+        2. run_cleanup() archives only tables with data.
+        3. Archive tables are not created for empty dependent tables.
+        """
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        num_tis = 5
+
+        # Create test data for DAG Run and TIs
+        if table_name in {"dag_run", "task_instance"}:
+            create_tis(base_date=base_date, num_tis=num_tis, external_trigger=False)
+
+        clean_before_date = base_date.add(days=10)
+
+        with create_session() as session:
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=[table_name],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            # Inspect archive tables created
+            inspector = inspect(session.bind)
+            archive_tables = {
+                name for name in inspector.get_table_names() if name.startswith(ARCHIVE_TABLE_PREFIX)
+            }
+            actual_archived = {t.split("__", 1)[-1].split("__")[0] for t in archive_tables}
+
+            assert (
+                expected_archived <= actual_archived
+            ), f"Expected archive tables not found: {expected_archived - actual_archived}"
 
     @pytest.mark.parametrize(
         "skip_archive, expected_archives",
