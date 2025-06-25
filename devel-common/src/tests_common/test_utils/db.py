@@ -365,10 +365,10 @@ def create_default_connections_for_tests():
     """
     import os
 
-    conns: list = []
-
     try:
         from airflow.utils.db import get_default_connections
+
+        conns = get_default_connections()
     except ImportError:
         conns = [
             Connection(
@@ -805,8 +805,6 @@ def create_default_connections_for_tests():
                 extra={"database": "/local"},
             ),
         ]
-
-    conns = get_default_connections()
 
     for c in conns:
         envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
