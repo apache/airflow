@@ -189,12 +189,15 @@ class PowerBIHook(KiotaRequestAdapterHook):
 
         return refresh_details
 
-    async def trigger_dataset_refresh(self, *, dataset_id: str, group_id: str) -> str:
+    async def trigger_dataset_refresh(
+        self, *, dataset_id: str, group_id: str, request_body: dict[str, Any] | None = None
+    ) -> str:
         """
         Triggers a refresh for the specified dataset from the given group id.
 
         :param dataset_id: The dataset id.
         :param group_id: The workspace id.
+        :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
 
         :return: Request id of the dataset refresh request.
         """
@@ -207,6 +210,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
                     "group_id": group_id,
                     "dataset_id": dataset_id,
                 },
+                data=request_body,
             )
 
             request_id = response.get("requestid")

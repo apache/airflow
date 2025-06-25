@@ -72,6 +72,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
+    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     """
 
     template_fields: Sequence[str] = (
@@ -92,6 +93,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
+        request_body: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -102,6 +104,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
+        self.request_body = request_body
 
     @property
     def proxies(self) -> dict | None:
@@ -124,6 +127,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     api_version=self.api_version,
                     check_interval=self.check_interval,
                     wait_for_termination=self.wait_for_termination,
+                    request_body=self.request_body,
                 ),
                 method_name=self.get_refresh_status.__name__,
             )
