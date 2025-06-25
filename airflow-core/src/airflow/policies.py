@@ -27,9 +27,9 @@ hookimpl = pluggy.HookimplMarker("airflow.policy")
 __all__: list[str] = ["hookimpl"]
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
 
 
 @local_settings_hookspec

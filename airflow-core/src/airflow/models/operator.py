@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
 
 Operator = BaseOperator | MappedOperator
 
