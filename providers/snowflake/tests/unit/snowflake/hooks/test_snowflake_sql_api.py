@@ -1179,3 +1179,49 @@ class TestSnowflakeSqlApiHook:
             await hook._make_api_call_with_retries_async("PATCH", API_URL, HEADERS)
         # No HTTP call should be made
         assert mock_async_request.__aenter__.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_make_api_call_with_retries_async_json_decode_error_prevention(self, mock_async_request):
+        """
+        Test that _make_api_call_with_retries_async calls raise_for_status() before response.json()
+        to prevent JSONDecodeError when response is not valid JSON.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        failed_response = mock.MagicMock()
+        failed_response.status = 500
+        failed_response.json = AsyncMock(side_effect=ValueError("Invalid JSON"))
+        failed_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
+            request_info=mock.MagicMock(),
+            history=mock.MagicMock(),
+            status=500,
+            message="Internal Server Error",
+        )
+
+        mock_async_request.__aenter__.return_value = failed_response
+
+        with pytest.raises(aiohttp.ClientResponseError):
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+        failed_response.raise_for_status.assert_called_once()
+        failed_response.json.assert_not_called()
+
+    def test_make_api_call_with_retries_json_decode_error_prevention(self, mock_requests):
+        """
+        Test that _make_api_call_with_retries calls raise_for_status() before response.json()
+        to prevent JSONDecodeError when response is not valid JSON.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        failed_response = mock.MagicMock()
+        failed_response.status_code = 500
+        failed_response.json.side_effect = requests.exceptions.JSONDecodeError("Invalid JSON", "", 0)
+        failed_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=failed_response)
+
+        mock_requests.request.return_value = failed_response
+
+        with pytest.raises(requests.exceptions.HTTPError):
+            hook._make_api_call_with_retries("GET", API_URL, HEADERS)
+
+        failed_response.raise_for_status.assert_called_once()
+        failed_response.json.assert_not_called()

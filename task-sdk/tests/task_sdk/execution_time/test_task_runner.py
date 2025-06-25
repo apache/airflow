@@ -2288,6 +2288,9 @@ class TestTaskRunnerCallsListeners:
 
 @pytest.mark.usefixtures("mock_supervisor_comms")
 class TestTaskRunnerCallsCallbacks:
+    class _Failure(Exception):
+        """Exception raised in a failed execution and received by the failure callback."""
+
     def _execute_success(self, context):
         self.results.append("execute success")
 
@@ -2299,7 +2302,7 @@ class TestTaskRunnerCallsCallbacks:
 
     def _execute_failure(self, context):
         self.results.append("execute failure")
-        raise Exception("sorry!")
+        raise self._Failure("sorry!")
 
     @pytest.mark.parametrize(
         "execute_impl, should_retry, expected_state, expected_results",
@@ -2347,6 +2350,10 @@ class TestTaskRunnerCallsCallbacks:
         def custom_callback(context, *, kind):
             collected_results.append(f"on-{kind} callback")
 
+        def failure_callback(context):
+            custom_callback(context, kind="failure")
+            assert isinstance(context["exception"], self._Failure)
+
         class CustomOperator(BaseOperator):
             results = collected_results
             execute = execute_impl
@@ -2356,7 +2363,7 @@ class TestTaskRunnerCallsCallbacks:
             on_execute_callback=functools.partial(custom_callback, kind="execute"),
             on_skipped_callback=functools.partial(custom_callback, kind="skipped"),
             on_success_callback=functools.partial(custom_callback, kind="success"),
-            on_failure_callback=functools.partial(custom_callback, kind="failure"),
+            on_failure_callback=failure_callback,
             on_retry_callback=functools.partial(custom_callback, kind="retry"),
         )
         runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=should_retry)

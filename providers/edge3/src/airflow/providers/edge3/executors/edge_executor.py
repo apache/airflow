@@ -113,7 +113,7 @@ class EdgeExecutor(BaseExecutor):
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """
-        Temponary overwrite of _process_tasks function.
+        Temporary overwrite of _process_tasks function.
 
         Idea is to not change the interface of the execute_async function in BaseExecutor as it will be changed in Airflow 3.
         Edge worker needs task_instance in execute_async but BaseExecutor deletes this out of the self.queued_tasks.
@@ -132,7 +132,7 @@ class EdgeExecutor(BaseExecutor):
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute asynchronously. Airflow 2.10 entry point to execute a task."""
-        # Use of a temponary trick to get task instance, will be changed with Airflow 3.0.0
+        # Use of a temporary trick to get task instance, will be changed with Airflow 3.0.0
         # code works together with _process_tasks overwrite to get task instance.
         # TaskInstance in fourth element
         task_instance = self.edge_queued_tasks[key][3]  # type: ignore[index]
