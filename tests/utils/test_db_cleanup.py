@@ -48,7 +48,6 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
-from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -291,7 +290,7 @@ class TestDBCleanup:
 
         # Create test data for DAG Run and TIs
         if table_name in {"dag_run", "task_instance"}:
-            create_tis(base_date=base_date, num_tis=num_tis, run_type=DagRunType.MANUAL)
+            create_tis(base_date=base_date, num_tis=num_tis, external_trigger=False)
 
         clean_before_date = base_date.add(days=10)
 
