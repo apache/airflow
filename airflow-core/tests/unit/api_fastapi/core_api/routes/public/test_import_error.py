@@ -27,7 +27,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import NEW_SESSION, provide_session
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -51,10 +51,17 @@ BUNDLE_NAME = "dag_maker"
 
 @pytest.fixture(scope="class")
 @provide_session
-def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
+def dag_bundle(clear_db, session: Session = NEW_SESSION) -> DagBundleModel:
     orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
-    session.merge(orm_dag_bundle)
+    session.add(orm_dag_bundle)
     session.flush()
+    session.commit()
+    return orm_dag_bundle
+
+
+@pytest.fixture(scope="class")
+@provide_session
+def permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(
         fileloc=FILENAME1,
         bundle_name=BUNDLE_NAME,
@@ -70,10 +77,7 @@ def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
 
 @pytest.fixture(scope="class")
 @provide_session
-def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
-    session.merge(orm_dag_bundle)
-    session.flush()
+def not_permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(
         fileloc=FILENAME1,
         bundle_name=BUNDLE_NAME,
@@ -90,11 +94,13 @@ def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
 def clear_db():
     clear_db_import_errors()
     clear_db_dags()
+    clear_db_dag_bundles()
 
     yield
 
     clear_db_import_errors()
     clear_db_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture(autouse=True, scope="class")

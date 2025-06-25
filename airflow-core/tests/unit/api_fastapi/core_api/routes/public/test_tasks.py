@@ -29,7 +29,12 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -78,6 +83,7 @@ class TestTaskEndpoint:
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
+        clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup(self, test_client) -> None:
@@ -240,7 +246,7 @@ class TestGetTask(TestTaskEndpoint):
         session = settings.Session()
         bundle_name = "testing"
         dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
-        session.merge(dag_model)
+        session.add(dag_model)
         session.flush()
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)

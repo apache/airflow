@@ -35,7 +35,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -100,6 +100,7 @@ class TestXComEndpoint:
     def clear_db():
         clear_db_dags()
         clear_db_runs()
+        clear_db_dag_bundles()
         clear_db_xcom()
 
     @pytest.fixture(autouse=True)

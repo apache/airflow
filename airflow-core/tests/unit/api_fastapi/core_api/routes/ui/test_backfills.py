@@ -28,6 +28,7 @@ from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import (
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -47,6 +48,7 @@ def _clean_db():
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture(autouse=True)
@@ -61,7 +63,7 @@ class TestBackfillEndpoint:
     def _create_dag_models(self, *, count=3, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
         bundle_name = "dags-folder"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
+        session.add(orm_dag_bundle)
         session.flush()
 
         dags = []

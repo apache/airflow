@@ -93,6 +93,7 @@ class TestDagRun:
         db.clear_db_runs()
         db.clear_db_pools()
         db.clear_db_dags()
+        db.clear_db_dag_bundles()
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()

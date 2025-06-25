@@ -58,6 +58,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_variables,
@@ -75,12 +76,14 @@ def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
     yield  # Test runs here
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
@@ -359,7 +362,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
 
     bundle_name = "test_bundle"
     orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.merge(orm_dag_bundle)
+    session.add(orm_dag_bundle)
     session.flush()
 
     dag = DagModel(dag_id="test-dag", bundle_name=bundle_name)

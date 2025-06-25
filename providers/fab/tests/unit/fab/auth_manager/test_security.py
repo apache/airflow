@@ -50,7 +50,7 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.mock_security_manager import MockSecurityManager
 from tests_common.test_utils.permissions import _resource_name
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
@@ -120,6 +120,7 @@ class SomeBaseView(BaseView):
 def _clear_db_dag_and_runs():
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
 
 
 def _delete_dag_permissions(dag_id, security_manager):
@@ -131,7 +132,7 @@ def _delete_dag_permissions(dag_id, security_manager):
 def _create_dag_model(dag_id, session, security_manager):
     bundle_name = "test_bundle"
     bundle = DagBundleModel(name=bundle_name)
-    session.merge(bundle)
+    session.add(bundle)
     session.flush()
     dag_model = DagModel(dag_id=dag_id, bundle_name=bundle_name)
     session.add(dag_model)
@@ -523,7 +524,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            session.merge(DagBundleModel(name=bundle_name))
+            session.add(DagBundleModel(name=bundle_name))
             session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
@@ -570,7 +571,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            session.merge(DagBundleModel(name=bundle_name))
+            session.add(DagBundleModel(name=bundle_name))
             session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
@@ -1054,7 +1055,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             username=username,
             role_name=role_name,
         ) as user:
-            session.merge(DagBundleModel(name=bundle_name))
+            session.add(DagBundleModel(name=bundle_name))
             session.flush()
             dag1 = DagModel(dag_id=dag_id, bundle_name=bundle_name)
             dag2 = DagModel(dag_id=dag_id_2, bundle_name=bundle_name)

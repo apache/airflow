@@ -41,7 +41,13 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_runs,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
 
@@ -192,12 +198,16 @@ class TestAssets:
     def setup(self):
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_logs()
 
         yield
 
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_logs()
 
     @provide_session
@@ -551,10 +561,14 @@ class TestAssetAliases:
     def setup(self) -> None:
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     @provide_session
     def create_asset_aliases(self, num: int = 2, *, session):

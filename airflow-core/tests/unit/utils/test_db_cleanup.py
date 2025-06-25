@@ -54,6 +54,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     drop_tables_with_prefix,
@@ -68,10 +69,12 @@ def clean_database():
     clear_db_runs()
     clear_db_assets()
     clear_db_dags()
+    clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_assets()
     clear_db_runs()
+    clear_db_dag_bundles()
 
 
 class TestDBCleanup:
@@ -621,7 +624,7 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        session.merge(DagBundleModel(name="dags-folder"))
+        session.add(DagBundleModel(name="dags-folder"))
         session.flush()
 
         dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="dags-folder")

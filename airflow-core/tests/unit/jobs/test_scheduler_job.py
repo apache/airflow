@@ -87,6 +87,7 @@ from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -6570,6 +6571,7 @@ class TestSchedulerJobQueriesCount:
         clear_db_pools()
         clear_db_backfills()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()

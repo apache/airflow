@@ -27,7 +27,12 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -45,12 +50,13 @@ class TestDagStatsEndpoint:
     def _clear_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_serialized_dags()
 
     def _create_dag_and_runs(self, session=None):
         bundle_name = "test_bundle"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
+        session.add(orm_dag_bundle)
         session.flush()
 
         dag_1 = DagModel(

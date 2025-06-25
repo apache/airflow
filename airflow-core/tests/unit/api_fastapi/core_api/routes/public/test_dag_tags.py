@@ -28,7 +28,12 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -53,6 +58,7 @@ class TestDagEndpoint:
     def _clear_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_serialized_dags()
 
     def _create_deactivated_paused_dag(self, session=None):
