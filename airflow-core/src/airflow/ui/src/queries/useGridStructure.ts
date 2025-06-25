@@ -25,8 +25,8 @@ export const useGridStructure = ({
   hasActiveRun = undefined,
   limit,
 }: {
-  hasActiveRun: boolean | undefined;
-  limit: number;
+  hasActiveRun?: boolean;
+  limit?: number;
 }) => {
   const { dagId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
