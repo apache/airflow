@@ -28,7 +28,11 @@ from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.execution_time.comms import XComResult
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.xcom import XCom
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -45,7 +49,7 @@ FilterCallables = Sequence[Callable[[Any], bool]]
 MapCallables = Sequence[Callable[[Any], Any]]
 
 
-class XComArg(ResolveMixin, DependencyMixin):
+class XComArg(LoggingMixin, ResolveMixin, DependencyMixin):
     """
     Reference to an XCom value pushed from another operator.
 
@@ -333,7 +337,7 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def _resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
         task_id = self.operator.task_id
 
@@ -363,6 +367,23 @@ class PlainXComArg(XComArg):
             # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
             return None
         raise XComNotFound(ti.dag_id, task_id, self.key)
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        value = self._resolve(context)
+
+        self.log.debug("value: %s", value)
+
+        if not isinstance(self.operator, MappedOperator):
+            deserialized_value = XCom.deserialize_value(
+                XComResult(key=self.operator.output.key, value=value)
+            )
+
+            self.log.debug("deserialized_value: %s", deserialized_value)
+
+            if isinstance(deserialized_value, ResolveMixin):
+                deserialized_value = deserialized_value.resolve(context)
+            return deserialized_value
+        return value
 
 
 def _get_callable_name(f: Callable | str) -> str:
