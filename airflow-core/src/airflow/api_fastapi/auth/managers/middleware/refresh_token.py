@@ -38,7 +38,6 @@ class RefreshTokenMiddleware(BaseHTTPMiddleware):
     @staticmethod
     def check_request_cors_headers(request: Request) -> bool:
         """Check if the request is a CORS request to ensure refresh is not executed for non-UI requests."""
-        print(f"Request headers: {request.headers}")
         return (
             "sec-fetch-mode" in request.headers
             and request.headers["sec-fetch-mode"]
