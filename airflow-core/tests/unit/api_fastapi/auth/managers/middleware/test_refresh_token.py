@@ -97,5 +97,6 @@ class TestRefreshTokenMiddleware:
         response = await refresh_token.dispatch(request=mock_request, call_next=mock_call_next)
         mock_auth_manager.get_user_from_token.assert_called_once_with("NO_TOKEN")
         mock_auth_manager.generate_jwt.assert_called_once()
+        mock_auth_manager.refresh_token.assert_called_once_with(user=mock_user)
         mock_call_next.assert_called_once_with(mock_request)
         assert response.status_code == 200
