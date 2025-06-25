@@ -43,7 +43,6 @@ from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import (
     add_default_pool_if_not_exists,
     create_default_connections,
-    get_default_connections,
     reflect_tables,
 )
 from airflow.utils.session import create_session
@@ -363,6 +362,8 @@ def create_default_connections_for_tests():
     variables instead would provide better lookup speeds and is easier too.
     """
     import os
+
+    from airflow.utils.db import get_default_connections
 
     conns = get_default_connections()
 
