@@ -59,7 +59,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
-    from airflow.typing_compat import Self
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
@@ -448,53 +447,3 @@ def task_clear(args) -> None:
         only_running=args.only_running,
         confirm_prompt=not args.yes,
     )
-
-
-class LoggerMutationHelper:
-    """
-    Helper for moving and resetting handlers and other logger attrs.
-
-    :meta private:
-    """
-
-    def __init__(self, logger: logging.Logger) -> None:
-        self.handlers = logger.handlers[:]
-        self.level = logger.level
-        self.propagate = logger.propagate
-        self.source_logger = logger
-
-    def apply(self, logger: logging.Logger, replace: bool = True) -> None:
-        """
-        Set ``logger`` with attrs stored on instance.
-
-        If ``logger`` is root logger, don't change propagate.
-        """
-        if replace:
-            logger.handlers[:] = self.handlers
-        else:
-            for h in self.handlers:
-                if h not in logger.handlers:
-                    logger.addHandler(h)
-        logger.level = self.level
-        if logger is not logging.getLogger():
-            logger.propagate = self.propagate
-
-    def move(self, logger: logging.Logger, replace: bool = True) -> None:
-        """
-        Replace ``logger`` attrs with those from source.
-
-        :param logger: target logger
-        :param replace: if True, remove all handlers from target first; otherwise add if not present.
-        """
-        self.apply(logger, replace=replace)
-        self.source_logger.propagate = True
-        self.source_logger.handlers[:] = []
-
-    def reset(self) -> None:
-        self.apply(self.source_logger)
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.reset()
