@@ -33,6 +33,7 @@ from requests.models import RequestEncodingMixin
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.hooks import base
+from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
@@ -40,6 +41,14 @@ from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_typ
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
 class TestHttpOperator:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bearer": "test"}'
+            )
+        )
+
     def test_response_in_logs(self, requests_mock):
         """
         Test that when using HttpOperator with 'GET',
