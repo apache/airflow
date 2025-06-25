@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -120,7 +121,9 @@ def calculate_constraints_location(
 ):
     constraints_base = f"https://raw.githubusercontent.com/{github_repository}/{constraints_reference}"
     location = f"{constraints_base}/{constraints_mode}-{python_version}.txt"
-    console.print(f"[info]Determined {'providers' if providers else 'airflow'} constraints as: {location}")
+    console.print(
+        f"[bright_blue]Determined {'providers' if providers else 'airflow'} constraints as: {location}"
+    )
     return location
 
 
@@ -142,25 +145,27 @@ def get_airflow_constraints_location(
     * DEFAULT_CONSTRAINT_BRANCH + constraints mode - as fallback
     * constraints-main + constraints mode - as fallback
     """
+    console.print("[bright_blue]Determining airflow constraints location")
     if airflow_skip_constraints:
+        console.print("[bright_blue]Skipping airflow constraints.")
         return None
     if airflow_constraints_location:
-        console.print(f"[info]Using constraints from location: {airflow_constraints_location}")
+        console.print(f"[bright_blue]Using constraints from location: {airflow_constraints_location}")
         return airflow_constraints_location
     if airflow_constraints_reference:
         console.print(
-            f"[info]Building constraints location from constraints reference: {airflow_constraints_reference}"
+            f"[bright_blue]Building constraints location from constraints reference: {airflow_constraints_reference}"
         )
     elif airflow_package_version:
         if re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", airflow_package_version):
             airflow_constraints_reference = f"constraints-{airflow_package_version}"
             console.print(
-                f"[info]Determined constraints reference from airflow package version "
+                f"[bright_blue]Determined constraints reference from airflow package version "
                 f"{airflow_package_version} as: {airflow_constraints_reference}"
             )
         else:
             airflow_constraints_reference = default_constraints_branch
-            console.print(f"[info]Falling back tp: {default_constraints_branch}")
+            console.print(f"[bright_blue]Falling back to constraints branch: {default_constraints_branch}")
     return calculate_constraints_location(
         constraints_mode=airflow_constraints_mode,
         constraints_reference=airflow_constraints_reference,
@@ -187,9 +192,10 @@ def get_providers_constraints_location(
     * constraints-main + constraints mode - as fallback
     """
     if providers_skip_constraints:
+        console.print("[bright_blue]Skipping providers constraints.")
         return None
     if providers_constraints_location:
-        console.print(f"[info]Using constraints from location: {providers_constraints_location}")
+        console.print(f"[bright_blue]Using constraints from location: {providers_constraints_location}")
         return providers_constraints_location
     if not providers_constraints_reference:
         providers_constraints_reference = default_constraints_branch
@@ -212,6 +218,7 @@ class InstallationSpec(NamedTuple):
     airflow_ctl_constraints_location: str | None
     provider_distributions: list[str]
     provider_constraints_location: str | None
+    pre_release: bool = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
 
 
 ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
@@ -235,6 +242,7 @@ def find_installation_spec(
     use_airflow_version: str,
     use_distributions_from_dist: bool,
 ) -> InstallationSpec:
+    console.print("[bright_blue]Finding installation specification")
     if use_distributions_from_dist:
         console.print("[bright_blue]Using distributions from dist folder")
     else:
@@ -247,6 +255,8 @@ def find_installation_spec(
         )
         sys.exit(1)
     extension = "whl" if distribution_format == "wheel" else "tar.gz"
+    pre_release = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
+    console.print("[bright_blue]Pre-release: ", pre_release)
     if airflow_extras:
         console.print(f"[bright_blue]Using airflow extras: {airflow_extras}")
         airflow_extras = f"[{airflow_extras}]"
@@ -260,6 +270,7 @@ def find_installation_spec(
         console.print("[red]This is not supported. Please use --mount-sources=remove flag in breeze.")
         sys.exit(1)
     if use_airflow_version in ["wheel", "sdist"] and use_distributions_from_dist:
+        console.print("[bright_blue]Finding specification from local distribution files in dist folder")
         airflow_distribution_spec, airflow_core_distribution_spec = find_airflow_package(extension)
         if use_airflow_version != distribution_format:
             console.print(
@@ -270,6 +281,7 @@ def find_installation_spec(
         if airflow_distribution_spec:
             airflow_version = get_airflow_version_from_package(airflow_distribution_spec)
             if airflow_version:
+                console.print(f"[bright_blue]Using airflow version retrieved from package: {airflow_version}")
                 airflow_constraints_location = get_airflow_constraints_location(
                     airflow_skip_constraints=airflow_skip_constraints,
                     airflow_constraints_mode=airflow_constraints_mode,
@@ -399,6 +411,18 @@ def find_installation_spec(
         )
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
+        try:
+            from packaging.version import Version
+
+            if Version(use_airflow_version).is_prerelease:
+                console.print(
+                    f"[yellow]Forcing pre-release installation for pre-release "
+                    f"airflow version {use_airflow_version}"
+                )
+                pre_release = True
+        except Exception:
+            # In case parsing version fails here we just skip setting pre-release
+            pass
     provider_distributions_list = []
     if use_distributions_from_dist:
         selected_providers_list = install_selected_providers.split(",") if install_selected_providers else []
@@ -407,7 +431,7 @@ def find_installation_spec(
         else:
             console.print("\n[bright_blue]No preselected providers\n")
         provider_distributions_list = find_provider_distributions(extension, selected_providers_list)
-    return InstallationSpec(
+    installation_spec = InstallationSpec(
         airflow_distribution=airflow_distribution_spec,
         airflow_core_distribution=airflow_core_distribution_spec,
         airflow_constraints_location=airflow_constraints_location,
@@ -425,12 +449,15 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         ),
+        pre_release=pre_release,
     )
+    console.print("[bright_blue]Installation specification:[/]", installation_spec)
+    return installation_spec
 
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests", "selected"]
 
 INIT_CONTENT = '__path__ = __import__("pkgutil").extend_path(__path__, __name__) # type: ignore'
 FUTURE_CONTENT = "from __future__ import annotations"
@@ -617,12 +644,33 @@ def install_airflow_and_providers(
         use_distributions_from_dist=use_distributions_from_dist,
     )
     if installation_spec.airflow_distribution and install_airflow_with_constraints:
+        console.print("[bright_blue]Installing airflow with constraints")
+        console.print(
+            "[bright_blue]Airflow constraints location: ", installation_spec.airflow_constraints_location
+        )
+        console.print("[bright_blue]Airflow distribution", installation_spec.airflow_distribution)
+        console.print("[bright_blue]Airflow core distribution", installation_spec.airflow_core_distribution)
+        console.print(
+            "[bright_blue]Airflow task-sdk constraints location: ",
+            installation_spec.airflow_task_sdk_constraints_location,
+        )
+        console.print(
+            "[bright_blue]Airflow task-sdk distribution", installation_spec.airflow_task_sdk_distribution
+        )
+        console.print(
+            "[bright_blue]Airflow ctl constraints location: ",
+            installation_spec.airflow_ctl_constraints_location,
+        )
+        console.print("[bright_blue]Airflow ctl distribution", installation_spec.airflow_ctl_distribution)
         base_install_airflow_cmd = [
             "/usr/local/bin/uv",
             "pip",
             "install",
-            installation_spec.airflow_distribution,
         ]
+        if installation_spec.pre_release:
+            console.print("[bright_blue]Allowing pre-release versions of airflow")
+            base_install_airflow_cmd.append("--pre")
+        base_install_airflow_cmd.append(installation_spec.airflow_distribution)
         console.print(
             f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} with constraints"
         )
@@ -700,11 +748,14 @@ def install_airflow_and_providers(
                 )
                 run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_distributions or not install_airflow_with_constraints:
+        console.print("[bright_blue]Installing airflow without constraints")
         base_install_providers_cmd = [
             "/usr/local/bin/uv",
             "pip",
             "install",
         ]
+        if installation_spec.pre_release:
+            base_install_providers_cmd.append("--pre")
         if not install_airflow_with_constraints and installation_spec.airflow_distribution:
             console.print(
                 f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} without constraints"
