@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from wrapt import synchronized
 
 from airflow.exceptions import AirflowException
+from airflow.models.xcom import XComModel
 from airflow.sdk.bases.operator import BaseOperator as Operator
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions.context import Context
@@ -124,6 +125,16 @@ class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
             self.results.extend(results)
         else:
             self.results.append(results)
+
+        # We push appended results back to existing XCom
+        XComModel.set(
+            key=self.operator.output.key,
+            value=self.results,
+            task_id=self.operator.task_id,
+            dag_id=self.operator.dag_id,
+            run_id=self.context["run_id"],
+            # map_index=self.context["ti"].map_index,
+        )
 
         self.index += 1
         return self.results[-1]
