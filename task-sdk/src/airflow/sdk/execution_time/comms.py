@@ -104,9 +104,10 @@ try:
         HITLInputRequestResponseResult,
     )
 except ModuleNotFoundError:
-    FetchHITLResponse = None
-    CreateHITLInputRequestPayload = None
-    HITLInputRequestResponseResult = None
+    FetchHITLResponse = object  # type: ignore[misc, assignment]
+    CreateHITLInputRequestPayload = object  # type: ignore[misc, assignment]
+    HITLInputRequestResponseResult = object  # type: ignore[misc, assignment]
+
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger

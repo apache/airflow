@@ -96,6 +96,12 @@ def get_provider_info():
                 ],
             }
         ],
+        "plugins": [
+            {
+                "name": "standard_hitl",
+                "plugin-class": "airflow.providers.standard.plugins.hitl.HumanInTheLoopPlugin",
+            }
+        ],
         "extra-links": [
             "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
             "airflow.providers.standard.sensors.external_task.ExternalDagLink",
