@@ -34,7 +34,7 @@ revision = ${repr(up_revision)}
 down_revision = ${repr(down_revision)}
 branch_labels = ${repr(branch_labels)}
 depends_on = ${repr(depends_on)}
-fab_version = None
+standard_provider_verison = None
 
 
 def upgrade() -> None:
