@@ -201,6 +201,7 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/test_go_module_utils.py",
             "providers/google/tests/unit/google/test_version_compat.py",
             "providers/http/tests/unit/http/test_exceptions.py",
+            "providers/keycloak/tests/unit/keycloak/auth_manager/datamodels/test_token.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
@@ -468,6 +469,31 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook",
+        "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink",
+        "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink",
+        "airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryGroupOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateFieldOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryGroupOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetTagTemplateOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogListTagsOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogLookupEntryOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogRenameTagTemplateFieldOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogSearchCatalogOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateEntryOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator",
     }
 
     BASE_CLASSES = {
@@ -496,6 +522,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator",
     }
 
     ASSETS_NOT_REQUIRED = {

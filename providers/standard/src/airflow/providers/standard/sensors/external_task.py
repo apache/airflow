@@ -46,7 +46,7 @@ from airflow.utils.state import State, TaskInstanceState
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.sensor import BaseSensorOperator
 else:
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sensors.base import BaseSensorOperator  # type:ignore[no-redef]
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:

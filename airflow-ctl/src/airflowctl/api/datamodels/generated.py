@@ -21,7 +21,7 @@ class AppBuilderMenuItemResponse(BaseModel):
         extra="allow",
     )
     name: Annotated[str, Field(title="Name")]
-    href: Annotated[str | None, Field(title="Href")] = None
+    href: Annotated[str, Field(title="Href")]
     category: Annotated[str | None, Field(title="Category")] = None
 
 
@@ -514,6 +514,31 @@ class ExternalLogUrlResponse(BaseModel):
     url: Annotated[str, Field(title="Url")]
 
 
+class Destination(str, Enum):
+    NAV = "nav"
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK = "task"
+    TASK_INSTANCE = "task_instance"
+
+
+class ExternalViewResponse(BaseModel):
+    """
+    Serializer for IFrame Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    href: Annotated[str, Field(title="Href")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+
+
 class ExtraLinkCollectionResponse(BaseModel):
     """
     Extra Links Response.
@@ -554,29 +579,6 @@ class HTTPExceptionResponse(BaseModel):
     """
 
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
-
-
-class Destination(str, Enum):
-    NAV = "nav"
-    DAG = "dag"
-    DAG_RUN = "dag_run"
-    TASK = "task"
-    TASK_INSTANCE = "task_instance"
-
-
-class IFrameViewsResponse(BaseModel):
-    """
-    Serializer for IFrame Plugin responses.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    name: Annotated[str, Field(title="Name")]
-    src: Annotated[str, Field(title="Src")]
-    icon: Annotated[str | None, Field(title="Icon")] = None
-    url_route: Annotated[str | None, Field(title="Url Route")] = None
-    destination: Annotated[Destination | None, Field(title="Destination")] = None
 
 
 class ImportErrorResponse(BaseModel):
@@ -647,7 +649,13 @@ class PluginResponse(BaseModel):
     fastapi_root_middlewares: Annotated[
         list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
     ]
-    iframe_views: Annotated[list[IFrameViewsResponse], Field(title="Iframe Views")]
+    external_views: Annotated[
+        list[ExternalViewResponse],
+        Field(
+            description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.",
+            title="External Views",
+        ),
+    ]
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
     appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
     global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
@@ -763,6 +771,20 @@ class TaskDependencyResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     reason: Annotated[str, Field(title="Reason")]
+
+
+class TaskInletAssetReference(BaseModel):
+    """
+    Task inlet reference serializer for assets.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    created_at: Annotated[datetime, Field(title="Created At")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
 class TaskInstanceState(str, Enum):
@@ -1039,8 +1061,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
+    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None
 

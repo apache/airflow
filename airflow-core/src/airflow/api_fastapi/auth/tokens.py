@@ -371,6 +371,18 @@ def _load_key_from_configured_file() -> AllowedPrivateKeys | None:
         return _pem_to_key(fh.read())
 
 
+def _generate_kid(gen) -> str:
+    if not gen._private_key:
+        return "not-used"
+
+    if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
+        return kid
+
+    # Generate it from the thumbprint of the private key
+    info = key_to_jwk_dict(gen._private_key)
+    return info["kid"]
+
+
 @attrs.define(repr=False, kw_only=True)
 class JWTGenerator:
     """Generate JWT tokens."""
@@ -391,7 +403,7 @@ class JWTGenerator:
     )
     """A pre-shared secret key to sign tokens with symmetric encryption"""
 
-    kid: str = attrs.field()
+    kid: str = attrs.field(default=attrs.Factory(_generate_kid, takes_self=True))
     valid_for: float
     audience: str
     issuer: str | list[str] | None = attrs.field(
@@ -400,18 +412,6 @@ class JWTGenerator:
     algorithm: str = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_algorithm", first_only=True, fallback="GUESS")
     )
-
-    @kid.default
-    def _generate_kid(self):
-        if not self._private_key:
-            return "not-used"
-
-        if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
-            return kid
-
-        # Generate it from the thumbprint of the private key
-        info = key_to_jwk_dict(self._private_key)
-        return info["kid"]
 
     def __attrs_post_init__(self):
         if not (self._private_key is None) ^ (self._secret_key is None):

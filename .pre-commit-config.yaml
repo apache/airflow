@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.16.0
+  node: 22.17.0
   golang: 1.24.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
@@ -206,7 +206,11 @@ repos:
         entry: ./scripts/ci/pre_commit/update_installers_and_pre_commit.py
         stages: ['manual']
         language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/update_installers_and_pre_commit\.py$
+        files: >
+          (?x)
+          ^\.pre-commit-config\.yaml$|
+          ^\.github/\.pre-commit-config\.yaml$|
+          ^scripts/ci/pre_commit/update_installers_and_pre_commit\.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0']
@@ -355,8 +359,7 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
@@ -435,7 +438,7 @@ repos:
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*|\.go$|/go\.(mod|sum)$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -538,6 +541,16 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: prevent-deprecated-sqlalchemy-usage
+        name: Prevent deprecated sqlalchemy usage
+        entry: ./scripts/ci/pre_commit/prevent_deprecated_sqlalchemy_usage.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: >
+            (?x)
+            ^airflow-ctl.*\.py$|
+            ^task_sdk.*\.py$
+        pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/supported_versions.py
@@ -571,6 +584,60 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-pytest-mark-db-test-in-providers
+        language: pygrep
+        name: Check pytest.mark.db_test use in providers
+        entry: pytest\.mark\.db_test
+        pass_filenames: true
+        # Here we should add providers that are already free from the pytest.mark.db_test
+        # and we want to keep them clean and only use non-db-tests
+        files: >
+            (?x)
+            ^providers/airbyte/.*\.py$|
+            ^providers/apache/beam/.*\.py$|
+            ^providers/apache/flink/.*\.py$|
+            ^providers/apache/iceberg/.*\.py$|
+            ^providers/apache/kafka/.*\.py$|
+            ^providers/arangodb/.*\.py$|
+            ^providers/asana/.*\.py$|
+            ^providers/cloudant/.*\.py$|
+            ^providers/cohere/.*\.py$|
+            ^providers/common/compat/.*\.py$|
+            ^providers/common/messaging/.*\.py$|
+            ^providers/datadog/.*\.py$|
+            ^providers/dingding/.*\.py$|
+            ^providers/discord/.*\.py$|
+            ^providers/exasol/.*\.py$|
+            ^providers/facebook/.*\.py$|
+            ^providers/ftp/.*\.py$|
+            ^providers/grpc/.*\.py$|
+            ^providers/hashicorp/.*\.py$|
+            ^providers/imap/.*\.py$|
+            ^providers/influxdb/.*\.py$|
+            ^providers/jdbc/.*\.py$|
+            ^providers/jenkins/.*\.py$|
+            ^providers/mongo/.*\.py$|
+            ^providers/microsoft/psrp/.*\.py$|
+            ^providers/microsoft/winrm/.*\.py$|
+            ^providers/neo4j/.*\.py$|
+            ^providers/odbc/.*\.py$|
+            ^providers/openai/.*\.py$|
+            ^providers/openfaas/.*\.py$|
+            ^providers/oracle/.*\.py$|
+            ^providers/pagerduty/.*\.py$|
+            ^providers/pgvector/.*\.py$|
+            ^providers/pinecone/.*\.py$|
+            ^providers/postgres/.*\.py$|
+            ^providers/presto/.*\.py$|
+            ^providers/segment/.*\.py$|
+            ^providers/sendgrid/.*\.py$|
+            ^providers/singularity/.*\.py$|
+            ^providers/tableau/.*\.py$|
+            ^providers/teradata/.*\.py$|
+            ^providers/trino/.*\.py$|
+            ^providers/vertica/.*\.py$|
+            ^providers/yandex/.*\.py$|
+            ^providers/zendesk/.*\.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
         name: Verify no hard-coded version in example dags
         description: The links to example dags should use |version| as version specification
@@ -636,7 +703,7 @@ repos:
           (?x)
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/de/README\.md$|
+          ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
@@ -687,6 +754,7 @@ repos:
           ^.*/conf_constants\.py$|
           ^.*/provider_conf\.py$|
           ^devel-common/src/sphinx_exts/removemarktransform\.py|
+          ^devel-common/src/tests_common/test_utils/db\.py|
           ^airflow-core/newsfragments/41761.significant\.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema\.py$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
@@ -1278,6 +1346,13 @@ repos:
         types: [go]
         pass_filenames: false
         language: docker_image
+      - id: go-mod-tidy
+        name: Run go mod tidy
+        entry: bash -c "cd go-sdk && go mod tidy"
+        files: ^go-sdk/
+        exclude: mocks/.*\.go$
+        pass_filenames: false
+        language: system
       - id: gofmt
         name: Format go code
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots
@@ -1446,7 +1521,7 @@ repos:
         name: Check i18n files validity
         description: Check i18n files are valid json and have no TODOs
         language: python
-        files: ^airflow-core/src/airflow/ui/src/i18n/locales/.*\.json
+        files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json
         entry: ./scripts/ci/pre_commit/check_i18n_json.py
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false

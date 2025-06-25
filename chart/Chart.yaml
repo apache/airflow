@@ -19,7 +19,7 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.17.0
+version: 1.18.0-dev
 appVersion: 3.0.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
@@ -44,7 +44,7 @@ type: application
 annotations:
   artifacthub.io/links: |
     - name: Documentation
-      url: https://airflow.apache.org/docs/helm-chart/1.17.0/
+      url: https://airflow.apache.org/docs/helm-chart/1.18.0/
   artifacthub.io/screenshots: |
     - title: Home Page
       url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/home_dark.png
@@ -123,6 +123,21 @@ annotations:
       links:
       - name: '#51799'
         url: https://github.com/apache/airflow/pull/51799
+    - description: 'Add missing ``workers.kerberosInitContainer`` configuration in values'
+      kind: changed
+      links:
+      - name: '#51405'
+        url: https://github.com/apache/airflow/pull/51405
+    - description: 'Truncate the executor label length'
+      kind: changed
+      links:
+      - name: '#51817'
+        url: https://github.com/apache/airflow/pull/51817
+    - description: 'Fix execution_api_server_url when base_url has a subpath'
+      kind: changed
+      links:
+      - name: '#51454
+        url: https://github.com/apache/airflow/pull/51454
     - description: 'Docs: Bump minimum helm version in docs'
       kind: changed
       links:

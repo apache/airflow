@@ -316,9 +316,9 @@ Naming conventions for the images:
 +----------------+-----------------------+---------------------------------+--------------------------------------+
 | Image          | Python                | Standard image                  | Slim image                           |
 +================+=======================+=================================+======================================+
-| Latest default | 3.9                   | apache/airflow:latest           | apache/airflow:slim-latest           |
+| Latest default | 3.12                  | apache/airflow:latest           | apache/airflow:slim-latest           |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
-| Default        | 3.9                   | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
+| Default        | 3.12                  | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
 | Latest         | 3.9,3.10,3.11,3.12    | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
