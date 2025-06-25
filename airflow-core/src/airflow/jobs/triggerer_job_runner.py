@@ -49,7 +49,6 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DRCount,
     ErrorResponse,
-    FetchHITLResponse,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -57,7 +56,6 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
-    HITLResponseResult,
     TaskStatesResult,
     TICount,
     VariableResult,
@@ -73,6 +71,16 @@ from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
+
+# TODO: Remove this block once we can make the execution API pluggable.
+try:
+    from airflow.providers.standard.execution_time.comms import (
+        FetchHITLResponse,
+        HITLResponseResult,
+    )
+except ModuleNotFoundError:
+    FetchHITLResponse = None
+    HITLResponseResult = None
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -452,7 +460,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
-        elif isinstance(msg, FetchHITLResponse):
+        # TODO: Remove this block once we can make the execution API pluggable.
+        elif issubclass(FetchHITLResponse, BaseModel) and isinstance(msg, FetchHITLResponse):
+            if TYPE_CHECKING:
+                assert HITLResponseResult is not None
             api_resp = self.client.hitl.get_response(ti_id=msg.ti_id)
             resp = HITLResponseResult.from_api_response(hitl_response=api_resp)
         else:
