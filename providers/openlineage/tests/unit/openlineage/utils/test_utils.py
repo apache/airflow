@@ -1436,7 +1436,6 @@ def test_dagrun_info_af3(mocked_dag_versions):
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
-@pytest.mark.db_test
 def test_dagrun_info_af2():
     date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
     dag = DAG(
