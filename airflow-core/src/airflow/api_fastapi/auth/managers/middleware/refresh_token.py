@@ -35,23 +35,10 @@ class RefreshTokenMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.auth_manager = auth_manager
 
-    @staticmethod
-    def check_request_cors_headers(request: Request) -> bool:
-        """Check if the request is a CORS request to ensure refresh is not executed for non-UI requests."""
-        return (
-            "sec-fetch-mode" in request.headers
-            and request.headers["sec-fetch-mode"]
-            in [
-                "cors",
-                "same-origin",
-            ]
-            and request.headers["sec-fetch-mode"] not in ["no-cors", "websocket", "navigate"]
-        )
-
     async def dispatch(self, request: Request, call_next):
         # Extract Authorization header
         auth = request.headers.get("authorization")
-        if auth and auth.lower().startswith("bearer ") and self.check_request_cors_headers(request):
+        if auth and auth.lower().startswith("bearer "):
             token_str = auth.split(" ", 1)[1]
             if token_str != "null":
                 user = await self.auth_manager.get_user_from_token(token_str)
