@@ -754,6 +754,7 @@ repos:
           ^.*/conf_constants\.py$|
           ^.*/provider_conf\.py$|
           ^devel-common/src/sphinx_exts/removemarktransform\.py|
+          ^devel-common/src/tests_common/test_utils/db\.py|
           ^airflow-core/newsfragments/41761.significant\.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema\.py$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
