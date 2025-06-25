@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Union
@@ -28,11 +29,15 @@ import psycopg2.extras
 from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 if TYPE_CHECKING:
+    from pandas import DataFrame as PandasDataFrame
     from psycopg2.extensions import connection
 
     from airflow.models.connection import Connection
@@ -172,6 +177,24 @@ class PostgresHook(DbApiHook):
 
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
+
+    def _get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> PandasDataFrame:
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[pandas]'."
+            )
+
+        engine = self.get_sqlalchemy_engine()
+        with engine.connect() as conn:
+            return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
     def copy_expert(self, sql: str, filename: str) -> None:
         """
