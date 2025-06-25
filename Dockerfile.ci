@@ -165,7 +165,6 @@ function install_python() {
 function install_golang() {
     curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz
-    export PATH=$PATH:/usr/local/go/bin
 }
 
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
@@ -951,7 +950,7 @@ function environment_initialization() {
     CI=${CI:="false"}
 
     # Added to have run-tests on path
-    export PATH=${PATH}:${AIRFLOW_SOURCES}
+    export PATH=${PATH}:${AIRFLOW_SOURCES}:/usr/local/go/bin/
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 

@@ -147,7 +147,6 @@ function install_python() {
 function install_golang() {
     curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz
-    export PATH=$PATH:/usr/local/go/bin
 }
 
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
