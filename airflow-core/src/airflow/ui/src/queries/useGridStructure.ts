@@ -22,7 +22,7 @@ import { useGridServiceGetDagStructure } from "openapi/queries";
 import { useAutoRefresh } from "src/utils";
 
 export const useGridStructure = ({
-  hasActiveRun,
+  hasActiveRun = undefined,
   limit,
 }: {
   hasActiveRun: boolean | undefined;
