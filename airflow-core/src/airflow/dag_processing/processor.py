@@ -108,9 +108,8 @@ def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> No
     saving CPU time and memory.
     (The default value of "parsing_pre_import_modules" is set to True)
 
-    Args:
-        file_path: Path to the file to scan for imports
-        log: Logger instance to use for warnings
+    :param file_path: Path to the file to scan for imports
+    :param log: Logger instance to use for warnings
     """
     if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
         return
@@ -273,9 +272,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
-        logger: FilteringBoundLogger,
         **kwargs,
     ) -> Self:
+        logger = kwargs["logger"]
+
         _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(target=target, client=client, **kwargs)
