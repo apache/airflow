@@ -293,12 +293,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 uv tool install -e ./dev/breeze
 ```
 
-or (if you prefer to use pipx):
-
-```shell script
-pipx install -e ./dev/breeze
-```
-
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
