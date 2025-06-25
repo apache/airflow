@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 
 
 def get_after(sentinel, iterable):
@@ -64,7 +64,7 @@ class TestSparkSqlHook:
 
     @classmethod
     def setup_class(cls) -> None:
-        clear_db_connections(add_default_connections_back=False)
+        clear_test_connections(add_default_connections_back=False)
 
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
@@ -74,7 +74,7 @@ class TestSparkSqlHook:
 
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections(add_default_connections_back=True)
+        clear_test_connections(add_default_connections_back=True)
 
     @pytest.mark.db_test
     def test_build_command(self):

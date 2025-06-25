@@ -31,7 +31,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from tests_common.test_utils.db import clear_db_runs, clear_test_connections
 from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
@@ -48,7 +48,7 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
         unique_suffix = "".join(random.sample(string.ascii_lowercase, 16))
         cls.bucket_name = f"airflow-gcs-task-handler-tests-{unique_suffix}"  # type: ignore
         cls.create_gcs_bucket(cls.bucket_name)  # type: ignore
-        clear_db_connections()
+        clear_test_connections()
 
     @classmethod
     def teardown_class(cls) -> None:
