@@ -44,11 +44,6 @@ class HITLInputRequestModel(Base):
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         nullable=False,
     )
-    task_instance = relationship(
-        "TaskInstance",
-        back_populates="input_request",
-        uselist=False,
-    )
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -76,7 +71,7 @@ class HITLResponseModel(Base):
     )
     input_request = relationship(
         "HITLInputRequestModel",
-        back_populates="response",
+        backref="response",
         uselist=False,
     )
 
