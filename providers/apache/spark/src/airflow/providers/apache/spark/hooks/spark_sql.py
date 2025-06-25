@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection

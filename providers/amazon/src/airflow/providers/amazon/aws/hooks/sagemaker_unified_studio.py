@@ -30,7 +30,7 @@ from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 
 
 class SageMakerNotebookHook(BaseHook):

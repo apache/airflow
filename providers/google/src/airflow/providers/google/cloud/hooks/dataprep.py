@@ -31,7 +31,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 
 
 def _get_field(extras: dict, field_name: str) -> str | None:

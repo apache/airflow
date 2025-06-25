@@ -42,7 +42,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 from airflow.sdk import Param
 from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.utils.trigger_rule import TriggerRule

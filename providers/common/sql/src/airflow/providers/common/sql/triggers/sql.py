@@ -25,7 +25,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:

@@ -54,7 +54,7 @@ from airflow.exceptions import (
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase

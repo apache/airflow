@@ -38,10 +38,11 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHo
 
 from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
+
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 

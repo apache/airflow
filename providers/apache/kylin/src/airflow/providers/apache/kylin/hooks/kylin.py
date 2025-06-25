@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
 
 
 class KylinHook(BaseHook):
