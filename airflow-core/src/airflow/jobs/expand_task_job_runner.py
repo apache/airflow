@@ -78,7 +78,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Persisting %d new task instances", len(task_instances))
             dag_run.task_instances.extend(task_instances)
             session.merge(dag_run)
-            session.flush()
+            session.commit()
             task_instances.clear()
 
     def expand_unmapped_task_instance(
@@ -106,6 +106,10 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             expand_input = expand_input.resolve(context)
 
         for map_index, _ in enumerate(expand_input):
+            # if map_index > 40:
+            #     self.log.warning("Stop expanding tasks over %s!", map_index)
+            #     break
+
             self.log.info("map_index: %s", map_index)
 
             if map_index == 0:
