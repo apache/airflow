@@ -349,20 +349,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Content-Type": "application/x-www-form-urlencoded",
         }
 
-    @staticmethod
-    def get_keycloak_client() -> KeycloakOpenID:
-        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
-        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
-        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
-        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
-
-        return KeycloakOpenID(
-            server_url=server_url,
-            client_id=client_id,
-            client_secret_key=client_secret,
-            realm_name=realm,
-        )
-
     def refresh_token(self, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
         """Refresh the access token for the user."""
         if self._is_token_expired(user=user) and user.access_token and user.refresh_token:
