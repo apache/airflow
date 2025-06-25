@@ -1907,7 +1907,7 @@ class TestDatabricksHookAsyncAadToken:
 @pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenOtherClouds:
     """
-    Tests for DatabricksHook using async methodswhen auth is done with AAD token
+    Tests for DatabricksHook using async methods when auth is done with AAD token
     for SP as user inside workspace and using non-global Azure cloud (China, GovCloud, Germany)
     """
 
