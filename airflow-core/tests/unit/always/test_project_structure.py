@@ -201,6 +201,7 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/test_go_module_utils.py",
             "providers/google/tests/unit/google/test_version_compat.py",
             "providers/http/tests/unit/http/test_exceptions.py",
+            "providers/keycloak/tests/unit/keycloak/auth_manager/datamodels/test_token.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
