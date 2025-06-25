@@ -137,7 +137,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -152,7 +152,7 @@ class ReferenceModels:
             return self._evaluate_with(session=session, **filtered_kwargs) + interval
 
         @abstractmethod
-        def _evaluate_with(self, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -186,7 +186,7 @@ class ReferenceModels:
 
         _datetime: datetime
 
-        def _evaluate_with(self, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             return self._datetime
 
         def serialize_reference(self) -> dict:
@@ -204,7 +204,7 @@ class ReferenceModels:
 
         required_kwargs = {"dag_id"}
 
-        def _evaluate_with(self, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
             return _fetch_from_db(DagRun.logical_date, session=session, **kwargs)
@@ -215,7 +215,7 @@ class ReferenceModels:
         required_kwargs = {"dag_id"}
 
         @provide_session
-        def _evaluate_with(self, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)

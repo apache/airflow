@@ -180,19 +180,13 @@ class DeadlineReference:
         """Collection of DeadlineReference types for type checking."""
 
         # Deadlines that should be created when the DagRun is created.
-        DAGRUN_CREATED = tuple(
-            {
-                ReferenceModels.DagRunLogicalDateDeadline,
-                ReferenceModels.FixedDatetimeDeadline,
-            }
+        DAGRUN_CREATED = (
+            ReferenceModels.DagRunLogicalDateDeadline,
+            ReferenceModels.FixedDatetimeDeadline,
         )
 
         # Deadlines that should be created when the DagRun is queued.
-        DAGRUN_QUEUED = tuple(
-            {
-                ReferenceModels.DagRunQueuedAtDeadline,
-            }
-        )
+        DAGRUN_QUEUED = (ReferenceModels.DagRunQueuedAtDeadline,)
 
         # All DagRun-related deadline types.
         DAGRUN = DAGRUN_CREATED + DAGRUN_QUEUED
