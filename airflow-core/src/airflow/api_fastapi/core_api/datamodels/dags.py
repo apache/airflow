@@ -93,7 +93,7 @@ class DAGResponse(BaseModel):
         if v is None:
             return []
         if isinstance(v, str):
-            return v.split(",")
+            return [x.strip() for x in v.split(",")]
         return v
 
     @field_validator("timetable_summary", mode="before")
