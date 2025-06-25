@@ -151,7 +151,6 @@ class TestHttpTrigger:
         assert response.reason == client_response.reason
         assert dict(response.cookies) == dict(client_response.cookies)
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("aiohttp.client.ClientSession.post")
     async def test_trigger_on_post_with_data(self, mock_http_post, trigger):

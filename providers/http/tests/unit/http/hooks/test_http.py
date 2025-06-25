@@ -340,7 +340,6 @@ class TestHttpHook:
             resp = self.post_hook.run("v1/test")
             assert resp.status_code == 418
 
-    @pytest.mark.db_test
     @mock.patch("requests.Session.send")
     def test_retry_on_conn_error(self, mock_session_send):
         retry_args = dict(
@@ -706,7 +705,6 @@ class TestHttpAsyncHook:
 
         assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_do_api_call_async_unknown_method(self):
         """Test api call asynchronously for unknown http method."""

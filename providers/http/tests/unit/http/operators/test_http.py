@@ -95,7 +95,6 @@ class TestHttpOperator:
         result = operator.execute({})
         assert result == {"value": 5}
 
-    @pytest.mark.db_test
     def test_async_defer_successfully(self, requests_mock):
         operator = HttpOperator(
             task_id="test_HTTP_op",
@@ -190,7 +189,6 @@ class TestHttpOperator:
 
         assert result == [5, 10]
 
-    @pytest.mark.db_test
     def test_async_pagination(self, requests_mock):
         """
         Test that the HttpOperator calls asynchronously and repetitively
