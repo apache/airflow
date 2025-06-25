@@ -45,8 +45,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-pytestmark = pytest.mark.db_test
-
 EXPECTED_TRY_NUMBER_1 = 1
 
 TRY_NUMBER_BEFORE_EXECUTION = 0
@@ -757,6 +755,7 @@ class TestOpenLineageListenerAirflow2:
         mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
         mock_executor.return_value.submit.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("method", "dag_run_state"),
         [
@@ -1574,6 +1573,7 @@ class TestOpenLineageListenerAirflow3:
         mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
         mock_executor.return_value.submit.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("method", "dag_run_state"),
         [

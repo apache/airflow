@@ -59,8 +59,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-pytestmark = pytest.mark.db_test
-
 
 @pytest.mark.parametrize(
     "env_vars, expected_logging",
