@@ -52,7 +52,9 @@ def upgrade() -> None:
         sa.Column("defaults", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         sa.Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         sa.Column("multiple", sa.Boolean, default=False, nullable=False, server_default="0"),
-        sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
+        sa.Column(
+            "ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=False
+        ),
         sa.ForeignKeyConstraint(
             ["ti_id"],
             ["task_instance.id"],
@@ -67,11 +69,11 @@ def upgrade() -> None:
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("user_id", sa.String(length=128), nullable=False),
-        sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
+        sa.Column("input_request_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
-            ["ti_id"],
-            ["task_instance.id"],
-            name="hitl_response_ti_fkey",
+            ["input_request_id"],
+            ["hitl_input_request.id"],
+            name="hitl_response_input_request_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
