@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-25T08:06:12.321470
+# This constraints file was automatically generated on 2025-06-25T14:07:23.303509
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -337,14 +337,14 @@ geomet==0.2.1.post1
 gevent==25.5.1
 gitdb==4.0.12
 google-ads==27.0.0
-google-analytics-admin==0.24.0
+google-analytics-admin==0.24.1
 google-api-core==2.25.1
 google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
 google-cloud-aiplatform==1.99.0
-google-cloud-alloydb==0.4.7
+google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.4
@@ -363,7 +363,7 @@ google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.3
 google-cloud-dataproc==5.20.0
-google-cloud-dlp==3.30.0
+google-cloud-dlp==3.31.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.2
 google-cloud-logging==3.12.1
@@ -383,7 +383,7 @@ google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.3
 google-cloud-texttospeech==2.27.0
-google-cloud-translate==3.20.3
+google-cloud-translate==3.21.0
 google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
@@ -417,7 +417,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.33.0
+huggingface-hub==0.33.1
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -793,7 +793,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.0
-uv==0.7.14
+uv==0.7.15
 uvicorn==0.34.3
 uvloop==0.21.0
 validators==0.34.0
