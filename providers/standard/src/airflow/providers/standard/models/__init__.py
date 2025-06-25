@@ -19,6 +19,7 @@ from __future__ import annotations
 import sqlalchemy_jsonfield
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, String, Text
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base
 from airflow.settings import json
@@ -43,6 +44,11 @@ class HITLInputRequestModel(Base):
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         nullable=False,
     )
+    task_instance = relationship(
+        "TaskInstance",
+        back_populates="input_request",
+        uselist=False,
+    )
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -64,17 +70,21 @@ class HITLResponseModel(Base):
     content = Column(Text)
     user_id = Column(String(128), nullable=False)
 
-    # TODO: set foreign key to HITLInputRequestModel instead
-    ti_id = Column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    input_request_id = Column(
+        Integer,
         nullable=False,
+    )
+    input_request = relationship(
+        "HITLInputRequestModel",
+        back_populates="response",
+        uselist=False,
     )
 
     __table_args__ = (
         ForeignKeyConstraint(
-            (ti_id,),
-            ("task_instance.id",),
-            name="hitl_response_ti_fkey",
+            (input_request_id,),
+            ("hitl_input_request.id",),
+            name="hitl_response_input_request_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
