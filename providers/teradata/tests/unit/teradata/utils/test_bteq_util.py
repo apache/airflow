@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import stat
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -156,7 +156,82 @@ class TestBteqUtils:
         ssh_client.exec_command.return_value = (MagicMock(), stdout_mock, MagicMock())
 
         verify_bteq_installed_remote(ssh_client)
-        ssh_client.exec_command.assert_called_once_with("which bteq")
+
+        ssh_client.exec_command.assert_has_calls(
+            [
+                call("command -v zsh"),
+                call('zsh -l -c "which bteq"'),
+            ]
+        )
+
+    @patch("airflow.providers.teradata.utils.bteq_util.identify_os", return_value="darwin")
+    def test_verify_bteq_installed_remote_macos_which_called_when_no_zsh(self, mock_os):
+        ssh_client = MagicMock()
+
+        # Mock for "command -v zsh" returning empty (no zsh)
+        stdin_mock_1 = MagicMock()
+        stdout_mock_1 = MagicMock()
+        stderr_mock_1 = MagicMock()
+        stdout_mock_1.read.return_value = b""  # No zsh path found
+        stderr_mock_1.read.return_value = b""  # Return empty bytes here!
+        ssh_client.exec_command.side_effect = [
+            (stdin_mock_1, stdout_mock_1, stderr_mock_1),  # command -v zsh
+            (MagicMock(), MagicMock(), MagicMock()),  # which bteq
+        ]
+
+        # Mock for "which bteq" command response
+        stdin_mock_2 = MagicMock()
+        stdout_mock_2 = MagicMock()
+        stderr_mock_2 = MagicMock()
+        stdout_mock_2.channel.recv_exit_status.return_value = 0
+        stdout_mock_2.read.return_value = b"/usr/local/bin/bteq"
+        stderr_mock_2.read.return_value = b""  # Also return bytes here
+
+        # Since side_effect was already assigned, override second call manually
+        ssh_client.exec_command.side_effect = [
+            (stdin_mock_1, stdout_mock_1, stderr_mock_1),  # command -v zsh
+            (stdin_mock_2, stdout_mock_2, stderr_mock_2),  # which bteq
+        ]
+
+        verify_bteq_installed_remote(ssh_client)
+
+        ssh_client.exec_command.assert_has_calls(
+            [
+                call("command -v zsh"),
+                call("which bteq"),
+            ]
+        )
+
+    @patch("airflow.providers.teradata.utils.bteq_util.identify_os", return_value="darwin")
+    def test_verify_bteq_installed_remote_macos_which_fails_no_zsh(self, mock_os):
+        ssh_client = MagicMock()
+
+        # Mock for "command -v zsh" returning empty (no zsh)
+        stdin_mock_1 = MagicMock()
+        stdout_mock_1 = MagicMock()
+        stderr_mock_1 = MagicMock()
+        stdout_mock_1.read.return_value = b""  # No zsh path found
+        ssh_client.exec_command.side_effect = [
+            (stdin_mock_1, stdout_mock_1, stderr_mock_1),  # command -v zsh
+            (MagicMock(), MagicMock(), MagicMock()),  # which bteq
+        ]
+
+        # For which bteq failure
+        ssh_client.exec_command.return_value[1].channel.recv_exit_status.return_value = 1
+        ssh_client.exec_command.return_value[1].read.return_value = b""
+        ssh_client.exec_command.return_value[2].read.return_value = b"command not found"
+
+        with pytest.raises(AirflowException) as exc_info:
+            verify_bteq_installed_remote(ssh_client)
+
+        assert "BTEQ is not installed or not available in PATH" in str(exc_info.value)
+
+        ssh_client.exec_command.assert_has_calls(
+            [
+                call("command -v zsh"),
+                call("which bteq"),
+            ]
+        )
 
     @patch("airflow.providers.teradata.utils.bteq_util.identify_os", return_value="linux")
     def test_verify_bteq_installed_remote_fail(self, mock_os):

@@ -46,6 +46,14 @@ def verify_bteq_installed_remote(ssh_client: SSHClient):
 
     if "windows" in os_info:
         check_cmd = "where bteq"
+    elif "darwin" in os_info:
+        # Check if zsh exists first
+        stdin, stdout, stderr = ssh_client.exec_command("command -v zsh")
+        zsh_path = stdout.read().strip()
+        if zsh_path:
+            check_cmd = 'zsh -l -c "which bteq"'
+        else:
+            check_cmd = "which bteq"
     else:
         check_cmd = "which bteq"
 
