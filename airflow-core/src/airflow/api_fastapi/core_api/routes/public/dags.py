@@ -324,14 +324,11 @@ def patch_dags(
 
 @dags_router.post(
     "/{dag_id}/favorite",
+    status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
-def favorite_dag(
-    dag_id: str,
-    session: SessionDep,
-    user: GetUserDep,
-) -> Response:
+def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     """Mark the DAG as favorite."""
     dag = session.get(DagModel, dag_id)
     if not dag:
@@ -340,19 +337,14 @@ def favorite_dag(
     user_id = user.get_id()
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
 
 @dags_router.post(
     "/{dag_id}/unfavorite",
+    status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
-def unfavorite_dag(
-    dag_id: str,
-    session: SessionDep,
-    user: GetUserDep,
-) -> Response:
+def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     """Unmark the DAG as favorite."""
     dag = session.get(DagModel, dag_id)
     if not dag:
@@ -376,8 +368,6 @@ def unfavorite_dag(
             DagFavorite.user_id == user_id,
         )
     )
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @dags_router.delete(
