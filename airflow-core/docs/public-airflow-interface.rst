@@ -32,7 +32,7 @@ Using Airflow Public Interfaces
 
    As of **Airflow 3.0**, users should use the ``airflow.sdk`` namespace as the official **Public Interface**, as defined in `AIP-72 <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-72+Task+Execution+Interface+aka+Task+SDK>`_.
 
-   Direct interaction with internal modules or the metadata database is **discouraged**.  
+   Direct interaction with internal modules or the metadata database is not possible.
    For stable, production-safe integration, it is recommended to use:
 
    - The official **REST API**
