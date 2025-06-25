@@ -96,6 +96,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     UV_VERSION,
 )
@@ -242,7 +243,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.8"
+AIRFLOW_UV_VERSION = "0.7.14"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -2676,11 +2677,13 @@ def print_issue_content(
     "--previous-release",
     type=str,
     help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
 )
 @click.option(
     "--current-release",
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
+    required=True,
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option(
@@ -3899,6 +3902,7 @@ def generate_issue_content(
 @click.option(
     "--destination-location",
     help="Name of the S3 bucket to publish the documentation to.",
+    type=NotVerifiedBetterChoice(DESTINATION_LOCATIONS),
     required=True,
 )
 @click.option(

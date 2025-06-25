@@ -7,14 +7,7 @@ export const $AppBuilderMenuItemResponse = {
             title: 'Name'
         },
         href: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Href'
         },
         category: {
@@ -31,7 +24,7 @@ export const $AppBuilderMenuItemResponse = {
     },
     additionalProperties: true,
     type: 'object',
-    required: ['name'],
+    required: ['name', 'href'],
     title: 'AppBuilderMenuItemResponse',
     description: 'Serializer for AppBuilder Menu Item responses.'
 } as const;
@@ -3269,6 +3262,74 @@ export const $ExternalLogUrlResponse = {
     description: 'Response for the external log URL endpoint.'
 } as const;
 
+export const $ExternalViewResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        url_route: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Url Route'
+        },
+        category: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Category'
+        },
+        destination: {
+            type: 'string',
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
+            title: 'Destination',
+            default: 'nav'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'href'],
+    title: 'ExternalViewResponse',
+    description: 'Serializer for IFrame Plugin responses.'
+} as const;
+
 export const $ExtraLinkCollectionResponse = {
     properties: {
         extra_links: {
@@ -3397,58 +3458,6 @@ export const $HealthInfoResponse = {
     required: ['metadatabase', 'scheduler', 'triggerer'],
     title: 'HealthInfoResponse',
     description: 'Health serializer for responses.'
-} as const;
-
-export const $IFrameViewsResponse = {
-    properties: {
-        name: {
-            type: 'string',
-            title: 'Name'
-        },
-        src: {
-            type: 'string',
-            title: 'Src'
-        },
-        icon: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Icon'
-        },
-        url_route: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Url Route'
-        },
-        destination: {
-            anyOf: [
-                {
-                    type: 'string',
-                    enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance']
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Destination'
-        }
-    },
-    additionalProperties: true,
-    type: 'object',
-    required: ['name', 'src'],
-    title: 'IFrameViewsResponse',
-    description: 'Serializer for IFrame Plugin responses.'
 } as const;
 
 export const $ImportErrorCollectionResponse = {
@@ -3830,12 +3839,13 @@ export const $PluginResponse = {
             type: 'array',
             title: 'Fastapi Root Middlewares'
         },
-        iframe_views: {
+        external_views: {
             items: {
-                '$ref': '#/components/schemas/IFrameViewsResponse'
+                '$ref': '#/components/schemas/ExternalViewResponse'
             },
             type: 'array',
-            title: 'Iframe Views'
+            title: 'External Views',
+            description: "Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here."
         },
         appbuilder_views: {
             items: {
@@ -3849,7 +3859,8 @@ export const $PluginResponse = {
                 '$ref': '#/components/schemas/AppBuilderMenuItemResponse'
             },
             type: 'array',
-            title: 'Appbuilder Menu Items'
+            title: 'Appbuilder Menu Items',
+            deprecated: true
         },
         global_operator_extra_links: {
             items: {
@@ -3885,7 +3896,7 @@ export const $PluginResponse = {
         }
     },
     type: 'object',
-    required: ['name', 'macros', 'flask_blueprints', 'fastapi_apps', 'fastapi_root_middlewares', 'iframe_views', 'appbuilder_views', 'appbuilder_menu_items', 'global_operator_extra_links', 'operator_extra_links', 'source', 'listeners', 'timetables'],
+    required: ['name', 'macros', 'flask_blueprints', 'fastapi_apps', 'fastapi_root_middlewares', 'external_views', 'appbuilder_views', 'appbuilder_menu_items', 'global_operator_extra_links', 'operator_extra_links', 'source', 'listeners', 'timetables'],
     title: 'PluginResponse',
     description: 'Plugin serializer.'
 } as const;
