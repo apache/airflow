@@ -28,6 +28,7 @@ from airflow.models import DagRun, DagBag
 from airflow.policies import task_instance_mutation_hook
 from airflow.sdk import XComArg
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.ti_deps.dep_context import DepContext
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session
 from airflow.utils.state import DagRunState, State
@@ -51,20 +52,9 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         super().__init__(job)
         self.trigger_runner = trigger_runner
 
-    def expand_task(self, task_instance: TaskInstance, mapped_kwargs) -> TaskInstance:
-        self.log.info("expand task: %s", task_instance.map_index)
-        self.log.debug("unmap (%s): %s", task_instance.task.operator_class, mapped_kwargs)
-
-        operator = task_instance.task.unmap(mapped_kwargs)
-
-        self.log.info("operator (%s): %s", type(operator), operator)
-
-        task_instance.task = operator
-        task_instance_mutation_hook(task_instance)
-
-        self.log.info("creating ti %s: (%s) %s", task_instance.map_index, task_instance.id, task_instance)
-
-        return task_instance
+    @property
+    def job_id(self) -> str:
+        return self.job.id
 
     def _check_dag_run_state(self, dag_run: DagRun) -> None:
         if dag_run:
@@ -108,29 +98,43 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         task_instances_batch = []
 
         context = unmapped_ti.get_template_context(session=session)
+        unmapped_task = unmapped_ti.task
         expand_input = unmapped_ti.task.expand_input.values()
+
+        self.log.info("expand_input: %s", expand_input)
 
         if isinstance(expand_input, XComArg):
             expand_input = expand_input.resolve(context)
 
         for map_index, mapped_kwargs in enumerate(expand_input):
+            self.log.info("map_index: %s", map_index)
+
+            if isinstance(mapped_kwargs, XComArg):
+                context = unmapped_ti.get_template_context(session=session)
+                self.log.info("context: %s", context)
+                mapped_kwargs = mapped_kwargs.resolve(context)
+
+            self.log.info("mapped_kwargs: %s", mapped_kwargs)
+
+            task = unmapped_task.unmap(mapped_kwargs)
+
+            self.log.info("task: %s", type(task))
+
             if map_index == 0:
                 task_instance = unmapped_ti
+                task_instance.task = task
                 task_instance.map_index = map_index
+                task_instance.refresh_from_task(task)
             else:
                 task_instance = TaskInstance(
-                    task=unmapped_ti.task,
+                    task=task,
                     run_id=dag_run.run_id,
                     map_index=map_index,
                     dag_version_id=unmapped_ti.dag_version_id,
                 )
 
-            if isinstance(mapped_kwargs, XComArg):
-                context = task_instance.get_template_context(session=session)
-                self.log.info("context: %s", context)
-                mapped_kwargs = mapped_kwargs.resolve(context)
-            self.log.info("mapped_kwargs: %s", mapped_kwargs)
-            task_instance = self.expand_task(task_instance, mapped_kwargs)
+            task_instance.queued_by_job_id = self.job_id
+            task_instance_mutation_hook(task_instance)
             task_instances_batch.append(task_instance)
 
             if len(task_instances_batch) == task_expansion_batch_size:
@@ -138,7 +142,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
                 self._check_dag_run_state(dag_run)
                 self._persist_task_instances(dag_run, task_instances_batch, session=session)
 
-            self._persist_task_instances(dag_run, task_instances_batch, session=session)
+        self._persist_task_instances(dag_run, task_instances_batch, session=session)
 
     @staticmethod
     def get_task(dag: DAG, task_instance: TaskInstance) -> TaskInstance:
@@ -158,7 +162,14 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Checking for unmapped task instances on: %s", dag_run)
             for unmapped_ti in filter(self.has_mapped_operator, map(lambda task: self.get_task(dag, task), dag_run.task_instances)):
                 try:
-                    are_dependencies_met = unmapped_ti.are_dependencies_met(session=session, verbose=True)
+                    finished_tis = list(map(lambda task: self.get_task(dag, task), filter(lambda ti: ti.state in State.finished, dag_run.task_instances)))
+                    dep_context = DepContext(
+                        flag_upstream_failed=True,
+                        ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
+                        finished_tis=finished_tis,
+                    )
+                    self.log.info("Unmapped task state on: %s", unmapped_ti.state)
+                    are_dependencies_met = unmapped_ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True)
                     self.log.info("Are dependencies met on %s: %s", unmapped_ti, are_dependencies_met)
                     if are_dependencies_met:
                         self.expand_unmapped_task_instance(dag_run, unmapped_ti, session=session)

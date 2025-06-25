@@ -373,13 +373,12 @@ class PlainXComArg(XComArg):
 
         self.log.debug("value: %s", value)
 
-        if not isinstance(self.operator, MappedOperator):
+        # TODO: check why this is needed?
+        if isinstance(value, str):
             deserialized_value = XCom.deserialize_value(
                 XComResult(key=self.operator.output.key, value=value)
             )
-
             self.log.debug("deserialized_value: %s", deserialized_value)
-
             if isinstance(deserialized_value, ResolveMixin):
                 deserialized_value = deserialized_value.resolve(context)
             return deserialized_value

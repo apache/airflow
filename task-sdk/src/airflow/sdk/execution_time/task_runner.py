@@ -43,6 +43,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.taskmap import enable_lazy_task_expansion
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     TaskInstance,
@@ -1228,9 +1229,12 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     mapped_length: int | None = None
     if not ti.is_mapped and has_mapped_dep:
         from airflow.sdk.definitions.mappedoperator import is_mappable_value
+        from airflow.sdk.exceptions import UnmappableXComTypePushed
 
         if is_mappable_value(xcom_value):
             mapped_length = len(xcom_value)
+        elif not enable_lazy_task_expansion:
+            raise UnmappableXComTypePushed(xcom_value)
 
     log.info("Pushing xcom", ti=ti)
 

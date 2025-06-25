@@ -73,7 +73,8 @@ from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
-from airflow.models.taskmap import TaskMap
+from airflow.models.taskmap import TaskMap, enable_lazy_task_expansion
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -1311,11 +1312,19 @@ class DagRun(Base, LoggingMixin):
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
-            schedulable_tis, changed_tis = self._get_ready_tis(
+            schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
                 schedulable_tis,
                 finished_tis,
                 session=session,
             )
+
+            # During expansion, we may change some tis into non-schedulable
+            # states, so we need to re-compute.
+            if expansion_happened:
+                changed_tis = True
+                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+                finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
+                unfinished_tis = new_unfinished_tis
         else:
             schedulable_tis = []
             changed_tis = False
@@ -1373,7 +1382,7 @@ class DagRun(Base, LoggingMixin):
         schedulable_tis: list[TI],
         finished_tis: list[TI],
         session: Session,
-    ) -> tuple[list[TI], bool]:
+    ) -> tuple[list[TI], bool, bool]:
         old_states = {}
         ready_tis: list[TI] = []
         changed_tis = False
@@ -1390,13 +1399,82 @@ class DagRun(Base, LoggingMixin):
             finished_tis=finished_tis,
         )
 
+        def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
+            """
+            Try to expand the ti, if needed.
+
+            If the ti needs expansion, newly created task instances are
+            returned as well as the original ti.
+            The original ti is also modified in-place and assigned the
+            ``map_index`` of 0.
+
+            If the ti does not need expansion, either because the task is not
+            mapped, or has already been expanded, *None* is returned.
+            """
+            if TYPE_CHECKING:
+                assert ti.task
+
+            if ti.map_index >= 0:  # Already expanded, we're good.
+                return None
+
+            from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
+
+            if isinstance(ti.task, TaskSDKMappedOperator):
+                # If we get here, it could be that we are moving from non-mapped to mapped
+                # after task instance clearing or this ti is not yet expanded. Safe to clear
+                # the db references.
+                ti.clear_db_references(session=session)
+            try:
+                expanded_tis, _ = TaskMap.expand_mapped_task(ti.task, self.run_id, session=session)
+            except NotMapped:  # Not a mapped task, nothing needed.
+                return None
+            if expanded_tis:
+                return expanded_tis
+            return ()
+
+        def is_unmapped_task(ti: TI) -> bool:
+            # TODO: check why task is still MappedOperator even when not an unmapped task anymore
+            return isinstance(schedulable.task, MappedOperator) and schedulable.map_index == -1
+
+        # Check dependencies.
+        expansion_happened = False
+        # Set of task ids for which was already done _revise_map_indexes_if_mapped
+        revised_map_index_task_ids = set()
+        for schedulable in itertools.chain(schedulable_tis, additional_tis):
+            if TYPE_CHECKING:
+                assert isinstance(schedulable.task, BaseOperator)
+            old_state = schedulable.state
+            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
+                old_states[schedulable.key] = old_state
+                continue
+            # If schedulable is not yet expanded, try doing it now. This is
+            # called in two places: First and ideally in the mini scheduler at
+            # the end of LocalTaskJob, and then as an "expansion of last resort"
+            # in the scheduler to ensure that the mapped task is correctly
+            # expanded before executed. Also see _revise_map_indexes_if_mapped
+            # docstring for additional information.
+            new_tis = None
+            if schedulable.map_index < 0:
+                new_tis = _expand_mapped_task_if_needed(schedulable)
+                if new_tis is not None:
+                    additional_tis.extend(new_tis)
+                    expansion_happened = True
+            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
+                # It's enough to revise map index once per task id,
+                # checking the map index for each mapped task significantly slows down scheduling
+                if schedulable.task.task_id not in revised_map_index_task_ids:
+                    ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                    revised_map_index_task_ids.add(schedulable.task.task_id)
+                if not enable_lazy_task_expansion or not is_unmapped_task(schedulable):
+                    ready_tis.append(schedulable)
+
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
             fresh_tis = session.scalars(select(TI).where(tis_filter)).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
-        return ready_tis, changed_tis
+        return ready_tis, changed_tis, expansion_happened
 
     def _are_premature_tis(
         self,
