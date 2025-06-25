@@ -373,8 +373,7 @@ uv tool install -e ./dev/breeze
 - Generate the body of the issue using the below command:
 
   ```shell script
-    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
-    --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
     ```
 
 ## Publish release candidate documentation (staging)
