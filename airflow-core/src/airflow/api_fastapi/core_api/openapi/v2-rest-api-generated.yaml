@@ -3165,11 +3165,8 @@ paths:
           type: string
           title: Dag Id
       responses:
-        '200':
+        '204':
           description: Successful Response
-          content:
-            application/json:
-              schema: {}
         '401':
           content:
             application/json:
@@ -3211,11 +3208,8 @@ paths:
           type: string
           title: Dag Id
       responses:
-        '200':
+        '204':
           description: Successful Response
-          content:
-            application/json:
-              schema: {}
         '401':
           content:
             application/json:

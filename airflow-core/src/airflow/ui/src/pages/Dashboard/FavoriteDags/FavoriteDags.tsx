@@ -32,7 +32,8 @@ export const FavoriteDags = () => {
   const location = useLocation();
 
   const { t: translate } = useTranslation("dashboard");
-  const { data: favorites } = useDagServiceGetDagsUi({ isFavorite: true, limit: 10 });
+  const LIMIT = 10;
+  const { data: favorites } = useDagServiceGetDagsUi({ isFavorite: true, limit: LIMIT });
 
   useEffect(() => {
     void queryClient.refetchQueries({ queryKey: ["DagServiceGetDagsUi"] });
@@ -47,7 +48,7 @@ export const FavoriteDags = () => {
       <Flex color="fg.muted" my={2}>
         <FiStar />
         <Heading ml={1} size="xs">
-          {translate("favorite.favoriteDags")}
+          {translate("favorite.favoriteDags", { count: LIMIT })}
         </Heading>
       </Flex>
 
