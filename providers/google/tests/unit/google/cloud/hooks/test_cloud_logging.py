@@ -34,20 +34,30 @@ from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_pro
 
 PROJECT_ID = "gcp-project-id"
 SINK_NAME = "my-logs-sink"
-DESTINATION = "storage.googleapis.com/your-bucket-name"
-FILTER = "severity>=ERROR"
-EXCLUSION_FILTER = [
-    {"name": "exclude-debug", "description": "Skip debug logs", "filter": "severity=DEBUG", "disabled": True},
-    {
-        "name": "exclude-cloudsql",
-        "description": "Skip CloudSQL logs",
-        "filter": 'resource.type="cloudsql_database"',
-        "disabled": False,
-    },
-]
+UNQUE_WRITER_IDENTITIY = True
+sink_config = {
+    "name": SINK_NAME,
+    "destination": "storage.googleapis.com/test-log-sink-af",
+    "description": "Create with full sink_config",
+    "filter": "severity>=INFO",
+    "disabled": False,
+    "exclusions": [
+        {
+            "name": "exclude-debug",
+            "description": "Skip debug logs",
+            "filter": "severity=DEBUG",
+            "disabled": True,
+        },
+        {
+            "name": "exclude-cloudsql",
+            "description": "Skip CloudSQL logs",
+            "filter": 'resource.type="cloudsql_database"',
+            "disabled": False,
+        },
+    ],
+}
 
 
-@pytest.mark.db_test
 class TestCloudLoggingHook:
     @pytest.fixture
     def cloud_logging_hook(self):
@@ -74,15 +84,16 @@ class TestCloudLoggingHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_logging.ConfigServiceV2Client")
     def test_create_sink(self, mock_config_client, cloud_logging_hook):
-        sink = LogSink(name=SINK_NAME, destination=DESTINATION, filter=FILTER, exclusions=EXCLUSION_FILTER)
+        sink = LogSink(**sink_config)
         expected_request = CreateSinkRequest(
-            parent=f"projects/{PROJECT_ID}",
-            sink=sink,
+            parent=f"projects/{PROJECT_ID}", sink=sink, unique_writer_identity=UNQUE_WRITER_IDENTITIY
         )
 
         cloud_logging_hook._client = mock_config_client.return_value
 
-        cloud_logging_hook.create_sink(sink=sink, project_id=PROJECT_ID)
+        cloud_logging_hook.create_sink(
+            sink=sink, project_id=PROJECT_ID, unique_writer_identity=UNQUE_WRITER_IDENTITIY
+        )
 
         mock_config_client.return_value.create_sink.assert_called_once_with(request=expected_request)
 
@@ -125,23 +136,29 @@ class TestCloudLoggingHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_logging.ConfigServiceV2Client")
     def test_update_sink_success(self, mock_config_client, cloud_logging_hook):
-        updated_destination = f"bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/your_dataset"
-        updated_bigquery_options = {"use_partitioned_tables": True}
+        sink_config = {
+            "destination": f"bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/your_dataset",
+            "bigquery_options": {"use_partitioned_tables": True},
+        }
+        update_mask = {"paths": ["destination", "bigquery_options"]}
 
         hook = CloudLoggingHook()
-        updated_sink = LogSink(
-            name=f"projects/{PROJECT_ID}/sinks/{SINK_NAME}",
-            destination=updated_destination,
-            bigquery_options=updated_bigquery_options,
-        )
 
         expected_request = UpdateSinkRequest(
             sink_name=f"projects/{PROJECT_ID}/sinks/{SINK_NAME}",
-            sink=updated_sink,
+            sink=sink_config,
+            update_mask=update_mask,
+            unique_writer_identity=UNQUE_WRITER_IDENTITIY,
         )
 
         hook._client = mock_config_client.return_value
-        hook.update_sink(sink_name=SINK_NAME, sink=updated_sink, project_id=PROJECT_ID)
+        hook.update_sink(
+            sink_name=SINK_NAME,
+            sink=sink_config,
+            update_mask=update_mask,
+            unique_writer_identity=UNQUE_WRITER_IDENTITIY,
+            project_id=PROJECT_ID,
+        )
 
         mock_config_client.return_value.update_sink.assert_called_once_with(request=expected_request)
 
@@ -151,16 +168,15 @@ class TestCloudLoggingHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_logging.ConfigServiceV2Client")
     def test_create_sink_dict_input(self, mock_config_client, cloud_logging_hook):
-        sink_dict = {
-            "name": SINK_NAME,
-            "destination": DESTINATION,
-            "filter": FILTER,
-        }
-        expected_sink = LogSink(**sink_dict)
-        expected_request = CreateSinkRequest(parent=f"projects/{PROJECT_ID}", sink=expected_sink)
+        expected_sink = LogSink(**sink_config)
+        expected_request = CreateSinkRequest(
+            parent=f"projects/{PROJECT_ID}", sink=expected_sink, unique_writer_identity=UNQUE_WRITER_IDENTITIY
+        )
 
         cloud_logging_hook._client = mock_config_client.return_value
-        cloud_logging_hook.create_sink(sink=sink_dict, project_id=PROJECT_ID)
+        cloud_logging_hook.create_sink(
+            sink=sink_config, unique_writer_identity=UNQUE_WRITER_IDENTITIY, project_id=PROJECT_ID
+        )
 
         mock_config_client.return_value.create_sink.assert_called_once_with(request=expected_request)
 
@@ -169,6 +185,8 @@ class TestCloudLoggingHook:
             cloud_logging_hook.update_sink(
                 sink_name=SINK_NAME,
                 sink={"invalid_key": "value"},
+                update_mask={"paths": ["invalid_key"]},
+                unique_writer_identity=UNQUE_WRITER_IDENTITIY,
                 project_id=PROJECT_ID,
             )
 
@@ -178,15 +196,21 @@ class TestCloudLoggingHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_logging.ConfigServiceV2Client")
     def test_update_sink_failure(self, mock_config_client, cloud_logging_hook):
-        # Prepare a valid LogSink
         updated_sink = LogSink(name=SINK_NAME, destination="storage.googleapis.com/new-bucket")
+        updated_mask = {"paths":["name","destination"]}
 
         mock_config_client.return_value.update_sink.side_effect = Exception("Permission denied")
 
         cloud_logging_hook._client = mock_config_client.return_value
 
         with pytest.raises(Exception, match="Permission denied"):
-            cloud_logging_hook.update_sink(sink_name=SINK_NAME, sink=updated_sink, project_id=PROJECT_ID)
+            cloud_logging_hook.update_sink(
+                sink_name=SINK_NAME,
+                sink=updated_sink,
+                update_mask=updated_mask,
+                unique_writer_identity=UNQUE_WRITER_IDENTITIY,
+                project_id=PROJECT_ID,
+            )
 
         mock_config_client.return_value.update_sink.assert_called_once()
 

@@ -20,6 +20,11 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+# [START howto_operator_import_protobuf_obj]
+from google.cloud.logging_v2.types import LogSink
+from google.protobuf.field_mask_pb2 import FieldMask
+# [END howto_operator_import_protobuf_obj]
+
 from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_logging_sink import (
     CloudLoggingCreateSinkOperator,
@@ -31,78 +36,78 @@ from airflow.providers.google.cloud.operators.cloud_logging_sink import (
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
-SINK_NAME = "example-airflow-test-sink"
+SINK_NAME = "example-airflow-test-protobuf-sink"
 CONN_ID = "google_cloud_default"
 
+
 with DAG(
-    dag_id="google_cloud_logging_sink",
-    description="Example DAG showing usage of all Cloud Logging Sink operators",
+    dag_id="google_cloud_logging_sink_protobuf_obj",
+    description="System test DAG for Cloud Logging Sink using sink_config only",
     schedule=None,
-    start_date=datetime(2024, 1, 1),
+    start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=["example", "gcp", "cloud-logging"],
 ) as dag:
-    # [START howto_operator_cloud_logging_create_sink_native_obj]
+    # [START howto_operator_cloud_logging_create_sink_protobuf_obj]
     create_sink = CloudLoggingCreateSinkOperator(
         task_id="create_sink",
         project_id=PROJECT_ID,
-        sink_config={
-            "name": SINK_NAME,
-            "destination": "storage.googleapis.com/test-log-sink-af",
-            "description": "Create with full sink_config",
-            "filter": "severity>=INFO",
-            "disabled": False,
-            "exclusions": [
-                {
-                    "name": "exclude-debug",
-                    "description": "Skip debug logs",
-                    "filter": "severity=DEBUG",
-                    "disabled": True,
-                },
-                {
-                    "name": "exclude-cloudsql",
-                    "description": "Skip CloudSQL logs",
-                    "filter": 'resource.type="cloudsql_database"',
-                    "disabled": False,
-                },
-            ],
-        },
+        unique_writer_identity = False,
+        sink_config=LogSink(
+            **{
+                "name": SINK_NAME,
+                "destination": "storage.googleapis.com/test-log-sink-af",
+                "description": "Create with full sink_config",
+                "filter": "severity>=INFO",
+                "disabled": False,
+                "exclusions": [
+                    {
+                        "name": "exclude-debug",
+                        "description": "Skip debug logs",
+                        "filter": "severity=DEBUG",
+                        "disabled": True,
+                    },
+                    {
+                        "name": "exclude-cloudsql",
+                        "description": "Skip CloudSQL logs",
+                        "filter": 'resource.type="cloudsql_database"',
+                        "disabled": False,
+                    },
+                ],
+            }
+        ),
         gcp_conn_id=CONN_ID,
     )
-    # [END howto_operator_cloud_logging_create_sink_native_obj]
+    # [END howto_operator_cloud_logging_create_sink_protobuf_obj]
 
-    # [START howto_operator_cloud_logging_update_sink_sink_native_obj]
+    # [START howto_operator_cloud_logging_update_sink_protobuf_obj]
     update_sink_config = CloudLoggingUpdateSinkOperator(
         task_id="update_sink_config",
         sink_name=SINK_NAME,
         project_id=PROJECT_ID,
-        sink_config={
-            "description": "Update #1: GCE logs only",
-            "filter": 'resource.type="gce_instance"',
-            "disabled": False,
-        },
-        update_mask={"paths": ["description", "filter", "disabled"]},
+        sink_config=LogSink(
+            **{
+                "description": "Update #1: GCE logs only",
+                "filter": 'resource.type="gce_instance"',
+                "disabled": False,
+            }
+        ),
         unique_writer_identity = True,
+        update_mask=FieldMask(paths=["description", "filter", "disabled"]),
         gcp_conn_id=CONN_ID,
     )
-    # [END howto_operator_cloud_logging_update_sink_sink_native_obj]
-
-    # [START howto_operator_cloud_logging_list_sinks]
+    # [END howto_operator_cloud_logging_update_sink_protobuf_obj]
     list_sinks_after = CloudLoggingListSinksOperator(
         task_id="list_sinks_after_update",
         project_id=PROJECT_ID,
         gcp_conn_id=CONN_ID,
     )
-    # [END howto_operator_cloud_logging_list_sinks]
-
-    # [START howto_operator_cloud_logging_delete_sink]
     delete_sink = CloudLoggingDeleteSinkOperator(
         task_id="delete_sink",
         sink_name=SINK_NAME,
         project_id=PROJECT_ID,
         gcp_conn_id=CONN_ID,
     )
-    # [END howto_operator_cloud_logging_delete_sink]
 
     (create_sink >> update_sink_config >> list_sinks_after >> delete_sink)
 
