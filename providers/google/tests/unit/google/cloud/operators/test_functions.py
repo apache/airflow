@@ -342,7 +342,6 @@ class TestGcfFunctionDeploy:
         with pytest.raises(AirflowException, match=message):
             op.execute(None)
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "source_code, message",
         [

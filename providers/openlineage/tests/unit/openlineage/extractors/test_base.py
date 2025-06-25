@@ -38,7 +38,7 @@ from tests_common.test_utils.compat import PythonOperator
 
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet
-pytestmark = pytest.mark.db_test
+
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]

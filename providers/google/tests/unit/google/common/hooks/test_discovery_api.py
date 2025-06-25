@@ -24,8 +24,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestGoogleDiscoveryApiHook:
     @pytest.fixture(autouse=True)

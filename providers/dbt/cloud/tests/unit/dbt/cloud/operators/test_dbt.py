@@ -37,8 +37,6 @@ from airflow.utils import timezone
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
 
-pytestmark = pytest.mark.db_test
-
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
 ACCOUNT_ID_CONN = "account_id_conn"
@@ -647,6 +645,7 @@ class TestDbtCloudRunJobOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
+    @pytest.mark.db_test
     def test_run_job_operator_link(
         self, conn_id, account_id, create_task_instance_of_operator, request, mock_supervisor_comms
     ):

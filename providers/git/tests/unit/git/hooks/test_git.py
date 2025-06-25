@@ -27,9 +27,6 @@ from airflow.models import Connection
 from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections
-
-pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -67,7 +64,7 @@ def git_repo(tmp_path_factory):
 class TestGitHook:
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections()
+        return
 
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
     @pytest.fixture(autouse=True)
@@ -123,7 +120,7 @@ class TestGitHook:
         hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
 
-    def test_env_var_with_configure_hook_env(self, session, create_connection_without_db):
+    def test_env_var_with_configure_hook_env(self, create_connection_without_db):
         default_hook = GitHook(git_conn_id=CONN_DEFAULT)
         with default_hook.configure_hook_env():
             assert default_hook.env == {

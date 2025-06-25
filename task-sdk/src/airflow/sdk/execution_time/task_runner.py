@@ -1295,7 +1295,8 @@ def main():
             bundle_name=ti.bundle_instance.name,
             bundle_version=ti.bundle_instance.version,
         ):
-            state, msg, error = run(ti, context, log)
+            state, _, error = run(ti, context, log)
+            context["exception"] = error
             finalize(ti, state, context, log, error)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")

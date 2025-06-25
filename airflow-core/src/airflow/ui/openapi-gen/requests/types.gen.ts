@@ -5,7 +5,7 @@
  */
 export type AppBuilderMenuItemResponse = {
     name: string;
-    href?: string | null;
+    href: string;
     category?: string | null;
     [key: string]: unknown | string;
 };
@@ -872,6 +872,22 @@ export type ExternalLogUrlResponse = {
 };
 
 /**
+ * Serializer for IFrame Plugin responses.
+ */
+export type ExternalViewResponse = {
+    name: string;
+    href: string;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    url_route?: string | null;
+    category?: string | null;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+    [key: string]: unknown | string;
+};
+
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+
+/**
  * Extra Links Response.
  */
 export type ExtraLinkCollectionResponse = {
@@ -921,18 +937,6 @@ export type HealthInfoResponse = {
     scheduler: SchedulerInfoResponse;
     triggerer: TriggererInfoResponse;
     dag_processor?: DagProcessorInfoResponse | null;
-};
-
-/**
- * Serializer for IFrame Plugin responses.
- */
-export type IFrameViewsResponse = {
-    name: string;
-    src: string;
-    icon?: string | null;
-    url_route?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | null;
-    [key: string]: unknown | string;
 };
 
 /**
@@ -1034,8 +1038,14 @@ export type PluginResponse = {
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
     fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
-    iframe_views: Array<IFrameViewsResponse>;
+    /**
+     * Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.
+     */
+    external_views: Array<ExternalViewResponse>;
     appbuilder_views: Array<AppBuilderViewResponse>;
+    /**
+     * @deprecated
+     */
     appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
     global_operator_extra_links: Array<(string)>;
     operator_extra_links: Array<(string)>;
