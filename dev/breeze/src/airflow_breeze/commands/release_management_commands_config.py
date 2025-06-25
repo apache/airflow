@@ -177,6 +177,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--allow-pre-releases",
                 "--use-distributions-from-dist",
             ],
         },
@@ -206,6 +207,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--allow-pre-releases",
                 "--use-distributions-from-dist",
             ],
         },
@@ -298,18 +300,47 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze release-management release-prod-images": [
         {
-            "name": "Release PROD IMAGE flags",
+            "name": "Select images to release",
             "options": [
                 "--airflow-version",
-                "--commit-sha",
-                "--dockerhub-repo",
-                "--limit-python",
-                "--limit-platform",
-                "--skip-latest",
-                "--include-pre-release",
+                "--python",
+                "--platform",
                 "--slim-images",
             ],
-        }
+        },
+        {
+            "name": "Prepare digest only images",
+            "options": [
+                "--metadata-folder",
+            ],
+        },
+        {
+            "name": "Additional options for release",
+            "options": [
+                "--commit-sha",
+                "--dockerhub-repo",
+                "--include-pre-release",
+                "--skip-latest",
+            ],
+        },
+    ],
+    "breeze release-management merge-prod-images": [
+        {
+            "name": "Select images to merge",
+            "options": [
+                "--airflow-version",
+                "--python",
+                "--slim-images",
+                "--metadata-folder",
+            ],
+        },
+        {
+            "name": "Extra options for merge",
+            "options": [
+                "--skip-latest",
+                "--dockerhub-repo",
+            ],
+        },
     ],
     "breeze release-management generate-issue-content-core": [
         {
@@ -437,6 +468,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--parallelism",
                 "--stable-versions",
                 "--publish-all-docs",
+                "--skip-write-to-stable-folder",
             ],
         }
     ],

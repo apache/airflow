@@ -35,6 +35,7 @@ from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
     option_all_integration,
+    option_allow_pre_releases,
     option_answer,
     option_backend,
     option_builder,
@@ -45,6 +46,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_excluded_providers,
+    option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
     option_include_not_ready_providers,
@@ -81,6 +83,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.main_command import cleanup, main
+from airflow_breeze.commands.testing_commands import option_test_type
 from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
@@ -298,6 +301,7 @@ option_load_default_connections = click.option(
 @option_executor_shell
 @option_excluded_providers
 @option_force_build
+@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_include_mypy_volume
@@ -325,10 +329,12 @@ option_load_default_connections = click.option(
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
+@option_test_type
 @option_warn_image_upgrade_needed
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_uv
 @option_uv_http_timeout
@@ -352,6 +358,7 @@ def shell(
     extra_args: tuple,
     excluded_providers: str,
     force_build: bool,
+    force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
     include_mypy_volume: bool,
@@ -383,9 +390,11 @@ def shell(
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
     start_api_server_with_examples: bool,
+    test_type: str | None,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
+    allow_pre_releases: bool,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
@@ -409,6 +418,7 @@ def shell(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -422,6 +432,7 @@ def shell(
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
+        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         include_mypy_volume=include_mypy_volume,
@@ -452,6 +463,7 @@ def shell(
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
         start_api_server_with_examples=start_api_server_with_examples,
+        test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
@@ -536,6 +548,7 @@ option_auth_manager_start_airflow = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def start_airflow(
@@ -544,6 +557,7 @@ def start_airflow(
     airflow_constraints_reference: str,
     airflow_extras: str,
     airflow_skip_constraints: bool,
+    allow_pre_releases: bool,
     auth_manager: str,
     backend: str,
     builder: str,
@@ -614,6 +628,7 @@ def start_airflow(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         auth_manager=auth_manager,
         backend=backend,
         builder=builder,
@@ -679,7 +694,9 @@ def start_airflow(
     "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
-@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
+@click.option(
+    "--include-commits", help="Include commits in the documentation.", is_flag=True, envvar="INCLUDE_COMMITS"
+)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers

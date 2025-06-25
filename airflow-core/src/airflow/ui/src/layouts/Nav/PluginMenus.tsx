@@ -16,77 +16,83 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
 
 export const PluginMenus = () => {
+  const { t: translate } = useTranslation("common");
   const { data } = usePluginServiceGetPlugins();
 
-  const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
+  const menuPlugins =
+    data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
+    [];
 
-  if (data === undefined || menuPlugins === undefined) {
+  // Only show external plugins in menu if there are more than 2
+  const menuExternalViews = menuPlugins.length > 2 ? menuPlugins : [];
+  const directExternalViews = menuPlugins.length <= 2 ? menuPlugins : [];
+
+  if (data === undefined || menuPlugins.length === 0) {
     return undefined;
   }
 
-  const categories: Record<string, Array<AppBuilderMenuItemResponse>> = {};
-  const buttons: Array<AppBuilderMenuItemResponse> = [];
+  const categories: Record<string, Array<ExternalViewResponse>> = {};
+  const buttons: Array<ExternalViewResponse> = [];
 
-  menuPlugins.forEach((plugin) => {
-    plugin.appbuilder_menu_items.forEach((mi) => {
-      if (mi.category !== null && mi.category !== undefined) {
-        categories[mi.category] = [...(categories[mi.category] ?? []), mi];
-      } else {
-        buttons.push(mi);
-      }
-    });
+  menuPlugins.forEach((externalView) => {
+    if (externalView.category !== null && externalView.category !== undefined) {
+      categories[externalView.category] = [...(categories[externalView.category] ?? []), externalView];
+    } else {
+      buttons.push(externalView);
+    }
   });
 
-  if (!buttons.length && !Object.keys(categories).length) {
+  if (!buttons.length && !Object.keys(categories).length && menuPlugins.length === 0) {
     return undefined;
   }
 
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger>
-        <NavButton as={Box} icon={<LuPlug />} title="Plugins" />
-      </Menu.Trigger>
-      <Menu.Content>
-        {buttons.map(({ href, name }) =>
-          href !== null && href !== undefined ? (
-            <Menu.Item asChild key={name} value={name}>
-              <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                {name}
-              </Link>
-            </Menu.Item>
-          ) : undefined,
-        )}
-        {Object.entries(categories).map(([key, menuButtons]) => (
-          <Menu.Root key={key} positioning={{ placement: "right" }}>
-            <Menu.TriggerItem display="flex" justifyContent="space-between">
-              {key}
-              <FiChevronRight />
-            </Menu.TriggerItem>
-            <Menu.Content>
-              {menuButtons.map(({ href, name }) =>
-                href !== undefined && href !== null ? (
-                  <Menu.Item asChild key={name} value={name}>
-                    <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                      {name}
-                    </Link>
-                  </Menu.Item>
-                ) : undefined,
-              )}
-            </Menu.Content>
-          </Menu.Root>
-        ))}
-      </Menu.Content>
-    </Menu.Root>
+    <>
+      {directExternalViews.map((externalView) => (
+        <PluginMenuItem {...externalView} key={externalView.name} topLevel={true} />
+      ))}
+      {menuExternalViews.length > 0 && (
+        <Menu.Root positioning={{ placement: "right" }}>
+          <Menu.Trigger>
+            <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
+          </Menu.Trigger>
+          <Menu.Content>
+            {buttons.map((externalView) => (
+              <Menu.Item asChild key={externalView.name} value={externalView.name}>
+                <PluginMenuItem {...externalView} />
+              </Menu.Item>
+            ))}
+            {Object.entries(categories).map(([key, menuButtons]) => (
+              <Menu.Root key={key} positioning={{ placement: "right" }}>
+                <Menu.TriggerItem display="flex" justifyContent="space-between">
+                  {key}
+                  <FiChevronRight />
+                </Menu.TriggerItem>
+                <Menu.Content>
+                  {menuButtons.map((externalView) => (
+                    <Menu.Item asChild key={externalView.name} value={externalView.name}>
+                      <PluginMenuItem {...externalView} />
+                    </Menu.Item>
+                  ))}
+                </Menu.Content>
+              </Menu.Root>
+            ))}
+          </Menu.Content>
+        </Menu.Root>
+      )}
+    </>
   );
 };

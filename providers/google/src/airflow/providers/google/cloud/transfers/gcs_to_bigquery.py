@@ -373,7 +373,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=table_obj_api_repr["tableReference"]["datasetId"],
                 project_id=table_obj_api_repr["tableReference"]["projectId"],
                 table_id=table_obj_api_repr["tableReference"]["tableId"],
@@ -547,6 +546,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote",
                 "encoding",
                 "preserveAsciiControlCharacters",
+                "columnNameCharacterMap",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
@@ -672,6 +672,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote",
                 "encoding",
                 "preserveAsciiControlCharacters",
+                "columnNameCharacterMap",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],

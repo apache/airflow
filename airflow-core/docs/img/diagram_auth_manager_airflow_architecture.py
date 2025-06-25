@@ -14,6 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#    "rich>=12.4.4",
+#    "diagrams>=0.23.4",
+# ]
+# ///
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,7 +32,13 @@ from rich.console import Console
 
 MY_DIR = Path(__file__).parent
 MY_FILENAME = Path(__file__).with_suffix("").name
-PYTHON_MULTIPROCESS_LOGO = MY_DIR.parents[1] / "diagrams" / "python_multiprocess_logo.png"
+AIRFLOW_SOURCES_ROOT = MY_DIR.parents[2]
+DIAGRAMS_DIR = AIRFLOW_SOURCES_ROOT / "devel-common" / "src" / "docs" / "diagrams"
+PYTHON_MULTIPROCESS_LOGO = DIAGRAMS_DIR / "python_multiprocess_logo.png"
+PACKAGES_IMAGE = DIAGRAMS_DIR / "packages.png"
+DATABASE_IMAGE = DIAGRAMS_DIR / "database.png"
+MULTIPLE_FILES_IMAGE = DIAGRAMS_DIR / "multiple_files.png"
+CONFIG_FILE = DIAGRAMS_DIR / "config_file.png"
 
 console = Console(width=400, color_system="standard")
 

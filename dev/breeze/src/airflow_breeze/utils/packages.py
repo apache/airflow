@@ -877,6 +877,9 @@ def regenerate_pyproject_toml(
             new_optional_dependencies.append(modified_dependency)
         optional_dependencies = new_optional_dependencies
     context["INSTALL_REQUIREMENTS"] = "\n".join(required_dependencies)
+    context["AIRFLOW_DOC_URL"] = (
+        "https://airflow.staged.apache.org" if version_suffix else "https://airflow.apache.org"
+    )
     cross_provider_ids = set(PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"])
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
@@ -1046,6 +1049,9 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
         if base_line.startswith("version = "):
             get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
             base_line = base_line.rstrip('"') + f'{version_suffix}"'
+        if "https://airflow.apache.org/" in base_line and version_suffix:
+            get_console().print(f"[info]Updating documentation link to staging for {line}.")
+            base_line = base_line.replace("https://airflow.apache.org/", "https://airflow.staged.apache.org/")
         # do not modify references for .post prefixes
         if not version_suffix.startswith(".post"):
             if base_line.strip().startswith('"apache-airflow-') and ">=" in base_line:

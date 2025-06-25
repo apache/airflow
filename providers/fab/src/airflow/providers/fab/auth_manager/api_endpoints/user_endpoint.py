@@ -88,6 +88,8 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
 @requires_access_custom_view("POST", permissions.RESOURCE_USER)
 def post_user() -> APIResponse:
     """Create a new user."""
+    if request.json is None:
+        raise BadRequest("Request body is required")
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:
@@ -131,6 +133,8 @@ def post_user() -> APIResponse:
 @requires_access_custom_view("PUT", permissions.RESOURCE_USER)
 def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     """Update a user."""
+    if request.json is None:
+        raise BadRequest("Request body is required")
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:

@@ -90,6 +90,16 @@ class TestPluginsCommand:
                         "name": "Name of the Middleware",
                     }
                 ],
+                "external_views": [
+                    {
+                        "destination": "nav",
+                        "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                        "name": "Test IFrame Airflow Docs",
+                        "href": "https://airflow.apache.org/",
+                        "url_route": "test_iframe_plugin",
+                        "category": "browse",
+                    },
+                ],
                 "appbuilder_views": [
                     {
                         "name": "Test View",

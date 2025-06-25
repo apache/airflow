@@ -60,7 +60,7 @@ updates:
         patterns:
           - "*"
 
-  # Repeat dependency updates on 2.10 branch as well
+  # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip
     directories:
       - /clients/python
@@ -69,14 +69,14 @@ updates:
       - /
     schedule:
       interval: daily
-    target-branch: v2-10-test
+    target-branch: v2-11-test
 
   - package-ecosystem: npm
     directories:
       - /airflow/www/
     schedule:
       interval: daily
-    target-branch: v2-10-test
+    target-branch: v2-11-test
     groups:
       core-ui-package-updates:
         patterns:

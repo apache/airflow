@@ -28,6 +28,7 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_allow_pre_releases,
     option_backend,
     option_clean_airflow_installation,
     option_core_integration,
@@ -67,6 +68,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_commands import option_distribution_format
 from airflow_breeze.global_constants import (
+    ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
@@ -91,7 +93,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_PATH, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     file_name_from_test_type,
     generate_args_for_pytest,
@@ -102,8 +104,8 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
-LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
-DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
+DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
 
@@ -327,6 +329,7 @@ def _run_tests_in_pool(
         "CLI",
         "Serialization",
         "Always",
+        "Providers[celery]",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run
@@ -515,6 +518,15 @@ option_test_type_providers_group = click.option(
     show_default=True,
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.PROVIDERS]),
 )
+option_test_type = click.option(
+    "--test-type",
+    help="Type for shell tests to run - used when forcing "
+    "lowest dependencies to determine which distribution to force lowest dependencies for",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice([*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()]),
+)
 option_test_type_helm = click.option(
     "--test-type",
     help="Type of helm tests to run",
@@ -544,12 +556,6 @@ option_use_xdist = click.option(
     help="Use xdist plugin for pytest",
     is_flag=True,
     envvar="USE_XDIST",
-)
-option_remove_arm_packages = click.option(
-    "--remove-arm-packages",
-    help="Removes arm packages from the image to test if ARM collection works",
-    is_flag=True,
-    envvar="REMOVE_ARM_PACKAGES",
 )
 option_force_sa_warnings = click.option(
     "--force-sa-warnings/--no-force-sa-warnings",
@@ -604,7 +610,6 @@ option_total_test_timeout = click.option(
 @option_parallelism
 @option_postgres_version
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -615,6 +620,7 @@ option_total_test_timeout = click.option(
 @option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
@@ -668,7 +674,6 @@ def core_tests(**kwargs):
 @option_providers_constraints_location
 @option_providers_skip_constraints
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -680,6 +685,7 @@ def core_tests(**kwargs):
 @option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
@@ -712,6 +718,7 @@ def providers_tests(**kwargs):
 def task_sdk_tests(**kwargs):
     _run_test_command(
         test_group=GroupOfTests.TASK_SDK,
+        allow_pre_releases=False,
         airflow_constraints_reference="constraints-main",
         backend="none",
         clean_airflow_installation=False,
@@ -735,7 +742,6 @@ def task_sdk_tests(**kwargs):
         distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        remove_arm_packages=False,
         skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
@@ -755,55 +761,30 @@ def task_sdk_tests(**kwargs):
         allow_extra_args=False,
     ),
 )
-@option_collect_only
-@option_dry_run
-@option_enable_coverage
-@option_force_sa_warnings
-@option_forward_credentials
-@option_github_repository
-@option_keep_env_variables
-@option_mount_sources
+@option_parallelism
 @option_python
-@option_skip_docker_compose_down
-@option_test_timeout
+@option_dry_run
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def airflow_ctl_tests(**kwargs):
-    _run_test_command(
-        test_group=GroupOfTests.CTL,
-        airflow_constraints_reference="constraints-main",
-        backend="none",
-        clean_airflow_installation=False,
-        debug_resources=False,
-        downgrade_pendulum=False,
-        downgrade_sqlalchemy=False,
-        db_reset=False,
-        include_success_outputs=False,
-        integration=(),
-        install_airflow_with_constraints=False,
-        run_db_tests_only=False,
-        run_in_parallel=False,
-        skip_db_tests=True,
-        use_xdist=True,
-        excluded_parallel_test_types="",
-        excluded_providers="",
-        force_lowest_dependencies=False,
-        no_db_cleanup=True,
-        parallel_test_types="",
-        parallelism=0,
-        distribution_format="wheel",
-        providers_constraints_location="",
-        providers_skip_constraints=False,
-        remove_arm_packages=False,
-        skip_cleanup=False,
-        skip_providers="",
-        test_type=ALL_TEST_TYPE,
-        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
-        upgrade_boto=False,
-        use_airflow_version=None,
-        use_distributions_from_dist=False,
-        **kwargs,
-    )
+def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
+    parallelism_args = ["-n", str(parallelism)] if parallelism > 1 else []
+    test_command = [
+        "uv",
+        "run",
+        "--python",
+        python,
+        "pytest",
+        "--color=yes",
+        *parallelism_args,
+        *extra_pytest_args,
+    ]
+    result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
+    if result.returncode != 0:
+        get_console().print(
+            f"[error]Airflow CTL tests failed with return code {result.returncode}.[/]\n"
+            f"Command: {' '.join(test_command)}\n"
+        )
+        sys.exit(result.returncode)
 
 
 @group_for_testing.command(
@@ -989,6 +970,7 @@ def integration_providers_tests(
 @option_mysql_version
 @option_no_db_cleanup
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_airflow_constraints_reference
 @option_clean_airflow_installation
 @option_force_lowest_dependencies
@@ -1019,6 +1001,7 @@ def system_tests(
     skip_docker_compose_down: bool,
     test_timeout: int,
     use_airflow_version: str,
+    allow_pre_releases: bool,
     airflow_constraints_reference: str,
     clean_airflow_installation: bool,
     force_lowest_dependencies: bool,
@@ -1046,6 +1029,7 @@ def system_tests(
         run_tests=True,
         db_reset=db_reset,
         use_airflow_version=use_airflow_version,
+        allow_pre_releases=allow_pre_releases,
         airflow_constraints_reference=airflow_constraints_reference,
         clean_airflow_installation=clean_airflow_installation,
         force_lowest_dependencies=force_lowest_dependencies,
@@ -1268,6 +1252,7 @@ def _run_test_command(
     *,
     test_group: GroupOfTests,
     airflow_constraints_reference: str,
+    allow_pre_releases: bool,
     backend: str,
     collect_only: bool,
     clean_airflow_installation: bool,
@@ -1295,7 +1280,6 @@ def _run_test_command(
     providers_constraints_location: str,
     providers_skip_constraints: bool,
     python: str,
-    remove_arm_packages: bool,
     run_db_tests_only: bool,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1321,6 +1305,7 @@ def _run_test_command(
         test_list = [test for test in test_list if test not in excluded_test_list]
     shell_params = ShellParams(
         airflow_constraints_reference=airflow_constraints_reference,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
         clean_airflow_installation=clean_airflow_installation,
@@ -1346,7 +1331,6 @@ def _run_test_command(
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
-        remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         test_type=test_type,

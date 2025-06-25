@@ -33,6 +33,7 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "structlog>=25.2.0",
     "uuid6>=2024.7.10",
+    "eval-type-backport>=0.2.0; python_version == '3.9'",
 ]
 
 classifiers = [
@@ -96,8 +97,24 @@ exclude_also = [
 ]
 
 [dependency-groups]
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
 dev = [
     "apache-airflow-ctl[dev]",
+    "apache-airflow-devel-common",
 ]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
@@ -122,7 +139,7 @@ use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
-input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml"
+input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##
@@ -141,15 +158,15 @@ addopts = [
     "--disable-warnings",
     "--asyncio-mode=strict",
 ]
-
-
+markers = [
+    "flaky(reruns, reruns_delay): retry test on failure using pytest-rerunfailures"
+]
 norecursedirs = [
     ".eggs",
 ]
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
-    "error::pytest.PytestReturnNotNoneWarning",
 ]
 python_files = [
     "test_*.py",
@@ -164,3 +181,9 @@ pythonpath = "tests"
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
+
+[tool.uv]
+required-version = ">=0.6.3"
+
+[tool.uv.sources]
+apache-airflow-devel-common = { workspace = true }

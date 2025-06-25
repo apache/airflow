@@ -16,8 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
+import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
@@ -25,20 +27,64 @@ import type { EventLogResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 
+type EventsColumn = {
+  dagId?: string;
+  open?: boolean;
+  runId?: string;
+  taskId?: string;
+};
+
 const eventsColumn = (
-  dagId?: string,
-  runId?: string,
-  taskId?: string,
+  { dagId, open, runId, taskId }: EventsColumn,
+  translate: (key: string) => string,
 ): Array<ColumnDef<EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
     enableSorting: true,
-    header: "When",
+    header: translate("auditLog.columns.when"),
     meta: {
       skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "event",
+    enableSorting: true,
+    header: translate("auditLog.columns.event"),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "owner",
+    enableSorting: true,
+    header: translate("auditLog.columns.user"),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "extra",
+    cell: ({ row: { original } }) => {
+      if (original.extra !== null) {
+        try {
+          const parsed = JSON.parse(original.extra) as Record<string, unknown>;
+
+          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: !open }} />;
+        } catch {
+          return <Code>{original.extra}</Code>;
+        }
+      }
+
+      return undefined;
+    },
+    enableSorting: false,
+    header: translate("auditLog.columns.extra"),
+    meta: {
+      skeletonWidth: 200,
     },
   },
   ...(Boolean(dagId)
@@ -47,7 +93,7 @@ const eventsColumn = (
         {
           accessorKey: "dag_id",
           enableSorting: true,
-          header: "Dag ID",
+          header: translate("common:dagId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -59,7 +105,7 @@ const eventsColumn = (
         {
           accessorKey: "run_id",
           enableSorting: true,
-          header: "Run ID",
+          header: translate("common:runId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -71,7 +117,7 @@ const eventsColumn = (
         {
           accessorKey: "task_id",
           enableSorting: true,
-          header: "Task ID",
+          header: translate("common:taskId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -80,7 +126,7 @@ const eventsColumn = (
   {
     accessorKey: "map_index",
     enableSorting: false,
-    header: "Map Index",
+    header: translate("common:mapIndex"),
     meta: {
       skeletonWidth: 10,
     },
@@ -88,23 +134,7 @@ const eventsColumn = (
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "event",
-    enableSorting: true,
-    header: "Event",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "owner",
-    enableSorting: true,
-    header: "User",
+    header: translate("common:tryNumber"),
     meta: {
       skeletonWidth: 10,
     },
@@ -112,19 +142,16 @@ const eventsColumn = (
 ];
 
 export const Events = () => {
+  const { t: translate } = useTranslation("browse");
   const { dagId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
+  const { onClose, onOpen, open } = useDisclosure();
 
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-when";
 
-  const {
-    data,
-    error: EventsError,
-    isFetching,
-    isLoading,
-  } = useEventLogServiceGetEventLogs(
+  const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
       dagId,
       limit: pagination.pageSize,
@@ -139,15 +166,40 @@ export const Events = () => {
 
   return (
     <Box>
-      <ErrorAlert error={EventsError} />
+      <Flex alignItems="center" justifyContent="space-between">
+        {dagId === undefined && runId === undefined && taskId === undefined ? (
+          <Heading size="md">{translate("auditLog.title")}</Heading>
+        ) : undefined}
+        <ButtonGroup attached mt="1" size="sm" variant="surface">
+          <IconButton
+            aria-label={translate("auditLog.actions.expandAllExtra")}
+            onClick={onOpen}
+            size="sm"
+            title={translate("auditLog.actions.expandAllExtra")}
+            variant="surface"
+          >
+            <MdExpand />
+          </IconButton>
+          <IconButton
+            aria-label={translate("auditLog.actions.collapseAllExtra")}
+            onClick={onClose}
+            size="sm"
+            title={translate("auditLog.actions.collapseAllExtra")}
+            variant="surface"
+          >
+            <MdCompress />
+          </IconButton>
+        </ButtonGroup>
+      </Flex>
+      <ErrorAlert error={error} />
       <DataTable
-        columns={eventsColumn(dagId, runId, taskId)}
+        columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
         data={data ? data.event_logs : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Event"
+        modelName={translate("auditLog.columns.event")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}

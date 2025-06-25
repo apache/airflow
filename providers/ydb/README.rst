@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ydb``
 
-Release: ``2.1.1``
+Release: ``2.2.0``
 
 
 `YDB <https://ydb.tech/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ydb`` provider. All classes for this provider p
 are in ``airflow.providers.ydb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.2.0/>`_.
 
 Installation
 ------------
@@ -79,4 +79,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.2.0/changelog.html>`_.

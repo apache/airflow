@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
@@ -31,14 +32,6 @@ import { toaster } from "src/components/ui";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
-const onError = () => {
-  toaster.create({
-    description: "Clear Task Instance request failed",
-    title: "Failed to clear the Task Instance",
-    type: "error",
-  });
-};
-
 export const useClearTaskInstances = ({
   dagId,
   dagRunId,
@@ -49,6 +42,15 @@ export const useClearTaskInstances = ({
   onSuccessConfirm: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("dags");
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("dags:runAndTaskActions.clear.error", { type: translate("taskInstance_one") }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async (
     _: TaskInstanceCollectionResponse,
@@ -60,15 +62,14 @@ export const useClearTaskInstances = ({
         (variables.requestBody.task_ids ?? [])
           .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
           .map((taskId) => {
-            const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+            const [actualTaskId, mapIndex] = Array.isArray(taskId) ? taskId : [taskId, undefined];
             const runId = variables.requestBody.dag_run_id;
 
             if (runId === null || runId === undefined) {
               return undefined;
             }
 
-            // TODO: update mapIndex when the endpoint supports clearing mapped tasks
-            const params = { dagId, dagRunId: runId, mapIndex: -1, taskId: actualTaskId };
+            const params = { dagId, dagRunId: runId, mapIndex: mapIndex ?? -1, taskId: actualTaskId };
 
             return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
           })

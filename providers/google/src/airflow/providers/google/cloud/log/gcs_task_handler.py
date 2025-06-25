@@ -61,11 +61,11 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
     remote_base: str
     base_log_folder: Path = attrs.field(converter=Path)
     delete_local_copy: bool
-    project_id: str
+    project_id: str | None = None
 
-    gcp_key_path: str | None
-    gcp_keyfile_dict: dict | None
-    scopes: Collection[str] | None
+    gcp_key_path: str | None = None
+    gcp_keyfile_dict: dict | None = None
+    scopes: Collection[str] | None = _DEFAULT_SCOPESS
 
     processors = ()
 

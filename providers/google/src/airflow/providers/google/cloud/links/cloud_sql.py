@@ -19,14 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
-
 
 CLOUD_SQL_BASE_LINK = "/sql"
 CLOUD_SQL_INSTANCE_LINK = CLOUD_SQL_BASE_LINK + "/instances/{instance}/overview?project={project_id}"
@@ -42,19 +35,6 @@ class CloudSQLInstanceLink(BaseGoogleLink):
     key = "cloud_sql_instance"
     format_str = CLOUD_SQL_INSTANCE_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        cloud_sql_instance: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=CloudSQLInstanceLink.key,
-            value={"instance": cloud_sql_instance, "project_id": project_id},
-        )
-
 
 class CloudSQLInstanceDatabaseLink(BaseGoogleLink):
     """Helper class for constructing Cloud SQL Instance Database Link."""
@@ -62,16 +42,3 @@ class CloudSQLInstanceDatabaseLink(BaseGoogleLink):
     name = "Cloud SQL Instance Database"
     key = "cloud_sql_instance_database"
     format_str = CLOUD_SQL_INSTANCE_DATABASE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        cloud_sql_instance: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=CloudSQLInstanceDatabaseLink.key,
-            value={"instance": cloud_sql_instance, "project_id": project_id},
-        )

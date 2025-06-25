@@ -37,8 +37,6 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.utils import db
-from airflow.utils.db import merge_conn
 
 from tests_common.test_utils.db import clear_db_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
@@ -94,9 +92,13 @@ def remove_default_conn(session):
 
 
 class TestKubernetesHook:
-    @classmethod
-    def setup_class(cls) -> None:
-        for conn_id, extra in [
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        """Create test connections for Kubernetes hook tests."""
+        import json
+
+        connections = [
             ("in_cluster", {"in_cluster": True}),
             ("in_cluster_empty", {"in_cluster": ""}),
             ("kube_config", {"kube_config": '{"test": "kube"}'}),
@@ -128,8 +130,11 @@ class TestKubernetesHook:
                 },
             ),
             ("sidecar_container_resources_empty", {"xcom_sidecar_container_resources": ""}),
-        ]:
-            db.merge_conn(Connection(conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra)))
+        ]
+        for conn_id, extra in connections:
+            create_connection_without_db(
+                Connection(conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra))
+            )
 
     @classmethod
     def teardown_class(cls) -> None:
@@ -834,9 +839,9 @@ class TestAsyncKubernetesHook:
 
     @staticmethod
     @pytest.fixture
-    def kubernetes_connection():
+    def kubernetes_connection(create_connection_without_db):
         extra = {"kube_config": '{"test": "kube"}'}
-        merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_type="kubernetes",
                 conn_id=CONN_ID,
@@ -904,12 +909,12 @@ class TestAsyncKubernetesHook:
     @mock.patch(INCLUSTER_CONFIG_LOADER)
     @mock.patch(KUBE_CONFIG_MERGER)
     async def test_load_config_with_conn_id_kube_config_path(
-        self, kube_config_merger, incluster_config, kube_config_loader, tmp_path
+        self, kube_config_merger, incluster_config, kube_config_loader, tmp_path, create_connection_without_db
     ):
         file_name = f"{tmp_path}/config"
         extra = {"kube_config_path": file_name}
         try:
-            merge_conn(
+            create_connection_without_db(
                 Connection(
                     conn_type="kubernetes",
                     conn_id=CONN_ID,

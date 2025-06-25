@@ -563,12 +563,6 @@ def prepare_syspath_for_config_and_plugins():
         sys.path.append(PLUGINS_FOLDER)
 
 
-def prepare_syspath_for_dags_folder():
-    """Update sys.path to include the DAGs folder."""
-    if DAGS_FOLDER not in sys.path:
-        sys.path.append(DAGS_FOLDER)
-
-
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
@@ -615,7 +609,6 @@ def initialize():
     # in airflow_local_settings to take precendec
     load_policy_plugins(POLICY_PLUGIN_MANAGER)
     import_local_settings()
-    prepare_syspath_for_dags_folder()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
 
@@ -623,7 +616,9 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
 
     if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None):
-        configure_orm()
+        is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
+        if not is_worker:
+            configure_orm()
     configure_action_logging()
 
     # mask the sensitive_config_values

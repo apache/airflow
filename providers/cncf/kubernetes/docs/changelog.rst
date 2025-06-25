@@ -28,6 +28,78 @@ Changelog
 ---------
 
 
+10.6.0
+......
+
+Features
+~~~~~~~~
+
+* ``KubernetesPodOperator push xcom after failed pod (#51475)``
+* ``[KubernetesPodOperator] Reads Kubernetes events and writes them into log (#50192)``
+* ``Added detection of terminated pod during get_or_create_pod (#51158)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add xcom sidecar terminated detection (#51144)``
+* ``Fix 'EksPodOperator' in deferrable mode (#51255)``
+* ``Fix a bug where Kube config "worker_pod_pending_fatal_container_state_reasons" is parsed wrongly (#50931)``
+
+Misc
+~~~~
+
+* ``Relax Kubernetes client version support to <33.0.0 (#51195)``
+* ``Adjust code path in executors to be compatible with airflow task run (#51009)``
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update the executor and provider doc to highlight the two statically coded hybrid executors are no longer supported in Airflow 3.0.0+ (#51715)``
+* ``Update operators.rst - fix typo Kubernetes Pod Operator doc (#51574)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.5.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add fast fail for ErrImagePull and InvalidImageName for KubernetesPodOperator (#49867)``
+* ``KubernetesPodOperator uses different timeouts to check for schedule timeout and startup timeout (#49784)``
+* ``Add configurable automountServiceAccountToken for the KubernetesPodOperator (#50223)``
+* ``Add 'test_connection' method to 'KubernetesHook' (#47881)``
+* ``Add '@task.kuberenetes_cmd'  (#46913)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass workload to KubernetesExecutor using command args instead of init container (#50448)``
+* ``Fix KubernetesPodOperator AutomountServiceAccountToken from Pod Template (#50800)``
+* ``Fix broken imports of cncf.kubernetes for Airflow 2 (#50651)``
+
+Misc
+~~~~
+
+* ``Move SQS message queue to Amazon provider (#50057)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Prepare release for providers May 2025 (#50531)``
+
 10.4.3
 ......
 

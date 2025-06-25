@@ -20,30 +20,24 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
-import itertools
 import json
 import platform
 import subprocess
+from collections.abc import Generator
 from enum import Enum
+from pathlib import Path
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
+    AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
 
-RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
-# we should get more sophisticated logic here in the future, but for now we just check if
-# we use self airflow, vm-based, amd hosted runner as a default
-# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
-RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
-RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
-# TODO: when we have it properly set-up with labels we should change it to
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
-SELF_HOSTED_RUNNERS_CPU_COUNT = 8
+PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
+PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
 ANSWER = ""
 
@@ -199,8 +193,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1"
-UV_VERSION = "0.6.17"
+PIP_VERSION = "25.1.1"
+UV_VERSION = "0.7.13"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -211,6 +205,12 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "task-sdk",
+]
+
+DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/docs/",
+    "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
 
@@ -338,7 +338,8 @@ ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALTERNATIVE_PLATFORMS = ["linux/x86_64", "linux/aarch64"]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64", *ALTERNATIVE_PLATFORMS]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
@@ -346,15 +347,21 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
 
+def normalize_platform_machine(platform_machine: str) -> str:
+    if "linux/" in platform_machine:
+        return {"linux/x86_64": "linux/amd64", "linux/aarch64": "linux/arm64"}.get(
+            platform_machine, platform_machine
+        )
+    return "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}.get(platform_machine, platform_machine)
+
+
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
-    # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64", "aarch64": "arm64"}.get(machine, machine)
-    return machine
+    return normalize_platform_machine(machine)
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
+DOCKER_DEFAULT_PLATFORM = get_default_platform_machine()
 DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
@@ -394,6 +401,7 @@ PYTHON_3_6_TO_3_10 = ["3.7", "3.8", "3.9", "3.10"]
 PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -446,6 +454,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.3": PYTHON_3_8_TO_3_12,
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
+    "2.11.0": PYTHON_3_9_TO_3_12,
 }
 
 DB_RESET = False
@@ -546,6 +555,19 @@ def get_airflow_version():
     return airflow_version
 
 
+def get_task_sdk_version():
+    task_sdk_init_py_file = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py"
+    task_sdk_version = "unknown"
+    with open(task_sdk_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                task_sdk_version = line.split()[2][1:-1]
+                break
+    if task_sdk_version == "unknown":
+        raise RuntimeError("Unable to determine Task SDK version")
+    return task_sdk_version
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -557,9 +579,6 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PYPROJECT_TOML_FILES = AIRFLOW_ROOT_PATH.rglob("pyproject.toml")
-ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
-ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
@@ -570,12 +589,34 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
 
+ALL_PYPROJECT_TOML_FILES = []
+
+
+def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    in_workspace = False
+    for line in pyproject_toml_content:
+        trimmed_line = line.strip()
+        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
+            in_workspace = True
+        elif in_workspace:
+            if trimmed_line.startswith("#"):
+                continue
+            if trimmed_line.startswith('"'):
+                path = trimmed_line.split('"')[1]
+                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
+                if trimmed_line.startswith('"providers/'):
+                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
+                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
+            elif trimmed_line.startswith("]"):
+                break
+
 
 def _calculate_provider_deps_hash():
     import hashlib
 
     hasher = hashlib.sha256()
-    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
         hasher.update(file.read_bytes())
     return hasher.hexdigest()
 
@@ -690,14 +731,19 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.10.5",
-        "remove-providers": "cloudant common.messaging fab git",
+        "remove-providers": "cloudant common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
-        "airflow-version": "3.0.0",
-        # TODO: bring back common-messaging when we bump airflow to 3.0.1
-        "remove-providers": "cloudant common.messaging",
+        "airflow-version": "2.11.0",
+        "remove-providers": "cloudant common.messaging fab git keycloak",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "3.0.2",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]

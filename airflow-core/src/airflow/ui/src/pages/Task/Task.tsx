@@ -17,25 +17,50 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskServiceGetTask } from "openapi/queries";
+import { useDagServiceGetDagDetails, useGridServiceGridData, useTaskServiceGetTask } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { getGroupTask } from "src/utils/groupTask";
 
+import { GroupTaskHeader } from "./GroupTaskHeader";
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <LuChartColumn />, label: "Overview", value: "" },
-  { icon: <MdOutlineTask />, label: "Task Instances", value: "task_instances" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-];
-
 export const Task = () => {
-  const { dagId = "", taskId = "" } = useParams();
+  const { t: translate } = useTranslation("dag");
+  const { dagId = "", groupId, taskId } = useParams();
 
-  const { data: task, error, isLoading } = useTaskServiceGetTask({ dagId, taskId });
+  const tabs = [
+    { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+  ];
+
+  const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events");
+
+  const {
+    data: task,
+    error,
+    isLoading,
+  } = useTaskServiceGetTask({ dagId, taskId: groupId ?? taskId }, undefined, {
+    enabled: groupId === undefined,
+  });
+
+  const { data: gridData } = useGridServiceGridData(
+    {
+      dagId,
+      includeDownstream: true,
+      includeUpstream: true,
+    },
+    undefined,
+    { enabled: groupId !== undefined },
+  );
+
+  const groupTask =
+    groupId === undefined ? undefined : getGroupTask(gridData?.structure.nodes ?? [], groupId);
 
   const {
     data: dag,
@@ -47,8 +72,14 @@ export const Task = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
+      <DetailsLayout
+        dag={dag}
+        error={error ?? dagError}
+        isLoading={isLoading || isDagLoading}
+        tabs={displayTabs}
+      >
         {task === undefined ? undefined : <Header task={task} />}
+        {groupTask ? <GroupTaskHeader groupTask={groupTask} /> : undefined}
       </DetailsLayout>
     </ReactFlowProvider>
   );

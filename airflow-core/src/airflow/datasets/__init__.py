@@ -32,7 +32,7 @@ import warnings
 _names_moved = {
     "DatasetAlias": ("airflow.sdk.definitions.asset", "AssetAlias"),
     "DatasetAll": ("airflow.sdk.definitions.asset", "AssetAll"),
-    "DatasetAny": ("airflow.sdk.definitions.asset", "DatasetAny"),
+    "DatasetAny": ("airflow.sdk.definitions.asset", "AssetAny"),
     "Dataset": ("airflow.sdk.definitions.asset", "Asset"),
     "expand_alias_to_datasets": ("airflow.models.asset", "expand_alias_to_assets"),
 }

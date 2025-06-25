@@ -275,15 +275,12 @@ class TestAlloyDBCreateClusterOperator:
         mock_to_dict.assert_called_once_with(mock_cluster)
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("_get_cluster"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_to_dict, mock_link
-    ):
+    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_to_dict):
         mock_get_cluster.return_value = None
         mock_create_cluster = mock_hook.return_value.create_cluster
         mock_create_secondary_cluster = mock_hook.return_value.create_secondary_cluster
@@ -294,14 +291,6 @@ class TestAlloyDBCreateClusterOperator:
         mock_context = mock.MagicMock()
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
         mock_get_cluster.assert_called_once()
@@ -322,14 +311,18 @@ class TestAlloyDBCreateClusterOperator:
 
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("_get_cluster"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_is_secondary(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_cluster,
+        mock_to_dict,
     ):
         mock_get_cluster.return_value = None
         mock_create_cluster = mock_hook.return_value.create_cluster
@@ -342,14 +335,6 @@ class TestAlloyDBCreateClusterOperator:
         self.operator.is_secondary = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
         mock_get_cluster.assert_called_once()
@@ -370,14 +355,18 @@ class TestAlloyDBCreateClusterOperator:
 
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("_get_cluster"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_cluster,
+        mock_to_dict,
     ):
         mock_get_cluster.return_value = None
         mock_create_cluster = mock_hook.return_value.create_cluster
@@ -389,14 +378,6 @@ class TestAlloyDBCreateClusterOperator:
         self.operator.validate_request = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB cluster request.")
         mock_get_cluster.assert_called_once()
@@ -416,14 +397,18 @@ class TestAlloyDBCreateClusterOperator:
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("_get_cluster"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request_is_secondary(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_cluster,
+        mock_to_dict,
     ):
         mock_get_cluster.return_value = None
         mock_create_cluster = mock_hook.return_value.create_cluster
@@ -436,14 +421,6 @@ class TestAlloyDBCreateClusterOperator:
         self.operator.is_secondary = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB cluster request.")
         mock_get_cluster.assert_called_once()
@@ -463,13 +440,16 @@ class TestAlloyDBCreateClusterOperator:
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("_get_cluster"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_already_exists(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_cluster,
     ):
         expected_result = mock_get_cluster.return_value
         mock_create_cluster = mock_hook.return_value.create_cluster
@@ -479,14 +459,6 @@ class TestAlloyDBCreateClusterOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
-
         assert not mock_log.info.called
         mock_get_cluster.assert_called_once()
         assert not mock_create_cluster.called
@@ -494,14 +466,18 @@ class TestAlloyDBCreateClusterOperator:
         assert not mock_get_operation_result.called
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("_get_cluster"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_CLUSTER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_exception(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_cluster, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_cluster,
+        mock_to_dict,
     ):
         mock_get_cluster.return_value = None
         mock_create_cluster = mock_hook.return_value.create_cluster
@@ -511,14 +487,6 @@ class TestAlloyDBCreateClusterOperator:
 
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
         mock_get_cluster.assert_called_once()
@@ -569,12 +537,11 @@ class TestAlloyDBUpdateClusterOperator:
         )
         assert set(AlloyDBUpdateClusterOperator.template_fields) == expected_template_fields
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUpdateClusterOperator.get_operation_result"))
     @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUpdateClusterOperator.log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link):
+    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_cluster = mock_hook.return_value.update_cluster
         mock_operation = mock_update_cluster.return_value
         mock_operation_result = mock_get_operation_result.return_value
@@ -584,13 +551,6 @@ class TestAlloyDBUpdateClusterOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_cluster.assert_called_once_with(
             cluster_id=TEST_CLUSTER_ID,
             project_id=TEST_GCP_PROJECT,
@@ -614,13 +574,16 @@ class TestAlloyDBUpdateClusterOperator:
             ]
         )
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUpdateClusterOperator.get_operation_result"))
     @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUpdateClusterOperator.log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_to_dict,
     ):
         mock_update_cluster = mock_hook.return_value.update_cluster
         mock_operation = mock_update_cluster.return_value
@@ -648,21 +611,13 @@ class TestAlloyDBUpdateClusterOperator:
         )
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert not mock_to_dict.called
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUpdateClusterOperator.get_operation_result"))
     @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUpdateClusterOperator.log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_exception(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link):
+    def test_execute_exception(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_cluster = mock_hook.return_value.update_cluster
         mock_update_cluster.side_effect = Exception
 
@@ -671,13 +626,6 @@ class TestAlloyDBUpdateClusterOperator:
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_cluster.assert_called_once_with(
             cluster_id=TEST_CLUSTER_ID,
             project_id=TEST_GCP_PROJECT,
@@ -912,14 +860,18 @@ class TestAlloyDBCreateInstanceOperator:
         mock_to_dict.assert_called_once_with(mock_instance)
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Instance.to_dict"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("_get_instance"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_instance, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_instance,
+        mock_to_dict,
     ):
         mock_get_instance.return_value = None
         mock_create_instance = mock_hook.return_value.create_instance
@@ -931,14 +883,6 @@ class TestAlloyDBCreateInstanceOperator:
         mock_context = mock.MagicMock()
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
         mock_get_instance.assert_called_once()
@@ -960,14 +904,18 @@ class TestAlloyDBCreateInstanceOperator:
 
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Instance.to_dict"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("_get_instance"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_is_secondary(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_instance, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_instance,
+        mock_to_dict,
     ):
         mock_get_instance.return_value = None
         mock_create_instance = mock_hook.return_value.create_instance
@@ -980,14 +928,6 @@ class TestAlloyDBCreateInstanceOperator:
         self.operator.is_secondary = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
         mock_get_instance.assert_called_once()
@@ -1009,14 +949,18 @@ class TestAlloyDBCreateInstanceOperator:
 
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Instance.to_dict"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("_get_instance"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_instance, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_instance,
+        mock_to_dict,
     ):
         mock_get_instance.return_value = None
         mock_create_instance = mock_hook.return_value.create_instance
@@ -1028,14 +972,6 @@ class TestAlloyDBCreateInstanceOperator:
         self.operator.validate_request = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB instance request.")
         mock_get_instance.assert_called_once()
@@ -1056,14 +992,18 @@ class TestAlloyDBCreateInstanceOperator:
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Instance.to_dict"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("_get_instance"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request_is_secondary(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_instance, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_instance,
+        mock_to_dict,
     ):
         mock_get_instance.return_value = None
         mock_create_instance = mock_hook.return_value.create_instance
@@ -1076,14 +1016,6 @@ class TestAlloyDBCreateInstanceOperator:
         self.operator.is_secondary = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB instance request.")
         mock_get_instance.assert_called_once()
@@ -1104,13 +1036,16 @@ class TestAlloyDBCreateInstanceOperator:
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("_get_instance"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_already_exists(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_instance, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_instance,
     ):
         expected_result = mock_get_instance.return_value
         mock_create_instance = mock_hook.return_value.create_instance
@@ -1120,14 +1055,6 @@ class TestAlloyDBCreateInstanceOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
-
         assert not mock_log.info.called
         mock_get_instance.assert_called_once()
         assert not mock_create_instance.called
@@ -1135,14 +1062,18 @@ class TestAlloyDBCreateInstanceOperator:
         assert not mock_get_operation_result.called
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Instance.to_dict"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("_get_instance"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_exception(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_instance, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_instance,
+        mock_to_dict,
     ):
         mock_get_instance.return_value = None
         mock_create_instance = mock_hook.return_value.create_instance
@@ -1152,14 +1083,6 @@ class TestAlloyDBCreateInstanceOperator:
 
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
         mock_get_instance.assert_called_once()
@@ -1217,12 +1140,11 @@ class TestAlloyDBUpdateInstanceOperator:
         } | set(AlloyDBWriteBaseOperator.template_fields)
         assert set(AlloyDBUpdateInstanceOperator.template_fields) == expected_template_fields
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Instance.to_dict"))
     @mock.patch(UPDATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(UPDATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link):
+    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_instance = mock_hook.return_value.update_instance
         mock_operation = mock_update_instance.return_value
         mock_operation_result = mock_get_operation_result.return_value
@@ -1232,13 +1154,6 @@ class TestAlloyDBUpdateInstanceOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_instance.assert_called_once_with(
             cluster_id=TEST_CLUSTER_ID,
             instance_id=TEST_INSTANCE_ID,
@@ -1263,13 +1178,16 @@ class TestAlloyDBUpdateInstanceOperator:
             ]
         )
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(UPDATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(UPDATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_to_dict,
     ):
         mock_update_instance = mock_hook.return_value.update_instance
         mock_operation = mock_update_instance.return_value
@@ -1298,21 +1216,13 @@ class TestAlloyDBUpdateInstanceOperator:
         )
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert not mock_to_dict.called
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBClusterLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Cluster.to_dict"))
     @mock.patch(UPDATE_INSTANCE_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(UPDATE_INSTANCE_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_exception(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link):
+    def test_execute_exception(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_instance = mock_hook.return_value.update_instance
         mock_update_instance.side_effect = Exception
 
@@ -1321,13 +1231,6 @@ class TestAlloyDBUpdateInstanceOperator:
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_instance.assert_called_once_with(
             cluster_id=TEST_CLUSTER_ID,
             instance_id=TEST_INSTANCE_ID,
@@ -1556,12 +1459,11 @@ class TestAlloyDBCreateUserOperator:
         mock_to_dict.assert_called_once_with(mock_user)
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.User.to_dict"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("_get_user"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute(self, mock_hook, mock_log, mock_get_user, mock_to_dict, mock_link):
+    def test_execute(self, mock_hook, mock_log, mock_get_user, mock_to_dict):
         mock_get_user.return_value = None
         mock_create_user = mock_hook.return_value.create_user
         mock_user = mock_create_user.return_value
@@ -1571,13 +1473,6 @@ class TestAlloyDBCreateUserOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_log.info.assert_has_calls(
             [
                 call("Creating an AlloyDB user."),
@@ -1600,12 +1495,11 @@ class TestAlloyDBCreateUserOperator:
         mock_to_dict.assert_called_once_with(mock_user)
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.User.to_dict"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("_get_user"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_validate_request(self, mock_hook, mock_log, mock_get_user, mock_to_dict, mock_link):
+    def test_execute_validate_request(self, mock_hook, mock_log, mock_get_user, mock_to_dict):
         mock_get_user.return_value = None
         mock_create_user = mock_hook.return_value.create_user
 
@@ -1613,14 +1507,6 @@ class TestAlloyDBCreateUserOperator:
         self.operator.validate_request = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB user request.")
         mock_get_user.assert_called_once()
@@ -1639,36 +1525,26 @@ class TestAlloyDBCreateUserOperator:
         assert not mock_to_dict.called
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("_get_user"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_already_exists(self, mock_hook, mock_log, mock_get_user, mock_link):
+    def test_execute_already_exists(self, mock_hook, mock_log, mock_get_user):
         expected_result = mock_get_user.return_value
         mock_create_user = mock_hook.return_value.create_user
         mock_context = mock.MagicMock()
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
-
         assert not mock_log.info.called
         mock_get_user.assert_called_once()
         assert not mock_create_user.called
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.User.to_dict"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("_get_user"))
     @mock.patch(CREATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_exception(self, mock_hook, mock_log, mock_get_user, mock_to_dict, mock_link):
+    def test_execute_exception(self, mock_hook, mock_log, mock_get_user, mock_to_dict):
         mock_get_user.return_value = None
         mock_create_user = mock_hook.return_value.create_user
         mock_create_user.side_effect = Exception()
@@ -1676,14 +1552,6 @@ class TestAlloyDBCreateUserOperator:
 
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB user.")
         mock_get_user.assert_called_once()
@@ -1739,11 +1607,10 @@ class TestAlloyDBUpdateUserOperator:
         } | set(AlloyDBWriteBaseOperator.template_fields)
         assert set(AlloyDBUpdateUserOperator.template_fields) == expected_template_fields
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.User.to_dict"))
     @mock.patch(UPDATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute(self, mock_hook, mock_log, mock_to_dict, mock_link):
+    def test_execute(self, mock_hook, mock_log, mock_to_dict):
         mock_update_user = mock_hook.return_value.update_user
         mock_user = mock_update_user.return_value
         expected_result = mock_to_dict.return_value
@@ -1751,13 +1618,6 @@ class TestAlloyDBUpdateUserOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_user.assert_called_once_with(
             cluster_id=TEST_CLUSTER_ID,
             user_id=TEST_USER_ID,
@@ -1781,11 +1641,10 @@ class TestAlloyDBUpdateUserOperator:
             ]
         )
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.User.to_dict"))
     @mock.patch(UPDATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_validate_request(self, mock_hook, mock_log, mock_to_dict, mock_link):
+    def test_execute_validate_request(self, mock_hook, mock_log, mock_to_dict):
         mock_update_user = mock_hook.return_value.update_user
 
         expected_message = "Validating an Update AlloyDB user request."
@@ -1810,20 +1669,12 @@ class TestAlloyDBUpdateUserOperator:
             metadata=TEST_METADATA,
         )
         assert not mock_to_dict.called
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBUsersLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.User.to_dict"))
     @mock.patch(UPDATE_USER_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_exception(self, mock_hook, mock_log, mock_to_dict, mock_link):
+    def test_execute_exception(self, mock_hook, mock_log, mock_to_dict):
         mock_update_user = mock_hook.return_value.update_user
         mock_update_user.side_effect = Exception
 
@@ -1832,13 +1683,6 @@ class TestAlloyDBUpdateUserOperator:
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            location_id=TEST_GCP_REGION,
-            cluster_id=TEST_CLUSTER_ID,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_user.assert_called_once_with(
             cluster_id=TEST_CLUSTER_ID,
             user_id=TEST_USER_ID,
@@ -2045,14 +1889,18 @@ class TestAlloyDBCreateBackupOperator:
         mock_to_dict.assert_called_once_with(mock_instance)
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Backup.to_dict"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("_get_backup"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_backup, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_backup,
+        mock_to_dict,
     ):
         mock_get_backup.return_value = None
         mock_create_backup = mock_hook.return_value.create_backup
@@ -2063,12 +1911,6 @@ class TestAlloyDBCreateBackupOperator:
         mock_context = mock.MagicMock()
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB backup.")
         mock_get_backup.assert_called_once()
@@ -2088,14 +1930,18 @@ class TestAlloyDBCreateBackupOperator:
 
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Backup.to_dict"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("_get_backup"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_validate_request(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_backup, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_backup,
+        mock_to_dict,
     ):
         mock_get_backup.return_value = None
         mock_create_backup = mock_hook.return_value.create_backup
@@ -2106,12 +1952,6 @@ class TestAlloyDBCreateBackupOperator:
         self.operator.validate_request = True
 
         result = self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB backup request.")
         mock_get_backup.assert_called_once()
@@ -2130,13 +1970,16 @@ class TestAlloyDBCreateBackupOperator:
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("_get_backup"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_already_exists(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_backup, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_backup,
     ):
         expected_result = mock_get_backup.return_value
         mock_create_instance = mock_hook.return_value.create_instance
@@ -2145,26 +1988,24 @@ class TestAlloyDBCreateBackupOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
-
         assert not mock_log.info.called
         mock_get_backup.assert_called_once()
         assert not mock_create_instance.called
         assert not mock_get_operation_result.called
         assert result == expected_result
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Backup.to_dict"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("_get_backup"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(CREATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
     def test_execute_exception(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_get_backup, mock_to_dict, mock_link
+        self,
+        mock_hook,
+        mock_log,
+        mock_get_operation_result,
+        mock_get_backup,
+        mock_to_dict,
     ):
         mock_get_backup.return_value = None
         mock_create_backup = mock_hook.return_value.create_backup
@@ -2173,12 +2014,6 @@ class TestAlloyDBCreateBackupOperator:
 
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
-
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB backup.")
         mock_get_backup.assert_called_once()
@@ -2231,12 +2066,11 @@ class TestAlloyDBUpdateBackupOperator:
         } | set(AlloyDBWriteBaseOperator.template_fields)
         assert set(AlloyDBUpdateBackupOperator.template_fields) == expected_template_fields
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Backup.to_dict"))
     @mock.patch(UPDATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(UPDATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link):
+    def test_execute(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_backup = mock_hook.return_value.update_backup
         mock_operation = mock_update_backup.return_value
         mock_operation_result = mock_get_operation_result.return_value
@@ -2246,11 +2080,6 @@ class TestAlloyDBUpdateBackupOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_backup.assert_called_once_with(
             backup_id=TEST_BACKUP_ID,
             project_id=TEST_GCP_PROJECT,
@@ -2274,14 +2103,11 @@ class TestAlloyDBUpdateBackupOperator:
             ]
         )
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Backup.to_dict"))
     @mock.patch(UPDATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(UPDATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_validate_request(
-        self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link
-    ):
+    def test_execute_validate_request(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_ackup = mock_hook.return_value.update_backup
         mock_operation = mock_update_ackup.return_value
         mock_get_operation_result.return_value = None
@@ -2308,19 +2134,13 @@ class TestAlloyDBUpdateBackupOperator:
         )
         mock_get_operation_result.assert_called_once_with(mock_operation)
         assert not mock_to_dict.called
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
         assert result is None
 
-    @mock.patch(OPERATOR_MODULE_PATH.format("AlloyDBBackupsLink"))
     @mock.patch(OPERATOR_MODULE_PATH.format("alloydb_v1.Backup.to_dict"))
     @mock.patch(UPDATE_BACKUP_OPERATOR_PATH.format("get_operation_result"))
     @mock.patch(UPDATE_BACKUP_OPERATOR_PATH.format("log"))
     @mock.patch(ALLOY_DB_HOOK_PATH, new_callable=mock.PropertyMock)
-    def test_execute_exception(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict, mock_link):
+    def test_execute_exception(self, mock_hook, mock_log, mock_get_operation_result, mock_to_dict):
         mock_update_backup = mock_hook.return_value.update_backup
         mock_update_backup.side_effect = Exception
 
@@ -2329,11 +2149,6 @@ class TestAlloyDBUpdateBackupOperator:
         with pytest.raises(AirflowException):
             self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=self.operator,
-            project_id=TEST_GCP_PROJECT,
-        )
         mock_update_backup.assert_called_once_with(
             backup_id=TEST_BACKUP_ID,
             backup=TEST_BACKUP,

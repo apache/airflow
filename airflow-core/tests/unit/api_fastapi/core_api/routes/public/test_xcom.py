@@ -45,10 +45,12 @@ TEST_XCOM_VALUE_AS_JSON = json.dumps(TEST_XCOM_VALUE)
 TEST_XCOM_KEY_2 = "test_xcom_key_non_existing"
 
 TEST_DAG_ID = "test-dag-id"
+TEST_DAG_DISPLAY_NAME = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
 TEST_DAG_ID_2 = "test-dag-id-2"
+TEST_DAG_DISPLAY_NAME_2 = "test-dag-id-2"
 TEST_TASK_ID_2 = "test-task-id-2"
 
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
@@ -91,9 +93,6 @@ class CustomXCom(BaseXCom):
     def deserialize_value(cls, xcom):
         return f"real deserialized {super().deserialize_value(xcom)}"
 
-    def orm_deserialize_value(self):
-        return f"orm deserialized {super().orm_deserialize_value()}"
-
 
 class TestXComEndpoint:
     @staticmethod
@@ -125,6 +124,7 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
+            "dag_display_name": TEST_DAG_DISPLAY_NAME,
             "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "run_id": run_id,
             "key": TEST_XCOM_KEY,
@@ -154,63 +154,38 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
     @pytest.mark.parametrize(
-        "support_deserialize, params, expected_status_or_value",
+        "params, expected_value",
         [
             pytest.param(
-                True,
                 {"deserialize": True},
-                f"real deserialized {TEST_XCOM_VALUE_AS_JSON}",
-                id="enabled deserialize-true",
+                TEST_XCOM_VALUE,
+                id="deserialize=true",
             ),
             pytest.param(
-                False,
-                {"deserialize": True},
-                400,
-                id="disabled deserialize-true",
-            ),
-            pytest.param(
-                True,
                 {"deserialize": False},
                 f"{TEST_XCOM_VALUE_AS_JSON}",
-                id="enabled deserialize-false",
+                id="deserialize=false",
             ),
             pytest.param(
-                False,
-                {"deserialize": False},
-                f"{TEST_XCOM_VALUE_AS_JSON}",
-                id="disabled deserialize-false",
-            ),
-            pytest.param(
-                True,
                 {},
                 f"{TEST_XCOM_VALUE_AS_JSON}",
-                id="enabled default",
-            ),
-            pytest.param(
-                False,
-                {},
-                f"{TEST_XCOM_VALUE_AS_JSON}",
-                id="disabled default",
+                id="default",
             ),
         ],
     )
     @conf_vars({("core", "xcom_backend"): "unit.api_fastapi.core_api.routes.public.test_xcom.CustomXCom"})
-    def test_custom_xcom_deserialize(
-        self, support_deserialize: bool, params: str, expected_status_or_value: int | str, test_client
-    ):
+    def test_custom_xcom_deserialize(self, params: str, expected_value: int | str, test_client):
+        # Even with a CustomXCom defined, we should not be using it during deserialization because API / UI doesn't integrate their
+        # deserialization with custom backends
         XCom = resolve_xcom_backend()
         self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE, backend=XCom)
 
         url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
         with mock.patch("airflow.sdk.execution_time.xcom.XCom", XCom):
-            with conf_vars({("api", "enable_xcom_deserialize_support"): str(support_deserialize)}):
-                response = test_client.get(url, params=params)
+            response = test_client.get(url, params=params)
 
-        if isinstance(expected_status_or_value, int):
-            assert response.status_code == expected_status_or_value
-        else:
-            assert response.status_code == 200
-            assert response.json()["value"] == expected_status_or_value
+        assert response.status_code == 200
+        assert response.json()["value"] == expected_value
 
 
 class TestGetXComEntries(TestXComEndpoint):
@@ -232,6 +207,7 @@ class TestGetXComEntries(TestXComEndpoint):
             "xcom_entries": [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
@@ -241,6 +217,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
@@ -267,6 +244,7 @@ class TestGetXComEntries(TestXComEndpoint):
             "xcom_entries": [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
@@ -276,6 +254,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
@@ -285,6 +264,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
@@ -294,6 +274,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
@@ -321,6 +302,7 @@ class TestGetXComEntries(TestXComEndpoint):
             expected_entries = [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
@@ -334,6 +316,7 @@ class TestGetXComEntries(TestXComEndpoint):
             expected_entries = [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
@@ -357,6 +340,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 [
                     {
                         "dag_id": TEST_DAG_ID,
+                        "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,
@@ -366,6 +350,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     },
                     {
                         "dag_id": TEST_DAG_ID,
+                        "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,

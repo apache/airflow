@@ -29,7 +29,6 @@ from requests.exceptions import RequestException
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
-from airflow.utils import db
 
 from tests_common.test_utils.db import clear_db_connections
 
@@ -58,7 +57,15 @@ class TestLivyDbHook:
     @classmethod
     def setup_class(cls):
         clear_db_connections(add_default_connections_back=False)
-        db.merge_conn(
+
+    @classmethod
+    def teardown_class(cls):
+        clear_db_connections(add_default_connections_back=True)
+
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=DEFAULT_CONN_ID,
                 conn_type="http",
@@ -67,26 +74,23 @@ class TestLivyDbHook:
                 port=DEFAULT_PORT,
             )
         )
-        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
-        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
-        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"))
-        db.merge_conn(
+        create_connection_without_db(Connection(conn_id="default_port", conn_type="http", host="http://host"))
+        create_connection_without_db(Connection(conn_id="default_protocol", conn_type="http", host="host"))
+        create_connection_without_db(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
+        create_connection_without_db(
+            Connection(conn_id="schema_set", host="host", conn_type="http", schema="https")
+        )
+        create_connection_without_db(
             Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https")
         )
-        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
-        db.merge_conn(
+        create_connection_without_db(Connection(conn_id="missing_host", conn_type="http", port=1234))
+        create_connection_without_db(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
+        create_connection_without_db(
             Connection(
                 conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
             )
         )
 
-    @classmethod
-    def teardown_class(cls):
-        clear_db_connections(add_default_connections_back=True)
-
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "conn_id, expected",
         [
@@ -730,23 +734,24 @@ class TestLivyAsyncHook:
         response = await hook._do_api_call_async(GET_RUN_ENDPOINT)
         assert response["status"] == "error"
 
-    def set_conn(self):
-        db.merge_conn(
+    @pytest.fixture
+    def setup_livy_conn(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id=LIVY_CONN_ID, conn_type="http", host="host", schema="http", port=8998)
         )
-        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
-        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
-        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="zzz"))
-        db.merge_conn(
+        create_connection_without_db(Connection(conn_id="default_port", conn_type="http", host="http://host"))
+        create_connection_without_db(Connection(conn_id="default_protocol", conn_type="http", host="host"))
+        create_connection_without_db(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
+        create_connection_without_db(
+            Connection(conn_id="schema_set", host="host", conn_type="http", schema="zzz")
+        )
+        create_connection_without_db(
             Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="zzz")
         )
-        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
+        create_connection_without_db(Connection(conn_id="missing_host", conn_type="http", port=1234))
+        create_connection_without_db(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
 
-    @pytest.mark.db_test
-    def test_build_get_hook(self):
-        self.set_conn()
+    def test_build_get_hook(self, setup_livy_conn):
         connection_url_mapping = {
             # id, expected
             "default_port": "http://host",

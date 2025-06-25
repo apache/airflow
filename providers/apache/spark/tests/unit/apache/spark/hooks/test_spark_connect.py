@@ -21,14 +21,12 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 class TestSparkConnectHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="spark-default",
                 conn_type="spark_connect",
@@ -40,7 +38,7 @@ class TestSparkConnectHook:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark-test",
                 conn_type="spark_connect",
@@ -49,7 +47,7 @@ class TestSparkConnectHook:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark-app",
                 conn_type="spark_connect",

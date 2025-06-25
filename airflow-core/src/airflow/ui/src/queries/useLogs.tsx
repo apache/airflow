@@ -19,6 +19,8 @@
 import { chakra } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
@@ -28,6 +30,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 type Props = {
+  accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
@@ -40,10 +43,18 @@ type ParseLogsProps = {
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
+  translate: TFunction;
   tryNumber: number;
 };
 
-const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumber }: ParseLogsProps) => {
+const parseLogs = ({
+  data,
+  logLevelFilters,
+  sourceFilters,
+  taskInstance,
+  translate,
+  tryNumber,
+}: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
@@ -65,7 +76,14 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
         }
       }
 
-      return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
+      return renderStructuredLog({
+        index,
+        logLevelFilters,
+        logLink,
+        logMessage: datum,
+        sourceFilters,
+        translate,
+      });
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
@@ -120,13 +138,15 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
 };
 
 export const useLogs = (
-  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  { accept = "application/json", dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
+  const { t: translate } = useTranslation("common");
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
     {
+      accept,
       dagId,
       dagRunId: taskInstance?.dag_run_id ?? "",
       mapIndex: taskInstance?.map_index ?? -1,
@@ -150,6 +170,7 @@ export const useLogs = (
     logLevelFilters,
     sourceFilters,
     taskInstance,
+    translate,
     tryNumber,
   });
 

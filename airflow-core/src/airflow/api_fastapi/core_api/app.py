@@ -55,6 +55,13 @@ def init_views(app: FastAPI) -> None:
 
     templates = Jinja2Templates(directory=directory)
 
+    if dev_mode:
+        app.mount(
+            "/static/i18n/locales",
+            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales"),
+            name="dev_i18n_static",
+        )
+
     app.mount(
         "/static",
         StaticFiles(
@@ -155,7 +162,7 @@ def init_config(app: FastAPI) -> None:
     # and 9 (slowest, most compression)
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
-    app.state.secret_key = get_signing_key("webserver", "secret_key")
+    app.state.secret_key = get_signing_key("api", "secret_key")
 
 
 def init_error_handlers(app: FastAPI) -> None:
