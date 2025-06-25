@@ -98,7 +98,6 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         task_instances_batch = []
 
         context = unmapped_ti.get_template_context(session=session)
-        unmapped_task = unmapped_ti.task
         expand_input = unmapped_ti.task.expand_input.values()
 
         self.log.info("expand_input: %s", expand_input)
@@ -106,28 +105,15 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         if isinstance(expand_input, XComArg):
             expand_input = expand_input.resolve(context)
 
-        for map_index, mapped_kwargs in enumerate(expand_input):
+        for map_index, _ in enumerate(expand_input):
             self.log.info("map_index: %s", map_index)
-
-            if isinstance(mapped_kwargs, XComArg):
-                context = unmapped_ti.get_template_context(session=session)
-                self.log.info("context: %s", context)
-                mapped_kwargs = mapped_kwargs.resolve(context)
-
-            self.log.info("mapped_kwargs: %s", mapped_kwargs)
-
-            task = unmapped_task.unmap(mapped_kwargs)
-
-            self.log.info("task: %s", type(task))
 
             if map_index == 0:
                 task_instance = unmapped_ti
-                task_instance.task = task
                 task_instance.map_index = map_index
-                task_instance.refresh_from_task(task)
             else:
                 task_instance = TaskInstance(
-                    task=task,
+                    task=unmapped_ti.task,
                     run_id=dag_run.run_id,
                     map_index=map_index,
                     dag_version_id=unmapped_ti.dag_version_id,
