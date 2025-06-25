@@ -389,6 +389,7 @@ def clear_all():
     clear_db_variables()
     clear_db_pools()
     clear_test_connections(add_default_connections_back=True)
+    clear_db_connections(add_default_connections_back=True)
     clear_db_deadline()
     clear_dag_specific_permissions()
     if AIRFLOW_V_3_0_PLUS:
