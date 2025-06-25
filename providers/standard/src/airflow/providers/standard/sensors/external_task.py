@@ -270,7 +270,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.execution_delta:
             dttm = logical_date - self.execution_delta
         elif self.execution_date_fn:
-            dttm = self._handle_execution_date_fn(context=context)
+            dttm = self._handle_execution_date_fn(logical_date=logical_date, context=context)
         else:
             dttm = logical_date
         return dttm if isinstance(dttm, list) else [dttm]
@@ -529,7 +529,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             dttm_filter, self.external_task_group_id, self.external_dag_id, session
         )
 
-    def _handle_execution_date_fn(self, context) -> Any:
+    def _handle_execution_date_fn(self, logical_date, context) -> Any:
         """
         Handle backward compatibility.
 
@@ -541,7 +541,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "logical_date" because it is already a mandatory positional argument
-        logical_date = context["logical_date"]
         kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)
