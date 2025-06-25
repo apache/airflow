@@ -23,7 +23,6 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useGridRuns = ({ limit }: { limit: number }) => {
   const { dagId = "" } = useParams();
-  // const [runAfter, setRunAfter] = useState<string | undefined>();
 
   const defaultRefetchInterval = useAutoRefresh({ dagId });
 
@@ -32,7 +31,6 @@ export const useGridRuns = ({ limit }: { limit: number }) => {
       dagId,
       limit,
       orderBy: "-run_after",
-      // runAfterLte: runAfter,
     },
     undefined,
     {

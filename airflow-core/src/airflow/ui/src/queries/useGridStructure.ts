@@ -31,7 +31,6 @@ export const useGridStructure = ({ limit }: { limit: number }) => {
       dagId,
       limit,
       orderBy: "-run_after",
-      // runAfterLte: runAfter, // todo: this doesn't make sense if sorting by logical date
     },
     undefined,
     {
