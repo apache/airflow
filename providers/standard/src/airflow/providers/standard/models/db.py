@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from airflow.providers.fab.auth_manager.models import metadata
+from sqlalchemy import MetaData
+
+from airflow.models.base import _get_schema, naming_convention
 from airflow.utils.db_manager import BaseDBManager
 
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
@@ -33,7 +35,6 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 class HITLProviderDBManager(BaseDBManager):
     """Manages Human in the loop database."""
 
-    metadata = metadata
     version_table_name = "alembic_version_hitl"
     migration_dir = (PACKAGE_DIR / "migrations").as_posix()
     alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
