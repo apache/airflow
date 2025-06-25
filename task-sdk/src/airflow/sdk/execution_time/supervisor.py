@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import io
 import logging
 import os
@@ -68,7 +69,6 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
-    CreateHITLInputRequestPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -1231,17 +1231,24 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
-        elif isinstance(msg, CreateHITLInputRequestPayload):
-            resp = self.client.hitl.add_input_request(
-                ti_id=msg.ti_id,
-                options=msg.options,
-                subject=msg.subject,
-                body=msg.body,
-                default=msg.default,
-                params=msg.params,
-                multiple=msg.multiple,
-            )
         else:
+            # TODO: Remove this block once we can make the execution API pluggable.
+            with contextlib.suppress(ModuleNotFoundError):
+                from airflow.providers.standard.execution_time.comms import CreateHITLInputRequestPayload
+
+                if isinstance(msg, CreateHITLInputRequestPayload):
+                    resp = self.client.hitl.add_input_request(
+                        ti_id=msg.ti_id,
+                        options=msg.options,
+                        subject=msg.subject,
+                        body=msg.body,
+                        default=msg.default,
+                        params=msg.params,
+                        multiple=msg.multiple,
+                    )
+                    self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+                return
+
             log.error("Unhandled request", msg=msg)
             self.send_msg(
                 None,
