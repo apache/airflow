@@ -27,8 +27,6 @@ from airflow.models import Connection
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 opensearchpy = pytest.importorskip("opensearchpy")
-pytestmark = pytest.mark.db_test
-
 
 MOCK_SEARCH_RETURN = {"status": "test"}
 DEFAULT_CONN = opensearchpy.connection.http_requests.RequestsHttpConnection
