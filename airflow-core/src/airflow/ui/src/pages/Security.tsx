@@ -43,14 +43,16 @@ export const Security = () => {
     return <ErrorPage />;
   }
 
+  /* eslint-disable react/iframe-missing-sandbox */
   return (
     <Box flexGrow={1} m={-3}>
       <iframe
-        sandbox="allow-same-origin allow-forms"
+        sandbox="allow-scripts allow-same-origin allow-forms"
         src={link.href}
         style={{ height: "100%", width: "100%" }}
         title={link.text}
       />
     </Box>
   );
+  /* eslint-enable react/iframe-missing-sandbox */
 };
