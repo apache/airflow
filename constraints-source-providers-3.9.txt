@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-24T13:58:44.501068
+# This constraints file was automatically generated on 2025-06-25T07:57:08.627380
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -150,7 +150,7 @@ charset-normalizer==3.4.2
 checksumdir==1.2.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
-click-plugins==1.1.1
+click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
@@ -228,7 +228,7 @@ google-api-python-client==2.173.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.98.0
+google-cloud-aiplatform==1.99.0
 google-cloud-alloydb==0.4.7
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -392,9 +392,9 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.5.0
+multidict==6.5.1
 mypy-boto3-appflow==1.38.0
-mypy-boto3-rds==1.38.35
+mypy-boto3-rds==1.38.43
 mypy-boto3-redshift-data==1.38.0
 mypy-boto3-s3==1.38.39
 mypy==1.9.0
@@ -437,7 +437,7 @@ ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
 packaging==24.2
-pagerduty==2.1.2
+pagerduty==2.3.0
 pandas-gbq==0.29.1
 pandas-stubs==2.2.2.240807
 pandas==2.2.3
@@ -499,7 +499,7 @@ pygraphviz==1.11
 pyiceberg==0.9.1
 pykerberos==1.2.4
 pymongo==4.10.1
-pymssql==2.3.4
+pymssql==2.3.5
 pyodbc==5.2.0
 pyodps==0.12.3
 pyparsing==3.2.3
@@ -564,7 +564,7 @@ ruamel.yaml==0.18.14
 ruff==0.11.13
 s3fs==2025.5.1
 s3transfer==0.13.0
-sagemaker_studio==1.0.15
+sagemaker_studio==1.0.16
 scikit-learn==1.5.2
 scipy==1.13.1
 scramp==1.4.5
@@ -572,7 +572,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.12.4
 sentinels==1.0.0
-sentry-sdk==2.30.0
+sentry-sdk==2.31.0
 setproctitle==1.3.6
 shapely==2.0.7
 shellingham==1.5.4
@@ -586,7 +586,7 @@ sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.15.0
 snowflake-snowpark-python==1.33.0
-snowflake-sqlalchemy==1.7.4
+snowflake-sqlalchemy==1.7.5
 sortedcontainers==2.4.0
 soupsieve==2.7
 sphinx-argparse==0.4.0
@@ -677,7 +677,7 @@ uritemplate==4.2.0
 urllib3==1.26.20
 userpath==1.9.2
 uuid6==2025.0.0
-uv==0.7.13
+uv==0.7.14
 uvicorn==0.34.3
 uvloop==0.21.0
 validators==0.34.0
