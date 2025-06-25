@@ -33,7 +33,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 
@@ -440,8 +439,8 @@ class TestKubernetesHook:
 
     def test_missing_default_connection_is_ok(self, remove_default_conn):
         # prove to ourselves that the default conn doesn't exist
-        with pytest.raises(AirflowNotFoundException):
-            BaseHook.get_connection(DEFAULT_CONN_ID)
+        k8s_conn_exists = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
+        assert k8s_conn_exists is None
 
         # verify K8sHook still works
         hook = KubernetesHook()
