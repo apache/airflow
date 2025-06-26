@@ -672,7 +672,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "index_urls_from_connection_ids", "venv_cache_path"}.union(PythonOperator.template_fields)
+        {"requirements", "index_urls", "index_urls_from_connection_ids", "venv_cache_path"}.union(
+            PythonOperator.template_fields
+        )
     )
     template_ext: Sequence[str] = (".txt",)
 
