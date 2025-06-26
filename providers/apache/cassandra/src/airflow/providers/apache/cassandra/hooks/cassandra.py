@@ -34,7 +34,7 @@ from cassandra.policies import (
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-Policy: TypeAlias = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
+Policy: TypeAlias = DCAwareRoundRobinPolicy | RoundRobinPolicy | TokenAwarePolicy | WhiteListRoundRobinPolicy
 
 class CassandraHook(BaseHook, LoggingMixin):
     """
