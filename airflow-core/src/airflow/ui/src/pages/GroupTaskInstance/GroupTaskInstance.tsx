@@ -18,42 +18,35 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { MdOutlineTask } from "react-icons/md";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import type { LightGridTaskInstanceSummary } from "openapi/requests";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
+type LocationState = {
+  taskInstance: LightGridTaskInstanceSummary;
+};
+
 export const GroupTaskInstance = () => {
-  const { dagId = "", groupId = "", runId = "" } = useParams();
+  const { dagId = "" } = useParams();
+
+  const location = useLocation();
+  const state = location.state as LocationState;
+  const taskInstance: LightGridTaskInstanceSummary = state.taskInstance;
   const refetchInterval = useAutoRefresh({ dagId });
-
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
-
-  const { data: gridTISummaries, error, isLoading } = useGridTiSummaries({ dagId, runId, state: undefined });
-
-  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
   const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
-        {taskInstance === undefined ? undefined : (
-          <Header
-            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-            taskInstance={taskInstance}
-          />
-        )}
+      <DetailsLayout tabs={tabs}>
+        <Header
+          isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
+          taskInstance={taskInstance}
+        />
       </DetailsLayout>
     </ReactFlowProvider>
   );
