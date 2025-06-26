@@ -51,7 +51,7 @@ def add_input_request(
     )
 
 
-def fetch_response_content(ti_id: UUID) -> str | None:
+def get_hitl_response_content(ti_id: UUID) -> str | None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     response = SUPERVISOR_COMMS.send(msg=FetchHITLResponse(ti_id=ti_id))
