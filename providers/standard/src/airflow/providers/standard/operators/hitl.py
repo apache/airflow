@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.execution_time.hitl import add_input_request
+from airflow.providers.standard.execution_time.hitl import add_hitl_input_request
 from airflow.providers.standard.triggers.hitl import HITLTrigger
 
 if TYPE_CHECKING:
@@ -49,9 +49,8 @@ class HITLOperator(BaseOperator):
     def __init__(
         self,
         *,
-        options: list[str],
         subject: str,
-        python_callable: Callable,
+        options: list[str],
         body: str | None = None,
         default: str | None = None,
         params: ParamsDict | None = None,
@@ -60,14 +59,16 @@ class HITLOperator(BaseOperator):
         super().__init__(**kwargs)
         self.options = options
         self.subject = subject
-        self.python_callable = python_callable
         self.body = body
         self.params = params or {}
         self.default = default
 
+        self.multiple = False
+
     def execute(self, context: Context):
         ti_id = context["task_instance"].id
-        add_input_request(
+        # Write Human-in-the-loop input request to DB
+        add_hitl_input_request(
             ti_id=ti_id,
             options=self.options,
             subject=self.subject,
@@ -75,106 +76,50 @@ class HITLOperator(BaseOperator):
             params=self.params,
             default=self.default,
         )
+        # Defer the Human-in-the-loop response checking process to HITLTrigger
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,
                 options=self.options,
                 default=self.default,
+                execution_timeout=self.execution_timeout,
+                multiple=self.multiple,
             ),
             method_name="execute_complete",
         )
 
-    @staticmethod
-    def get_user_response(event: dict[str, Any]) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> object:
         return event["content"]
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        user_response = self.get_user_response(event)
-        return self.python_callable(user_response)
 
 
 class ApprovalOperator(HITLOperator):
-    """Convenience operator for approval tasks."""
+    """Human-in-the-loop Operator that has only 'Approval' and 'Reject' options."""
 
-    def __init__(
-        self,
-        *,
-        subject: str,
-        python_callable: Callable,
-        body: str | None = None,
-        params: ParamsDict | None = None,
-        default: str | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            options=["Approve", "Reject"],
-            subject=subject,
-            python_callable=python_callable,
-            body=body,
-            params=params,
-            default=default,
-            **kwargs,
-        )
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        user_response = self.get_user_response(event)
-        if user_response != "Approve" and user_response != "Reject":
-            # TODO: update message
-            raise ValueError("")
-        return super().execute_complete(context, event)
+    def __init__(self, **kwargs) -> None:
+        if "options" in kwargs:
+            kwargs.pop("options")
+            self.log.warning("Passing options into ApprovalOperator will be ignored.")
+        super().__init__(options=["Approve", "Reject"], **kwargs)
 
 
 class HITLTerminationOperator(HITLOperator, SkipMixin):
     """ShortCirquitOperator to terminate the Dag run by human decision."""
 
-    def __init__(
-        self,
-        *,
-        subject: str,
-        python_callable: Callable,
-        body: str | None = None,
-        params: ParamsDict | None = None,
-        default: str | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            options=["Stop", "Proceed"],
-            subject=subject,
-            python_callable=python_callable,
-            body=body,
-            params=params,
-            default=default,
-            **kwargs,
-        )
+    def __init__(self, **kwargs) -> None:
+        if "options" in kwargs:
+            kwargs.pop("options")
+            self.log.warning("Passing options into ApprovalOperator will be ignored.")
+        super().__init__(options=["Stop", "Proceed"], **kwargs)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         raise NotImplementedError
 
 
 class HITLBranchOperator(HITLOperator):
-    """SkipMixIn to implement a branching functionality based on human selection."""
+    """BranchOperator based on Human-in-the-loop Response."""
 
-    def __init__(
-        self,
-        *,
-        options: list[str],
-        subject: str,
-        python_callable: Callable,
-        body: str | None = None,
-        params: ParamsDict | None = None,
-        default: str | None = None,
-        multiple: bool = False,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            options=options,
-            subject=subject,
-            python_callable=python_callable,
-            body=body,
-            params=params,
-            default=default,
-            **kwargs,
-        )
+    def __init__(self, *, multiple: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.multiple = multiple
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
@@ -190,28 +135,13 @@ class HITLEntryOperator(HITLOperator):
 
     def __init__(
         self,
-        *,
-        subject: str,
-        python_callable: Callable,
-        body: str | None = None,
-        params: ParamsDict | None = None,
-        options: list[str] | None = None,
-        default: str | None = None,
         **kwargs,
     ) -> None:
-        if options is None:
-            options = ["OK"]
-            default = "OK"
+        if "options" not in kwargs:
+            kwargs["options"] = ["OK"]
+            kwargs["default"] = ["OK"]
 
-        super().__init__(
-            options=options,
-            subject=subject,
-            python_callable=python_callable,
-            body=body,
-            params=params,
-            default=default,
-            **kwargs,
-        )
+        super().__init__(**kwargs)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         raise NotImplementedError
