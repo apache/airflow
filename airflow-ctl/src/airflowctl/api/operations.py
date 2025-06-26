@@ -74,6 +74,8 @@ from airflowctl.api.datamodels.generated import (
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflowctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
@@ -147,6 +149,33 @@ class BaseOperations:
         for attr, value in cls.__dict__.items():
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
+
+    def return_all_entries(
+        self,
+        *,
+        path: str,
+        total_entries: int,
+        data_model: type[BaseModel],
+        entry_list: list,
+        offset: int = 0,
+        limit: int = 50,
+        params: dict | None = None,
+        **kwargs,
+    ) -> list | ServerResponseError:
+        if params is None:
+            params = {}
+        params.update({"limit": limit}, **kwargs)
+        try:
+            while offset < total_entries:
+                params.update({"offset": offset})
+                self.response = self.client.get(path, params=params)
+                entry = data_model.model_validate_json(self.response.content)
+                offset = offset + limit  # default limit params = 50
+                entry_list.append(entry)
+
+            return entry_list
+        except ServerResponseError as e:
+            raise e
 
 
 # Login operations
@@ -593,11 +622,23 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> PoolCollectionResponse | ServerResponseError:
+    def list(self) -> list | ServerResponseError:
         """List all pools."""
         try:
             self.response = self.client.get("pools")
-            return PoolCollectionResponse.model_validate_json(self.response.content)
+            primary_data = PoolCollectionResponse.model_validate_json(self.response.content)
+            entry_list = []
+            entry_list.append(primary_data)
+            total_entries = primary_data.total_entries
+            limit = 50  # default
+            if total_entries < limit:
+                return entry_list
+            return super().return_all_entries(
+                path="pools",
+                total_entries=total_entries,
+                data_model=PoolCollectionResponse,
+                entry_list=entry_list,
+            )
         except ServerResponseError as e:
             raise e
 
@@ -657,11 +698,23 @@ class VariablesOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> VariableCollectionResponse | ServerResponseError:
+    def list(self) -> list | ServerResponseError:
         """List all variables."""
         try:
             self.response = self.client.get("variables")
-            return VariableCollectionResponse.model_validate_json(self.response.content)
+            primary_data = VariableCollectionResponse.model_validate_json(self.response.content)
+            entry_list = []
+            entry_list.append(primary_data)
+            total_entries = primary_data.total_entries
+            limit = 50
+            if total_entries < limit:
+                return entry_list
+            return super().return_all_entries(
+                path="variables",
+                total_entries=total_entries,
+                data_model=VariableCollectionResponse,
+                entry_list=entry_list,
+            )
         except ServerResponseError as e:
             raise e
 
