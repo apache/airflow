@@ -76,9 +76,9 @@ def _generate_venv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool
 
 
 def _generate_uv_install_cmd_from_file(
-    tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
+    tmp_dir: str, requirements_file_path: str, pip_install_options: list[str], index_urls: list[str] | None = None
 ) -> list[str]:
-    return [
+    uv_cmd = [
         "uv",
         "pip",
         "install",
@@ -88,6 +88,10 @@ def _generate_uv_install_cmd_from_file(
         "-r",
         requirements_file_path,
     ]
+    if index_urls:
+        for url in index_urls:
+            uv_cmd += ["--extra-index-url", url]
+    return uv_cmd
 
 
 def _generate_pip_install_cmd_from_file(
@@ -97,9 +101,13 @@ def _generate_pip_install_cmd_from_file(
 
 
 def _generate_uv_install_cmd_from_list(
-    tmp_dir: str, requirements: list[str], pip_install_options: list[str]
+    tmp_dir: str, requirements: list[str], pip_install_options: list[str], index_urls: list[str] | None = None
 ) -> list[str]:
-    return ["uv", "pip", "install", "--python", f"{tmp_dir}/bin/python", *pip_install_options, *requirements]
+    uv_cmd = ["uv", "pip", "install", "--python", f"{tmp_dir}/bin/python", *pip_install_options, *requirements]
+    if index_urls:
+        for url in index_urls:
+            uv_cmd += ["--extra-index-url", url]
+    return uv_cmd
 
 
 def _generate_pip_install_cmd_from_list(
@@ -148,25 +156,26 @@ def prepare_virtualenv(
     if requirements is not None and requirements_file_path is not None:
         raise ValueError("Either requirements OR requirements_file_path has to be passed, but not both")
 
-    if index_urls is not None:
-        _generate_pip_conf(Path(venv_directory) / "pip.conf", index_urls)
-
     if _use_uv():
         venv_cmd = _generate_uv_cmd(venv_directory, python_bin, system_site_packages)
     else:
+        # Settings in pip.conf are currently not honored by uv
+        # https://github.com/astral-sh/uv/issues/1404
+        if index_urls is not None:
+            _generate_pip_conf(Path(venv_directory) / "pip.conf", index_urls)
         venv_cmd = _generate_venv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(venv_cmd)
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
         if _use_uv():
-            pip_cmd = _generate_uv_install_cmd_from_list(venv_directory, requirements, pip_install_options)
+            pip_cmd = _generate_uv_install_cmd_from_list(venv_directory, requirements, pip_install_options, index_urls)
         else:
             pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements, pip_install_options)
     if requirements_file_path is not None and requirements_file_path:
         if _use_uv():
             pip_cmd = _generate_uv_install_cmd_from_file(
-                venv_directory, requirements_file_path, pip_install_options
+                venv_directory, requirements_file_path, pip_install_options, index_urls
             )
         else:
             pip_cmd = _generate_pip_install_cmd_from_file(
