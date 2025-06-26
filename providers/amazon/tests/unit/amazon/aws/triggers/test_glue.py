@@ -40,47 +40,55 @@ BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.glue."
 
 class TestGlueJobTrigger:
     @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "async_get_job_state")
-    async def test_wait_job(self, get_state_mock: mock.MagicMock):
+    @mock.patch.object(GlueJobHook, "get_waiter")
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_wait_job(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",
             run_id="JobRunId",
             verbose=False,
             aws_conn_id="aws_conn_id",
-            job_poll_interval=0.1,
+            waiter_max_attempts=3,
+            waiter_delay=10,
         )
-        get_state_mock.side_effect = [
-            "RUNNING",
-            "RUNNING",
-            "SUCCEEDED",
-        ]
-
         generator = trigger.run()
         event = await generator.asend(None)  # type:ignore[attr-defined]
 
-        assert get_state_mock.call_count == 3
+        assert_expected_waiter_type(mock_get_waiter, "job_complete")
+        mock_get_waiter().wait.assert_called_once()
         assert event.payload["status"] == "success"
+        assert event.payload["run_id"] == "JobRunId"
 
     @pytest.mark.asyncio
-    @mock.patch.object(GlueJobHook, "async_get_job_state")
-    async def test_wait_job_failed(self, get_state_mock: mock.MagicMock):
+    @mock.patch.object(GlueJobHook, "get_waiter")
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_wait_job_failed(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        from botocore.exceptions import WaiterError
+
+        mock_get_waiter().wait = AsyncMock(
+            side_effect=WaiterError(
+                name="job_complete",
+                reason="Waiter encountered a terminal failure state",
+                last_response={"JobRun": {"JobRunState": "FAILED"}},
+            )
+        )
+
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",
             run_id="JobRunId",
             verbose=False,
             aws_conn_id="aws_conn_id",
-            job_poll_interval=0.1,
+            waiter_max_attempts=3,
+            waiter_delay=10,
         )
-        get_state_mock.side_effect = [
-            "RUNNING",
-            "RUNNING",
-            "FAILED",
-        ]
+        generator = trigger.run()
 
         with pytest.raises(AirflowException):
-            await trigger.run().asend(None)  # type:ignore[attr-defined]
-
-        assert get_state_mock.call_count == 3
+            await generator.asend(None)  # type:ignore[attr-defined]
+        assert_expected_waiter_type(mock_get_waiter, "job_complete")
 
     def test_serialization(self):
         trigger = GlueJobCompleteTrigger(
@@ -88,7 +96,8 @@ class TestGlueJobTrigger:
             run_id="JobRunId",
             verbose=False,
             aws_conn_id="aws_conn_id",
-            job_poll_interval=0.1,
+            waiter_max_attempts=3,
+            waiter_delay=10,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.glue.GlueJobCompleteTrigger"
@@ -97,7 +106,8 @@ class TestGlueJobTrigger:
             "run_id": "JobRunId",
             "verbose": False,
             "aws_conn_id": "aws_conn_id",
-            "job_poll_interval": 0.1,
+            "waiter_max_attempts": 3,
+            "waiter_delay": 10,
         }
 
 

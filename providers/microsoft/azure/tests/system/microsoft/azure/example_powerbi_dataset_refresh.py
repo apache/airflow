@@ -66,6 +66,12 @@ with DAG(
         group_id=GROUP_ID,
         check_interval=30,
         timeout=120,
+        request_body={
+            "type": "full",
+            "retryCount": 3,
+            "commitMode": "transactional",
+            "notifyOption": "MailOnFailure",
+        },
     )
     # [END howto_operator_powerbi_refresh_async]
 

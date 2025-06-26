@@ -155,8 +155,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-daysago-import-from-utils                           | days_ago imported from airflow.utils.dates             |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-default-configuration                               | Check the default configuration                        | *       |
@@ -548,7 +546,7 @@ manually by running:
 .. code-block:: bash
 
     export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual
+    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
 
 
 Mypy checks

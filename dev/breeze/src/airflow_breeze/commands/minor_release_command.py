@@ -132,6 +132,12 @@ def instruction_update_version_branch(version_branch):
                 required_approving_review_count: 1
             """
         )
+        console_print()
+        console_print(
+            "Update name of `backport` label to "
+            f"backport-to-v{version_branch}-test in .github/boring-cyborg.yml"
+        )
+        console_print()
         console_print("Once you finish with the above. Commit the changes and make a PR against main")
         confirm_action("I'm done with the changes. Continue?", abort=True)
 

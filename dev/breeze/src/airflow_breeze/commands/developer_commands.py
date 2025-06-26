@@ -51,6 +51,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
+    option_install_airflow_with_constraints_default_true,
     option_installation_distribution_format,
     option_keep_env_variables,
     option_max_time,
@@ -74,7 +75,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference,
-    option_airflow_skip_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -220,16 +220,6 @@ option_warn_image_upgrade_needed = click.option(
     is_flag=True,
     envvar="WARN_IMAGE_UPGRADE_NEEDED",
 )
-
-option_install_airflow_with_constraints_default_true = click.option(
-    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
-    is_flag=True,
-    default=True,
-    show_default=True,
-    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
-    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
-)
-
 option_install_airflow_python_client = click.option(
     "--install-airflow-python-client",
     is_flag=True,
@@ -286,7 +276,6 @@ option_load_default_connections = click.option(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_answer
 @option_backend
 @option_builder
@@ -344,7 +333,6 @@ def shell(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    airflow_skip_constraints: bool,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -417,7 +405,6 @@ def shell(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
         allow_pre_releases=allow_pre_releases,
         backend=backend,
         builder=builder,
@@ -513,7 +500,6 @@ option_auth_manager_start_airflow = click.option(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_auth_manager_start_airflow
 @option_answer
 @option_backend
@@ -530,6 +516,7 @@ option_auth_manager_start_airflow = click.option(
 @option_github_repository
 @option_installation_distribution_format
 @option_install_selected_providers
+@option_install_airflow_with_constraints_default_true
 @option_all_integration
 @option_load_default_connections
 @option_load_example_dags
@@ -556,7 +543,7 @@ def start_airflow(
     airflow_constraints_location: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
     allow_pre_releases: bool,
     auth_manager: str,
     backend: str,
@@ -627,7 +614,6 @@ def start_airflow(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
         allow_pre_releases=allow_pre_releases,
         auth_manager=auth_manager,
         backend=backend,
@@ -645,7 +631,7 @@ def start_airflow(
         github_repository=github_repository,
         integration=integration,
         install_selected_providers=install_selected_providers,
-        install_airflow_with_constraints=True,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
