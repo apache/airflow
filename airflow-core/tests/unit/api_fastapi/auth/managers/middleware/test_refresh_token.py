@@ -28,7 +28,7 @@ from airflow.api_fastapi.auth.managers.middleware.refresh_token import RefreshTo
 class TestRefreshTokenMiddleware:
     """Test implementation of RefreshTokenMiddleware for unit testing."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "method, path",
         [
@@ -43,14 +43,14 @@ class TestRefreshTokenMiddleware:
             ("GET", "/api/v2/version"),
         ],
     )
-    async def test_refresh_token_generic(self, test_client, method, path):
+    def test_refresh_token_generic(self, test_client, method, path):
         """Test that the refresh token middleware correctly processes requests."""
         response = test_client.request(method=method, url=path)
         assert response.status_code not in {
             401,
             403,
         }, f"Unexpected status code {response.status_code} for {method} {path}"
-        await sleep(1)
+        sleep(1)
         response = test_client.request(method=method, url=path)
         assert response.status_code not in {
             401,
