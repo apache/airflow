@@ -25,6 +25,15 @@ and extending Airflow capabilities by writing new executors, plugins, operators 
 Public Interface can be useful for building custom tools and integrations with other systems,
 and for automating certain aspects of the Airflow workflow.
 
+.. versionchanged:: 3.0
+
+   In Airflow 3.0+, the primary public interface for DAG authors and task execution is the
+   :doc:`airflow.sdk namespace <core-concepts/taskflow>`. Direct access to the metadata database
+   from task code is no longer allowed. Instead, use the :doc:`Stable REST API <stable-rest-api-ref>`,
+   `Python Client <https://github.com/apache/airflow-client-python>`_, or Task Context methods.
+
+   For comprehensive Task SDK documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
+
 Using Airflow Public Interfaces
 ===============================
 
@@ -56,13 +65,74 @@ way, the Stable REST API is recommended.
 Using the Public Interface for DAG Authors
 ==========================================
 
+.. versionchanged:: 3.0
+
+   The primary interface for DAG authors in Airflow 3.0+ is the :doc:`airflow.sdk namespace <core-concepts/taskflow>`.
+   This provides a stable, well-defined interface for creating DAGs and tasks that is not subject to internal
+   implementation changes. The goal of this change is to decouple DAG authoring from Airflow internals (Scheduler,
+   API Server, etc.), providing a forward-compatible, stable interface for writing and maintaining DAGs across Airflow versions.
+
+   **Key Imports from airflow.sdk:**
+
+   **Classes:**
+
+   * ``Asset``
+   * ``BaseNotifier``
+   * ``BaseOperator``
+   * ``BaseOperatorLink``
+   * ``BaseSensorOperator``
+   * ``Connection``
+   * ``Context``
+   * ``DAG``
+   * ``EdgeModifier``
+   * ``Label``
+   * ``ObjectStoragePath``
+   * ``Param``
+   * ``TaskGroup``
+   * ``Variable``
+
+   **Decorators and Functions:**
+
+   * ``@asset``
+   * ``@dag``
+   * ``@setup``
+   * ``@task``
+   * ``@task_group``
+   * ``@teardown``
+   * ``chain``
+   * ``chain_linear``
+   * ``cross_downstream``
+   * ``get_current_context``
+   * ``get_parsing_context``
+
+   **Migration Example:**
+
+   .. code-block:: python
+
+       # Old (Airflow 2.x)
+       from airflow.models import DAG
+       from airflow.decorators import task
+
+       # New (Airflow 3.x)
+       from airflow.sdk import DAG, task
+
+   For an exhaustive list of available classes, decorators, and functions, check ``airflow.sdk.__all__``.
+
+   All DAGs should update imports to use ``airflow.sdk`` instead of referencing internal Airflow modules directly.
+   Legacy import paths (e.g., ``airflow.models.dag.DAG``, ``airflow.decorator.task``) are deprecated and will be
+   removed in a future Airflow version.
+
 Dags
 ----
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
-instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
-them via :class:`~airflow.models.dagbag.DagBag` class that reads dags from a file or a folder. Dags
-can also have parameters specified via :class:`~airflow.sdk.definitions.param.Param` class.
+instantiating the :class:`~airflow.sdk.DAG` class in your DAG file. Dags can also have parameters
+specified via :class:`~airflow.sdk.Param` class.
+
+.. versionchanged:: 3.0
+
+   The recommended way to create DAGs is using the :func:`~airflow.sdk.dag` decorator
+   from the airflow.sdk namespace.
 
 Airflow has a set of example dags that you can use to learn how to write dags
 
@@ -77,29 +147,32 @@ You can read more about dags in :doc:`Dags <core-concepts/dags>`.
 
 References for the modules used in dags are here:
 
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
+.. note::
+   The airflow.sdk namespace provides the primary interface for DAG authors in Airflow 3.0+.
+   For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
-  _api/airflow/models/dag/index
-  _api/airflow/models/dagbag/index
+.. note::
+   The :class:`~airflow.models.dagbag.DagBag` class is used internally by Airflow for loading DAGs
+   from files and folders. DAG authors should use the :class:`~airflow.sdk.DAG` class from the
+   airflow.sdk namespace instead.
 
-Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
-
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/models/dagrun/index
+.. note::
+   The :class:`~airflow.models.dagrun.DagRun` class is used internally by Airflow for DAG run
+   management. DAG authors should access DAG run information through the Task Context via
+   :func:`~airflow.sdk.get_current_context` or use the :class:`~airflow.sdk.types.DagRunProtocol`
+   interface.
 
 .. _pythonapi:operators:
 
 Operators
 ---------
 
-The base classes :class:`~airflow.models.baseoperator.BaseOperator` and :class:`~airflow.sensors.base.BaseSensorOperator` are public and may be extended to make new operators.
+The base classes :class:`~airflow.sdk.BaseOperator` and :class:`~airflow.sdk.BaseSensorOperator` are public and may be extended to make new operators.
+
+.. versionchanged:: 3.0
+
+   The recommended base class for new operators is :class:`~airflow.sdk.BaseOperator`
+   from the airflow.sdk namespace.
 
 Subclasses of BaseOperator which are published in Apache Airflow are public in *behavior* but not in *structure*.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.
 
@@ -107,29 +180,54 @@ Task Instances
 --------------
 
 Task instances are the individual runs of a single task in a DAG (in a DAG Run). They are available in the context
-passed to the execute method of the operators via the :class:`~airflow.models.taskinstance.TaskInstance` class.
+passed to the execute method of the operators via the :class:`~airflow.sdk.types.RuntimeTaskInstanceProtocol` class.
 
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
+.. versionchanged:: 3.0
 
-  _api/airflow/models/taskinstance/index
+   In Airflow 3.0+, task instances are accessed through the Task Context via :func:`~airflow.sdk.get_current_context`
+   Direct database access is not possible. The :class:`~airflow.sdk.types.RuntimeTaskInstanceProtocol` provides
+   the stable interface for task instance operations.
 
+.. note::
+   Task Context and RuntimeTaskInstanceProtocol are part of the airflow.sdk namespace.
+   For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
 Task Instance Keys
 ------------------
 
 Task instance keys are unique identifiers of task instances in a DAG (in a DAG Run). A key is a tuple that consists of
-``dag_id``, ``task_id``, ``run_id``, ``try_number``, and ``map_index``. The key of a task instance can be retrieved via
-:meth:`~airflow.models.taskinstance.TaskInstance.key`.
+``dag_id``, ``task_id``, ``run_id``, ``try_number``, and ``map_index``.
 
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
+.. versionchanged:: 3.0
 
-  _api/airflow/models/taskinstancekey/index
+   In Airflow 3.0+, direct access to task instance keys via the :class:`~airflow.models.taskinstance.TaskInstance`
+   model is no longer allowed from task code. Instead, use the Task Context via :func:`~airflow.sdk.get_current_context`
+   to access task instance information.
+
+   Example of accessing task instance information through Task Context:
+
+   .. code-block:: python
+
+       from airflow.sdk import get_current_context
+
+
+       def my_task():
+           context = get_current_context()
+           ti = context["ti"]
+
+           dag_id = ti.dag_id
+           task_id = ti.task_id
+           run_id = ti.run_id
+           try_number = ti.try_number
+           map_index = ti.map_index
+
+           print(f"Task: {dag_id}.{task_id}, Run: {run_id}, Try: {try_number}, Map: {map_index}")
+
+.. note::
+   The :class:`~airflow.models.taskinstancekey.TaskInstanceKey` class is used internally by Airflow
+   for identifying task instances. DAG authors should access task instance information through the
+   Task Context via :func:`~airflow.sdk.get_current_context` instead.
+
 
 .. _pythonapi:hooks:
 
@@ -156,9 +254,41 @@ Public Airflow utilities
 When writing or extending Hooks and Operators, DAG authors and developers can
 use the following classes:
 
-* The :class:`~airflow.models.connection.Connection`, which provides access to external service credentials and configuration.
-* The :class:`~airflow.models.variable.Variable`, which provides access to Airflow configuration variables.
-* The :class:`~airflow.models.xcom.XCom` which are used to access to inter-task communication data.
+* The :class:`~airflow.sdk.Connection`, which provides access to external service credentials and configuration.
+* The :class:`~airflow.sdk.Variable`, which provides access to Airflow configuration variables.
+* The :class:`~airflow.sdk.execution_time.xcom.XCom` which are used to access to inter-task communication data.
+
+.. versionchanged:: 3.0
+
+   In Airflow 3.0+, Connection and Variable operations should be performed through the Task Context using
+   :func:`~airflow.sdk.get_current_context` and the task instance's methods, or through the airflow.sdk namespace.
+   Direct database access to :class:`~airflow.models.connection.Connection` and :class:`~airflow.models.variable.Variable`
+   models is no longer allowed from task code.
+
+   Example of accessing connections and variables through Task Context:
+
+   .. code-block:: python
+
+       from airflow.sdk import get_current_context
+
+
+       def my_task():
+           context = get_current_context()
+
+           conn = context["conn"]
+           my_connection = conn.get_connection("my_connection_id")
+
+           var = context["var"]
+           my_variable = var.get("my_variable_name")
+
+   Example of using airflow.sdk namespace directly:
+
+   .. code-block:: python
+
+       from airflow.sdk import Connection, Variable
+
+       conn = Connection.get_connection("my_connection_id")
+       var = Variable.get("my_variable_name")
 
 You can read more about the public Airflow utilities in :doc:`howto/connection`,
 :doc:`core-concepts/variables`, :doc:`core-concepts/xcoms`
@@ -166,14 +296,9 @@ You can read more about the public Airflow utilities in :doc:`howto/connection`,
 
 Reference for classes used for the utilities are here:
 
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/models/connection/index
-  _api/airflow/models/variable/index
-  _api/airflow/models/xcom/index
+.. note::
+   Connection, Variable, and XCom classes are now part of the airflow.sdk namespace in Airflow 3.0+.
+   For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
 
 Public Exceptions
@@ -263,9 +388,6 @@ can be implemented to respond to DAG/Task lifecycle events.
 
 You can read more about Listeners in :doc:`administration-and-deployment/listeners`.
 
-..
-  TODO AIP-72: This class has been moved to task sdk but we cannot add a doc reference for it yet because task sdk doesn't have rendered docs yet.
-
 Extra Links
 -----------
 
@@ -307,7 +429,7 @@ Secrets Backends
 ----------------
 
 Airflow can be configured to rely on secrets backends to retrieve
-:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.variable.Variable`.
+:class:`~airflow.sdk.Connection` and :class:`~airflow.sdk.Variable`.
 All secrets backends derive from :class:`~airflow.secrets.base_secrets.BaseSecretsBackend`.
 
 All Secrets Backend implementations are public. You can extend their functionality:
@@ -360,16 +482,22 @@ implemented in the community providers.
 Decorators
 ----------
 DAG authors can use decorators to author dags using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
-All Decorators derive from :class:`~airflow.decorators.base.TaskDecorator`.
+All Decorators derive from :class:`~airflow.sdk.bases.decorator.TaskDecorator`.
+
+.. versionchanged:: 3.0
+
+   The primary decorators for DAG authors are now in the airflow.sdk namespace:
+   :func:`~airflow.sdk.dag`, :func:`~airflow.sdk.task`, :func:`~airflow.sdk.asset`,
+   :func:`~airflow.sdk.setup`, :func:`~airflow.sdk.task_group`, :func:`~airflow.sdk.teardown`,
+   :func:`~airflow.sdk.chain`, :func:`~airflow.sdk.chain_linear`, :func:`~airflow.sdk.cross_downstream`,
+   :func:`~airflow.sdk.get_current_context` and :func:`~airflow.sdk.get_parsing_context`.
 
 Airflow has a set of Decorators that are considered public. You are free to extend their functionality
 by extending them:
 
-.. toctree::
-  :includehidden:
-  :maxdepth: 1
-
-  _api/airflow/decorators/index
+.. note::
+   Decorators are now part of the airflow.sdk namespace in Airflow 3.0+.
+   For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
 You can read more about creating custom Decorators in :doc:`howto/create-custom-decorator`.
 
@@ -417,3 +545,51 @@ but in Airflow they are not parts of the Public Interface and might change any t
 * Python classes except those explicitly mentioned in this document, are considered an
   internal implementation detail and you should not assume they will be maintained
   in a backwards-compatible way.
+
+.. versionchanged:: 3.0
+
+   **Direct metadata database access from task code is no longer allowed in Airflow 3.0+**.
+   Task code cannot directly access the metadata database to query DAG state, task history,
+   or DAG runs. Instead, use one of the following alternatives:
+
+   * **Task Context**: Use :func:`~airflow.sdk.get_current_context` to access task instance
+     information and methods like :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_dr_count`,
+     :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_dagrun_state`, and
+     :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_task_states`.
+
+   * **REST API**: Use the :doc:`Stable REST API <stable-rest-api-ref>` for programmatic
+     access to Airflow metadata.
+
+   * **Python Client**: Use the `Python Client <https://github.com/apache/airflow-client-python>`_ for Python-based
+     interactions with Airflow.
+
+   This change improves architectural separation and enables remote execution capabilities.
+
+   Example of using Task Context instead of direct database access:
+
+   .. code-block:: python
+
+       from airflow.sdk import dag, get_current_context, task
+       from airflow.utils.state import DagRunState
+       from datetime import datetime
+
+
+       @dag(dag_id="example_dag", start_date=datetime(2025, 1, 1), schedule="@hourly", tags=["misc"], catchup=False)
+       def example_dag():
+
+           @task(task_id="check_dagrun_state")
+           def check_state():
+               context = get_current_context()
+               ti = context["ti"]
+               dag_run = context["dag_run"]
+
+               # Use Task Context methods instead of direct DB access
+               dr_count = ti.get_dr_count(dag_id="example_dag")
+               dagrun_state = ti.get_dagrun_state(dag_id="example_dag", run_id=dag_run.run_id)
+
+               return f"DAG run count: {dr_count}, current state: {dagrun_state}"
+
+           check_state()
+
+
+       example_dag()
