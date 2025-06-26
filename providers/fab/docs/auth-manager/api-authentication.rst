@@ -162,7 +162,7 @@ Authentication flow     [x] Standard flow                        [x] Direct acce
                         [ ] OIDC CIBA Grant
 ```
 
-In Roles, you must create the following roles:
+In Roles tab, you must create the following roles:
 ```
 airflow_admin
 airflow_op
