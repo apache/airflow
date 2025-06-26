@@ -31,6 +31,7 @@ export const supportedLanguages = [
   { code: "pl", flag: "🇵🇱", name: "Polski" },
   { code: "zh-TW", flag: "🇹🇼", name: "繁體中文" },
   { code: "fr", flag: "🇫🇷", name: "Français" },
+  { code: "tr", flag: "🇹🇷", name: "Türkçe" },
 ] as const;
 
 export const defaultLanguage = "en";

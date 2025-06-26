@@ -1,0 +1,23 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "Tüm ek JSON'ları daralt",
+      "expandAllExtra": "Tüm ek JSON'ları genişlet"
+    },
+    "columns": {
+      "event": "Etkinlik",
+      "extra": "Ek Bilgi",
+      "user": "Kullanıcı",
+      "when": "Zaman"
+    },
+    "title": "Denetim Günlüğü"
+  },
+  "xcom": {
+    "columns": {
+      "Dag": "Dag",
+      "key": "Anahtar",
+      "value": "Değer"
+    },
+    "title": "XCom"
+  }
+}

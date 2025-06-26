@@ -1,11 +1,11 @@
 {
   "group": "Grup",
   "health": {
-    "dagProcessor": "Dag İşleyici",
-    "health": "Sağlık Durumu",
+    "dagProcessor": "Dag İşlemcisi",
+    "health": "Sağlık",
     "healthy": "Sağlıklı",
     "lastHeartbeat": "Son Kalp Atışı",
-    "metaDatabase": "MetaVeritabanı",
+    "metaDatabase": "Meta Veritabanı",
     "scheduler": "Zamanlayıcı",
     "status": "Durum",
     "triggerer": "Tetikleyici",
@@ -18,9 +18,9 @@
     "searchByFile": "Dosyaya göre ara",
     "timestamp": "Zaman Damgası"
   },
-  "managePools": "İşlem Havuzları Yönet",
-  "noAssetEvents": "Varlık olayları bulunamadı.",
-  "poolSlots": "İşlem Havuz Slotları",
+  "managePools": "Havuzları Yönet",
+  "noAssetEvents": "Varlık Etkinliği bulunamadı.",
+  "poolSlots": "Havuz Slotları",
   "sortBy": {
     "newestFirst": "Önce En Yeni",
     "oldestFirst": "Önce En Eski"
@@ -29,10 +29,10 @@
   "stats": {
     "activeDags": "Aktif Dag'ler",
     "failedDags": "Başarısız Dag'ler",
-    "queuedDags": "Kuyrukta Bekleyen Dag'ler",
+    "queuedDags": "Kuyruktaki Dag'ler",
     "runningDags": "Çalışan Dag'ler",
     "stats": "İstatistikler"
   },
-  "uri": "URI",
+  "uri": "Uri",
   "welcome": "Hoş Geldiniz"
 }
