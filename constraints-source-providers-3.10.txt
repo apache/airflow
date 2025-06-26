@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-23T16:51:44.465978
+# This constraints file was automatically generated on 2025-06-26T14:38:44.433576
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -56,7 +56,7 @@ aioresponses==0.7.8
 aiosignal==1.3.2
 alabaster==1.0.0
 alembic==1.16.2
-alibabacloud-adb20211201==3.1.0
+alibabacloud-adb20211201==3.1.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -97,7 +97,7 @@ azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.23.0
 azure-keyvault-secrets==4.10.0
-azure-kusto-data==5.0.3
+azure-kusto-data==5.0.4
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.5.0
@@ -141,7 +141,7 @@ charset-normalizer==3.4.2
 checksumdir==1.2.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
-click-plugins==1.1.1
+click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.2.1
 clickclick==20.10.2
@@ -183,7 +183,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eventlet==0.40.0
+eventlet==0.40.1
 exceptiongroup==1.3.0
 execnet==2.1.1
 executing==2.2.0
@@ -204,13 +204,13 @@ geomet==0.2.1.post1
 gevent==25.5.1
 gitdb==4.0.12
 google-ads==27.0.0
-google-analytics-admin==0.24.0
+google-analytics-admin==0.24.1
 google-api-core==2.25.1
-google-api-python-client==2.173.0
+google-api-python-client==2.174.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.98.0
+google-cloud-aiplatform==1.99.0
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.4
@@ -228,7 +228,7 @@ google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.3
 google-cloud-dataproc==5.20.0
-google-cloud-dlp==3.30.0
+google-cloud-dlp==3.31.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.2
 google-cloud-logging==3.12.1
@@ -247,7 +247,7 @@ google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.3
 google-cloud-texttospeech==2.27.0
-google-cloud-translate==3.20.3
+google-cloud-translate==3.21.0
 google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
@@ -356,11 +356,11 @@ msgraph-core==1.2.1
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.5.0
+multidict==6.5.1
 mypy-boto3-appflow==1.38.0
-mypy-boto3-rds==1.38.35
+mypy-boto3-rds==1.38.43
 mypy-boto3-redshift-data==1.38.0
-mypy-boto3-s3==1.38.39
+mypy-boto3-s3==1.38.44
 mypy==1.9.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.3.0
@@ -375,7 +375,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.90.0
+openai==1.91.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 openlineage-integration-common==1.34.0
@@ -455,7 +455,7 @@ pygraphviz==1.14
 pyiceberg==0.9.1
 pykerberos==1.2.4
 pymongo==4.13.2
-pymssql==2.3.4
+pymssql==2.3.5
 pyodbc==5.2.0
 pyparsing==3.2.3
 pypsrp==0.8.1
@@ -474,7 +474,7 @@ pytest==8.4.1
 python-arango==8.2.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-dotenv==1.1.0
+python-dotenv==1.1.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
@@ -516,7 +516,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.12.4
 sentinels==1.0.0
-sentry-sdk==2.30.0
+sentry-sdk==2.31.0
 setproctitle==1.3.6
 shapely==2.1.1
 shellingham==1.5.4
@@ -528,7 +528,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.15.0
-snowflake-sqlalchemy==1.7.4
+snowflake-sqlalchemy==1.7.5
 sortedcontainers==2.4.0
 soupsieve==2.7
 sphinx-argparse==0.5.2
@@ -549,7 +549,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.14.1
+sqlalchemy-bigquery==1.15.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.13.1
 sqlalchemy_drill==1.1.8
@@ -587,7 +587,7 @@ types-PyYAML==6.0.12.20250516
 types-aiofiles==24.1.0.20250606
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
-types-croniter==6.0.0.20250411
+types-croniter==6.0.0.20250626
 types-docutils==0.21.0.20250604
 types-paramiko==3.5.0.20250516
 types-protobuf==6.30.2.20250516
@@ -632,6 +632,6 @@ ydb==3.21.5
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==5.0
+zope.event==5.1
 zope.interface==7.2
 zstandard==0.23.0
