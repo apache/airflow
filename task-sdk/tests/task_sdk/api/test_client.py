@@ -887,14 +887,13 @@ class TestAssetEventOperations:
     def test_by_name_get_success(self, request_params):
         def handle_request(request: httpx.Request) -> httpx.Response:
             params = request.url.params
-            match request.url.path:
-                case "/asset-events/by-asset":
-                    assert params.get("name") == request_params.get("name")
-                    assert params.get("uri") == request_params.get("uri")
-                case "/asset-events/by-asset-alias":
-                    assert params.get("name") == request_params.get("alias_name")
-                case _:
-                    return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            if request.url.path == "/asset-events/by-asset":
+                assert params.get("name") == request_params.get("name")
+                assert params.get("uri") == request_params.get("uri")
+            elif request.url.path == "/asset-events/by-asset-alias":
+                assert params.get("name") == request_params.get("alias_name")
+            else:
+                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
             return httpx.Response(
                 status_code=200,
