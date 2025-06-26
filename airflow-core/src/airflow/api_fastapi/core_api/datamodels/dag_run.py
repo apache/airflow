@@ -164,10 +164,3 @@ class DAGRunsBatchBody(StrictBaseModel):
     start_date_lte: AwareDatetime | None = None
     end_date_gte: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
-
-
-class DAGRunWatchResult(StrictBaseModel):
-    """Status update from the dag run watch endpoint."""
-
-    duration: float | None
-    state: DagRunState
