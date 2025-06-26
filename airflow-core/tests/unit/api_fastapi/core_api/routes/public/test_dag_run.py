@@ -104,12 +104,12 @@ def setup(request, dag_maker, session=None):
 
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
-    for task in [task1, task2]:
+    for i, task in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
         ti.task = task
         ti.state = State.SUCCESS
-
         session.merge(ti)
+        ti.xcom_push("return_value", f"result_{i}")
 
     dag_run2 = dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -1623,7 +1623,7 @@ class TestTriggerDagRun:
         }
 
 
-class TestWatchDagRun:
+class TestWaitDagRun:
     # The way we init async engine does not work well with FastAPI app init.
     # Creating the engine implicitly creates an event loop, which Airflow does
     # once for the entire process; creating the FastAPI app also does, but our
@@ -1637,19 +1637,19 @@ class TestWatchDagRun:
         _configure_async_session()
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/watch?interval=1")
+        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait?interval=1")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/watch?interval=1")
+        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait?interval=1")
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/does-not-exist/watch?interval=1")
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/does-not-exist/wait?interval=1")
         assert response.status_code == 404
 
     def test_should_respond_422_without_interval_param(self, test_client):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/watch")
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait")
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
@@ -1657,9 +1657,13 @@ class TestWatchDagRun:
         [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
     )
     def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/watch?interval=100")
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/wait?interval=100")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, dict)
-        assert sorted(data) == ["duration", "state"]
-        assert data["state"] == state
+        assert data == {"state": state}
+
+    def test_collect_task(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait?interval=100&collect=task_1")
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"state": DagRunState.SUCCESS, "returns": {"task_1": '"result_1"'}}

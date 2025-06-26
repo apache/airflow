@@ -159,14 +159,15 @@ export const UseDagRunServiceGetDagRunsKeyFn = ({ dagId, endDateGte, endDateLte,
   updatedAtGte?: string;
   updatedAtLte?: string;
 }, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }])];
-export type DagRunServiceWatchDagRunUntilFinishedDefaultResponse = Awaited<ReturnType<typeof DagRunService.watchDagRunUntilFinished>>;
-export type DagRunServiceWatchDagRunUntilFinishedQueryResult<TData = DagRunServiceWatchDagRunUntilFinishedDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useDagRunServiceWatchDagRunUntilFinishedKey = "DagRunServiceWatchDagRunUntilFinished";
-export const UseDagRunServiceWatchDagRunUntilFinishedKeyFn = ({ dagId, dagRunId, interval }: {
+export type DagRunServiceWaitDagRunUntilFinishedDefaultResponse = Awaited<ReturnType<typeof DagRunService.waitDagRunUntilFinished>>;
+export type DagRunServiceWaitDagRunUntilFinishedQueryResult<TData = DagRunServiceWaitDagRunUntilFinishedDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagRunServiceWaitDagRunUntilFinishedKey = "DagRunServiceWaitDagRunUntilFinished";
+export const UseDagRunServiceWaitDagRunUntilFinishedKeyFn = ({ collect, dagId, dagRunId, interval }: {
+  collect?: string[];
   dagId: string;
   dagRunId: string;
   interval: number;
-}, queryKey?: Array<unknown>) => [useDagRunServiceWatchDagRunUntilFinishedKey, ...(queryKey ?? [{ dagId, dagRunId, interval }])];
+}, queryKey?: Array<unknown>) => [useDagRunServiceWaitDagRunUntilFinishedKey, ...(queryKey ?? [{ collect, dagId, dagRunId, interval }])];
 export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<ReturnType<typeof DagSourceService.getDagSource>>;
 export type DagSourceServiceGetDagSourceQueryResult<TData = DagSourceServiceGetDagSourceDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagSourceServiceGetDagSourceKey = "DagSourceServiceGetDagSource";

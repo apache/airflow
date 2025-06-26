@@ -2147,14 +2147,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/watch:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait:
     get:
       tags:
       - DagRun
-      summary: Watch Dag Run Until Finished
-      description: Watch a dag run until it reaches a finished state (e.g. success
-        or failed).
-      operationId: watch_dag_run_until_finished
+      summary: Wait Dag Run Until Finished
+      description: Wait for a dag run until it finishes, and return its return value.
+      operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -2176,13 +2175,35 @@ paths:
         schema:
           type: number
           exclusiveMinimum: 0.0
+          description: Seconds to wait between dag run state checks
           title: Interval
+        description: Seconds to wait between dag run state checks
+      - name: collect
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          description: Collect return value XCom from task. Can be set multiple times.
+          title: Collect
+        description: Collect return value XCom from task. Can be set multiple times.
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
+            application/x-ndjson:
+              schema:
+                type: string
+                example: '{"state": "running"}
+
+                  {"state": "success", "returns": {"op": 42}}
+
+                  '
         '401':
           content:
             application/json:

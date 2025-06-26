@@ -17,8 +17,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncGenerator
+import textwrap
 from typing import Annotated, Literal, cast
 
 import structlog
@@ -54,6 +53,7 @@ from airflow.api_fastapi.common.parameters import (
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunClearBody,
@@ -62,7 +62,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
-    DAGRunWatchResult,
     TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
@@ -76,12 +75,12 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_asset,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
-from airflow.utils.session import create_session_async
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 log = structlog.get_logger(__name__)
@@ -443,37 +442,52 @@ def trigger_dag_run(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
-async def _watch_dagrun(dag_id: str, run_id: str, interval: float) -> AsyncGenerator[str, None]:
-    async with create_session_async() as session:
-        dag_run = await session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
-    yield DAGRunWatchResult.model_validate(dag_run, from_attributes=True).model_dump_json()
-    yield "\n"
-    while dag_run.state not in State.finished_dr_states:
-        await asyncio.sleep(interval)
-        async with create_session_async() as session:
-            dag_run = await session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
-        yield DAGRunWatchResult.model_validate(dag_run, from_attributes=True).model_dump_json()
-        yield "\n"
-
-
 @dag_run_router.get(
-    "/{dag_run_id}/watch",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    "/{dag_run_id}/wait",
+    responses={
+        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": {
+                Mimetype.NDJSON: {
+                    "schema": {
+                        "type": "string",
+                        "example": textwrap.dedent(
+                            """\
+                {"state": "running"}
+                {"state": "success", "returns": {"op": 42}}
+                """
+                        ),
+                    }
+                }
+            },
+        },
+    },
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
-def watch_dag_run_until_finished(
+def wait_dag_run_until_finished(
     dag_id: str,
     dag_run_id: str,
-    interval: Annotated[float, Query(gt=0.0)],
     session: SessionDep,
+    interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
+    collect_task_ids: Annotated[
+        list[str] | None,
+        Query(alias="collect", description="Collect return value XCom from task. Can be set multiple times."),
+    ] = None,
 ):
-    "Watch a dag run until it reaches a finished state (e.g. success or failed)."
+    "Wait for a dag run until it finishes, and return its return value."
     if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    return StreamingResponse(_watch_dagrun(dag_id, dag_run_id, interval))
+    waiter = DagRunWaiter(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        interval=interval,
+        collect_task_ids=collect_task_ids,
+    )
+    return StreamingResponse(waiter.wait())
 
 
 @dag_run_router.post(

@@ -2216,13 +2216,20 @@ export type TriggerDagRunData = {
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
-export type WatchDagRunUntilFinishedData = {
+export type WaitDagRunUntilFinishedData = {
+    /**
+     * Collect return value XCom from task. Can be set multiple times.
+     */
+    collect?: Array<(string)> | null;
     dagId: string;
     dagRunId: string;
+    /**
+     * Seconds to wait between dag run state checks
+     */
     interval: number;
 };
 
-export type WatchDagRunUntilFinishedResponse = unknown;
+export type WaitDagRunUntilFinishedResponse = unknown;
 
 export type GetListDagRunsBatchData = {
     dagId: "~";
@@ -3987,9 +3994,9 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/watch': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait': {
         get: {
-            req: WatchDagRunUntilFinishedData;
+            req: WaitDagRunUntilFinishedData;
             res: {
                 /**
                  * Successful Response
