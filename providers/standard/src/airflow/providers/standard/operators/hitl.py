@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.models import SkipMixin
@@ -29,7 +30,21 @@ if TYPE_CHECKING:
 
 
 class HITLOperator(BaseOperator):
-    """Base class for all following HITLOperator which the dedicated operators inherit from."""
+    """
+    Base class for all Human-in-the-loop Operators to inherit from.
+
+    :param subject: Headline/subject presented to the user for the interaction task
+    :param options: List of options that the human can select from and click to complete the task.
+        Buttons on the UI will be presented in the order of the list
+    :param body: descriptive text that might give background, hints or can provide background or summary of
+        details that are needed to decide
+    :param default: The default result (highlighted button) and result that is taken if timeout is passed
+    :param params: dictionary of parameter definitions that are in the format of Dag params such that
+        a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
+        and added to XCom of the task result
+    """
+
+    template_fields: Sequence[str] = ("subject", "body")
 
     def __init__(
         self,
