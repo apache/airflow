@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+import os
 from asyncio import sleep
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -28,6 +29,7 @@ from airflow.api_fastapi.auth.managers.middleware.refresh_token import RefreshTo
 class TestRefreshTokenMiddleware:
     """Test implementation of RefreshTokenMiddleware for unit testing."""
 
+    @patch.dict(os.environ, {"AIRFLOW__API_AUTH__JWT_EXPIRATION_TIME": "1"})
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "method, path",
@@ -50,7 +52,7 @@ class TestRefreshTokenMiddleware:
             401,
             403,
         }, f"Unexpected status code {response.status_code} for {method} {path}"
-        sleep(1)
+        sleep(2)
         response = test_client.request(method=method, url=path)
         assert response.status_code not in {
             401,
