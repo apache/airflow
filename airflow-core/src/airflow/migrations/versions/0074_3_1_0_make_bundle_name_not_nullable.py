@@ -26,9 +26,10 @@ Create Date: 2025-06-18 20:46:43.538828
 
 from __future__ import annotations
 
-import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.sql import text
+
+from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
 revision = "9abbd92d95c9"
@@ -78,10 +79,10 @@ def upgrade():
         )
         # drop the foreign key temporarily and recreate it once both columns are changed
         batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
-        batch_op.alter_column("bundle_name", nullable=False, existing_type=sa.String(length=250))
+        batch_op.alter_column("bundle_name", nullable=False, existing_type=StringID())
 
     with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-        batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
+        batch_op.alter_column("name", nullable=False, existing_type=StringID())
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.create_foreign_key(
@@ -94,20 +95,7 @@ def downgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
 
-        existing_type_kwargs = {}
-        if op.get_bind().dialect.name == "mysql":
-            existing_type_kwargs["collation"] = "utf8mb3_bin"
-        batch_op.alter_column(
-            "bundle_name", nullable=True, existing_type=sa.String(length=250, **existing_type_kwargs)
-        )
-    if op.get_bind().dialect.name == "mysql":
-        # Ensures the collation and charset are the same before creating the foreign key
-        op.execute(
-            "ALTER TABLE dag_bundle MODIFY name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
-        )
-        op.execute(
-            "ALTER TABLE dag MODIFY bundle_name VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin"
-        )
+        batch_op.alter_column("bundle_name", nullable=True, existing_type=StringID())
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
