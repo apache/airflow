@@ -32,7 +32,7 @@ If the user-supplied values don't pass validation, Airflow shows a warning inste
 DAG-level Params
 ----------------
 
-To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``params`` kwarg.
+To add Params to a :class:`~airflow.sdk.DAG`, initialize it with the ``params`` kwarg.
 Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definitions.param.Param` or an object indicating the parameter's default value.
 
 .. code-block::
