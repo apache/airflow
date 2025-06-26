@@ -47,13 +47,13 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return float(o), name, __version__, True
 
 
-def deserialize(classname: str, version: int, data: object) -> decimal.Decimal:
+def deserialize(cls: type, version: int, data: object) -> decimal.Decimal:
     from decimal import Decimal
 
     if version > __version__:
-        raise TypeError(f"serialized {version} of {classname} > {__version__}")
+        raise TypeError(f"serialized {version} of {qualname(cls)} > {__version__}")
 
-    if classname != qualname(Decimal):
-        raise TypeError(f"{classname} != {qualname(Decimal)}")
+    if cls is not Decimal:
+        raise TypeError(f"do not know how to deserialize {qualname(cls)}")
 
     return Decimal(str(data))
