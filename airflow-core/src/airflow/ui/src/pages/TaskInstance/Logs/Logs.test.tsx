@@ -90,7 +90,7 @@ describe("Task log grouping", () => {
 
     expect(screen.getByText(/Marking task as SUCCESS/iu)).toBeVisible();
 
-    const collapseBtn = screen.getByRole("button", { name: /collapse/iu });
+    const collapseBtn = screen.getByRole("button", { name: /expand\.collapse/iu });
 
     fireEvent.click(collapseBtn);
     await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
