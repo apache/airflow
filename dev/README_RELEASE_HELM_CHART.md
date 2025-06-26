@@ -42,6 +42,8 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish release tag](#publish-release-tag)
   - [Publish final documentation](#publish-final-documentation)
+  - [Update `index.yaml` in airflow-site](#update-indexyaml-in-airflow-site)
+  - [Wait for ArtifactHUB to discover new release](#wait-for-artifacthub-to-discover-new-release)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -331,7 +333,7 @@ EOF
 Content is generated with:
 
 ```shell
-breeze release-management generate-issue-content-helm-chart
+breeze release-management generate-issue-content-helm-chart \
 --previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
@@ -757,6 +759,27 @@ workflow in `airflow-site` repository. Make sure to use `main` branch.
 After that workflow completes, the new version should be available in the drop-down list and stable links
 should be updated and Fastly cache should be invalidated.
 
+## Update `index.yaml` in airflow-site
+
+Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add apache-airflow https://airflow.apache.org`.
+
+```shell
+git clone https://github.com/apache/airflow-site.git airflow-site
+cd airflow-site
+curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/index.yaml -o index.yaml
+cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
+helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
+rm airflow-${VERSION}.tgz
+mv index.yaml landing-pages/site/static/index.yaml
+git add p . # leave the license at the top
+git commit -m "Add Apache Airflow Helm Chart Release ${VERSION} to chart index file"
+git push
+# and finally open a PR
+```
+
+## Wait for ArtifactHUB to discover new release
+
+As we link out to ArtifactHUB in all of our release communications, we now wait until ArtifactHUB has discovered the new release. This can take 30 minutes or so to happen after the index change PR from above is merged.
 
 ## Notify developers of release
 

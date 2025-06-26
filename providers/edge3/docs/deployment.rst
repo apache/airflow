@@ -44,12 +44,19 @@ Here are a few imperative requirements for your workers:
 
 Minimum Airflow configuration settings for the Edge Worker to make it running is:
 
+- Section ``[api_auth]``
+
+  - ``jwt_secret``: A matching secret to that on the api-server (starting from version 3.0.0).
+
 - Section ``[core]``
 
+  - ``execution_api_server_url``: The url of the execution api server. Default is ``{BASE_URL}/execution/``
+    where {BASE_URL} is the base url of the API Server. If ``{BASE_URL}`` is not set, it will use
+    ``http://localhost:8080`` as the default base url.
   - ``executor``: Executor must be set or added to be ``airflow.providers.edge3.executors.EdgeExecutor``
   - ``internal_api_secret_key``: An encryption key must be set on api-server and Edge Worker component as
     shared secret to authenticate traffic. It should be a random string like the fernet key
-    (but preferably not the same).
+    (for versions earlier than 3.0.0).
 
 - Section ``[edge]``
 

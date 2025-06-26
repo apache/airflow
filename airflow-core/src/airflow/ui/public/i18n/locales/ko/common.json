@@ -1,0 +1,271 @@
+{
+  "admin": {
+    "Config": "설정",
+    "Connections": "연결들",
+    "Plugins": "플러그인들",
+    "Pools": "풀들",
+    "Providers": "제공자들",
+    "Variables": "변수들"
+  },
+  "asset_one": "에셋",
+  "asset_other": "에셋들",
+  "assetEvent_one": "에셋 이벤트",
+  "assetEvent_other": "에셋 이벤트들",
+  "backfill_one": "백필",
+  "backfill_other": "백필들",
+  "browse": {
+    "auditLog": "감사 로그",
+    "xcoms": "XComs"
+  },
+  "createdAssetEvent_one": "생성된 에셋 이벤트",
+  "createdAssetEvent_other": "생성된 에셋 이벤트들",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "캐치업",
+    "concurrency": "동시 샐행 수",
+    "dagRunTimeout": "Dag 실행 제한 시간",
+    "defaultArgs": "기본 인자",
+    "description": "설명",
+    "documentation": "Dag 문서",
+    "fileLocation": "파일 위치",
+    "hasTaskConcurrencyLimits": "태스크 동시성 제한 존재 여부",
+    "lastExpired": "마지막 만료 시점",
+    "lastParsed": "마지막 파싱 시점",
+    "latestDagVersion": "최신 Dag 버전",
+    "latestRun": "최근 실행",
+    "maxActiveRuns": "최대 활성 실행 수",
+    "maxActiveTasks": "최대 활성 태스크 수",
+    "maxConsecutiveFailedDagRuns": "연속 실패한 Dag 실행 최대 횟수",
+    "nextRun": "다음 실행",
+    "owner": "소유자",
+    "params": "매개변수",
+    "schedule": "스케줄",
+    "tags": "태그"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "구성",
+    "dagVersions": "Dag 버전",
+    "dataIntervalEnd": "데이터 구간 종료",
+    "dataIntervalStart": "데이터 구간 시작",
+    "lastSchedulingDecision": "마지막 스케줄링 결정",
+    "queuedAt": "대기열에 추가된 시간",
+    "runAfter": "다음 실행",
+    "runType": "실행 유형",
+    "sourceAssetEvent": "소스 에셋 이벤트",
+    "triggeredBy": "실행 주체"
+  },
+  "dagRun_one": "Dag 실행",
+  "dagRun_other": "Dag 실행들",
+  "dagWarnings": "Dag 경고/오류",
+  "defaultToGraphView": "그래프 뷰 기본 보기",
+  "defaultToGridView": "그리드 뷰 기본 보기",
+  "direction": "방향",
+  "docs": {
+    "documentation": "문서",
+    "githubRepo": "GitHub 저장소",
+    "restApiReference": "REST API 참조"
+  },
+  "duration": "기간",
+  "endDate": "종료일",
+  "error": {
+    "back": "뒤로",
+    "defaultMessage": "예기치 않은 오류가 발생했습니다.",
+    "home": "홈",
+    "notFound": "페이지를 찾을 수 없습니다.",
+    "title": "오류"
+  },
+  "expression": {
+    "all": "모두",
+    "and": "그리고",
+    "any": "모든",
+    "or": "또는"
+  },
+  "logicalDate": "논리적 날짜",
+  "logout": "로그아웃",
+  "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
+  "mapIndex": "맵 인덱스",
+  "modal": {
+    "cancel": "취소",
+    "confirm": "확인",
+    "delete": {
+      "button": "삭제",
+      "confirmation": "{{resourceName}}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+    }
+  },
+  "nav": {
+    "admin": "관리자",
+    "assets": "에셋",
+    "browse": "탐색",
+    "dags": "Dags",
+    "docs": "문서",
+    "home": "홈",
+    "plugins": "플러그인",
+    "security": "보안"
+  },
+  "noItemsFound": "{{modelName}} 을(를) 찾을 수 없음",
+  "note": {
+    "add": "메모 추가",
+    "dagRun": "Dag 실행 메모",
+    "label": "메모",
+    "placeholder": "메모 추가...",
+    "taskInstance": "작업 인스턴스 메모"
+  },
+  "pools": {
+    "deferred": "연기됨",
+    "open": "열림",
+    "pools_one": "풀",
+    "pools_other": "풀",
+    "queued": "대기 중",
+    "running": "실행 중",
+    "scheduled": "예약됨"
+  },
+  "runId": "실행 ID",
+  "runTypes": {
+    "asset_triggered": "에셋 트리거",
+    "backfill": "백필",
+    "manual": "수동",
+    "scheduled": "예정됨"
+  },
+  "seconds": "{{count}}초",
+  "security": {
+    "actions": "작업",
+    "permissions": "권한",
+    "resources": "리소스",
+    "roles": "역할",
+    "users": "사용자"
+  },
+  "selectLanguage": "언어 선택",
+  "sourceAssetEvent_one": "소스 에셋 이벤트",
+  "sourceAssetEvent_other": "소스 에셋 이벤트",
+  "startDate": "시작일",
+  "state": "상태",
+  "states": {
+    "deferred": "연기됨",
+    "failed": "실패",
+    "no_status": "상태 없음",
+    "none": "상태 없음",
+    "queued": "대기 중",
+    "removed": "제거됨",
+    "restarting": "다시 시작 중",
+    "running": "실행 중",
+    "scheduled": "예약됨",
+    "skipped": "건너뜀",
+    "success": "성공",
+    "up_for_reschedule": "재예약 대기 중",
+    "up_for_retry": "재시도 대기 중",
+    "upstream_failed": "업스트림 실패"
+  },
+  "switchToDarkMode": "다크 모드로 전환",
+  "switchToLightMode": "라이트 모드로 전환",
+  "table": {
+    "completedAt": "완료 시간",
+    "createdAt": "생성 시간",
+    "filterByTag": "태그로 Dag 필터링",
+    "filterColumns": "테이블 열 필터링",
+    "filterReset_one": "필터 초기화",
+    "filterReset_other": "필터 초기화",
+    "from": "시작",
+    "maxActiveRuns": "최대 활성 실행 수",
+    "noTagsFound": "태그를 찾을 수 없습니다.",
+    "tagMode": {
+      "all": "모두",
+      "any": "모든"
+    },
+    "tagPlaceholder": "태그로 필터링",
+    "to": "종료"
+  },
+  "task": {
+    "documentation": "작업 문서",
+    "lastInstance": "마지막 인스턴스",
+    "operator": "연산자",
+    "triggerRule": "트리거 규칙"
+  },
+  "task_one": "작업",
+  "task_other": "작업들",
+  "taskId": "작업 ID",
+  "taskInstance": {
+    "dagVersion": "Dag 버전",
+    "executor": "실행기",
+    "executorConfig": "실행기 구성",
+    "hostname": "호스트 이름",
+    "maxTries": "최대 시도 횟수",
+    "pid": "PID",
+    "pool": "풀",
+    "poolSlots": "풀 슬롯",
+    "priorityWeight": "우선순위 가중치",
+    "queue": "큐",
+    "queuedWhen": "대기열에 추가된 시간",
+    "scheduledWhen": "예정된 시간",
+    "triggerer": {
+      "assigned": "할당된 트리거",
+      "class": "트리거 클래스",
+      "createdAt": "트리거 생성 시간",
+      "id": "트리거 ID",
+      "latestHeartbeat": "최신 트리거 상태",
+      "title": "트리거 정보"
+    },
+    "unixname": "유닉스 이름"
+  },
+  "taskInstance_one": "작업 인스턴스",
+  "taskInstance_other": "작업 인스턴스들",
+  "timeRange": {
+    "last12Hours": "지난 12 시간",
+    "last24Hours": "지난 24 시간",
+    "lastHour": "지난 1시간",
+    "pastWeek": "지난 주"
+  },
+  "timezone": "시간대",
+  "timezoneModal": {
+    "current-timezone": "현재 시간:",
+    "placeholder": "시간대 선택",
+    "title": "시간대 선택",
+    "utc": "UTC (협정 세계시)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "대량 삭제 {{resourceName}} 요청 실패",
+      "success": {
+        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}",
+        "title": "대량 삭제 {{resourceName}} 요청 제출됨"
+      }
+    },
+    "create": {
+      "error": "생성 {{resourceName}} 요청 실패",
+      "success": {
+        "description": "{{resourceName}}이(가) 성공적으로 생성되었습니다.",
+        "title": "생성 {{resourceName}} 요청 제출됨"
+      }
+    },
+    "delete": {
+      "error": "삭제 {{resourceName}} 요청 실패",
+      "success": {
+        "description": "{{resourceName}}이(가) 성공적으로 삭제되었습니다.",
+        "title": "삭제 {{resourceName}} 요청 제출됨"
+      }
+    },
+    "import": {
+      "error": "가져오기 {{resourceName}} 요청 실패",
+      "success": {
+        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 가져와졌습니다.",
+        "title": "가져오기 {{resourceName}} 요청 제출됨"
+      }
+    },
+    "update": {
+      "error": "업데이트 {{resourceName}} 요청 실패",
+      "success": {
+        "description": "{{resourceName}}이(가) 성공적으로 업데이트되었습니다.",
+        "title": "업데이트 {{resourceName}} 요청 제출됨"
+      }
+    }
+  },
+  "triggered": "트리거됨",
+  "tryNumber": "시도 횟수",
+  "user": "사용자",
+  "wrap": {
+    "tooltip": "{{hotkey}}를 눌러 텍스트 줄바꿈 토글",
+    "unwrap": "줄바꿈 해제",
+    "wrap": "줄바꿈"
+  }
+}

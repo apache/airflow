@@ -221,6 +221,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pytest-mark-db-test-in-providers                    | Check pytest.mark.db_test use in providers             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
@@ -294,6 +296,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | go-mockery                                                | Generate mocks for go                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| go-mod-tidy                                               | Run go mod tidy                                        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | gofmt                                                     | Format go code                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
@@ -349,6 +353,8 @@ require Breeze Docker image to be built locally.
 |                                                           | * Run mypy for task-sdk (manual)                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -526,6 +532,24 @@ Most of the checks we run are configured to run automatically when you commit th
 there are some checks that are not run automatically and you need to run them manually. Those
 checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
 them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
+
+Special pin-versions pre-commit
+-------------------------------
+
+There is a separate pre-commit ``pin-versions`` pre-commit which is used to pin versions of
+GitHub Actions in the CI workflows.
+
+This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
+is also configured in a separate ``.pre-commit-config.yaml`` file in the
+``.github`` directory as it requires Python 3.11 to run. It is not run automatically
+when you commit the code but in runs as a separate job in the CI. However, you can run it
+manually by running:
+
+.. code-block:: bash
+
+    export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
+    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
+
 
 Mypy checks
 -----------
