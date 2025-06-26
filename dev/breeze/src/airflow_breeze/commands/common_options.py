@@ -417,6 +417,13 @@ option_use_airflow_version = click.option(
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
+option_allow_pre_releases = click.option(
+    "--allow-pre-releases",
+    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    "Set to true automatically for pre-release --use-airflow-version)",
+    is_flag=True,
+    envvar="ALLOW_PRE_RELEASES",
+)
 option_airflow_version = click.option(
     "-A",
     "--airflow-version",
@@ -435,6 +442,22 @@ option_verbose = click.option(
     expose_value=False,
     type=VerboseOption(),
     callback=_set_default_from_parent,
+)
+option_install_airflow_with_constraints = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+option_install_airflow_with_constraints_default_true = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
 )
 
 

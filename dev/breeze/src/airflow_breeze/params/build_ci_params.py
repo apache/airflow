@@ -73,7 +73,6 @@ class BuildCiParams(CommonBuildParams):
         # optional build args
         self._set_common_opt_args()
         self._opt_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
-        self._opt_arg("VERSION_SUFFIX", self.version_suffix)
         # Convert to build args
         build_args = self._to_build_args()
         # Add cache directive

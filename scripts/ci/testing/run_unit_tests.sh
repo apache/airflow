@@ -120,6 +120,15 @@ function task_sdk_tests() {
     echo "${COLOR_BLUE}Task SDK tests completed${COLOR_RESET}"
 }
 
+function go_sdk_tests() {
+    echo "${COLOR_BLUE}Running Go SDK tests${COLOR_RESET}"
+    set -x
+    cd go-sdk
+    go test -v ./...
+    set +x
+    echo "${COLOR_BLUE}Go SDK tests completed${COLOR_RESET}"
+}
+
 
 function airflow_ctl_tests() {
     echo "${COLOR_BLUE}Running Airflow CTL tests${COLOR_RESET}"
@@ -137,6 +146,8 @@ function run_tests() {
         providers_tests
     elif [[ "${TEST_GROUP}" == "task-sdk" ]]; then
         task_sdk_tests
+    elif [[ "${TEST_GROUP}" == "go-sdk" ]]; then
+        go_sdk_tests
     elif [[ "${TEST_GROUP}" == "airflow-ctl" ]]; then
         airflow_ctl_tests
     else

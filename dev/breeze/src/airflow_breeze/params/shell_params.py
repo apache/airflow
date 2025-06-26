@@ -46,6 +46,7 @@ from airflow_breeze.global_constants import (
     EDGE_EXECUTOR,
     FAB_AUTH_MANAGER,
     FLOWER_HOST_PORT,
+    GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -139,7 +140,7 @@ class ShellParams:
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
-    airflow_skip_constraints: bool = False
+    allow_pre_releases: bool = False
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
@@ -345,13 +346,23 @@ class ShellParams:
                     self.airflow_extras = (
                         ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
                     )
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "fab" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
+                    )
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["fab"]) if current_extras else "fab"
+                    )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
-        if os.environ.get("CI", "false") == "true" and self.use_uv:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-uv-tests.yml")
+        if os.environ.get("CI", "false") == "true":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-tests.yml")
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
@@ -513,7 +524,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
-        _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
@@ -552,6 +562,7 @@ class ShellParams:
             port = 8080
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
+        _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
@@ -578,10 +589,12 @@ class ShellParams:
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
+        _set_var(_env, "GITHUB_TOKEN", self.github_token)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)

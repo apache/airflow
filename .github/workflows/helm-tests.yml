@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -93,7 +93,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare and cleanup runner"
@@ -130,13 +130,12 @@ jobs:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Fetch Git Tags"
         run: git fetch --tags
-      - name: "Test helm chart issue generation automatically"
-        # Adding same tags for now, will address in a follow-up
+      - name: "Test helm chart issue generation"
         run: >
-          breeze release-management generate-issue-content-helm-chart --limit-pr-count 10
-          --latest --verbose
+          breeze release-management generate-issue-content-helm-chart --limit-pr-count 2
+          --previous-release helm-chart/1.15.0 --current-release helm-chart/1.16.0 --verbose
       - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: Helm artifacts
           path: ./dist/airflow-*
