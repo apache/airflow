@@ -20,7 +20,7 @@
 Connect your project to Gitpod
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Goto |airflow_github| and fork the project.
+1. Go to |airflow_github| and fork the project.
 
    .. |airflow_github| raw:: html
 
@@ -33,7 +33,7 @@ Connect your project to Gitpod
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow, click on ``Code``, and copy the clone link.
+2. Go to your github account's fork of airflow, click on ``Code``, and copy the clone link.
 
    .. raw:: html
 
@@ -42,7 +42,7 @@ Connect your project to Gitpod
              alt="Cloning github fork of Apache airflow">
       </div>
 
-3. Add goto https://gitpod.io/#<copied-url> as shown.
+3. Add go to https://gitpod.io/#<copied-url> as shown.
 
    .. raw:: html
 

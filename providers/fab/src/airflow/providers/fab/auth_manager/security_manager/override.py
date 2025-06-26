@@ -43,6 +43,7 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -186,6 +187,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     userremoteusermodelview = CustomUserRemoteUserModelView
     useroidmodelview = CustomUserOIDModelView
     userstatschartview = CustomUserStatsChartView
+
+    # API
+    security_api = SecurityApi
+    """ Override if you want your own Security API login endpoint """
 
     jwt_manager = None
     """ Flask-JWT-Extended """
@@ -400,6 +405,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Register FAB auth manager related views."""
         if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
+
+        # Security APIs
+        self.appbuilder.add_api(self.security_api)
 
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
@@ -743,6 +751,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Get the builtin roles."""
         return self._builtin_roles
 
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
+
+    @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
+
     def _init_config(self):
         """
         Initialize config.
@@ -767,12 +784,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         parsed_werkzeug_version = Version(werkzeug_version)
         if parsed_werkzeug_version < Version("3.0.0"):
+            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
         else:
+            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"

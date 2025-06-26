@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
+import { Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
-import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
@@ -30,6 +30,7 @@ import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { getDuration, isStatePending, useAutoRefresh } from "src/utils";
 
 export const Details = () => {
+  const { t: translate } = useTranslation(["common", "components"]);
   const { dagId = "", runId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -43,120 +44,109 @@ export const Details = () => {
     { refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false) },
   );
 
-  const { data, isLoading } = useDagRunServiceGetUpstreamAssetEvents({ dagId, dagRunId: runId }, undefined, {
-    enabled: dagRun?.run_type === "asset_triggered",
-    refetchInterval: () => (isStatePending(dagRun?.state) ? refetchInterval : false),
-  });
+  if (!dagRun) {
+    return undefined;
+  }
 
-  // TODO : Render DagRun configuration object
   return (
-    <Box p={2}>
-      {data === undefined || dagRun?.run_type !== "asset_triggered" ? undefined : (
-        <AssetEvents data={data} isLoading={isLoading} title="Source Asset Event" />
-      )}
-      {dagRun === undefined ? (
-        <div />
-      ) : (
-        <Table.Root striped>
-          <Table.Body>
-            <Table.Row>
-              <Table.Cell>State</Table.Cell>
-              <Table.Cell>
-                <Flex gap={1}>
-                  <StateBadge state={dagRun.state} />
-                  {dagRun.state}
-                </Flex>
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Run ID</Table.Cell>
-              <Table.Cell>
-                <HStack>
-                  {dagRun.dag_run_id}
-                  <ClipboardRoot value={dagRun.dag_run_id}>
-                    <ClipboardIconButton />
-                  </ClipboardRoot>
-                </HStack>
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Run Type</Table.Cell>
-              <Table.Cell>
-                <HStack>
-                  <RunTypeIcon runType={dagRun.run_type} />
-                  <Text>{dagRun.run_type}</Text>
-                </HStack>
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Run Duration</Table.Cell>
-              <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Last Scheduling Decision</Table.Cell>
-              <Table.Cell>
-                <Time datetime={dagRun.last_scheduling_decision} />
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Queued at</Table.Cell>
-              <Table.Cell>
-                <Time datetime={dagRun.queued_at} />
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Start Date</Table.Cell>
-              <Table.Cell>
-                <Time datetime={dagRun.start_date} />
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>End Date</Table.Cell>
-              <Table.Cell>
-                <Time datetime={dagRun.end_date} />
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Data Interval Start</Table.Cell>
-              <Table.Cell>
-                <Time datetime={dagRun.data_interval_start} />
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Data Interval End</Table.Cell>
-              <Table.Cell>
-                <Time datetime={dagRun.data_interval_end} />
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Trigger Source</Table.Cell>
-              <Table.Cell>{dagRun.triggered_by}</Table.Cell>
-            </Table.Row>
-            {dagRun.bundle_version !== null && (
-              <Table.Row>
-                <Table.Cell>Bundle Version</Table.Cell>
-                <Table.Cell>{dagRun.bundle_version}</Table.Cell>
-              </Table.Row>
-            )}
-            <Table.Row>
-              <Table.Cell>Dag Version(s)</Table.Cell>
-              <Table.Cell>
-                <VStack separator={<StackSeparator />}>
-                  {dagRun.dag_versions.map((dagVersion) => (
-                    <DagVersionDetails dagVersion={dagVersion} key={dagVersion.id} />
-                  ))}
-                </VStack>
-              </Table.Cell>
-            </Table.Row>
-            <Table.Row>
-              <Table.Cell>Run Config</Table.Cell>
-              <Table.Cell>
-                <RenderedJsonField content={dagRun.conf ?? {}} />
-              </Table.Cell>
-            </Table.Row>
-          </Table.Body>
-        </Table.Root>
-      )}
-    </Box>
+    <Table.Root striped>
+      <Table.Body>
+        <Table.Row>
+          <Table.Cell>{translate("state")}</Table.Cell>
+          <Table.Cell>
+            <Flex gap={1}>
+              <StateBadge state={dagRun.state} />
+              {dagRun.state}
+            </Flex>
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("runId")}</Table.Cell>
+          <Table.Cell>
+            <HStack>
+              {dagRun.dag_run_id}
+              <ClipboardRoot value={dagRun.dag_run_id}>
+                <ClipboardIconButton />
+              </ClipboardRoot>
+            </HStack>
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.runType")}</Table.Cell>
+          <Table.Cell>
+            <HStack>
+              <RunTypeIcon runType={dagRun.run_type} />
+              <Text>{dagRun.run_type}</Text>
+            </HStack>
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("duration")}</Table.Cell>
+          <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.lastSchedulingDecision")}</Table.Cell>
+          <Table.Cell>
+            <Time datetime={dagRun.last_scheduling_decision} />
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.queuedAt")}</Table.Cell>
+          <Table.Cell>
+            <Time datetime={dagRun.queued_at} />
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("startDate")}</Table.Cell>
+          <Table.Cell>
+            <Time datetime={dagRun.start_date} />
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("endDate")}</Table.Cell>
+          <Table.Cell>
+            <Time datetime={dagRun.end_date} />
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.dataIntervalStart")}</Table.Cell>
+          <Table.Cell>
+            <Time datetime={dagRun.data_interval_start} />
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.dataIntervalEnd")}</Table.Cell>
+          <Table.Cell>
+            <Time datetime={dagRun.data_interval_end} />
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.triggeredBy")}</Table.Cell>
+          <Table.Cell>{dagRun.triggered_by}</Table.Cell>
+        </Table.Row>
+        {dagRun.bundle_version !== null && (
+          <Table.Row>
+            <Table.Cell>{translate("components:versionDetails.bundleVersion")}</Table.Cell>
+            <Table.Cell>{dagRun.bundle_version}</Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.dagVersions")}</Table.Cell>
+          <Table.Cell>
+            <VStack separator={<StackSeparator />}>
+              {dagRun.dag_versions.map((dagVersion) => (
+                <DagVersionDetails dagVersion={dagVersion} key={dagVersion.id} />
+              ))}
+            </VStack>
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.conf")}</Table.Cell>
+          <Table.Cell>
+            <RenderedJsonField content={dagRun.conf ?? {}} />
+          </Table.Cell>
+        </Table.Row>
+      </Table.Body>
+    </Table.Root>
   );
 };

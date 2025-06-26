@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
@@ -42,17 +43,18 @@ export const Header = ({
   readonly dagWithRuns?: DAGWithLatestDagRunsResponse;
   readonly isRefreshing?: boolean;
 }) => {
+  const { t: translate } = useTranslation(["common", "dag"]);
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
   const latestRun = dagWithRuns?.latest_dag_runs ? dagWithRuns.latest_dag_runs[0] : undefined;
 
   const stats = [
     {
-      label: "Schedule",
+      label: translate("dagDetails.schedule"),
       value: dagWithRuns === undefined ? undefined : <Schedule dag={dagWithRuns} />,
     },
     {
-      label: "Latest Run",
+      label: translate("dagDetails.latestRun"),
       value:
         Boolean(latestRun) && latestRun !== undefined ? (
           <Link asChild color="fg.info">
@@ -69,7 +71,7 @@ export const Header = ({
         ) : undefined,
     },
     {
-      label: "Next Run",
+      label: translate("dagDetails.nextRun"),
       value: Boolean(dagWithRuns?.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={dagWithRuns?.next_dagrun_logical_date}
@@ -78,15 +80,15 @@ export const Header = ({
       ) : undefined,
     },
     {
-      label: "Owner",
+      label: translate("dagDetails.owner"),
       value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
     {
-      label: "Tags",
+      label: translate("dagDetails.tags"),
       value: <DagTags tags={dag?.tags ?? []} />,
     },
     {
-      label: "Latest Dag Version",
+      label: translate("dagDetails.latestDagVersion"),
       value: <DagVersion version={dag?.latest_dag_version} />,
     },
   ];
@@ -98,10 +100,10 @@ export const Header = ({
           <>
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
-                header="Dag Documentation"
+                header={translate("dagDetails.documentation")}
                 icon={<FiBookOpen />}
                 mdContent={dag.doc_md}
-                text="Dag Docs"
+                text={translate("dag:header.buttons.dagDocs")}
               />
             )}
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />

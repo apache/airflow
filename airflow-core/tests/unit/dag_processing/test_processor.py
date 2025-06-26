@@ -42,7 +42,7 @@ from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.api.client import Client
-from airflow.sdk.execution_time.task_runner import CommsDecoder
+from airflow.sdk.execution_time import comms
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -87,7 +87,6 @@ class TestDagFileProcessor:
             DagFileParseRequest(
                 file=file_path,
                 bundle_path=TEST_DAG_FOLDER,
-                requests_fd=1,
                 callback_requests=callback_requests or [],
             ),
             log=structlog.get_logger(),
@@ -393,26 +392,38 @@ def disable_capturing():
 
 @pytest.mark.usefixtures("testing_dag_bundle")
 @pytest.mark.usefixtures("disable_capturing")
-def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
+def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
     r, w = socketpair()
-    # Create a valid FD for the decoder to open
-    _, w2 = socketpair()
 
-    w.makefile("wb").write(
-        b'{"file":"/files/dags/wait.py","bundle_path":"/files/dags","requests_fd":'
-        + str(w2.fileno()).encode("ascii")
-        + b',"callback_requests": [{"filepath": "wait.py", "bundle_name": "testing", "bundle_version": null, '
-        b'"msg": "task_failure", "dag_id": "wait_to_fail", "run_id": '
-        b'"manual__2024-12-30T21:02:55.203691+00:00", '
-        b'"is_failure_callback": true, "type": "DagCallbackRequest"}], "type": "DagFileParseRequest"}\n'
+    frame = comms._ResponseFrame(
+        id=1,
+        body={
+            "file": "/files/dags/wait.py",
+            "bundle_path": "/files/dags",
+            "callback_requests": [
+                {
+                    "filepath": "wait.py",
+                    "bundle_name": "testing",
+                    "bundle_version": None,
+                    "msg": "task_failure",
+                    "dag_id": "wait_to_fail",
+                    "run_id": "manual__2024-12-30T21:02:55.203691+00:00",
+                    "is_failure_callback": True,
+                    "type": "DagCallbackRequest",
+                }
+            ],
+            "type": "DagFileParseRequest",
+        },
+    )
+    bytes = frame.as_bytes()
+    w.sendall(bytes)
+
+    decoder = comms.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
+        socket=r,
+        body_decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
     )
 
-    decoder = CommsDecoder[DagFileParseRequest, DagFileParsingResult](
-        input=r.makefile("r"),
-        decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
-    )
-
-    msg = decoder.get_message()
+    msg = decoder._get_response()
     assert isinstance(msg, DagFileParseRequest)
     assert msg.file == "/files/dags/wait.py"
     assert msg.callback_requests == [
@@ -455,7 +466,7 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", bundle_path="no matter", requests_fd=1, callback_requests=requests),
+        DagFileParseRequest(file="A", bundle_path="no matter", callback_requests=requests),
         log=structlog.get_logger(),
     )
 
@@ -489,8 +500,6 @@ def test_parse_file_with_task_callbacks(spy_agency):
             bundle_version=None,
         )
     ]
-    _parse_file(
-        DagFileParseRequest(file="A", requests_fd=1, callback_requests=requests), log=structlog.get_logger()
-    )
+    _parse_file(DagFileParseRequest(file="A", callback_requests=requests), log=structlog.get_logger())
 
     assert called is True

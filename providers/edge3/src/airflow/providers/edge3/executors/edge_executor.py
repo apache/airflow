@@ -73,11 +73,22 @@ class EdgeExecutor(BaseExecutor):
         inspector = inspect(engine)
         edge_job_columns = None
         with contextlib.suppress(NoSuchTableError):
-            edge_job_columns = [column["name"] for column in inspector.get_columns("edge_job")]
+            edge_job_schema = inspector.get_columns("edge_job")
+            edge_job_columns = [column["name"] for column in edge_job_schema]
+            for column in edge_job_schema:
+                if column["name"] == "command":
+                    edge_job_command_len = column["type"].length
 
         # version 0.6.0rc1 added new column concurrency_slots
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
+
+        # version 1.1.0 the command column was changed to VARCHAR(2048)
+        elif edge_job_command_len and edge_job_command_len != 2048:
+            with Session(engine) as session:
+                query = "ALTER TABLE edge_job ALTER COLUMN command TYPE VARCHAR(2048);"
+                session.execute(text(query))
+                session.commit()
 
         edge_worker_columns = None
         with contextlib.suppress(NoSuchTableError):
@@ -102,7 +113,7 @@ class EdgeExecutor(BaseExecutor):
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """
-        Temponary overwrite of _process_tasks function.
+        Temporary overwrite of _process_tasks function.
 
         Idea is to not change the interface of the execute_async function in BaseExecutor as it will be changed in Airflow 3.
         Edge worker needs task_instance in execute_async but BaseExecutor deletes this out of the self.queued_tasks.
@@ -121,7 +132,7 @@ class EdgeExecutor(BaseExecutor):
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute asynchronously. Airflow 2.10 entry point to execute a task."""
-        # Use of a temponary trick to get task instance, will be changed with Airflow 3.0.0
+        # Use of a temporary trick to get task instance, will be changed with Airflow 3.0.0
         # code works together with _process_tasks overwrite to get task instance.
         # TaskInstance in fourth element
         task_instance = self.edge_queued_tasks[key][3]  # type: ignore[index]

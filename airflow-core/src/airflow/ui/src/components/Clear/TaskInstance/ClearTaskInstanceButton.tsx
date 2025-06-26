@@ -54,10 +54,12 @@ const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withTe
     >
       <Box>
         <ActionButton
-          actionName={translate("dags:runAndTaskActions.clear.button", { type: "Task Instance" })}
+          actionName={translate("dags:runAndTaskActions.clear.button", {
+            type: translate("taskInstance_one"),
+          })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text={translate("dags:runAndTaskActions.clear.button", { type: "Task Instance" })}
+          text={translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })}
           withText={withText}
         />
 

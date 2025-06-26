@@ -33,9 +33,6 @@ from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureE
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
-from airflow.utils.session import provide_session
-
-pytestmark = pytest.mark.db_test
 
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -44,15 +41,18 @@ HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 TOKEN = "token"
 
 
-@provide_session
 @pytest.fixture(autouse=True)
-def create_connection(session):
-    conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-    conn.host = HOST
-    conn.login = None
-    conn.password = TOKEN
-    conn.extra = None
-    session.commit()
+def create_connection(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host=HOST,
+            login=None,
+            password=TOKEN,
+            extra=None,
+        )
+    )
 
 
 @pytest.fixture
