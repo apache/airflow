@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from airflow.models import SkipMixin
@@ -77,13 +78,17 @@ class HITLOperator(BaseOperator):
             default=self.default,
         )
         self.log.info("Waiting for response")
+        if self.execution_timeout:
+            timeout_datetime = datetime.now(timezone.utc) + self.execution_timeout
+        else:
+            timeout_datetime = None
         # Defer the Human-in-the-loop response checking process to HITLTrigger
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,
                 options=self.options,
                 default=self.default,
-                execution_timeout=self.execution_timeout,
+                timeout_datetime=timeout_datetime,
                 multiple=self.multiple,
             ),
             method_name="execute_complete",
