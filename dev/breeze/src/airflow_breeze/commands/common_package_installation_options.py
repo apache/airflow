@@ -55,20 +55,6 @@ option_airflow_constraints_mode_ci = click.option(
     show_default=True,
     help="Mode of constraints for Airflow for CI image building.",
 )
-option_airflow_skip_constraints = click.option(
-    "--airflow-skip-constraints",
-    is_flag=True,
-    help="Do not use constraints when installing airflow.",
-    envvar="AIRFLOW_SKIP_CONSTRAINTS",
-)
-option_install_airflow_with_constraints = click.option(
-    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
-    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
-)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
     help="Comma-separated list of providers selected to be installed (implies --use-distributions-from-dist).",

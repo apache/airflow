@@ -43,6 +43,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_image_name,
     option_include_success_outputs,
+    option_install_airflow_with_constraints,
     option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
@@ -61,7 +62,6 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_reference,
-    option_install_airflow_with_constraints,
     option_providers_constraints_location,
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
