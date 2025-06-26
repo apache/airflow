@@ -1714,11 +1714,45 @@ export type GridDAGRunwithTIs = {
 };
 
 /**
+ * Base Node serializer for responses.
+ */
+export type GridNodeResponse = {
+    id: string;
+    label: string;
+    children?: Array<GridNodeResponse> | null;
+    is_mapped: boolean | null;
+    setup_teardown_type?: 'setup' | 'teardown' | null;
+};
+
+/**
  * Response model for the Grid UI.
  */
 export type GridResponse = {
     dag_runs: Array<GridDAGRunwithTIs>;
-    structure: StructureDataResponse;
+};
+
+/**
+ * Base Node serializer for responses.
+ */
+export type GridRunsResponse = {
+    dag_id: string;
+    run_id: string;
+    queued_at: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    run_after: string;
+    state: TaskInstanceState | null;
+    run_type: DagRunType;
+    readonly duration: number | null;
+};
+
+/**
+ * DAG Run model for the Grid UI.
+ */
+export type GridTISummaries = {
+    run_id: string;
+    dag_id: string;
+    task_instances: Array<LightGridTaskInstanceSummary>;
 };
 
 /**
@@ -1745,6 +1779,24 @@ export type HistoricalMetricDataResponse = {
     dag_run_types: DAGRunTypes;
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
+};
+
+/**
+ * Base Node serializer for responses.
+ */
+export type LatestRunResponse = {
+    id: number;
+    dag_id: string;
+    run_id: string;
+    run_after: string;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type LightGridTaskInstanceSummary = {
+    task_id: string;
+    state: TaskInstanceState | null;
 };
 
 /**
@@ -2825,6 +2877,41 @@ export type GridDataData = {
 };
 
 export type GridDataResponse = GridResponse;
+
+export type GetDagStructureData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+};
+
+export type GetDagStructureResponse = Array<GridNodeResponse>;
+
+export type GetGridRunsData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+};
+
+export type GetGridRunsResponse = Array<GridRunsResponse>;
+
+export type GetGridTiSummariesData = {
+    dagId: string;
+    runId: string;
+};
+
+export type GetGridTiSummariesResponse = GridTISummaries;
+
+export type GetLatestRunData = {
+    dagId: string;
+};
+
+export type GetLatestRunResponse = LatestRunResponse | null;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -5742,6 +5829,98 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: GridResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/structure/{dag_id}': {
+        get: {
+            req: GetDagStructureData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<GridNodeResponse>;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/runs/{dag_id}': {
+        get: {
+            req: GetGridRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<GridRunsResponse>;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/ti_summaries/{dag_id}/{run_id}': {
+        get: {
+            req: GetGridTiSummariesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: GridTISummaries;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/latest_run/{dag_id}': {
+        get: {
+            req: GetLatestRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LatestRunResponse | null;
                 /**
                  * Bad Request
                  */

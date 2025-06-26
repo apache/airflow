@@ -16,10 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { AiOutlineGroup } from "react-icons/ai";
+import { useParams } from "react-router-dom";
 
-import { HeaderCard } from "src/components/HeaderCard";
+import { useGridServiceGetGridRuns } from "openapi/queries";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const GroupTaskHeader = ({ title }: { readonly title: string }) => (
-  <HeaderCard icon={<AiOutlineGroup />} stats={[]} title={title} />
-);
+export const useGridRuns = ({ limit }: { limit: number }) => {
+  const { dagId = "" } = useParams();
+
+  const defaultRefetchInterval = useAutoRefresh({ dagId });
+
+  const { data: GridRuns, ...rest } = useGridServiceGetGridRuns(
+    {
+      dagId,
+      limit,
+      orderBy: "-run_after",
+    },
+    undefined,
+    {
+      placeholderData: (prev) => prev,
+      refetchInterval: (query) =>
+        query.state.data?.some((run) => isStatePending(run.state)) && defaultRefetchInterval,
+    },
+  );
+
+  return { data: GridRuns, ...rest };
+};
