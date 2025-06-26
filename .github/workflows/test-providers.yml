@@ -138,7 +138,8 @@ jobs:
       - name: "Install and verify wheel provider distributions"
         env:
           DISTRIBUTION_FORMAT: ${{ matrix.package-format }}
-          AIRFLOW_SKIP_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies }}"
+          # yamllint disable rule:line-length
+          INSTALL_AIRFLOW_WITH_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies == 'true' && 'false' || 'true' }}"
         run: >
           breeze release-management verify-provider-distributions
           --use-distributions-from-dist
