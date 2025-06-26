@@ -37,7 +37,7 @@ if TYPE_CHECKING:
         from airflow.sdk.definitions.context import Context
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk.bases.sensor import PokeReturnValue
+            from airflow.sdk import PokeReturnValue
         else:
             from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
     except ImportError:
