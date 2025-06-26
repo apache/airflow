@@ -27,7 +27,6 @@ import time_machine
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
@@ -95,7 +94,10 @@ class TestDagRunOperator:
                 session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
                     synchronize_session=False
                 )
-            session.query(DagBundleModel).delete(synchronize_session=False)
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                session.query(DagBundleModel).delete(synchronize_session=False)
             session.commit()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
