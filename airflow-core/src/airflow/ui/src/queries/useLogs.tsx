@@ -116,14 +116,14 @@ const parseLogs = ({
         if (finishedGroup) {
           const groupElement = (
             <Box key={finishedGroup.name} mb={2} pl={finishedGroup.level * 2}>
-              <details open={open} style={{ width: "100%" }}>
-                <summary data-testid={`summary-${finishedGroup.name}`}>
+              <chakra.details open={open} w="100%">
+                <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
                   <chakra.span color="fg.info" cursor="pointer">
                     {finishedGroup.name}
                   </chakra.span>
-                </summary>
+                </chakra.summary>
                 {finishedGroup.lines}
-              </details>
+              </chakra.details>
             </Box>
           );
 
