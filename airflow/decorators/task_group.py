@@ -38,6 +38,7 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     MappedArgument,
 )
+from airflow.models.mappedoperator import ensure_xcomarg_return_value
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec
@@ -134,6 +135,11 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         self._validate_arg_names("expand", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="mapping already partial")
         expand_input = DictOfListsExpandInput(kwargs)
+
+        # Similar to @task, @task_group should not be "mappable" over an XCom with a custom key. This will
+        # raise an exception, rather than having an ambiguous exception similar to the one found in #51109.
+        ensure_xcomarg_return_value(expand_input.value)
+
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
@@ -163,6 +169,11 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         map_kwargs = (k for k in self.function_signature.parameters if k not in self.partial_kwargs)
 
         expand_input = ListOfDictsExpandInput(kwargs)
+
+        # Similar to @task, @task_group should not be "mappable" over an XCom with a custom key. This will
+        # raise an exception, rather than having an ambiguous exception similar to the one found in #51109.
+        ensure_xcomarg_return_value(expand_input.value)
+
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
