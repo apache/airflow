@@ -624,7 +624,8 @@ repos:
             ^providers/openai/.*\.py$|
             ^providers/openfaas/.*\.py$|
             ^providers/oracle/.*\.py$|
-            ^providers/opensearch/.*\.py$|
+            ^providers/opensearch/tests/unit/opensearch/hooks/.*\.py$|
+            ^providers/opensearch/tests/unit/opensearch/operators/.*\.py$|
             ^providers/pagerduty/.*\.py$|
             ^providers/pgvector/.*\.py$|
             ^providers/pinecone/.*\.py$|
