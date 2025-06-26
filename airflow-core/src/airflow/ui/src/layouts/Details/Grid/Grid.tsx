@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import { useOpenGroups } from "src/context/openGroups";
+import { useGridNavigation } from "src/hooks/useGridNavigation";
 import { useGrid } from "src/queries/useGrid";
+import { getMetaKey } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -43,7 +45,9 @@ export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
-
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [isGridFocused, setIsGridFocused] = useState(false);
+  const metaKey = getMetaKey();
   const { data: gridData, isLoading, runAfter } = useGrid(limit);
 
   const runs: Array<RunWithDuration> = useMemo(
@@ -72,8 +76,71 @@ export const Grid = ({ limit }: Props) => {
     [gridData, openGroupIds],
   );
 
+  useGridNavigation({
+    flatNodes,
+    isGridFocused,
+    runs,
+  });
+
+  useEffect(() => {
+    if (gridRef.current && Boolean(runs.length) && Boolean(flatNodes.length)) {
+      gridRef.current.focus();
+      setIsGridFocused(true);
+    }
+  }, [runs.length, flatNodes.length]);
+
+  const handleFocus = () => {
+    setIsGridFocused(true);
+  };
+
+  const handleBlur = (event: React.FocusEvent) => {
+    if (!gridRef.current?.contains(event.relatedTarget as Node)) {
+      setIsGridFocused(false);
+    }
+  };
+
+  const handleMouseDown = (event: React.MouseEvent) => {
+    event.preventDefault();
+
+    if (gridRef.current) {
+      gridRef.current.focus();
+      setIsGridFocused(true);
+    }
+  };
+
   return (
-    <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
+    <Flex
+      _focus={{
+        borderRadius: "4px",
+        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+      }}
+      cursor="pointer"
+      justifyContent="flex-start"
+      onBlur={handleBlur}
+      onFocus={handleFocus}
+      onMouseDown={handleMouseDown}
+      outline="none"
+      position="relative"
+      pt={50}
+      ref={gridRef}
+      tabIndex={0}
+      width="100%"
+    >
+      {Boolean(isGridFocused) && (
+        <Box
+          borderRadius="md"
+          color="gray.400"
+          fontSize="xs"
+          position="absolute"
+          px={2}
+          py={1}
+          top={50}
+          zIndex={10}
+        >
+          <Text>{translate("navigation.navigation", { arrow: "↑↓←→" })}</Text>
+          <Text>{translate("navigation.jump", { arrow: "↑↓←→", metaKey })}</Text>
+        </Box>
+      )}
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
         <TaskNames nodes={flatNodes} />
       </Box>
