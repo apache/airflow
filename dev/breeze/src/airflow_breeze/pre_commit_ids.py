@@ -160,6 +160,7 @@ PRE_COMMIT_LIST = [
     "update-vendored-in-k8s-json-schema",
     "update-version",
     "validate-operators-init",
+    "verify-signatures",
     "yamllint",
     "zizmor",
 ]
