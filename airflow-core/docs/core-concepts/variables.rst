@@ -33,6 +33,22 @@ To use them, just import and call ``get`` on the Variable model::
     # Returns the value of default (None) if the variable is not set
     baz = Variable.get("baz", default=None)
 
+.. versionchanged:: 3.0
+
+   In Airflow 3.0+, you can also access variables through the Task Context using
+   :func:`~airflow.sdk.get_current_context`:
+
+   .. code-block:: python
+
+       from airflow.sdk import get_current_context
+
+
+       def my_task():
+           context = get_current_context()
+           var = context["var"]
+           my_variable = var.get("my_variable_name")
+           return my_variable
+
 You can also use them from :ref:`templates <concepts:jinja-templating>`::
 
     # Raw value
