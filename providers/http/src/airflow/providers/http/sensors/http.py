@@ -25,12 +25,21 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     try:
         from airflow.sdk.definitions.context import Context
-        from airflow.sensors.base import PokeReturnValue
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.bases.sensor import PokeReturnValue
+        else:
+            from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
