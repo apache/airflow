@@ -17,27 +17,17 @@
  * under the License.
  */
 import { Box, Flex, Heading, SimpleGrid, Text } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
-import { useLocation } from "react-router-dom";
 
 import { useDagServiceGetDagsUi } from "openapi/queries";
 
 import { FavoriteDagCard } from "./FavoriteDagCard";
 
 export const FavoriteDags = () => {
-  const queryClient = useQueryClient();
-  const location = useLocation();
-
   const { t: translate } = useTranslation("dashboard");
   const LIMIT = 10;
   const { data: favorites } = useDagServiceGetDagsUi({ isFavorite: true, limit: LIMIT });
-
-  useEffect(() => {
-    void queryClient.refetchQueries({ queryKey: ["DagServiceGetDagsUi"] });
-  }, [location.key, queryClient]);
 
   if (!favorites) {
     return undefined;

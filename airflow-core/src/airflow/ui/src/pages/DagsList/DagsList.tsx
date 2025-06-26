@@ -136,6 +136,7 @@ const createColumns = (
   {
     accessorKey: "favorite",
     cell: ({ row: { original } }) => <FavoriteDagButton dagId={original.dag_id} withText={false} />,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
