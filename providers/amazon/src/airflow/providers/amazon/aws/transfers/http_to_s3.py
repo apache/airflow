@@ -38,6 +38,9 @@ class HttpToS3Operator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action and store the result in S3.
 
+    By default, it loads file in memory before S3 upload.
+    Use requests streaming mode for lazy load (`extra_options={"stream": True}`).
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HttpToS3Operator`
@@ -164,12 +167,21 @@ class HttpToS3Operator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Calling HTTP method")
         response = self.http_hook.run(self.endpoint, self.data, self.headers, self.extra_options)
-
-        self.s3_hook.load_bytes(
-            response.content,
-            self.s3_key,
-            self.s3_bucket,
-            self.replace,
-            self.encrypt,
-            self.acl_policy,
-        )
+        if self.extra_options.get("stream", False):
+            self.s3_hook.load_file_obj(
+                response.raw,
+                self.s3_key,
+                self.s3_bucket,
+                self.replace,
+                self.encrypt,
+                self.acl_policy,
+            )
+        else:
+            self.s3_hook.load_bytes(
+                response.content,
+                self.s3_key,
+                self.s3_bucket,
+                self.replace,
+                self.encrypt,
+                self.acl_policy,
+            )
