@@ -1064,6 +1064,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "AIRFLOW__API__SECRET_KEY": {
+                    "description": "Enable ``AIRFLOW__API__SECRET_KEY`` variable to be read from the Api Secret Key Secret",
+                    "type": "boolean",
+                    "default": true
+                },
                 "AIRFLOW__API_AUTH__JWT_SECRET": {
                     "description": "Enable ``AIRFLOW__API_AUTH__JWT_SECRET`` variable to be read from the JWT Secret",
                     "type": "boolean",
