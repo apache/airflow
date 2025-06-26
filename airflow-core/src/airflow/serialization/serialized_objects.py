@@ -41,7 +41,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
-from airflow.models.baseoperator import BaseOperator as SchedulerBaseOperator
+from airflow.models.abstractoperator import DEFAULT_OPERATOR_DEPS
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
@@ -92,11 +92,13 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
-from airflow.utils.timezone import from_timestamp, parse_timezone
+from airflow.utils.timezone import convert_to_utc, from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter
+
+    from sqlalchemy.orm import Session
 
     from airflow.models import DagRun
     from airflow.models.expandinput import SchedulerExpandInput
@@ -107,6 +109,7 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
+    from airflow.typing_compat import Self
 
     HAS_KUBERNETES: bool
     try:
@@ -1149,7 +1152,7 @@ class DependencyDetector:
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
-class SerializedBaseOperator(SchedulerBaseOperator, BaseSerialization):
+class SerializedBaseOperator(BaseOperator, BaseSerialization):
     """
     A JSON serializable representation of operator.
 
@@ -1172,8 +1175,10 @@ class SerializedBaseOperator(SchedulerBaseOperator, BaseSerialization):
         if v.default is not v.empty
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, start_date=None, end_date=None, **kwargs):
+        start_date = convert_to_utc(start_date)
+        end_date = convert_to_utc(end_date)
+        super().__init__(*args, start_date=start_date, end_date=end_date, **kwargs)
         # task_type is used by UI to display the correct class type, because UI only
         # receives BaseOperator from deserialized DAGs.
         self._task_type = "BaseOperator"
@@ -1183,6 +1188,7 @@ class SerializedBaseOperator(SchedulerBaseOperator, BaseSerialization):
         self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
+        self.deps = DEFAULT_OPERATOR_DEPS
         self._operator_name = None
 
     @cached_property
@@ -1638,6 +1644,43 @@ class SerializedBaseOperator(SchedulerBaseOperator, BaseSerialization):
     @classmethod
     def deserialize(cls, encoded_var: Any) -> Any:
         return BaseSerialization.deserialize(encoded_var=encoded_var)
+
+    def serialize_for_task_group(self) -> tuple[DAT, Any]:
+        """Serialize; required by DAGNode."""
+        return DAT.OP, self.task_id
+
+    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> Self:
+        """
+        Get the "normal" operator from the current operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original operator.
+
+        :meta private:
+        """
+        return self
+
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_from_trigger.
+
+        :meta private:
+        """
+        return self.start_from_trigger
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
 
 
 class SerializedDAG(DAG, BaseSerialization):

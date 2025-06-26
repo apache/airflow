@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
 
     from airflow.models.dag import DAG
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
 
 
 @provide_session

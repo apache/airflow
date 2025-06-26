@@ -139,7 +139,7 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
-            from airflow.models.baseoperator import get_mapped_ti_count
+            from airflow.models.mappedoperator import get_mapped_ti_count
 
             if TYPE_CHECKING:
                 assert ti.task

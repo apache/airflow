@@ -132,7 +132,7 @@ def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, A
 
 
 def _count_tis(node: int | MappedTaskGroup | MappedOperator, run_id: str, session: SessionDep) -> int:
-    from airflow.models.baseoperator import get_mapped_ti_count
+    from airflow.models.mappedoperator import get_mapped_ti_count
 
     if not isinstance(node, MappedTaskGroup | MappedOperator):
         return node

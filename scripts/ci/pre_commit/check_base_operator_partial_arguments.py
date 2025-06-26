@@ -27,9 +27,8 @@ import typing
 sys.path.insert(
     0, str(pathlib.Path(__file__).parent.resolve())
 )  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH, console
+from common_precommit_utils import AIRFLOW_TASK_SDK_SOURCES_PATH, console
 
-BASEOPERATOR_PY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "models" / "baseoperator.py"
 SDK_BASEOPERATOR_PY = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "bases" / "operator.py"
 SDK_MAPPEDOPERATOR_PY = (
     AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "definitions" / "mappedoperator.py"
@@ -76,23 +75,8 @@ IGNORED = {
 }
 
 
-BO_MOD = ast.parse(BASEOPERATOR_PY.read_text("utf-8"), str(BASEOPERATOR_PY))
 SDK_BO_MOD = ast.parse(SDK_BASEOPERATOR_PY.read_text("utf-8"), str(SDK_BASEOPERATOR_PY))
 SDK_MO_MOD = ast.parse(SDK_MAPPEDOPERATOR_PY.read_text("utf-8"), str(SDK_MAPPEDOPERATOR_PY))
-
-# TODO: Task-SDK: Look at the BaseOperator init functions in both airflow.models.baseoperator and combine
-# them, until we fully remove BaseOperator class from core.
-
-BO_CLS = next(
-    node
-    for node in ast.iter_child_nodes(BO_MOD)
-    if isinstance(node, ast.ClassDef) and node.name == "BaseOperator"
-)
-BO_INIT = next(
-    node
-    for node in ast.iter_child_nodes(BO_CLS)
-    if isinstance(node, ast.FunctionDef) and node.name == "__init__"
-)
 
 SDK_BO_CLS = next(
     node
@@ -129,20 +113,17 @@ def _compare(a: set[str], b: set[str]) -> tuple[set[str], set[str]]:
     return only_in_a, only_in_b
 
 
-def _iter_arg_names(*funcs: ast.FunctionDef) -> typing.Iterator[str]:
-    for func in funcs:
-        func_args = func.args
-        for arg in itertools.chain(
-            func_args.args, getattr(func_args, "posonlyargs", ()), func_args.kwonlyargs
-        ):
-            if arg.arg == "self" or arg.arg.startswith("_"):
-                continue
-            yield arg.arg
+def _iter_arg_names(func: ast.FunctionDef) -> typing.Iterator[str]:
+    func_args = func.args
+    for arg in itertools.chain(func_args.args, getattr(func_args, "posonlyargs", ()), func_args.kwonlyargs):
+        if arg.arg == "self" or arg.arg.startswith("_"):
+            continue
+        yield arg.arg
 
 
 def check_baseoperator_partial_arguments() -> bool:
     only_in_init, only_in_partial = _compare(
-        set(_iter_arg_names(SDK_BO_INIT, BO_INIT)),
+        set(_iter_arg_names(SDK_BO_INIT)),
         set(_iter_arg_names(BO_PARTIAL)),
     )
     if only_in_init:

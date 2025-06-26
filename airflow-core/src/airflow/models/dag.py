@@ -109,7 +109,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagbag import DagBag
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Literal
 

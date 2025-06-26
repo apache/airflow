@@ -1908,7 +1908,7 @@ class TaskInstance(Base, LoggingMixin):
 
         from airflow import macros
         from airflow.models.abstractoperator import NotMapped
-        from airflow.models.baseoperator import get_mapped_ti_count
+        from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
@@ -2378,7 +2378,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: Specific map index or map indexes to pull, or ``None`` if we
             want to "whole" return value (i.e. no mapped task groups involved).
         """
-        from airflow.models.baseoperator import get_mapped_ti_count
+        from airflow.models.mappedoperator import get_mapped_ti_count
 
         if TYPE_CHECKING:
             assert self.task
