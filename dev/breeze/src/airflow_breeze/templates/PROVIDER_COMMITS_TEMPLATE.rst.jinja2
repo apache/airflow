@@ -49,7 +49,4 @@ Package {{ PACKAGE_PIP_NAME }}
 This is detailed commit list of changes for versions provider package: ``{{PROVIDER_ID}}``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
-{%- if DETAILED_CHANGES_PRESENT %}
-
-{{ DETAILED_CHANGES_RST | safe }}
-{%- endif %}
+.. airflow-providers-commits::

@@ -48,6 +48,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
+    option_allow_pre_releases,
     option_answer,
     option_clean_airflow_installation,
     option_commit_sha,
@@ -59,6 +60,8 @@ from airflow_breeze.commands.common_options import (
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
+    option_install_airflow_with_constraints,
+    option_install_airflow_with_constraints_default_true,
     option_installation_distribution_format,
     option_mount_sources,
     option_parallelism,
@@ -77,8 +80,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
-    option_airflow_skip_constraints,
-    option_install_airflow_with_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -95,6 +96,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     UV_VERSION,
 )
@@ -126,7 +128,6 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -173,8 +174,6 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.version_utils import (
-    get_latest_airflow_version,
-    get_latest_helm_chart_version,
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
@@ -220,6 +219,7 @@ option_distribution_format = click.option(
 option_use_local_hatch = click.option(
     "--use-local-hatch",
     is_flag=True,
+    envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
 
@@ -241,7 +241,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.8"
+AIRFLOW_UV_VERSION = "0.7.14"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -653,7 +653,7 @@ def _prepare_non_core_distributions(
     if use_local_hatch:
         with apply_version_suffix_to_non_provider_pyproject_tomls(
             version_suffix=version_suffix,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ) as pyproject_toml_paths:
             debug_pyproject_tomls(pyproject_toml_paths)
@@ -675,7 +675,7 @@ def _prepare_non_core_distributions(
     else:
         with apply_version_suffix_to_non_provider_pyproject_tomls(
             version_suffix=version_suffix,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ) as pyproject_toml_paths:
             debug_pyproject_tomls(pyproject_toml_paths)
@@ -855,13 +855,15 @@ def prepare_provider_documentation(
             ):
                 if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
-                    with_breaking_changes, maybe_with_new_features = update_release_notes(
-                        provider_id,
-                        reapply_templates_only=reapply_templates_only,
-                        base_branch=base_branch,
-                        regenerate_missing_docs=reapply_templates_only,
-                        non_interactive=non_interactive,
-                        only_min_version_update=only_min_version_update,
+                    with_breaking_changes, maybe_with_new_features, with_min_airflow_version_bump = (
+                        update_release_notes(
+                            provider_id,
+                            reapply_templates_only=reapply_templates_only,
+                            base_branch=base_branch,
+                            regenerate_missing_docs=reapply_templates_only,
+                            non_interactive=non_interactive,
+                            only_min_version_update=only_min_version_update,
+                        )
                     )
                 update_min_airflow_version_and_build_files(
                     provider_id=provider_id,
@@ -881,6 +883,7 @@ def prepare_provider_documentation(
                         with_breaking_changes=with_breaking_changes,
                         maybe_with_new_features=maybe_with_new_features,
                         only_min_version_update=only_min_version_update,
+                        with_min_airflow_version_bump=with_min_airflow_version_bump,
                     )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
@@ -1424,7 +1427,7 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -1439,11 +1442,11 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_clean_airflow_installation
 @option_debug_resources
 @option_dry_run
 @option_github_repository
+@option_install_airflow_with_constraints_default_true
 @option_include_success_outputs
 @option_install_selected_providers
 @option_installation_distribution_format
@@ -1457,14 +1460,16 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_run_in_parallel
 @option_skip_cleanup
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def install_provider_distributions(
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
     airflow_extras: str,
+    allow_pre_releases: bool,
     clean_airflow_installation: bool,
     debug_resources: bool,
     github_repository: str,
@@ -1491,7 +1496,8 @@ def install_provider_distributions(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
+        install_airflow_with_constraints=install_airflow_with_constraints,
+        allow_pre_releases=allow_pre_releases,
         # We just want to install the providers by entrypoint
         # we do not need to run any command in the container
         extra_args=("exit 0",),
@@ -1588,7 +1594,6 @@ def install_provider_distributions(
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_clean_airflow_installation
 @option_dry_run
 @option_github_repository
@@ -1602,6 +1607,7 @@ def install_provider_distributions(
 @option_providers_constraints_reference
 @option_providers_skip_constraints
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def verify_provider_distributions(
@@ -1620,8 +1626,8 @@ def verify_provider_distributions(
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
     python: str,
-    airflow_skip_constraints: bool,
     use_airflow_version: str | None,
+    allow_pre_releases: bool,
     use_distributions_from_dist: bool,
 ):
     if install_selected_providers and not use_distributions_from_dist:
@@ -1635,7 +1641,7 @@ def verify_provider_distributions(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
         install_airflow_with_constraints=install_airflow_with_constraints,
@@ -1681,6 +1687,8 @@ def run_docs_publishing(
     verbose: bool,
     output: Output | None,
 ) -> tuple[int, str]:
+    from airflow_breeze.utils.docs_publisher import DocsPublisher
+
     builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
     return builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
@@ -2417,14 +2425,23 @@ def generate_issue_content_providers(
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
+                pr_or_issue = None
                 try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                    pr_or_issue = repo.get_pull(pr_number)
+                    if pr_or_issue.user.login == "dependabot[bot]":
+                        get_console().print(
+                            f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
+                        )
+                        continue
+                    pull_requests[pr_number] = pr_or_issue
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                        pr_or_issue = repo.get_issue(pr_number)  # type: ignore[assignment]
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                pull_requests[pr_number] = pr_or_issue  # type: ignore[assignment]
+
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
@@ -2655,11 +2672,13 @@ def print_issue_content(
     "--previous-release",
     type=str,
     help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
 )
 @click.option(
     "--current-release",
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
+    required=True,
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option(
@@ -2668,11 +2687,6 @@ def print_issue_content(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
-@click.option(
-    "--latest",
-    is_flag=True,
-    help="Run the command against latest released version of airflow helm charts",
-)
 @option_verbose
 def generate_issue_content_helm_chart(
     github_token: str,
@@ -2680,7 +2694,6 @@ def generate_issue_content_helm_chart(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
-    latest: bool,
 ):
     generate_issue_content(
         github_token,
@@ -2689,7 +2702,6 @@ def generate_issue_content_helm_chart(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=True,
-        latest=latest,
     )
 
 
@@ -2711,11 +2723,13 @@ def generate_issue_content_helm_chart(
     "--previous-release",
     type=str,
     help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
 )
 @click.option(
     "--current-release",
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
+    required=True,
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option(
@@ -2724,11 +2738,6 @@ def generate_issue_content_helm_chart(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
-@click.option(
-    "--latest",
-    is_flag=True,
-    help="Run the command against latest released version of airflow",
-)
 @option_verbose
 def generate_issue_content_core(
     github_token: str,
@@ -2736,7 +2745,6 @@ def generate_issue_content_core(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
-    latest: bool,
 ):
     generate_issue_content(
         github_token,
@@ -2745,7 +2753,6 @@ def generate_issue_content_core(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=False,
-        latest=latest,
     )
 
 
@@ -3445,7 +3452,7 @@ def prepare_python_client(
     version = _get_python_client_version(version_suffix)
     original_version = VERSION_FILE.read_text().strip()
     if version_suffix:
-        VERSION_FILE.write_text(version)
+        VERSION_FILE.write_text(version + "\n")
     try:
         if use_local_hatch:
             _build_client_packages_with_hatch(
@@ -3737,7 +3744,6 @@ def generate_issue_content(
     excluded_pr_list: str,
     limit_pr_count: int | None,
     is_helm_chart: bool,
-    latest: bool,
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
@@ -3746,27 +3752,6 @@ def generate_issue_content(
 
     previous = previous_release
     current = current_release
-
-    if latest:
-        if is_helm_chart:
-            latest_helm_version = get_latest_helm_chart_version()
-            get_console().print(f"\n[info] Latest stable version of helm chart is {latest_helm_version}\n")
-            previous = f"helm-chart/{latest_helm_version}"
-            current = os.getenv("VERSION", "HEAD")
-            if current == "HEAD":
-                get_console().print(
-                    "\n[warning]Environment variable VERSION not set, setting current release "
-                    "version as 'HEAD' for helm chart release\n"
-                )
-        else:
-            latest_airflow_version = get_latest_airflow_version()
-            previous = str(latest_airflow_version)
-            current = os.getenv("VERSION", "HEAD")
-            if current == "HEAD":
-                get_console().print(
-                    "\n[warning]Environment variable VERSION not set, setting current release "
-                    "version as 'HEAD'\n"
-                )
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
@@ -3844,9 +3829,100 @@ def generate_issue_content(
                         progress.console.print(
                             f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
                         )
-            users[pr_number].add(pr.user.login)
+            # do not add bot users to the list of users
+            if not pr.user.login.endswith("[bot]"):
+                users[pr_number].add(pr.user.login)
             for linked_issue in linked_issues[pr_number]:
                 users[pr_number].add(linked_issue.user.login)
             progress.advance(task)
 
     print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)
+
+
+@release_management.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
+@click.option(
+    "--source-dir-path",
+    help="Path to the directory with the generated documentation.",
+    required=True,
+)
+@click.option(
+    "--exclude-docs",
+    help="Comma separated list of directories to exclude from the documentation.",
+    default="",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Dry run - only print what would be done.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite existing files in the S3 bucket.",
+)
+@click.option(
+    "--destination-location",
+    help="Name of the S3 bucket to publish the documentation to.",
+    type=NotVerifiedBetterChoice(DESTINATION_LOCATIONS),
+    required=True,
+)
+@click.option(
+    "--publish-all-docs", is_flag=True, help="Publish all the available docs in the source directory."
+)
+@click.option(
+    "--stable-versions",
+    is_flag=True,
+    help="Publish all the stable versions of the docs in the source directory.",
+)
+@click.option(
+    "--skip-write-to-stable-folder",
+    is_flag=True,
+    help="Skip writing stable versions folder.",
+)
+@option_parallelism
+def publish_docs_to_s3(
+    source_dir_path: str,
+    destination_location: str,
+    exclude_docs: str,
+    dry_run: bool,
+    overwrite: bool,
+    parallelism: int,
+    publish_all_docs: bool,
+    stable_versions: bool,
+    skip_write_to_stable_folder: bool,
+):
+    from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
+
+    if publish_all_docs and stable_versions:
+        get_console().print("[error]You cannot use --publish-all and --stable-versions together[/]")
+        sys.exit(1)
+
+    destination_location = destination_location.rstrip("/")
+    source_dir_path = source_dir_path.rstrip("/")
+
+    get_console().print("[info]Your publishing docs to S3[/]")
+    get_console().print(f"[info]Your source directory path is {source_dir_path}[/]")
+    get_console().print(f"[info]Your destination path to docs is {destination_location}[/]")
+    get_console().print(f"[info]Your excluded docs are {exclude_docs}[/]")
+
+    docs_to_s3 = S3DocsPublish(
+        source_dir_path=source_dir_path,
+        exclude_docs=exclude_docs,
+        dry_run=dry_run,
+        overwrite=overwrite,
+        destination_location=destination_location,
+        parallelism=parallelism,
+        skip_write_to_stable_folder=skip_write_to_stable_folder,
+    )
+    if publish_all_docs:
+        docs_to_s3.publish_all_docs()
+    if stable_versions:
+        docs_to_s3.publish_stable_version_docs()
+    from airflow_breeze.utils.publish_docs_to_s3 import version_error
+
+    if version_error:
+        get_console().print(
+            "[error]There was an error with the version of the docs. "
+            "Please check the version in the docs and try again.[/]"
+        )
+        sys.exit(1)

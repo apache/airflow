@@ -61,6 +61,9 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
+    "airflow.providers.google.cloud.hooks.datacatalog",
+    "airflow.providers.google.cloud.operators.datacatalog",
+    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
@@ -78,7 +81,7 @@ if __name__ != "__main__":
 
 PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH.joinpath("airflow", "provider.yaml.schema.json")
 PROVIDER_ISSUE_TEMPLATE_PATH = AIRFLOW_ROOT_PATH.joinpath(
-    ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
+    ".github", "ISSUE_TEMPLATE", "3-airflow_providers_bug_report.yml"
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 

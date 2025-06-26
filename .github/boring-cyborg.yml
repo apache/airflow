@@ -72,6 +72,9 @@ labelPRBasedOnFilePath:
   provider:apache-spark:
     - providers/apache/spark/**
 
+  provider:apache-tinkerpop:
+    - providers/apache/tinkerpop/**
+
   provider:apprise:
     - providers/apprise/**
 
@@ -107,9 +110,6 @@ labelPRBasedOnFilePath:
 
   provider:common-sql:
     - providers/common/sql/**
-
-  provider:standard:
-    - providers/standard/**
 
   provider:databricks:
     - providers/databricks/**
@@ -216,7 +216,7 @@ labelPRBasedOnFilePath:
   provider:opsgenie:
     - providers/opsgenie/**
 
-  provider:Oracle:
+  provider:oracle:
     - providers/oracle/**
 
   provider:pagerduty:
@@ -276,6 +276,9 @@ labelPRBasedOnFilePath:
   provider:ssh:
     - providers/ssh/**
 
+  provider:standard:
+    - providers/standard/**
+
   provider:tableau:
     - providers/tableau/**
 
@@ -326,6 +329,24 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
+  # This should be copy of the "area:dev-tools" above and should be updated when we switch maintenance branch
+  backport-to-v3-0-test:
+    - scripts/**/*
+    - dev/**/*
+    - .github/**/*
+    - Dockerfile.ci
+    - CONTRIBUTING.rst
+    - contributing-docs/**/*
+    - yamllint-config.yml
+    - .asf.yaml
+    - .bash_completion
+    - .dockerignore
+    - .hadolint.yaml
+    - .pre-commit-config.yaml
+    - .rat-excludes
+    - .readthedocs.yml
+
+
   kind:documentation:
     - airflow-core/docs/**/*
     - chart/docs/**/*
@@ -353,10 +374,15 @@ labelPRBasedOnFilePath:
     - airflow-core/docs/administration-and-deployment/lineage.rst
 
   area:Logging:
+    - airflow-core/src/airflow/config_templates/airflow_local_settings.py
+    - airflow-core/tests/unit/core/test_logging_config.py
     - airflow-core/src/airflow/utils/log/**/*
     - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
     - airflow-core/tests/unit/utils/log/**/*
     - providers/**/log/*
+
+  area:ConfigTemplates:
+    - airflow-core/src/airflow/config_templates/*
 
   area:Plugins:
     - airflow-core/src/airflow/cli/commands/plugins_command.py
