@@ -22,7 +22,7 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.standard.execution_time.hitl import fetch_response_content
+from airflow.providers.standard.execution_time.hitl import get_hitl_response_content
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -62,7 +62,7 @@ class HITLTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the relevant files are found."""
         while True:
-            content = await sync_to_async(fetch_response_content)(ti_id=self.ti_id)
+            content = await sync_to_async(get_hitl_response_content)(ti_id=self.ti_id)
             if content:
                 yield TriggerEvent({"content": content})
                 return
