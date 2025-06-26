@@ -29,6 +29,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.ttu import TtuHook
 from airflow.providers.teradata.utils.bteq_util import (
+    get_remote_tmp_dir,
+    identify_os,
     prepare_bteq_command_for_local_execution,
     prepare_bteq_command_for_remote_execution,
     transfer_file_sftp,
@@ -161,7 +163,13 @@ class BteqHook(TtuHook):
                     password = generate_random_password()  # Encryption/Decryption password
                     encrypted_file_path = os.path.join(tmp_dir, "bteq_script.enc")
                     generate_encrypted_file_with_openssl(file_path, password, encrypted_file_path)
+                    if not remote_working_dir:
+                        remote_working_dir = get_remote_tmp_dir(ssh_client)
+                        self.log.debug(
+                            "Transferring encrypted BTEQ script to remote host: %s", remote_working_dir
+                        )
                     remote_encrypted_path = os.path.join(remote_working_dir or "", "bteq_script.enc")
+                    remote_encrypted_path = remote_encrypted_path.replace("/", "\\")
 
                     transfer_file_sftp(ssh_client, encrypted_file_path, remote_encrypted_path)
 
@@ -219,14 +227,20 @@ class BteqHook(TtuHook):
             if encrypted_file_path and os.path.exists(encrypted_file_path):
                 os.remove(encrypted_file_path)
             # Cleanup: Delete the remote temporary file
-            if encrypted_file_path:
-                cleanup_en_command = f"rm -f {remote_encrypted_path}"
+            if remote_encrypted_path:
                 if self.ssh_hook and self.ssh_hook.get_conn():
                     with self.ssh_hook.get_conn() as ssh_client:
                         if ssh_client is None:
                             raise AirflowException(
                                 "Failed to establish SSH connection. `ssh_client` is None."
                             )
+                        # Detect OS
+                        os_info = identify_os(ssh_client)
+                        if "windows" in os_info:
+                            cleanup_en_command = f'del /f /q "{remote_encrypted_path}"'
+                        else:
+                            cleanup_en_command = f"rm -f '{remote_encrypted_path}'"
+                        self.log.debug("cleaning up remote file: %s", cleanup_en_command)
                         ssh_client.exec_command(cleanup_en_command)
 
     def execute_bteq_script_at_local(
