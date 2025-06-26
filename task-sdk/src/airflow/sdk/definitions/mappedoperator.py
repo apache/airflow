@@ -71,7 +71,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
@@ -280,7 +279,6 @@ class MappedOperator(AbstractOperator):
     # Needed for serialization.
     task_id: str
     params: ParamsDict | dict
-    deps: frozenset[BaseTIDep] = attrs.field(init=False)
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
@@ -320,12 +318,6 @@ class MappedOperator(AbstractOperator):
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
-
-    @deps.default
-    def _deps(self):
-        from airflow.models.baseoperator import BaseOperator
-
-        return BaseOperator.deps
 
     def __hash__(self):
         return id(self)

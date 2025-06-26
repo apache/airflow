@@ -25,6 +25,11 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     NotMapped as NotMapped,  # Re-export this for compat
     TaskStateChangeCallback as TaskStateChangeCallback,
 )
+from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
+from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
+from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
+from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
@@ -32,3 +37,17 @@ DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
+
+DEFAULT_OPERATOR_DEPS = {
+    NotInRetryPeriodDep(),
+    PrevDagrunDep(),
+    TriggerRuleDep(),
+    NotPreviouslySkippedDep(),
+    MappedTaskUpstreamDep(),
+}
+"""
+Dependencies for the operator.
+
+These differ from execution context dependencies in that they are specific to
+tasks and can be extended/overridden by subclasses.
+"""
