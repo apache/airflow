@@ -27,7 +27,12 @@ from typing import TYPE_CHECKING, Any, Callable
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     try:
