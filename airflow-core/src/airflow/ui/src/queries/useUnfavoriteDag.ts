@@ -18,28 +18,13 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 
-import {
-  UseDagRunServiceGetDagRunsKeyFn,
-  UseDagServiceGetDagDetailsKeyFn,
-  UseDagServiceGetDagKeyFn,
-  useDagServiceGetDagsUiKey,
-  useDagServiceUnfavoriteDag,
-  UseTaskInstanceServiceGetTaskInstancesKeyFn,
-} from "openapi/queries";
+import { useDagServiceGetDagsUiKey, useDagServiceUnfavoriteDag } from "openapi/queries";
 
-export const useUnfavoriteDag = ({ dagId }: { dagId: string }) => {
+export const useUnfavoriteDag = () => {
   const queryClient = useQueryClient();
 
   const onSuccess = async () => {
-    const queryKeys = [
-      [useDagServiceGetDagsUiKey],
-      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
-      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
-      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
-      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-    ];
-
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] });
   };
 
   return useDagServiceUnfavoriteDag({

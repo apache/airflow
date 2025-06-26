@@ -41,8 +41,8 @@ export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonP
     [favorites, dagId],
   );
 
-  const { mutate: favoriteDag } = useFavoriteDag({ dagId });
-  const { mutate: unfavoriteDag } = useUnfavoriteDag({ dagId });
+  const { mutate: favoriteDag } = useFavoriteDag();
+  const { mutate: unfavoriteDag } = useUnfavoriteDag();
 
   const onToggle = useCallback(() => {
     const mutationFn = isFavorite ? unfavoriteDag : favoriteDag;
