@@ -55,7 +55,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return data, qualname(o), __version__, True
 
 
-def deserialize(cls: type, version: int, data: dict):
+def deserialize(classname: str, version: int, data: dict):
     from deltalake.table import DeltaTable
 
     from airflow.models.crypto import get_fernet
@@ -63,7 +63,7 @@ def deserialize(cls: type, version: int, data: dict):
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 
-    if cls is DeltaTable:
+    if classname == qualname(DeltaTable):
         fernet = get_fernet()
         properties = {}
         for k, v in data["storage_options"].items():
@@ -76,4 +76,4 @@ def deserialize(cls: type, version: int, data: dict):
 
         return DeltaTable(data["table_uri"], version=data["version"], storage_options=storage_options)
 
-    raise TypeError(f"do not know how to deserialize {qualname(cls)}")
+    raise TypeError(f"do not know how to deserialize {classname}")
