@@ -58,7 +58,7 @@ class HITLTrigger(BaseTrigger):
                 "ti_id": self.ti_id,
                 "options": self.options,
                 "timeout_datetime": self.timeout_datetime,
-                "default": self.options,
+                "default": self.default,
                 "multiple": self.multiple,
                 "poke_interval": self.poke_interval,
             },
