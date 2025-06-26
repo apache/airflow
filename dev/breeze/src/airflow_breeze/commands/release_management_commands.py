@@ -60,6 +60,8 @@ from airflow_breeze.commands.common_options import (
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
+    option_install_airflow_with_constraints,
+    option_install_airflow_with_constraints_default_true,
     option_installation_distribution_format,
     option_mount_sources,
     option_parallelism,
@@ -78,8 +80,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
-    option_airflow_skip_constraints,
-    option_install_airflow_with_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -1443,11 +1443,11 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_clean_airflow_installation
 @option_debug_resources
 @option_dry_run
 @option_github_repository
+@option_install_airflow_with_constraints_default_true
 @option_include_success_outputs
 @option_install_selected_providers
 @option_installation_distribution_format
@@ -1468,7 +1468,7 @@ def install_provider_distributions(
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
     airflow_extras: str,
     allow_pre_releases: bool,
     clean_airflow_installation: bool,
@@ -1497,7 +1497,7 @@ def install_provider_distributions(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         allow_pre_releases=allow_pre_releases,
         # We just want to install the providers by entrypoint
         # we do not need to run any command in the container
@@ -1595,7 +1595,6 @@ def install_provider_distributions(
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_clean_airflow_installation
 @option_dry_run
 @option_github_repository
@@ -1628,7 +1627,6 @@ def verify_provider_distributions(
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
     python: str,
-    airflow_skip_constraints: bool,
     use_airflow_version: str | None,
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
@@ -1644,7 +1642,6 @@ def verify_provider_distributions(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
         allow_pre_releases=allow_pre_releases,
         clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
