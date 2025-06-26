@@ -872,16 +872,16 @@ export type ExternalLogUrlResponse = {
 };
 
 /**
- * Serializer for IFrame Plugin responses.
+ * Serializer for External View Plugin responses.
  */
 export type ExternalViewResponse = {
     name: string;
-    href: string;
     icon?: string | null;
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+    href: string;
     [key: string]: unknown | string;
 };
 
@@ -1042,6 +1042,7 @@ export type PluginResponse = {
      * Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.
      */
     external_views: Array<ExternalViewResponse>;
+    react_apps: Array<ReactAppResponse>;
     appbuilder_views: Array<AppBuilderViewResponse>;
     /**
      * @deprecated
@@ -1131,6 +1132,20 @@ export type QueuedEventResponse = {
     asset_id: number;
     created_at: string;
     dag_display_name: string;
+};
+
+/**
+ * Serializer for React App Plugin responses.
+ */
+export type ReactAppResponse = {
+    name: string;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    url_route?: string | null;
+    category?: string | null;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+    bundle_url: string;
+    [key: string]: unknown | string;
 };
 
 /**
