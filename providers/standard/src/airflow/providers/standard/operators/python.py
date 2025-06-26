@@ -48,7 +48,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
@@ -61,7 +60,9 @@ from airflow.utils.process_utils import execute_in_subprocess
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
+    from airflow.sdk import BaseOperator
 else:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.skipmixin import SkipMixin
     from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 

@@ -806,6 +806,14 @@ class DagMaker(Protocol):
 
     def create_dagrun_after(self, dagrun: DagRun, **kwargs) -> DagRun: ...
 
+    def run_ti(
+        self,
+        task_id: str,
+        dag_run: DagRun | None = ...,
+        dag_run_kwargs: dict | None = ...,
+        **kwargs,
+    ) -> TaskInstance: ...
+
     def __call__(
         self,
         dag_id: str = "test_dag",
@@ -1099,6 +1107,33 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 data_interval=next_info.data_interval,
                 **kwargs,
             )
+
+        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, **kwargs):
+            """
+            Create a dagrun and run a specific task instance with proper task refresh.
+
+            This is a convenience method for running a single task instance:
+            1. Create a dagrun if it does not exist
+            2. Get the specific task instance by task_id
+            3. Refresh the task instance from the DAG task
+            4. Run the task instance
+
+            Returns the created TaskInstance.
+            """
+            if dag_run is None:
+                if dag_run_kwargs is None:
+                    dag_run_kwargs = {}
+                dag_run = self.create_dagrun(**dag_run_kwargs)
+            ti = dag_run.get_task_instance(task_id=task_id)
+            if ti is None:
+                available_task_ids = [task.task_id for task in self.dag.tasks]
+                raise ValueError(
+                    f"Task instance with task_id '{task_id}' not found in dag run. "
+                    f"Available task_ids: {available_task_ids}"
+                )
+            ti.refresh_from_task(self.dag.get_task(ti.task_id))
+            ti.run(**kwargs)
+            return ti
 
         def sync_dagbag_to_db(self):
             if not AIRFLOW_V_3_0_PLUS:
