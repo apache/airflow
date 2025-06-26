@@ -133,11 +133,7 @@ class HITLTerminationOperator(HITLOperator, SkipMixin):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        user_response = self.get_user_response(event)
-        if user_response != "Stop" or user_response != "Proceed":
-            # TODO: update message
-            raise ValueError("")
-        return super().execute_complete(context, event)
+        raise NotImplementedError
 
 
 class HITLBranchOperator(HITLOperator):
@@ -167,11 +163,7 @@ class HITLBranchOperator(HITLOperator):
         self.multiple = multiple
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        content = event["content"]
-        if self.multiple is False and not isinstance(content, str):
-            # TODO
-            raise ValueError("")
-        return self.python_callable(content)
+        raise NotImplementedError
 
 
 class HITLEntryOperator(HITLOperator):
