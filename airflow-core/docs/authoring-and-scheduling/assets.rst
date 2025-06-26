@@ -273,26 +273,28 @@ The shorthand for this is ``@asset.multi``:
 
 
     @asset.multi(schedule=None, outlets=[out_asset_1, out_asset_2])
-    def process_input(input_asset):
+    def process_input(input_asset):cd docs
+
         """Split input into two."""
 
 
 Dynamic data events emitting and asset creation through AssetAlias
------------------------------------------------------------------------
-An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for DAG executions based on asset updates.
+-----------------------------------------------------------------
+
+`AssetAlias` provides a way to define logical aliases for assets that may be created dynamically during task execution. This enables downstream tasks to depend on these aliases without needing to know the concrete asset URIs beforehand. It is useful for building complex DAG dependencies based on asset updates.
 
 How to use AssetAlias
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
-``AssetAlias`` has one single argument ``name`` that uniquely identifies the asset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
+`AssetAlias` takes a single argument `name` that uniquely identifies the alias. To use it, the task must first declare the alias as an outlet, then emit asset events associated with this alias by either using `outlet_events` or by yielding `Metadata` objects.
 
-The following example creates an asset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the asset does not exist, Airflow will dynamically create it and log a warning message.
+The following example shows how to emit an asset event for the S3 URI `"s3://bucket/my-task"` with optional extra information `extra`. If the asset does not exist, Airflow will dynamically create it and log a warning message.
 
-**Emit an asset event during task execution through outlet_events**
+**Emit an asset event during task execution through `outlet_events`**
 
 .. code-block:: python
 
-    from airflow.sdk import AssetAlias
+    from airflow.sdk import Asset, AssetAlias, task
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -300,11 +302,11 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
         outlet_events[AssetAlias("my-task-outputs")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
 
 
-**Emit an asset event during task execution through yielding Metadata**
+**Emit an asset event during task execution by yielding `Metadata`**
 
 .. code-block:: python
 
-    from airflow.sdk import Metadata
+    from airflow.sdk import Asset, AssetAlias, Metadata, task
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -312,11 +314,14 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
         s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
         yield Metadata(s3_asset, extra={"k": "v"}, alias=AssetAlias("my-task-outputs"))
 
-Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
+
+### Behavior with multiple aliases and extra info
+
+Only one asset event is emitted for an added asset, even if it is added to the alias multiple times or added to multiple aliases with the same `extra` info. However, if different `extra` values are passed, multiple asset events will be emitted. For example:
 
 .. code-block:: python
 
-    from airflow.sdk import AssetAlias
+    from airflow.sdk import Asset, AssetAlias, task
 
 
     @task(
@@ -328,18 +333,21 @@ Only one asset event is emitted for an added asset, even if it is added to the a
     )
     def my_task_with_outlet_events(*, outlet_events):
         outlet_events[AssetAlias("my-task-outputs-1")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
-        # This line won't emit an additional asset event as the asset and extra are the same as the previous line.
+        # No additional event emitted here: same asset and extra
         outlet_events[AssetAlias("my-task-outputs-2")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
-        # This line will emit an additional asset event as the extra is different.
+        # Additional event emitted here: different extra
         outlet_events[AssetAlias("my-task-outputs-3")].add(Asset("s3://bucket/my-task"), extra={"k2": "v2"})
 
 
 Fetching information from previously emitted asset events through resolved asset aliases
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As mentioned in :ref:`Fetching information from previously emitted asset events<fetching_information_from_previously_emitted_asset_events>`, inlet asset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use asset aliases to access the asset events triggered by them.
+As described in :ref:`Fetching information from previously emitted asset events<fetching_information_from_previously_emitted_asset_events>`, inlet asset events can be read via the `inlet_events` accessor in the execution context. You can also use asset aliases to access asset events triggered by them.
 
 .. code-block:: python
+
+    from airflow.sdk import Asset, AssetAlias, DAG, task
+
 
     with DAG(dag_id="asset-alias-producer"):
 
