@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import prestodb
 from deprecated import deprecated
