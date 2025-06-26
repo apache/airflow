@@ -95,6 +95,9 @@ class HITLOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> object:
+        response = event["content"]
+        if response not in self.options:
+            raise ValueError(f"Response {response} is not a valid option. Valid option: {self.options}")
         return event["content"]
 
 
