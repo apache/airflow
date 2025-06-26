@@ -552,7 +552,7 @@ fernetKeySecretName: ~
 # Add custom annotations to the fernet key secret
 fernetKeySecretAnnotations: {}
 
-# Flask secret key for Airflow Api: `[api] secret_key` in airflow.cfg
+# Flask secret key for Airflow 3+ Api: `[api] secret_key` in airflow.cfg
 apiSecretKey: ~
 # Add custom annotations to the api secret
 apiSecretAnnotations: {}
@@ -564,7 +564,7 @@ jwtSecret: ~
 jwtSecretAnnotations: {}
 jwtSecretName: ~
 
-# Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
+# Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
 # Add custom annotations to the webserver secret
 webserverSecretAnnotations: {}
