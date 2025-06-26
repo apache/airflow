@@ -52,13 +52,21 @@ def get_configs() -> ConfigResponse:
     config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
 
     task_log_reader = TaskLogReader()
+
+    all_plugins = plugins_manager.get_plugin_info()
+    external_views = []
+    for plugin in all_plugins:
+        for view in plugin.get("external_views", []):
+            if view.get("destination") in ("nav", None):
+                external_views.append(view)
+
     additional_config: dict[str, Any] = {
         "instance_name": conf.get("api", "instance_name", fallback="Airflow"),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
-        "plugins_extra_menu_items": plugins_manager.flask_appbuilder_menu_links,
+        "plugins_extra_menu_items": external_views,
     }
 
     config.update({key: value for key, value in additional_config.items()})

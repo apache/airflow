@@ -12,19 +12,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
-class AppBuilderMenuItemResponse(BaseModel):
-    """
-    Serializer for AppBuilder Menu Item responses.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    name: Annotated[str, Field(title="Name")]
-    href: Annotated[str | None, Field(title="Href")] = None
-    category: Annotated[str | None, Field(title="Category")] = None
-
-
 class AppBuilderViewResponse(BaseModel):
     """
     Serializer for AppBuilder View responses.
@@ -514,6 +501,30 @@ class ExternalLogUrlResponse(BaseModel):
     url: Annotated[str, Field(title="Url")]
 
 
+class Destination(str, Enum):
+    NAV = "nav"
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK = "task"
+    TASK_INSTANCE = "task_instance"
+
+
+class ExternalViewResponse(BaseModel):
+    """
+    Serializer for External View responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    href: Annotated[str | None, Field(title="Href")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = None
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+
+
 class ExtraLinkCollectionResponse(BaseModel):
     """
     Extra Links Response.
@@ -554,14 +565,6 @@ class HTTPExceptionResponse(BaseModel):
     """
 
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
-
-
-class Destination(str, Enum):
-    NAV = "nav"
-    DAG = "dag"
-    DAG_RUN = "dag_run"
-    TASK = "task"
-    TASK_INSTANCE = "task_instance"
 
 
 class IFrameViewsResponse(BaseModel):
@@ -649,7 +652,7 @@ class PluginResponse(BaseModel):
     ]
     iframe_views: Annotated[list[IFrameViewsResponse], Field(title="Iframe Views")]
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
-    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
+    external_views: Annotated[list[ExternalViewResponse], Field(title="External Views")]
     global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
     operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
     source: Annotated[str, Field(title="Source")]

@@ -94,7 +94,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "iframe_views",
     "menu_links",
     "appbuilder_views",
-    "appbuilder_menu_items",
+    "external_views",
     "global_operator_extra_links",
     "operator_extra_links",
     "source",
@@ -186,6 +186,31 @@ class AirflowPlugin:
 
     # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
     priority_weight_strategies: list[type[PriorityWeightStrategy]] = []
+
+    @property
+    def external_views(self) -> list[dict]:
+        """Return external views for plugin."""
+        views = []
+        for menu_item in self.appbuilder_menu_items:
+            views.append(
+                {
+                    "name": menu_item.get("name"),
+                    "href": menu_item.get("href"),
+                    "category": menu_item.get("category"),
+                    "destination": "nav",
+                }
+            )
+        for iframe_view in self.iframe_views:
+            views.append(
+                {
+                    "name": iframe_view.get("name"),
+                    "icon": iframe_view.get("icon"),
+                    "url_route": iframe_view.get("url_route"),
+                    "destination": iframe_view.get("destination"),
+                    "category": iframe_view.get("category"),
+                }
+            )
+        return views
 
     @classmethod
     def validate(cls):

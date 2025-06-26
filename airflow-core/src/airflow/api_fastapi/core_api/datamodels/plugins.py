@@ -59,14 +59,24 @@ class AppBuilderViewResponse(BaseModel):
     label: str | None = None
 
 
-class AppBuilderMenuItemResponse(BaseModel):
-    """Serializer for AppBuilder Menu Item responses."""
+class ExternalViewResponse(BaseModel):
+    """Serializer for External View responses."""
 
     model_config = ConfigDict(extra="allow")
 
     name: str
     href: str | None = None
     category: str | None = None
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] | None = None
+    icon: str | None = None
+    url_route: str | None = None
+
+    @field_validator("destination", mode="before")
+    @classmethod
+    def fill_destination(cls, data: Any) -> Any:
+        if data is None:
+            return "nav"
+        return data
 
 
 class IFrameViewsResponse(BaseModel):
@@ -91,7 +101,7 @@ class PluginResponse(BaseModel):
     fastapi_root_middlewares: list[FastAPIRootMiddlewareResponse]
     iframe_views: list[IFrameViewsResponse]
     appbuilder_views: list[AppBuilderViewResponse]
-    appbuilder_menu_items: list[AppBuilderMenuItemResponse]
+    external_views: list[ExternalViewResponse]
     global_operator_extra_links: list[str]
     operator_extra_links: list[str]
     source: Annotated[str, BeforeValidator(coerce_to_string)]

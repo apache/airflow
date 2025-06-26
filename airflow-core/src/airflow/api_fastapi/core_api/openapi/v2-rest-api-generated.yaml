@@ -7023,27 +7023,6 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    AppBuilderMenuItemResponse:
-      properties:
-        name:
-          type: string
-          title: Name
-        href:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Href
-        category:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Category
-      additionalProperties: true
-      type: object
-      required:
-      - name
-      title: AppBuilderMenuItemResponse
-      description: Serializer for AppBuilder Menu Item responses.
     AppBuilderViewResponse:
       properties:
         name:
@@ -9293,6 +9272,48 @@ components:
       - url
       title: ExternalLogUrlResponse
       description: Response for the external log URL endpoint.
+    ExternalViewResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        href:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Href
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          anyOf:
+          - type: string
+            enum:
+            - nav
+            - dag
+            - dag_run
+            - task
+            - task_instance
+          - type: 'null'
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      title: ExternalViewResponse
+      description: Serializer for External View responses.
     ExtraLinkCollectionResponse:
       properties:
         extra_links:
@@ -9686,11 +9707,11 @@ components:
             $ref: '#/components/schemas/AppBuilderViewResponse'
           type: array
           title: Appbuilder Views
-        appbuilder_menu_items:
+        external_views:
           items:
-            $ref: '#/components/schemas/AppBuilderMenuItemResponse'
+            $ref: '#/components/schemas/ExternalViewResponse'
           type: array
-          title: Appbuilder Menu Items
+          title: External Views
         global_operator_extra_links:
           items:
             type: string
@@ -9723,7 +9744,7 @@ components:
       - fastapi_root_middlewares
       - iframe_views
       - appbuilder_views
-      - appbuilder_menu_items
+      - external_views
       - global_operator_extra_links
       - operator_extra_links
       - source
