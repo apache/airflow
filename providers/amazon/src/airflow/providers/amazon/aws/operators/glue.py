@@ -60,7 +60,6 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
     :param script_args: etl script arguments and AWS Glue arguments (templated)
     :param retry_limit: The maximum number of times to retry this job if it fails
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
-    :param region_name: aws region name (example: us-east-1)
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
     :param iam_role_arn: AWS IAM ARN for Glue Job Execution. If set `iam_role_name` must equal None.
@@ -79,6 +78,17 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
         It is recommended to set this parameter to 10 when you are using concurrency=1.
         For more information see: https://repost.aws/questions/QUaKgpLBMPSGWO0iq2Fob_bw/glue-run-concurrent-jobs#ANFpCL2fRnQRqgDFuIU_rpvA
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     aws_hook_class = GlueJobHook
@@ -122,9 +132,9 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         verbose: bool = False,
         replace_script_file: bool = False,
         update_config: bool = False,
-        job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
         sleep_before_return: int = 0,
+        job_poll_interval: int | float = 6,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -231,7 +241,8 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
                     run_id=self._job_run_id,
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
-                    job_poll_interval=self.job_poll_interval,
+                    waiter_delay=int(self.job_poll_interval),
+                    waiter_max_attempts=self.retry_limit,
                 ),
                 method_name="execute_complete",
             )
@@ -254,7 +265,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
 
         if validated_event["status"] != "success":
             raise AirflowException(f"Error in glue job: {validated_event}")
-        return validated_event["value"]
+        return validated_event["run_id"]
 
     def on_kill(self):
         """Cancel the running AWS Glue Job."""
