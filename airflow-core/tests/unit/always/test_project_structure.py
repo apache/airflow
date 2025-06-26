@@ -91,9 +91,9 @@ class TestProjectStructure:
             "providers/apache/hdfs/tests/unit/apache/hdfs/hooks/test_hdfs.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/log/test_hdfs_task_handler.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/sensors/test_hdfs.py",
-            "providers/apache/hive/tests/unit/apache/hive/test_version_compat.py"
+            "providers/apache/hive/tests/unit/apache/hive/test_version_compat.py",
             "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",
-            "providers/apache/livy/tests/unit/apache/livy/test_version_compat.py"
+            "providers/apache/livy/tests/unit/apache/livy/test_version_compat.py",
             "providers/apache/spark/tests/unit/apache/spark/test_version_compat.py",
             "providers/arangodb/tests/unit/arangodb/test_version_compat.py",
             "providers/atlassian/jira/tests/unit/atlassian/jira/test_version_compat.py",
