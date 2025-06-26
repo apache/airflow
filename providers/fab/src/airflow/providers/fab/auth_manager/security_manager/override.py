@@ -1723,7 +1723,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     --------------------
     """
 
-    def auth_user_ldap(self, username, password):
+    def auth_user_ldap(self, username, password, rotate_session_id=True):
         """
         Authenticate user with LDAP.
 
@@ -1890,7 +1890,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # LOGIN SUCCESS (only if user is now registered)
             if user:
-                self._rotate_session_id()
+                if rotate_session_id:
+                    self._rotate_session_id()
                 self.update_user_auth_stat(user)
                 return user
             return None
@@ -1919,7 +1920,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         return check_password_hash(user.password, password)
 
-    def auth_user_db(self, username, password):
+    def auth_user_db(self, username, password, rotate_session_id=True):
         """
         Authenticate user, auth db style.
 
@@ -1927,6 +1928,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             The username or registered email address
         :param password:
             The password, will be tested against hashed password on db
+        :param rotate_session_id:
+            Whether to rotate the session ID
         """
         if username is None or username == "":
             return None
@@ -1942,7 +1945,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
         if check_password_hash(user.password, password):
-            self._rotate_session_id()
+            if rotate_session_id:
+                self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
         self.update_user_auth_stat(user, False)
