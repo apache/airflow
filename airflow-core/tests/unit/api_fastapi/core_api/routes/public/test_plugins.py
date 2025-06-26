@@ -48,6 +48,7 @@ class TestGetPlugins:
                     "priority_weight_strategy_plugin",
                     "test_plugin",
                     "workday_timetable_plugin",
+                    # TODO: add HITL plugin
                 ],
             ),
             (

@@ -58,6 +58,7 @@ def get_provider_info():
                     "airflow.providers.standard.operators.latest_only",
                     "airflow.providers.standard.operators.smooth",
                     "airflow.providers.standard.operators.branch",
+                    "airflow.providers.standard.operators.hitl",
                 ],
             }
         ],
@@ -93,6 +94,7 @@ def get_provider_info():
                     "airflow.providers.standard.triggers.external_task",
                     "airflow.providers.standard.triggers.file",
                     "airflow.providers.standard.triggers.temporal",
+                    "airflow.providers.standard.triggers.hitl",
                 ],
             }
         ],
