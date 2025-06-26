@@ -1429,6 +1429,29 @@ apiServer:
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
   env: []
+
+  # Allow HPA
+  hpa:
+    enabled: true
+
+    # Minimum number of api-servers created by HPA
+    minReplicaCount: 1
+
+    # Maximum number of api-servers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
