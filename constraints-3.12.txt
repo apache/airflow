@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-25T14:09:28.604099
+# This constraints file was automatically generated on 2025-06-26T14:10:38.747360
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -81,7 +81,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.16.2
-alibabacloud-adb20211201==3.1.0
+alibabacloud-adb20211201==3.1.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -283,7 +283,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
-databricks-sql-connector==4.0.4
+databricks-sql-connector==4.0.5
 databricks-sqlalchemy==1.0.5
 dataclasses-json==0.6.7
 datadog==0.51.0
@@ -336,7 +336,7 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.1
 google-api-core==2.25.1
-google-api-python-client==2.173.0
+google-api-python-client==2.174.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
@@ -510,7 +510,7 @@ multidict==6.5.1
 mypy-boto3-appflow==1.38.0
 mypy-boto3-rds==1.38.43
 mypy-boto3-redshift-data==1.38.0
-mypy-boto3-s3==1.38.39
+mypy-boto3-s3==1.38.44
 mypy==1.9.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.3.0
@@ -766,7 +766,7 @@ types-PyYAML==6.0.12.20250516
 types-aiofiles==24.1.0.20250606
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
-types-croniter==6.0.0.20250411
+types-croniter==6.0.0.20250626
 types-docutils==0.21.0.20250604
 types-paramiko==3.5.0.20250516
 types-protobuf==6.30.2.20250516
@@ -818,6 +818,6 @@ ydb==3.21.5
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==5.0
+zope.event==5.1
 zope.interface==7.2
 zstandard==0.23.0
