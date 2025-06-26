@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import timedelta
 from typing import Any
+from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
@@ -32,8 +34,9 @@ class HITLTrigger(BaseTrigger):
     def __init__(
         self,
         *,
-        ti_id,
+        ti_id: UUID,
         options: list[str],
+        execution_timeout: timedelta | None,
         default: str | None = None,
         multiple: bool = False,
         poke_interval: float = 5.0,
@@ -42,6 +45,7 @@ class HITLTrigger(BaseTrigger):
         super().__init__(**kwargs)
         self.ti_id = ti_id
         self.options = options
+        self.execution_timeout = execution_timeout
         self.default = default
         self.multiple = multiple
         self.poke_interval = poke_interval
@@ -53,6 +57,7 @@ class HITLTrigger(BaseTrigger):
             {
                 "ti_id": self.ti_id,
                 "options": self.options,
+                "execution_timeout": self.execution_timeout,
                 "default": self.options,
                 "multiple": self.multiple,
                 "poke_interval": self.poke_interval,

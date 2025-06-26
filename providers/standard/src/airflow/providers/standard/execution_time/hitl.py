@@ -27,7 +27,7 @@ from airflow.providers.standard.execution_time.comms import (
 )
 
 
-def add_input_request(
+def add_hitl_input_request(
     ti_id: UUID,
     options: list[str],
     subject: str,
