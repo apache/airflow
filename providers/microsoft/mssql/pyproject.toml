@@ -60,9 +60,6 @@ dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.23.0",
     "pymssql>=2.3.5",
-    # The methodtools dependency can be removed with min airflow version >=2.9.1
-    # as it was added in https://github.com/apache/airflow/pull/37757
-    "methodtools>=0.4.7",
 ]
 
 # The optional dependencies should be modified in place in the generated file
