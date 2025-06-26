@@ -657,8 +657,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     :param index_urls: an optional list of index urls to load Python packages from.
         If not provided the system pip conf will be used to source packages from.
-    :param index_urls_from_connection_ids: An optional list of Package Index connection IDs.
-        Will be appended to `index_urls`.
+    :param index_urls_from_connection_ids: An optional list of ``PackageIndex`` connection IDs.
+        Will be appended to ``index_urls``.
     :param venv_cache_path: Optional path to the virtual environment parent folder in which the
         virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
@@ -863,8 +863,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = []
         for conn_id in self.index_urls_from_connection_ids:
             conn_url = PackageIndexHook(conn_id).get_connection_url()
-            log.info("Adding index URL from connection %s: %s", conn_id, conn_url)
-            self.index_urls.append(PackageIndexHook(conn_id).get_connection_url())
+            self.index_urls.append(conn_url)
 
     def execute_callable(self):
         if self.index_urls_from_connection_ids:
