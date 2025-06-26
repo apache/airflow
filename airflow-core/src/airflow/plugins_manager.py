@@ -70,6 +70,7 @@ flask_blueprints: list[Any] | None = None
 fastapi_apps: list[Any] | None = None
 fastapi_root_middlewares: list[Any] | None = None
 external_views: list[Any] | None = None
+react_apps: list[Any] | None = None
 menu_links: list[Any] | None = None
 flask_appbuilder_views: list[Any] | None = None
 flask_appbuilder_menu_links: list[Any] | None = None
@@ -92,6 +93,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "fastapi_apps",
     "fastapi_root_middlewares",
     "external_views",
+    "react_apps",
     "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
@@ -157,6 +159,7 @@ class AirflowPlugin:
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     external_views: list[Any] = []
+    react_apps: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
@@ -372,8 +375,9 @@ def initialize_ui_plugins():
     """Collect extension points for the UI."""
     global plugins
     global external_views
+    global react_apps
 
-    if external_views is not None:
+    if external_views is not None and react_apps is not None:
         return
 
     ensure_plugins_loaded()
@@ -384,9 +388,11 @@ def initialize_ui_plugins():
     log.debug("Initialize UI plugin")
 
     external_views = []
+    react_apps = []
 
     for plugin in plugins:
         external_views.extend(plugin.external_views)
+        react_apps.extend(plugin.react_apps)
 
 
 def initialize_flask_plugins():
