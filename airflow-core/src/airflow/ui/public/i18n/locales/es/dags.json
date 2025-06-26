@@ -67,8 +67,8 @@
   },
   "sort": {
     "displayName": {
-      "asc": "Ordenar por Nombre de Display (A-Z)",
-      "desc": "Ordenar por Nombre de Display (Z-A)"
+      "asc": "Ordenar por Nombre (A-Z)",
+      "desc": "Ordenar por Nombre (Z-A)"
     },
     "lastRunStartDate": {
       "asc": "Ordenar por Fecha de Inicio de Ejecución (Más Antiguo-Más Reciente)",
