@@ -15,27 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example DAG demonstrating ``TimeDeltaSensor``, that defers and doesn't occupy a worker slot while it waits
-"""
-
 from __future__ import annotations
 
-import datetime
+from typing import Any
 
-import pendulum
 
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
-from airflow.sdk import DAG
+def is_pydantic_model(cls: Any) -> bool:
+    """
+    Return True if the class is a pydantic.main.BaseModel.
 
-with DAG(
-    dag_id="example_time_delta_sensor_async",
-    schedule=None,
-    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
-    tags=["example"],
-) as dag:
-    wait = TimeDeltaSensor(task_id="wait", delta=datetime.timedelta(seconds=30), deferrable=True)
-    finish = EmptyOperator(task_id="finish")
-    wait >> finish
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
+    # __pydantic_validator__ is an internal validator object, always set after model build
+    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
