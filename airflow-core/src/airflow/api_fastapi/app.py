@@ -171,7 +171,6 @@ def init_plugins(app: FastAPI) -> None:
     from airflow import plugins_manager
 
     plugins_manager.initialize_fastapi_plugins()
-    plugins_manager.initialize_fastapi_plugins()
 
     # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
     for subapp_dict in cast("list", plugins_manager.fastapi_apps):
