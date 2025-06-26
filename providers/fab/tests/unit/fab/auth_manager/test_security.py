@@ -129,11 +129,19 @@ def _delete_dag_permissions(dag_id, security_manager):
         security_manager.delete_permission(dag_action_name, dag_resource_name)
 
 
-def _create_dag_model(dag_id, session, security_manager):
-    bundle_name = "test_bundle"
+def _create_dag_bundle(bundle_name, session):
     bundle = DagBundleModel(name=bundle_name)
     session.add(bundle)
-    session.flush()
+    session.commit()
+    return bundle
+
+
+def _delete_dag_bundle(bundle_name, session):
+    session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).delete()
+    session.commit()
+
+
+def _create_dag_model(dag_id, bundle_name, session, security_manager):
     dag_model = DagModel(dag_id=dag_id, bundle_name=bundle_name)
     session.add(dag_model)
     session.commit()
@@ -173,9 +181,12 @@ def _has_all_dags_access(user) -> bool:
 
 @contextlib.contextmanager
 def _create_dag_model_context(dag_id, session, security_manager):
-    dag = _create_dag_model(dag_id, session, security_manager)
+    bundle_name = "test_bundle"
+    _create_dag_bundle(bundle_name, session)
+    dag = _create_dag_model(dag_id, bundle_name, session, security_manager)
     yield dag
     _delete_dag_model(dag, session, security_manager)
+    _delete_dag_bundle(bundle_name, session)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -242,12 +253,15 @@ def role(request, app, security_manager):
 @pytest.fixture
 def mock_dag_models(request, session, security_manager):
     dags_ids = request.param
-    dags = [_create_dag_model(dag_id, session, security_manager) for dag_id in dags_ids]
+    bundle_name = "test_bundle"
+    _create_dag_bundle(bundle_name, session)
+    dags = [_create_dag_model(dag_id, bundle_name, session, security_manager) for dag_id in dags_ids]
 
     yield dags_ids
 
     for dag in dags:
         _delete_dag_model(dag, session, security_manager)
+    _delete_dag_bundle(bundle_name, session)
 
 
 @pytest.fixture
@@ -1066,7 +1080,10 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
+            # Clean up DAG models and bundle
             session.query(DagModel).delete()
+            session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).delete()
+            session.commit()
 
 
 @pytest.fixture

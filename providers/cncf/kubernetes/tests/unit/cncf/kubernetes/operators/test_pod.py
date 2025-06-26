@@ -95,7 +95,8 @@ def temp_override_attr(obj, attr, val):
 def clear_db():
     db.clear_db_dags()
     db.clear_db_runs()
-    db.clear_db_dag_bundles()
+    if AIRFLOW_V_3_0_PLUS:
+        db.clear_db_dag_bundles()
 
 
 def create_context(task, persist_to_db=False, map_index=None):
