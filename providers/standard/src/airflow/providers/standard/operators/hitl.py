@@ -76,6 +76,7 @@ class HITLOperator(BaseOperator):
             params=self.params,
             default=self.default,
         )
+        self.log.info("Waiting for response")
         # Defer the Human-in-the-loop response checking process to HITLTrigger
         self.defer(
             trigger=HITLTrigger(
