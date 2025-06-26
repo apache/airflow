@@ -36,6 +36,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
@@ -1274,6 +1275,10 @@ def test_expected_output_pull_request_main(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
+@pytest.mark.skipif(
+    not (AIRFLOW_ROOT_PATH / ".git").exists(),
+    reason="This test should not run if .git folder is missing (for example by default in breeze container)",
+)
 @pytest.mark.parametrize(
     "files, commit_ref, expected_outputs",
     [
