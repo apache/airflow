@@ -28,15 +28,15 @@ from pathlib import Path
 from rich import print
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, check_list_sorted
+from common_precommit_utils import AIRFLOW_ROOT_PATH, check_list_sorted
 
 errors: list[str] = []
 
 MY_DIR_PATH = Path(__file__).parent.resolve()
 
-BUILD_ARGS_REF_PATH = AIRFLOW_SOURCES_ROOT_PATH / "docs" / "docker-stack" / "build-arg-ref.rst"
+BUILD_ARGS_REF_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst"
 GLOBAL_CONSTANTS_PATH = (
-    AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
 )
 
 START_RST_LINE = ".. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT"
@@ -76,7 +76,7 @@ def get_replaced_content(
 
 
 def check_dockerfile():
-    lines = (AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile").read_text().splitlines()
+    lines = (AIRFLOW_ROOT_PATH / "Dockerfile").read_text().splitlines()
     extras_list = None
     for line in lines:
         if line.startswith("ARG AIRFLOW_EXTRAS="):

@@ -31,6 +31,8 @@ from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 pytestmark = pytest.mark.db_test
 
 
@@ -60,7 +62,6 @@ class TestHttpSensor:
             endpoint="",
             request_params={},
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
@@ -88,7 +89,6 @@ class TestHttpSensor:
             endpoint="",
             request_params={},
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
         assert task.execute(context={}) == "somedata"
@@ -118,7 +118,6 @@ class TestHttpSensor:
             method="HEAD",
             response_check=resp_check,
             extra_options={"check_response": False},
-            timeout=5,
             poke_interval=1,
         )
 
@@ -139,7 +138,6 @@ class TestHttpSensor:
             request_params={},
             method="HEAD",
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
 
@@ -171,7 +169,6 @@ class TestHttpSensor:
             endpoint="",
             request_params={},
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
 
@@ -197,7 +194,6 @@ class TestHttpSensor:
             request_params={},
             method="HEAD",
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
 
@@ -258,7 +254,6 @@ class TestHttpSensor:
             request_params={},
             method="GET",
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
         with pytest.raises(AirflowException, match="500:Internal Server Error"):
@@ -270,6 +265,10 @@ class FakeSession:
         self.response = requests.Response()
         self.response.status_code = 200
         self.response._content = "apache/airflow".encode("ascii", "ignore")
+        self.proxies = None
+        self.stream = None
+        self.verify = False
+        self.cert = None
 
     def send(self, *args, **kwargs):
         return self.response
@@ -317,8 +316,25 @@ class TestHttpOpSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
-    def test_sensor(self):
+    def test_sensor(self, run_task):
+        sensor = HttpSensor(
+            task_id="http_sensor_check",
+            http_conn_id="http_default",
+            endpoint="/search",
+            request_params={"client": "ubuntu", "q": "airflow", "date": "{{ds}}"},
+            headers={},
+            response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}" in response.text,
+            poke_interval=5,
+            timeout=15,
+            dag=self.dag,
+        )
+        run_task(sensor)
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
+    def test_sensor_af2(self):
         sensor = HttpSensor(
             task_id="http_sensor_check",
             http_conn_id="http_default",
@@ -371,7 +387,11 @@ class TestHttpSensorAsync:
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
-    @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
+    @mock.patch(
+        "airflow.sdk.bases.sensor.BaseSensorOperator.execute"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.sensors.base.BaseSensorOperator.execute"
+    )
     def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
         task = HttpSensor(
             task_id="run_now",

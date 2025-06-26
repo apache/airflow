@@ -331,12 +331,11 @@ class SmtpHook(BaseHook):
         """
         if isinstance(addresses, str):
             return self._get_email_list_from_str(addresses)
-        elif isinstance(addresses, collections.abc.Iterable):
+        if isinstance(addresses, collections.abc.Iterable):
             if not all(isinstance(item, str) for item in addresses):
                 raise TypeError("The items in your iterable must be strings.")
             return list(addresses)
-        else:
-            raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
+        raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
 
     def _get_email_list_from_str(self, addresses: str) -> list[str]:
         """

@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 
 BASE_PACKAGE = "airflow.providers.google.common.hooks.base_google."

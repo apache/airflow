@@ -78,8 +78,10 @@ TEST_POLL_INTERVAL = 20.0
 GKE_CLUSTER_NAME = "test-cluster-name"
 GKE_CLUSTER_ENDPOINT = "test-host"
 GKE_CLUSTER_PRIVATE_ENDPOINT = "test-private-host"
+GKE_CLUSTER_DNS_ENDPOINT = f"gke-dns-endpoint.{TEST_LOCATION}.gke.goog"
 GKE_CLUSTER_URL = f"https://{GKE_CLUSTER_ENDPOINT}"
 GKE_CLUSTER_PRIVATE_URL = f"https://{GKE_CLUSTER_PRIVATE_ENDPOINT}"
+GKE_CLUSTER_DNS_URL = f"https://{GKE_CLUSTER_DNS_ENDPOINT}"
 GKE_SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 
 GKE_CLUSTER_CREATE_BODY_DICT = {
@@ -102,16 +104,57 @@ GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine
 
 class TestGKEClusterAuthDetails:
     @pytest.mark.parametrize(
-        "use_internal_ip, endpoint, private_endpoint, expected_cluster_url",
+        "use_dns_endpoint, use_internal_ip, endpoint, private_endpoint, dns_endpoint, expected_cluster_url",
         [
-            (False, GKE_CLUSTER_ENDPOINT, GKE_CLUSTER_PRIVATE_ENDPOINT, GKE_CLUSTER_URL),
-            (True, GKE_CLUSTER_ENDPOINT, GKE_CLUSTER_PRIVATE_ENDPOINT, GKE_CLUSTER_PRIVATE_URL),
+            (
+                False,
+                False,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_URL,
+            ),
+            (
+                False,
+                True,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_URL,
+            ),
+            (
+                True,
+                False,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_DNS_URL,
+            ),
+            (
+                True,
+                True,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_DNS_URL,
+            ),
         ],
     )
-    def test_fetch_cluster_info(self, use_internal_ip, endpoint, private_endpoint, expected_cluster_url):
+    def test_fetch_cluster_info(
+        self,
+        use_dns_endpoint,
+        use_internal_ip,
+        endpoint,
+        private_endpoint,
+        dns_endpoint,
+        expected_cluster_url,
+    ):
         mock_cluster = mock.MagicMock(
             endpoint=endpoint,
             private_cluster_config=mock.MagicMock(private_endpoint=private_endpoint),
+            control_plane_endpoints_config=mock.MagicMock(
+                dns_endpoint_config=mock.MagicMock(endpoint=dns_endpoint)
+            ),
             master_auth=mock.MagicMock(cluster_ca_certificate=GKE_SSL_CA_CERT),
         )
         mock_cluster_hook = mock.MagicMock(get_cluster=mock.MagicMock(return_value=mock_cluster))
@@ -120,6 +163,7 @@ class TestGKEClusterAuthDetails:
             cluster_name=GKE_CLUSTER_NAME,
             project_id=TEST_PROJECT_ID,
             use_internal_ip=use_internal_ip,
+            use_dns_endpoint=use_dns_endpoint,
             cluster_hook=mock_cluster_hook,
         )
 
@@ -140,12 +184,14 @@ class TestGKEOperatorMixin:
         self.operator.impersonation_chain = TEST_IMPERSONATION_CHAIN
         self.operator.project_id = TEST_PROJECT_ID
         self.operator.use_internal_ip = False
+        self.operator.use_dns_endpoint = False
 
     def test_template_fields(self):
         expected_template_fields = {
             "location",
             "cluster_name",
             "use_internal_ip",
+            "use_dns_endpoint",
             "project_id",
             "gcp_conn_id",
             "impersonation_chain",
@@ -180,6 +226,7 @@ class TestGKEOperatorMixin:
             cluster_url=GKE_CLUSTER_URL,
             ssl_ca_cert=GKE_SSL_CA_CERT,
             enable_tcp_keepalive=False,
+            use_dns_endpoint=False,
         )
 
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
@@ -195,6 +242,7 @@ class TestGKEOperatorMixin:
             cluster_name=self.operator.cluster_name,
             project_id=self.operator.project_id,
             use_internal_ip=self.operator.use_internal_ip,
+            use_dns_endpoint=self.operator.use_dns_endpoint,
             cluster_hook=self.operator.cluster_hook,
         )
         mock_fetch_cluster_info.assert_called_once_with()
@@ -435,9 +483,7 @@ class TestGKECreateClusterOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context, task_instance=self.operator, cluster=GKE_CLUSTER_CREATE_BODY_DICT
-        )
+        mock_link.persist.assert_called_once_with(context=mock_context, cluster=GKE_CLUSTER_CREATE_BODY_DICT)
         mock_create_cluster.assert_called_once_with(
             cluster=GKE_CLUSTER_CREATE_BODY_DICT,
             project_id=TEST_PROJECT_ID,
@@ -458,9 +504,7 @@ class TestGKECreateClusterOperator:
 
         result = self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context, task_instance=self.operator, cluster=GKE_CLUSTER_CREATE_BODY_DICT
-        )
+        mock_link.persist.assert_called_once_with(context=mock_context, cluster=GKE_CLUSTER_CREATE_BODY_DICT)
         mock_create_cluster.assert_called_once_with(
             cluster=GKE_CLUSTER_CREATE_BODY_DICT,
             project_id=TEST_PROJECT_ID,
@@ -487,9 +531,7 @@ class TestGKECreateClusterOperator:
 
         self.operator.execute(context=mock_context)
 
-        mock_link.persist.assert_called_once_with(
-            context=mock_context, task_instance=self.operator, cluster=GKE_CLUSTER_CREATE_BODY_DICT
-        )
+        mock_link.persist.assert_called_once_with(context=mock_context, cluster=GKE_CLUSTER_CREATE_BODY_DICT)
         mock_create_cluster.assert_called_once_with(
             cluster=GKE_CLUSTER_CREATE_BODY_DICT,
             project_id=TEST_PROJECT_ID,
@@ -573,7 +615,6 @@ class TestGKEStartKueueInsideClusterOperator:
         )
         mock_link.persist.assert_called_once_with(
             context=mock_context,
-            task_instance=self.operator,
             cluster=mock_cluster,
         )
         mock_check_cluster_autoscaling_ability.assert_called_once_with(cluster=mock_cluster)
@@ -599,7 +640,6 @@ class TestGKEStartKueueInsideClusterOperator:
         )
         mock_link.persist.assert_called_once_with(
             context=mock_context,
-            task_instance=self.operator,
             cluster=mock_cluster,
         )
         mock_check_cluster_autoscaling_ability.assert_called_once_with(cluster=mock_cluster)
@@ -626,7 +666,7 @@ class TestGKEStartPodOperator:
 
     def test_template_fields(self):
         expected_template_fields = (
-            {"on_finish_action", "deferrable"}
+            {"deferrable"}
             | (set(KubernetesPodOperator.template_fields) - {"is_delete_operator_pod", "regional"})
             | set(GKEOperatorMixin.template_fields)
         )
@@ -647,88 +687,41 @@ class TestGKEStartPodOperator:
             )
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        "kwargs, expected_attributes",
         [
             (
-                True,
                 {"on_finish_action": "delete_succeeded_pod"},
                 {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
             ),
             (
-                # test that priority for deprecated param
-                True,
-                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
-                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
+                {"on_finish_action": "keep_pod"},
+                {"on_finish_action": OnFinishAction.KEEP_POD},
             ),
             (
-                # test default
-                True,
-                {},
-                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": True},
-                {"is_delete_operator_pod": True},
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": False},
-                {"is_delete_operator_pod": False},
-            ),
-            (
-                # test default
-                False,
-                {},
-                {"is_delete_operator_pod": False},
+                {"on_finish_action": "delete_pod"},
+                {"on_finish_action": OnFinishAction.DELETE_POD},
             ),
         ],
     )
     def test_on_finish_action_handler(
         self,
-        compatible_kpo,
         kwargs,
         expected_attributes,
     ):
-        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"]})
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
-            if "is_delete_operator_pod" in kwargs:
-                with pytest.raises(AirflowProviderDeprecationWarning):
-                    GKEStartPodOperator(
-                        project_id=TEST_PROJECT_ID,
-                        location=TEST_LOCATION,
-                        cluster_name=GKE_CLUSTER_NAME,
-                        task_id=TEST_TASK_ID,
-                        name=K8S_POD_NAME,
-                        namespace=K8S_NAMESPACE,
-                        image=TEST_IMAGE,
-                        **kwargs,
-                    )
-            elif "on_finish_action" not in kwargs:
-                with pytest.raises(AirflowProviderDeprecationWarning):
-                    GKEStartPodOperator(
-                        project_id=TEST_PROJECT_ID,
-                        location=TEST_LOCATION,
-                        cluster_name=GKE_CLUSTER_NAME,
-                        task_id=TEST_TASK_ID,
-                        name=K8S_POD_NAME,
-                        namespace=K8S_NAMESPACE,
-                        image=TEST_IMAGE,
-                        **kwargs,
-                    )
-            else:
-                op = GKEStartPodOperator(
-                    project_id=TEST_PROJECT_ID,
-                    location=TEST_LOCATION,
-                    cluster_name=GKE_CLUSTER_NAME,
-                    task_id=TEST_TASK_ID,
-                    name=K8S_POD_NAME,
-                    namespace=K8S_NAMESPACE,
-                    image=TEST_IMAGE,
-                    **kwargs,
-                )
-                for expected_attr in expected_attributes:
-                    assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+            op = GKEStartPodOperator(
+                project_id=TEST_PROJECT_ID,
+                location=TEST_LOCATION,
+                cluster_name=GKE_CLUSTER_NAME,
+                task_id=TEST_TASK_ID,
+                name=K8S_POD_NAME,
+                namespace=K8S_NAMESPACE,
+                image=TEST_IMAGE,
+                **kwargs,
+            )
+            for expected_attr in expected_attributes:
+                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
@@ -932,7 +925,14 @@ class TestGKEDescribeJobOperator:
             GKE_CLUSTER_NAME,
             mock_job,
         )
-        mock_link.persist.assert_called_once_with(context=mock_context, task_instance=self.operator)
+        mock_link.persist.assert_called_once_with(
+            context=mock_context,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=mock_job.metadata.namespace,
+            job_name=mock_job.metadata.name,
+        )
 
 
 class TestGKEListJobsOperator:
@@ -948,12 +948,11 @@ class TestGKEListJobsOperator:
         expected_template_fields = {"namespace"} | set(GKEOperatorMixin.template_fields)
         assert set(GKEListJobsOperator.template_fields) == expected_template_fields
 
-    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineWorkloadsLink"))
     @mock.patch(GKE_OPERATORS_PATH.format("V1JobList.to_dict"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEListJobsOperator.log"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEKubernetesHook"))
-    def test_execute(self, mock_hook, cluster_hook, mock_log, mock_to_dict, mock_link):
+    def test_execute(self, mock_hook, cluster_hook, mock_log, mock_to_dict):
         mock_list_jobs_from_namespace = mock_hook.return_value.list_jobs_from_namespace
         mock_list_jobs_all_namespaces = mock_hook.return_value.list_jobs_all_namespaces
         mock_job_1, mock_job_2 = mock.MagicMock(), mock.MagicMock()
@@ -962,7 +961,7 @@ class TestGKEListJobsOperator:
         mock_to_dict_value = mock_to_dict.return_value
 
         mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti}
+        context = {"ti": mock_ti, "task": mock.MagicMock()}
 
         result = self.operator.execute(context=context)
 
@@ -975,8 +974,9 @@ class TestGKEListJobsOperator:
             ]
         )
         mock_to_dict.assert_has_calls([call(mock_jobs), call(mock_jobs)])
-        mock_ti.xcom_push.assert_called_once_with(key="jobs_list", value=mock_to_dict_value)
-        mock_link.persist.assert_called_once_with(context=context, task_instance=self.operator)
+        mock_ti.xcom_push.assert_has_calls(
+            [call(key="jobs_list", value=mock_to_dict_value), call(key="kubernetes_workloads_conf", value={})]
+        )
         assert result == mock_to_dict_value
 
     @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineWorkloadsLink"))
@@ -993,7 +993,7 @@ class TestGKEListJobsOperator:
         mock_to_dict_value = mock_to_dict.return_value
 
         mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti}
+        context = {"ti": mock_ti, "task": mock.MagicMock()}
 
         self.operator.namespace = K8S_NAMESPACE
         result = self.operator.execute(context=context)
@@ -1008,7 +1008,7 @@ class TestGKEListJobsOperator:
         )
         mock_to_dict.assert_has_calls([call(mock_jobs), call(mock_jobs)])
         mock_ti.xcom_push.assert_called_once_with(key="jobs_list", value=mock_to_dict_value)
-        mock_link.persist.assert_called_once_with(context=context, task_instance=self.operator)
+        mock_link.persist.assert_called_once_with(context=context)
         assert result == mock_to_dict_value
 
     @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineWorkloadsLink"))
@@ -1025,7 +1025,7 @@ class TestGKEListJobsOperator:
         mock_to_dict_value = mock_to_dict.return_value
 
         mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti}
+        context = {"ti": mock_ti, "task": mock.MagicMock()}
 
         self.operator.do_xcom_push = False
         result = self.operator.execute(context=context)
@@ -1039,8 +1039,7 @@ class TestGKEListJobsOperator:
             ]
         )
         mock_to_dict.assert_called_once_with(mock_jobs)
-        mock_ti.xcom_push.assert_not_called()
-        mock_link.persist.assert_called_once_with(context=context, task_instance=self.operator)
+        mock_link.persist.assert_called_once_with(context=context)
         assert result == mock_to_dict_value
 
 
@@ -1187,7 +1186,14 @@ class TestGKESuspendJobOperator:
             K8S_JOB_NAME,
             GKE_CLUSTER_NAME,
         )
-        mock_link.persist.assert_called_once_with(context=mock_context, task_instance=self.operator)
+        mock_link.persist.assert_called_once_with(
+            context=mock_context,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=mock_job.metadata.namespace,
+            job_name=mock_job.metadata.name,
+        )
         mock_to_dict.assert_called_once_with(mock_job)
         assert result == expected_result
 
@@ -1230,6 +1236,13 @@ class TestGKEResumeJobOperator:
             K8S_JOB_NAME,
             GKE_CLUSTER_NAME,
         )
-        mock_link.persist.assert_called_once_with(context=mock_context, task_instance=self.operator)
+        mock_link.persist.assert_called_once_with(
+            context=mock_context,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=mock_job.metadata.namespace,
+            job_name=mock_job.metadata.name,
+        )
         mock_to_dict.assert_called_once_with(mock_job)
         assert result == expected_result

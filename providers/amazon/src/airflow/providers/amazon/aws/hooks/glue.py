@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
@@ -145,7 +146,7 @@ class GlueJobHook(AwsBaseHook):
 
         return config
 
-    def list_jobs(self) -> list:
+    def describe_jobs(self) -> list:
         """
         Get list of Jobs.
 
@@ -153,6 +154,20 @@ class GlueJobHook(AwsBaseHook):
             - :external+boto3:py:meth:`Glue.Client.get_jobs`
         """
         return self.conn.get_jobs()
+
+    def list_jobs(self) -> list:
+        """
+        Get list of Jobs.
+
+        .. deprecated::
+            - Use :meth:`describe_jobs` instead.
+        """
+        warnings.warn(
+            "The method `list_jobs` is deprecated. Use the method `describe_jobs` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.describe_jobs()
 
     def get_iam_execution_role(self) -> dict:
         try:
@@ -211,7 +226,7 @@ class GlueJobHook(AwsBaseHook):
 
         The async version of get_job_state.
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 
@@ -305,8 +320,7 @@ class GlueJobHook(AwsBaseHook):
             if ret:
                 time.sleep(sleep_before_return)
                 return ret
-            else:
-                time.sleep(self.job_poll_interval)
+            time.sleep(self.job_poll_interval)
 
     async def async_job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
@@ -323,8 +337,7 @@ class GlueJobHook(AwsBaseHook):
             ret = self._handle_state(job_run_state, job_name, run_id, verbose, next_log_tokens)
             if ret:
                 return ret
-            else:
-                await asyncio.sleep(self.job_poll_interval)
+            await asyncio.sleep(self.job_poll_interval)
 
     def _handle_state(
         self,
@@ -352,13 +365,12 @@ class GlueJobHook(AwsBaseHook):
             job_error_message = f"Exiting Job {run_id} Run State: {state}"
             self.log.info(job_error_message)
             raise AirflowException(job_error_message)
-        else:
-            self.log.info(
-                "Polling for AWS Glue Job %s current run state with status %s",
-                job_name,
-                state,
-            )
-            return None
+        self.log.info(
+            "Polling for AWS Glue Job %s current run state with status %s",
+            job_name,
+            state,
+        )
+        return None
 
     def has_job(self, job_name) -> bool:
         """
@@ -399,8 +411,7 @@ class GlueJobHook(AwsBaseHook):
             self.conn.update_job(JobName=job_name, JobUpdate=job_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
-        else:
-            return False
+        return False
 
     def get_or_create_glue_job(self) -> str | None:
         """

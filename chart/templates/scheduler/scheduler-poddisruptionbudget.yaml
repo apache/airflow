@@ -30,7 +30,7 @@ metadata:
     tier: airflow
     component: scheduler
     release: {{ .Release.Name }}
-    chart: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- if or (.Values.labels) (.Values.scheduler.labels) }}
       {{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 4 }}

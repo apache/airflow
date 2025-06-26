@@ -285,6 +285,12 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
                 return False
             raise e
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance": self.instance,
+        }
+
     def execute(self, context: Context):
         pass
 
@@ -384,8 +390,6 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -477,15 +481,12 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                 f"Cloud SQL instance with ID {self.instance} does not exist. "
                 "Please specify another instance to patch."
             )
-        else:
-            CloudSQLInstanceLink.persist(
-                context=context,
-                task_instance=self,
-                cloud_sql_instance=self.instance,
-                project_id=self.project_id or hook.project_id,
-            )
+        CloudSQLInstanceLink.persist(
+            context=context,
+            project_id=self.project_id or hook.project_id,
+        )
 
-            return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
+        return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
@@ -531,8 +532,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         if not self._check_if_instance_exists(self.instance, hook):
             print(f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete.")
             return True
-        else:
-            return hook.delete_instance(project_id=self.project_id, instance=self.instance)
+        return hook.delete_instance(project_id=self.project_id, instance=self.instance)
 
 
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
@@ -612,19 +612,18 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
                 f"Cloud SQL instance with ID {self.instance} does not exist. "
                 "Please specify another instance to patch."
             )
-        else:
-            body = {
-                "cloneContext": {
-                    "kind": "sql#cloneContext",
-                    "destinationInstanceName": self.destination_instance_name,
-                    **self.clone_context,
-                }
+        body = {
+            "cloneContext": {
+                "kind": "sql#cloneContext",
+                "destinationInstanceName": self.destination_instance_name,
+                **self.clone_context,
             }
-            return hook.clone_instance(
-                project_id=self.project_id,
-                body=body,
-                instance=self.instance,
-            )
+        }
+        return hook.clone_instance(
+            project_id=self.project_id,
+            body=body,
+            instance=self.instance,
+        )
 
 
 class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -717,8 +716,6 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         CloudSQLInstanceDatabaseLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         if self._check_if_db_exists(database, hook):
@@ -728,8 +725,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
                 database,
             )
             return True
-        else:
-            return hook.create_database(project_id=self.project_id, instance=self.instance, body=self.body)
+        return hook.create_database(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -824,16 +820,13 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 f"Cloud SQL instance with ID {self.instance} does not contain database '{self.database}'. "
                 "Please specify another database to patch."
             )
-        else:
-            CloudSQLInstanceDatabaseLink.persist(
-                context=context,
-                task_instance=self,
-                cloud_sql_instance=self.instance,
-                project_id=self.project_id or hook.project_id,
-            )
-            return hook.patch_database(
-                project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
-            )
+        CloudSQLInstanceDatabaseLink.persist(
+            context=context,
+            project_id=self.project_id or hook.project_id,
+        )
+        return hook.patch_database(
+            project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
+        )
 
 
 class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -910,10 +903,9 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
                 f"Aborting database delete."
             )
             return True
-        else:
-            return hook.delete_database(
-                project_id=self.project_id, instance=self.instance, database=self.database
-            )
+        return hook.delete_database(
+            project_id=self.project_id, instance=self.instance, database=self.database
+        )
 
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
@@ -1010,13 +1002,10 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         )
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=self.body["exportContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )
@@ -1029,17 +1018,16 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             return hook._wait_for_operation_to_complete(
                 project_id=self.project_id, operation_name=operation_name
             )
-        else:
-            self.defer(
-                trigger=CloudSQLExportTrigger(
-                    operation_name=operation_name,
-                    project_id=self.project_id or hook.project_id,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+        self.defer(
+            trigger=CloudSQLExportTrigger(
+                operation_name=operation_name,
+                project_id=self.project_id or hook.project_id,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                poke_interval=self.poke_interval,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context, event=None) -> None:
         """
@@ -1154,13 +1142,10 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         )
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=self.body["importContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )

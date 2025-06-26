@@ -30,7 +30,6 @@ import scrapbook as sb
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.lineage import AUTO
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 
 START_DATE = datetime(2021, 1, 1)
@@ -42,11 +41,11 @@ DAG_ID = "example_papermill_operator_verify"
 
 # [START howto_verify_operator_papermill]
 @task
-def check_notebook(inlets, logical_date):
+def check_notebook(output, logical_date):
     """
     Verify the message in the notebook
     """
-    notebook = sb.read_notebook(inlets[0].url)
+    notebook = sb.read_notebook(output.url)
     message = notebook.scraps["message"]
     print(f"Message in notebook {message} for {logical_date}")
 
@@ -70,7 +69,7 @@ with DAG(
         parameters={"msgs": "Ran from Airflow at {{ logical_date }}!"},
     )
 
-    run_this >> check_notebook(inlets=AUTO, logical_date="{{ logical_date }}")
+    check_notebook(output=run_this.output, logical_date="{{ logical_date }}")
 # [END howto_verify_operator_papermill]
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

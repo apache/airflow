@@ -239,8 +239,7 @@ class AzureDataLakeHook(BaseHook):
         """
         if "*" in path:
             return self.get_conn().glob(path)
-        else:
-            return self.get_conn().walk(path)
+        return self.get_conn().walk(path)
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
         """
@@ -328,8 +327,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         prefix = "extra__adls__"
         if field_name.startswith("extra__"):
             raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix when using this method."
             )
         if field_name in extra_dict:
             return extra_dict[field_name] or None
@@ -426,7 +424,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory which needs to be created in the file system.
         """
-        result = self.get_file_system(file_system_name).create_directory(directory_name, kwargs)
+        result = self.get_file_system(file_system_name).create_directory(directory_name, **kwargs)
         return result
 
     def get_directory_client(
@@ -481,7 +479,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         """
         file_client = self.create_file(file_system_name, file_name)
         with open(file_path, "rb") as data:
-            file_client.upload_data(data, overwrite=overwrite, kwargs=kwargs)
+            file_client.upload_data(data, overwrite=overwrite, **kwargs)
 
     def upload_file_to_directory(
         self,
@@ -502,9 +500,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         :param overwrite: Boolean flag to overwrite an existing file or not.
         """
         directory_client = self.get_directory_client(file_system_name, directory_name=directory_name)
-        file_client = directory_client.create_file(file_name, kwargs=kwargs)
+        file_client = directory_client.create_file(file_name, **kwargs)
         with open(file_path, "rb") as data:
-            file_client.upload_data(data, overwrite=overwrite, kwargs=kwargs)
+            file_client.upload_data(data, overwrite=overwrite, **kwargs)
 
     def list_files_directory(
         self, file_system_name: FileSystemProperties | str, directory_name: str

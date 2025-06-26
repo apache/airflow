@@ -89,8 +89,7 @@ def create_unique_id(
     base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
     if unique:
         return add_unique_suffix(name=base_name, rand_len=8, max_len=max_length)
-    else:
-        return base_name
+    return base_name
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:

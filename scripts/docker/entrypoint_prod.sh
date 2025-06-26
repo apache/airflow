@@ -152,13 +152,17 @@ function create_www_user() {
         exit 1
     fi
 
-    airflow users create \
-       --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
-       --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
-       --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
-       --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
-       --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
-       --password "${local_password}" || true
+    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+        airflow users create \
+           --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
+           --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
+           --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
+           --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
+           --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
+           --password "${local_password}" || true
+    else
+        echo "Skipping user creation as auth manager different from Fab is used"
+    fi
 }
 
 function create_system_user_if_missing() {
@@ -237,7 +241,7 @@ function check_uid_gid() {
         >&2 echo " This is to make sure you can run the image with an arbitrary UID in the future."
         >&2 echo
         >&2 echo " See more about it in the Airflow's docker image documentation"
-        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo "     https://airflow.apache.org/docs/docker-stack/entrypoint.html"
         >&2 echo
         # We still allow the image to run with `airflow` user.
         return
@@ -251,7 +255,7 @@ function check_uid_gid() {
         >&2 echo " This is to make sure you can run the image with an arbitrary UID."
         >&2 echo
         >&2 echo " See more about it in the Airflow's docker image documentation"
-        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo "     https://airflow.apache.org/docs/docker-stack/entrypoint.html"
         # This will not work so we fail hard
         exit 1
     fi

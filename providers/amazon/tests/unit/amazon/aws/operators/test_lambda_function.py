@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 FUNCTION_NAME = "function_name"

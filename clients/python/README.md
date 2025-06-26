@@ -70,7 +70,7 @@ of resources' metadata in the response body.
 When reading resources, some common query parameters are usually available. e.g.:
 
 ```
-v1/connections?limit=25&offset=25
+/api/v2/connections?limit=25&offset=25
 ```
 
 |Query Parameter|Type|Description|
@@ -138,17 +138,18 @@ You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie
 [Postman](https://www.postman.com/) or [the Insomnia rest client](https://insomnia.rest/) to test
 the Apache Airflow API.
 
-Note that you will need to pass credentials data.
+Note that you will need to pass authentication credentials. If your Airflow deployment supports
+**Bearer token authentication**, you can use the following example:
 
-For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authorization is used:
+For example, here is how to pause a DAG with `curl`, using a Bearer token:
 
 ```bash
-curl -X PATCH 'https://example.com/api/v1/dags/{dag_id}?update_mask=is_paused' \\
--H 'Content-Type: application/json' \\
---user \"username:password\" \\
--d '{
-    \"is_paused\": true
-}'
+curl -X PATCH 'https://example.com/api/v2/dags/{dag_id}?update_mask=is_paused' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+  -d '{
+      \"is_paused\": true
+  }'
 ```
 
 Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
@@ -176,14 +177,6 @@ For details on enabling/configuring CORS, see
 
 To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
 and it is even possible to add your own method.
-
-If you want to check which auth backend is currently set, you can use
-`airflow config get-value api auth_backends` command as in the example below.
-
-```bash
-$ airflow config get-value api auth_backends
-airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
-```
 
 The default is to deny all requests.
 
@@ -278,235 +271,318 @@ import airflow_client.client
 
 ## Getting Started
 
+Before attempting the following examples ensure you have an account with API access.
+As an example you can create an account for usage with the API as follows using the Airflow CLI.
+
+```bash
+airflow users create -u admin-api -e admin-api@example.com -f admin-api -l admin-api -p $PASSWORD -r Admin
+```
+
 Please follow the [installation procedure](#installation--usage) and then run the following:
 
 ```python
-import time
 import airflow_client.client
+import requests
+from airflow_client.client.rest import ApiException
 from pprint import pprint
-from airflow_client.client.api import config_api
-from airflow_client.client.model.config import Config
-from airflow_client.client.model.error import Error
+from pydantic import BaseModel
 
-# Defining the host is optional and defaults to /api/v1
+
+# What we expect back from auth/token
+class AirflowAccessTokenResponse(BaseModel):
+    access_token: str
+
+
+# An optional helper function to retrieve an access token
+def get_airflow_client_access_token(
+    host: str,
+    username: str,
+    password: str,
+) -> str:
+    url = f"{host}/auth/token"
+    payload = {
+        "username": username,
+        "password": password,
+    }
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code != 201:
+        raise RuntimeError(f"Failed to get access token: {response.status_code} {response.text}")
+    response_success = AirflowAccessTokenResponse(**response.json())
+    return response_success.access_token
+
+
+# Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = client.Configuration(host="/api/v1")
+host = "http://localhost"
+configuration = airflow_client.client.Configuration(host=host)
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure HTTP basic authorization: Basic
-configuration = client.Configuration(username="YOUR_USERNAME", password="YOUR_PASSWORD")
-
+configuration.access_token = get_airflow_client_access_token(
+    host=host,
+    username="admin-api",
+    password=os.environ["PASSWORD"],
+)
 
 # Enter a context with an instance of the API client
-with client.ApiClient(configuration) as api_client:
+with airflow_client.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = config_api.ConfigApi(api_client)
+    api_instance = airflow_client.client.AssetApi(api_client)
+    create_asset_events_body = airflow_client.client.CreateAssetEventsBody()  # CreateAssetEventsBody |
 
     try:
-        # Get current configuration
-        api_response = api_instance.get_config()
+        # Create Asset Event
+        api_response = api_instance.create_asset_event(create_asset_events_body)
+        print("The response of AssetApi->create_asset_event:\n")
         pprint(api_response)
-    except client.ApiException as e:
-        print("Exception when calling ConfigApi->get_config: %s\n" % e)
+    except ApiException as e:
+        print("Exception when calling AssetApi->create_asset_event: %s\n" % e)
 ```
 
 ## Documentation for API Endpoints
 
-All URIs are relative to */api/v1*
+All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
-*ConfigApi* | [**get_config**](docs/ConfigApi.md#get_config) | **GET** /config | Get current configuration
-*ConnectionApi* | [**delete_connection**](docs/ConnectionApi.md#delete_connection) | **DELETE** /connections/{connection_id} | Delete a connection
-*ConnectionApi* | [**get_connection**](docs/ConnectionApi.md#get_connection) | **GET** /connections/{connection_id} | Get a connection
-*ConnectionApi* | [**get_connections**](docs/ConnectionApi.md#get_connections) | **GET** /connections | List connections
-*ConnectionApi* | [**patch_connection**](docs/ConnectionApi.md#patch_connection) | **PATCH** /connections/{connection_id} | Update a connection
-*ConnectionApi* | [**post_connection**](docs/ConnectionApi.md#post_connection) | **POST** /connections | Create a connection
-*ConnectionApi* | [**test_connection**](docs/ConnectionApi.md#test_connection) | **POST** /connections/test | Test a connection
-*DAGApi* | [**delete_dag**](docs/DAGApi.md#delete_dag) | **DELETE** /dags/{dag_id} | Delete a DAG
-*DAGApi* | [**get_dag**](docs/DAGApi.md#get_dag) | **GET** /dags/{dag_id} | Get basic information about a DAG
-*DAGApi* | [**get_dag_details**](docs/DAGApi.md#get_dag_details) | **GET** /dags/{dag_id}/details | Get a simplified representation of DAG
-*DAGApi* | [**get_dag_source**](docs/DAGApi.md#get_dag_source) | **GET** /dagSources/{file_token} | Get a source code
-*DAGApi* | [**get_dags**](docs/DAGApi.md#get_dags) | **GET** /dags | List DAGs
-*DAGApi* | [**get_task**](docs/DAGApi.md#get_task) | **GET** /dags/{dag_id}/tasks/{task_id} | Get simplified representation of a task
-*DAGApi* | [**get_tasks**](docs/DAGApi.md#get_tasks) | **GET** /dags/{dag_id}/tasks | Get tasks for DAG
-*DAGApi* | [**patch_dag**](docs/DAGApi.md#patch_dag) | **PATCH** /dags/{dag_id} | Update a DAG
-*DAGApi* | [**patch_dags**](docs/DAGApi.md#patch_dags) | **PATCH** /dags | Update DAGs
-*DAGApi* | [**post_clear_task_instances**](docs/DAGApi.md#post_clear_task_instances) | **POST** /dags/{dag_id}/clearTaskInstances | Clear a set of task instances
-*DAGApi* | [**post_set_task_instances_state**](docs/DAGApi.md#post_set_task_instances_state) | **POST** /dags/{dag_id}/updateTaskInstancesState | Set a state of task instances
-*DAGRunApi* | [**clear_dag_run**](docs/DAGRunApi.md#clear_dag_run) | **POST** /dags/{dag_id}/dagRuns/{dag_run_id}/clear | Clear a DAG run
-*DAGRunApi* | [**delete_dag_run**](docs/DAGRunApi.md#delete_dag_run) | **DELETE** /dags/{dag_id}/dagRuns/{dag_run_id} | Delete a DAG run
-*DAGRunApi* | [**get_dag_run**](docs/DAGRunApi.md#get_dag_run) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id} | Get a DAG run
-*DAGRunApi* | [**get_dag_runs**](docs/DAGRunApi.md#get_dag_runs) | **GET** /dags/{dag_id}/dagRuns | List DAG runs
-*DAGRunApi* | [**get_dag_runs_batch**](docs/DAGRunApi.md#get_dag_runs_batch) | **POST** /dags/~/dagRuns/list | List DAG runs (batch)
-*DAGRunApi* | [**get_upstream_asset_events**](docs/DAGRunApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get asset events for a DAG run
-*DAGRunApi* | [**post_dag_run**](docs/DAGRunApi.md#post_dag_run) | **POST** /dags/{dag_id}/dagRuns | Trigger a new DAG run
-*DAGRunApi* | [**set_dag_run_note**](docs/DAGRunApi.md#set_dag_run_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/setNote | Update the DagRun note.
-*DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
-*DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
-*AssetApi* | [**get_asset**](docs/DatasetApi.md#get_asset) | **GET** /assets/{uri} | Get an asset
-*AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /assets/events | Get asset events
-*DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /assets | List assets
-*DatasetApi* | [**get_upstream_asset_events**](docs/DatasetApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get dataset events for a DAG run
-*EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
-*EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /eventLogs | List log entries
-*ImportErrorApi* | [**get_import_error**](docs/ImportErrorApi.md#get_import_error) | **GET** /importErrors/{import_error_id} | Get an import error
-*ImportErrorApi* | [**get_import_errors**](docs/ImportErrorApi.md#get_import_errors) | **GET** /importErrors | List import errors
-*MonitoringApi* | [**get_health**](docs/MonitoringApi.md#get_health) | **GET** /health | Get instance status
-*MonitoringApi* | [**get_version**](docs/MonitoringApi.md#get_version) | **GET** /version | Get version information
-*PermissionApi* | [**get_permissions**](docs/PermissionApi.md#get_permissions) | **GET** /permissions | List permissions
-*PluginApi* | [**get_plugins**](docs/PluginApi.md#get_plugins) | **GET** /plugins | Get a list of loaded plugins
-*PoolApi* | [**delete_pool**](docs/PoolApi.md#delete_pool) | **DELETE** /pools/{pool_name} | Delete a pool
-*PoolApi* | [**get_pool**](docs/PoolApi.md#get_pool) | **GET** /pools/{pool_name} | Get a pool
-*PoolApi* | [**get_pools**](docs/PoolApi.md#get_pools) | **GET** /pools | List pools
-*PoolApi* | [**patch_pool**](docs/PoolApi.md#patch_pool) | **PATCH** /pools/{pool_name} | Update a pool
-*PoolApi* | [**post_pool**](docs/PoolApi.md#post_pool) | **POST** /pools | Create a pool
-*ProviderApi* | [**get_providers**](docs/ProviderApi.md#get_providers) | **GET** /providers | List providers
-*RoleApi* | [**delete_role**](docs/RoleApi.md#delete_role) | **DELETE** /roles/{role_name} | Delete a role
-*RoleApi* | [**get_role**](docs/RoleApi.md#get_role) | **GET** /roles/{role_name} | Get a role
-*RoleApi* | [**get_roles**](docs/RoleApi.md#get_roles) | **GET** /roles | List roles
-*RoleApi* | [**patch_role**](docs/RoleApi.md#patch_role) | **PATCH** /roles/{role_name} | Update a role
-*RoleApi* | [**post_role**](docs/RoleApi.md#post_role) | **POST** /roles | Create a role
-*TaskInstanceApi* | [**get_extra_links**](docs/TaskInstanceApi.md#get_extra_links) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links | List extra links
-*TaskInstanceApi* | [**get_log**](docs/TaskInstanceApi.md#get_log) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} | Get logs
-*TaskInstanceApi* | [**get_mapped_task_instance**](docs/TaskInstanceApi.md#get_mapped_task_instance) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index} | Get a mapped task instance
-*TaskInstanceApi* | [**get_mapped_task_instances**](docs/TaskInstanceApi.md#get_mapped_task_instances) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped | List mapped task instances
-*TaskInstanceApi* | [**get_task_instance**](docs/TaskInstanceApi.md#get_task_instance) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id} | Get a task instance
-*TaskInstanceApi* | [**get_task_instances**](docs/TaskInstanceApi.md#get_task_instances) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances | List task instances
-*TaskInstanceApi* | [**get_task_instances_batch**](docs/TaskInstanceApi.md#get_task_instances_batch) | **POST** /dags/~/dagRuns/~/taskInstances/list | List task instances (batch)
-*TaskInstanceApi* | [**patch_mapped_task_instance**](docs/TaskInstanceApi.md#patch_mapped_task_instance) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index} | Updates the state of a mapped task instance
-*TaskInstanceApi* | [**patch_task_instance**](docs/TaskInstanceApi.md#patch_task_instance) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id} | Updates the state of a task instance
-*TaskInstanceApi* | [**set_mapped_task_instance_note**](docs/TaskInstanceApi.md#set_mapped_task_instance_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote | Update the TaskInstance note.
-*TaskInstanceApi* | [**set_task_instance_note**](docs/TaskInstanceApi.md#set_task_instance_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/setNote | Update the TaskInstance note.
-*UserApi* | [**delete_user**](docs/UserApi.md#delete_user) | **DELETE** /users/{username} | Delete a user
-*UserApi* | [**get_user**](docs/UserApi.md#get_user) | **GET** /users/{username} | Get a user
-*UserApi* | [**get_users**](docs/UserApi.md#get_users) | **GET** /users | List users
-*UserApi* | [**patch_user**](docs/UserApi.md#patch_user) | **PATCH** /users/{username} | Update a user
-*UserApi* | [**post_user**](docs/UserApi.md#post_user) | **POST** /users | Create a user
-*VariableApi* | [**delete_variable**](docs/VariableApi.md#delete_variable) | **DELETE** /variables/{variable_key} | Delete a variable
-*VariableApi* | [**get_variable**](docs/VariableApi.md#get_variable) | **GET** /variables/{variable_key} | Get a variable
-*VariableApi* | [**get_variables**](docs/VariableApi.md#get_variables) | **GET** /variables | List variables
-*VariableApi* | [**patch_variable**](docs/VariableApi.md#patch_variable) | **PATCH** /variables/{variable_key} | Update a variable
-*VariableApi* | [**post_variables**](docs/VariableApi.md#post_variables) | **POST** /variables | Create a variable
-*XComApi* | [**get_xcom_entries**](docs/XComApi.md#get_xcom_entries) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries | List XCom entries
-*XComApi* | [**get_xcom_entry**](docs/XComApi.md#get_xcom_entry) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} | Get an XCom entry
+*AssetApi* | [**create_asset_event**](docs/AssetApi.md#create_asset_event) | **POST** /api/v2/assets/events | Create Asset Event
+*AssetApi* | [**delete_asset_queued_events**](docs/AssetApi.md#delete_asset_queued_events) | **DELETE** /api/v2/assets/{asset_id}/queuedEvents | Delete Asset Queued Events
+*AssetApi* | [**delete_dag_asset_queued_event**](docs/AssetApi.md#delete_dag_asset_queued_event) | **DELETE** /api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents | Delete Dag Asset Queued Event
+*AssetApi* | [**delete_dag_asset_queued_events**](docs/AssetApi.md#delete_dag_asset_queued_events) | **DELETE** /api/v2/dags/{dag_id}/assets/queuedEvents | Delete Dag Asset Queued Events
+*AssetApi* | [**get_asset**](docs/AssetApi.md#get_asset) | **GET** /api/v2/assets/{asset_id} | Get Asset
+*AssetApi* | [**get_asset_alias**](docs/AssetApi.md#get_asset_alias) | **GET** /api/v2/assets/aliases/{asset_alias_id} | Get Asset Alias
+*AssetApi* | [**get_asset_aliases**](docs/AssetApi.md#get_asset_aliases) | **GET** /api/v2/assets/aliases | Get Asset Aliases
+*AssetApi* | [**get_asset_events**](docs/AssetApi.md#get_asset_events) | **GET** /api/v2/assets/events | Get Asset Events
+*AssetApi* | [**get_asset_queued_events**](docs/AssetApi.md#get_asset_queued_events) | **GET** /api/v2/assets/{asset_id}/queuedEvents | Get Asset Queued Events
+*AssetApi* | [**get_assets**](docs/AssetApi.md#get_assets) | **GET** /api/v2/assets | Get Assets
+*AssetApi* | [**get_dag_asset_queued_event**](docs/AssetApi.md#get_dag_asset_queued_event) | **GET** /api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents | Get Dag Asset Queued Event
+*AssetApi* | [**get_dag_asset_queued_events**](docs/AssetApi.md#get_dag_asset_queued_events) | **GET** /api/v2/dags/{dag_id}/assets/queuedEvents | Get Dag Asset Queued Events
+*AssetApi* | [**materialize_asset**](docs/AssetApi.md#materialize_asset) | **POST** /api/v2/assets/{asset_id}/materialize | Materialize Asset
+*BackfillApi* | [**cancel_backfill**](docs/BackfillApi.md#cancel_backfill) | **PUT** /api/v2/backfills/{backfill_id}/cancel | Cancel Backfill
+*BackfillApi* | [**create_backfill**](docs/BackfillApi.md#create_backfill) | **POST** /api/v2/backfills | Create Backfill
+*BackfillApi* | [**create_backfill_dry_run**](docs/BackfillApi.md#create_backfill_dry_run) | **POST** /api/v2/backfills/dry_run | Create Backfill Dry Run
+*BackfillApi* | [**get_backfill**](docs/BackfillApi.md#get_backfill) | **GET** /api/v2/backfills/{backfill_id} | Get Backfill
+*BackfillApi* | [**list_backfills**](docs/BackfillApi.md#list_backfills) | **GET** /api/v2/backfills | List Backfills
+*BackfillApi* | [**pause_backfill**](docs/BackfillApi.md#pause_backfill) | **PUT** /api/v2/backfills/{backfill_id}/pause | Pause Backfill
+*BackfillApi* | [**unpause_backfill**](docs/BackfillApi.md#unpause_backfill) | **PUT** /api/v2/backfills/{backfill_id}/unpause | Unpause Backfill
+*ConfigApi* | [**get_config**](docs/ConfigApi.md#get_config) | **GET** /api/v2/config | Get Config
+*ConfigApi* | [**get_config_value**](docs/ConfigApi.md#get_config_value) | **GET** /api/v2/config/section/{section}/option/{option} | Get Config Value
+*ConnectionApi* | [**bulk_connections**](docs/ConnectionApi.md#bulk_connections) | **PATCH** /api/v2/connections | Bulk Connections
+*ConnectionApi* | [**create_default_connections**](docs/ConnectionApi.md#create_default_connections) | **POST** /api/v2/connections/defaults | Create Default Connections
+*ConnectionApi* | [**delete_connection**](docs/ConnectionApi.md#delete_connection) | **DELETE** /api/v2/connections/{connection_id} | Delete Connection
+*ConnectionApi* | [**get_connection**](docs/ConnectionApi.md#get_connection) | **GET** /api/v2/connections/{connection_id} | Get Connection
+*ConnectionApi* | [**get_connections**](docs/ConnectionApi.md#get_connections) | **GET** /api/v2/connections | Get Connections
+*ConnectionApi* | [**patch_connection**](docs/ConnectionApi.md#patch_connection) | **PATCH** /api/v2/connections/{connection_id} | Patch Connection
+*ConnectionApi* | [**post_connection**](docs/ConnectionApi.md#post_connection) | **POST** /api/v2/connections | Post Connection
+*ConnectionApi* | [**test_connection**](docs/ConnectionApi.md#test_connection) | **POST** /api/v2/connections/test | Test Connection
+*DAGApi* | [**delete_dag**](docs/DAGApi.md#delete_dag) | **DELETE** /api/v2/dags/{dag_id} | Delete Dag
+*DAGApi* | [**get_dag**](docs/DAGApi.md#get_dag) | **GET** /api/v2/dags/{dag_id} | Get Dag
+*DAGApi* | [**get_dag_details**](docs/DAGApi.md#get_dag_details) | **GET** /api/v2/dags/{dag_id}/details | Get Dag Details
+*DAGApi* | [**get_dag_tags**](docs/DAGApi.md#get_dag_tags) | **GET** /api/v2/dagTags | Get Dag Tags
+*DAGApi* | [**get_dags**](docs/DAGApi.md#get_dags) | **GET** /api/v2/dags | Get Dags
+*DAGApi* | [**patch_dag**](docs/DAGApi.md#patch_dag) | **PATCH** /api/v2/dags/{dag_id} | Patch Dag
+*DAGApi* | [**patch_dags**](docs/DAGApi.md#patch_dags) | **PATCH** /api/v2/dags | Patch Dags
+*DAGParsingApi* | [**reparse_dag_file**](docs/DAGParsingApi.md#reparse_dag_file) | **PUT** /api/v2/parseDagFile/{file_token} | Reparse Dag File
+*DagReportApi* | [**get_dag_reports**](docs/DagReportApi.md#get_dag_reports) | **GET** /api/v2/dagReports | Get Dag Reports
+*DagRunApi* | [**clear_dag_run**](docs/DagRunApi.md#clear_dag_run) | **POST** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear | Clear Dag Run
+*DagRunApi* | [**delete_dag_run**](docs/DagRunApi.md#delete_dag_run) | **DELETE** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id} | Delete Dag Run
+*DagRunApi* | [**get_dag_run**](docs/DagRunApi.md#get_dag_run) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id} | Get Dag Run
+*DagRunApi* | [**get_dag_runs**](docs/DagRunApi.md#get_dag_runs) | **GET** /api/v2/dags/{dag_id}/dagRuns | Get Dag Runs
+*DagRunApi* | [**get_list_dag_runs_batch**](docs/DagRunApi.md#get_list_dag_runs_batch) | **POST** /api/v2/dags/{dag_id}/dagRuns/list | Get List Dag Runs Batch
+*DagRunApi* | [**get_upstream_asset_events**](docs/DagRunApi.md#get_upstream_asset_events) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get Upstream Asset Events
+*DagRunApi* | [**patch_dag_run**](docs/DagRunApi.md#patch_dag_run) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id} | Patch Dag Run
+*DagRunApi* | [**trigger_dag_run**](docs/DagRunApi.md#trigger_dag_run) | **POST** /api/v2/dags/{dag_id}/dagRuns | Trigger Dag Run
+*DagSourceApi* | [**get_dag_source**](docs/DagSourceApi.md#get_dag_source) | **GET** /api/v2/dagSources/{dag_id} | Get Dag Source
+*DagStatsApi* | [**get_dag_stats**](docs/DagStatsApi.md#get_dag_stats) | **GET** /api/v2/dagStats | Get Dag Stats
+*DagVersionApi* | [**get_dag_version**](docs/DagVersionApi.md#get_dag_version) | **GET** /api/v2/dags/{dag_id}/dagVersions/{version_number} | Get Dag Version
+*DagVersionApi* | [**get_dag_versions**](docs/DagVersionApi.md#get_dag_versions) | **GET** /api/v2/dags/{dag_id}/dagVersions | Get Dag Versions
+*DagWarningApi* | [**list_dag_warnings**](docs/DagWarningApi.md#list_dag_warnings) | **GET** /api/v2/dagWarnings | List Dag Warnings
+*EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /api/v2/eventLogs/{event_log_id} | Get Event Log
+*EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /api/v2/eventLogs | Get Event Logs
+*ExtraLinksApi* | [**get_extra_links**](docs/ExtraLinksApi.md#get_extra_links) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links | Get Extra Links
+*ImportErrorApi* | [**get_import_error**](docs/ImportErrorApi.md#get_import_error) | **GET** /api/v2/importErrors/{import_error_id} | Get Import Error
+*ImportErrorApi* | [**get_import_errors**](docs/ImportErrorApi.md#get_import_errors) | **GET** /api/v2/importErrors | Get Import Errors
+*JobApi* | [**get_jobs**](docs/JobApi.md#get_jobs) | **GET** /api/v2/jobs | Get Jobs
+*LoginApi* | [**login**](docs/LoginApi.md#login) | **GET** /api/v2/auth/login | Login
+*LoginApi* | [**logout**](docs/LoginApi.md#logout) | **GET** /api/v2/auth/logout | Logout
+*MonitorApi* | [**get_health**](docs/MonitorApi.md#get_health) | **GET** /api/v2/monitor/health | Get Health
+*PluginApi* | [**get_plugins**](docs/PluginApi.md#get_plugins) | **GET** /api/v2/plugins | Get Plugins
+*PoolApi* | [**bulk_pools**](docs/PoolApi.md#bulk_pools) | **PATCH** /api/v2/pools | Bulk Pools
+*PoolApi* | [**delete_pool**](docs/PoolApi.md#delete_pool) | **DELETE** /api/v2/pools/{pool_name} | Delete Pool
+*PoolApi* | [**get_pool**](docs/PoolApi.md#get_pool) | **GET** /api/v2/pools/{pool_name} | Get Pool
+*PoolApi* | [**get_pools**](docs/PoolApi.md#get_pools) | **GET** /api/v2/pools | Get Pools
+*PoolApi* | [**patch_pool**](docs/PoolApi.md#patch_pool) | **PATCH** /api/v2/pools/{pool_name} | Patch Pool
+*PoolApi* | [**post_pool**](docs/PoolApi.md#post_pool) | **POST** /api/v2/pools | Post Pool
+*ProviderApi* | [**get_providers**](docs/ProviderApi.md#get_providers) | **GET** /api/v2/providers | Get Providers
+*TaskApi* | [**get_task**](docs/TaskApi.md#get_task) | **GET** /api/v2/dags/{dag_id}/tasks/{task_id} | Get Task
+*TaskApi* | [**get_tasks**](docs/TaskApi.md#get_tasks) | **GET** /api/v2/dags/{dag_id}/tasks | Get Tasks
+*TaskInstanceApi* | [**get_extra_links**](docs/TaskInstanceApi.md#get_extra_links) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links | Get Extra Links
+*TaskInstanceApi* | [**get_log**](docs/TaskInstanceApi.md#get_log) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number} | Get Log
+*TaskInstanceApi* | [**get_mapped_task_instance**](docs/TaskInstanceApi.md#get_mapped_task_instance) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index} | Get Mapped Task Instance
+*TaskInstanceApi* | [**get_mapped_task_instance_tries**](docs/TaskInstanceApi.md#get_mapped_task_instance_tries) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries | Get Mapped Task Instance Tries
+*TaskInstanceApi* | [**get_mapped_task_instance_try_details**](docs/TaskInstanceApi.md#get_mapped_task_instance_try_details) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number} | Get Mapped Task Instance Try Details
+*TaskInstanceApi* | [**get_mapped_task_instances**](docs/TaskInstanceApi.md#get_mapped_task_instances) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped | Get Mapped Task Instances
+*TaskInstanceApi* | [**get_task_instance**](docs/TaskInstanceApi.md#get_task_instance) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id} | Get Task Instance
+*TaskInstanceApi* | [**get_task_instance_dependencies**](docs/TaskInstanceApi.md#get_task_instance_dependencies) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies | Get Task Instance Dependencies
+*TaskInstanceApi* | [**get_task_instance_dependencies_by_map_index**](docs/TaskInstanceApi.md#get_task_instance_dependencies_by_map_index) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies | Get Task Instance Dependencies
+*TaskInstanceApi* | [**get_task_instance_tries**](docs/TaskInstanceApi.md#get_task_instance_tries) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries | Get Task Instance Tries
+*TaskInstanceApi* | [**get_task_instance_try_details**](docs/TaskInstanceApi.md#get_task_instance_try_details) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number} | Get Task Instance Try Details
+*TaskInstanceApi* | [**get_task_instances**](docs/TaskInstanceApi.md#get_task_instances) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances | Get Task Instances
+*TaskInstanceApi* | [**get_task_instances_batch**](docs/TaskInstanceApi.md#get_task_instances_batch) | **POST** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list | Get Task Instances Batch
+*TaskInstanceApi* | [**patch_task_instance**](docs/TaskInstanceApi.md#patch_task_instance) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id} | Patch Task Instance
+*TaskInstanceApi* | [**patch_task_instance_by_map_index**](docs/TaskInstanceApi.md#patch_task_instance_by_map_index) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index} | Patch Task Instance
+*TaskInstanceApi* | [**patch_task_instance_dry_run**](docs/TaskInstanceApi.md#patch_task_instance_dry_run) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run | Patch Task Instance Dry Run
+*TaskInstanceApi* | [**patch_task_instance_dry_run_by_map_index**](docs/TaskInstanceApi.md#patch_task_instance_dry_run_by_map_index) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run | Patch Task Instance Dry Run
+*TaskInstanceApi* | [**post_clear_task_instances**](docs/TaskInstanceApi.md#post_clear_task_instances) | **POST** /api/v2/dags/{dag_id}/clearTaskInstances | Post Clear Task Instances
+*VariableApi* | [**bulk_variables**](docs/VariableApi.md#bulk_variables) | **PATCH** /api/v2/variables | Bulk Variables
+*VariableApi* | [**delete_variable**](docs/VariableApi.md#delete_variable) | **DELETE** /api/v2/variables/{variable_key} | Delete Variable
+*VariableApi* | [**get_variable**](docs/VariableApi.md#get_variable) | **GET** /api/v2/variables/{variable_key} | Get Variable
+*VariableApi* | [**get_variables**](docs/VariableApi.md#get_variables) | **GET** /api/v2/variables | Get Variables
+*VariableApi* | [**patch_variable**](docs/VariableApi.md#patch_variable) | **PATCH** /api/v2/variables/{variable_key} | Patch Variable
+*VariableApi* | [**post_variable**](docs/VariableApi.md#post_variable) | **POST** /api/v2/variables | Post Variable
+*VersionApi* | [**get_version**](docs/VersionApi.md#get_version) | **GET** /api/v2/version | Get Version
+*XComApi* | [**create_xcom_entry**](docs/XComApi.md#create_xcom_entry) | **POST** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries | Create Xcom Entry
+*XComApi* | [**get_xcom_entries**](docs/XComApi.md#get_xcom_entries) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries | Get Xcom Entries
+*XComApi* | [**get_xcom_entry**](docs/XComApi.md#get_xcom_entry) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} | Get Xcom Entry
+*XComApi* | [**update_xcom_entry**](docs/XComApi.md#update_xcom_entry) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} | Update Xcom Entry
 
 
 ## Documentation For Models
 
- - [Action](docs/Action.md)
- - [ActionCollection](docs/ActionCollection.md)
- - [ActionCollectionAllOf](docs/ActionCollectionAllOf.md)
- - [ActionResource](docs/ActionResource.md)
- - [AssetCollection](docs/AssetCollection.md)
- - [AssetCollectionAllOf](docs/AssetCollectionAllOf.md)
- - [AssetEvent](docs/AssetEvent.md)
- - [AssetEventCollection](docs/AssetEventCollection.md)
- - [AssetEventCollectionAllOf](docs/AssetEventCollectionAllOf.md)
- - [BasicDAGRun](docs/BasicDAGRun.md)
- - [ClassReference](docs/ClassReference.md)
- - [ClearDagRun](docs/ClearDagRun.md)
- - [ClearTaskInstances](docs/ClearTaskInstances.md)
- - [CollectionInfo](docs/CollectionInfo.md)
- - [Color](docs/Color.md)
+ - [AppBuilderMenuItemResponse](docs/AppBuilderMenuItemResponse.md)
+ - [AppBuilderViewResponse](docs/AppBuilderViewResponse.md)
+ - [AssetAliasCollectionResponse](docs/AssetAliasCollectionResponse.md)
+ - [AssetAliasResponse](docs/AssetAliasResponse.md)
+ - [AssetCollectionResponse](docs/AssetCollectionResponse.md)
+ - [AssetEventCollectionResponse](docs/AssetEventCollectionResponse.md)
+ - [AssetEventResponse](docs/AssetEventResponse.md)
+ - [AssetResponse](docs/AssetResponse.md)
+ - [BackfillCollectionResponse](docs/BackfillCollectionResponse.md)
+ - [BackfillPostBody](docs/BackfillPostBody.md)
+ - [BackfillResponse](docs/BackfillResponse.md)
+ - [BaseInfoResponse](docs/BaseInfoResponse.md)
+ - [BulkAction](docs/BulkAction.md)
+ - [BulkActionNotOnExistence](docs/BulkActionNotOnExistence.md)
+ - [BulkActionOnExistence](docs/BulkActionOnExistence.md)
+ - [BulkActionResponse](docs/BulkActionResponse.md)
+ - [BulkBodyConnectionBody](docs/BulkBodyConnectionBody.md)
+ - [BulkBodyConnectionBodyActionsInner](docs/BulkBodyConnectionBodyActionsInner.md)
+ - [BulkBodyPoolBody](docs/BulkBodyPoolBody.md)
+ - [BulkBodyPoolBodyActionsInner](docs/BulkBodyPoolBodyActionsInner.md)
+ - [BulkBodyVariableBody](docs/BulkBodyVariableBody.md)
+ - [BulkBodyVariableBodyActionsInner](docs/BulkBodyVariableBodyActionsInner.md)
+ - [BulkCreateActionConnectionBody](docs/BulkCreateActionConnectionBody.md)
+ - [BulkCreateActionPoolBody](docs/BulkCreateActionPoolBody.md)
+ - [BulkCreateActionVariableBody](docs/BulkCreateActionVariableBody.md)
+ - [BulkDeleteActionConnectionBody](docs/BulkDeleteActionConnectionBody.md)
+ - [BulkDeleteActionPoolBody](docs/BulkDeleteActionPoolBody.md)
+ - [BulkDeleteActionVariableBody](docs/BulkDeleteActionVariableBody.md)
+ - [BulkResponse](docs/BulkResponse.md)
+ - [BulkUpdateActionConnectionBody](docs/BulkUpdateActionConnectionBody.md)
+ - [BulkUpdateActionPoolBody](docs/BulkUpdateActionPoolBody.md)
+ - [BulkUpdateActionVariableBody](docs/BulkUpdateActionVariableBody.md)
+ - [ClearTaskInstancesBody](docs/ClearTaskInstancesBody.md)
+ - [ClearTaskInstancesBodyTaskIdsInner](docs/ClearTaskInstancesBodyTaskIdsInner.md)
  - [Config](docs/Config.md)
  - [ConfigOption](docs/ConfigOption.md)
  - [ConfigSection](docs/ConfigSection.md)
- - [Connection](docs/Connection.md)
- - [ConnectionAllOf](docs/ConnectionAllOf.md)
- - [ConnectionCollection](docs/ConnectionCollection.md)
- - [ConnectionCollectionAllOf](docs/ConnectionCollectionAllOf.md)
- - [ConnectionCollectionItem](docs/ConnectionCollectionItem.md)
- - [ConnectionTest](docs/ConnectionTest.md)
- - [CronExpression](docs/CronExpression.md)
- - [DAG](docs/DAG.md)
- - [DAGCollection](docs/DAGCollection.md)
- - [DAGCollectionAllOf](docs/DAGCollectionAllOf.md)
- - [DAGDetail](docs/DAGDetail.md)
- - [DAGDetailAllOf](docs/DAGDetailAllOf.md)
- - [DAGRun](docs/DAGRun.md)
- - [DAGRunCollection](docs/DAGRunCollection.md)
- - [DAGRunCollectionAllOf](docs/DAGRunCollectionAllOf.md)
+ - [ConnectionBody](docs/ConnectionBody.md)
+ - [ConnectionCollectionResponse](docs/ConnectionCollectionResponse.md)
+ - [ConnectionResponse](docs/ConnectionResponse.md)
+ - [ConnectionTestResponse](docs/ConnectionTestResponse.md)
+ - [Content](docs/Content.md)
+ - [CreateAssetEventsBody](docs/CreateAssetEventsBody.md)
+ - [DAGCollectionResponse](docs/DAGCollectionResponse.md)
+ - [DAGDetailsResponse](docs/DAGDetailsResponse.md)
+ - [DAGPatchBody](docs/DAGPatchBody.md)
+ - [DAGResponse](docs/DAGResponse.md)
+ - [DAGRunClearBody](docs/DAGRunClearBody.md)
+ - [DAGRunCollectionResponse](docs/DAGRunCollectionResponse.md)
+ - [DAGRunPatchBody](docs/DAGRunPatchBody.md)
+ - [DAGRunPatchStates](docs/DAGRunPatchStates.md)
+ - [DAGRunResponse](docs/DAGRunResponse.md)
+ - [DAGRunsBatchBody](docs/DAGRunsBatchBody.md)
+ - [DAGSourceResponse](docs/DAGSourceResponse.md)
+ - [DAGTagCollectionResponse](docs/DAGTagCollectionResponse.md)
+ - [DAGVersionCollectionResponse](docs/DAGVersionCollectionResponse.md)
+ - [DAGWarningCollectionResponse](docs/DAGWarningCollectionResponse.md)
+ - [DAGWarningResponse](docs/DAGWarningResponse.md)
+ - [DagProcessorInfoResponse](docs/DagProcessorInfoResponse.md)
+ - [DagRunAssetReference](docs/DagRunAssetReference.md)
+ - [DagRunState](docs/DagRunState.md)
+ - [DagRunTriggeredByType](docs/DagRunTriggeredByType.md)
+ - [DagRunType](docs/DagRunType.md)
  - [DagScheduleAssetReference](docs/DagScheduleAssetReference.md)
- - [DagState](docs/DagState.md)
- - [DagWarning](docs/DagWarning.md)
- - [DagWarningCollection](docs/DagWarningCollection.md)
- - [DagWarningCollectionAllOf](docs/DagWarningCollectionAllOf.md)
- - [Dataset](docs/Dataset.md)
- - [Error](docs/Error.md)
- - [EventLog](docs/EventLog.md)
- - [EventLogCollection](docs/EventLogCollection.md)
- - [EventLogCollectionAllOf](docs/EventLogCollectionAllOf.md)
- - [ExtraLink](docs/ExtraLink.md)
- - [ExtraLinkCollection](docs/ExtraLinkCollection.md)
- - [HealthInfo](docs/HealthInfo.md)
- - [HealthStatus](docs/HealthStatus.md)
- - [ImportError](docs/ImportError.md)
- - [ImportErrorCollection](docs/ImportErrorCollection.md)
- - [ImportErrorCollectionAllOf](docs/ImportErrorCollectionAllOf.md)
- - [InlineResponse200](docs/InlineResponse200.md)
- - [InlineResponse2001](docs/InlineResponse2001.md)
- - [Job](docs/Job.md)
- - [ListDagRunsForm](docs/ListDagRunsForm.md)
- - [ListTaskInstanceForm](docs/ListTaskInstanceForm.md)
- - [MetadatabaseStatus](docs/MetadatabaseStatus.md)
- - [PluginCollection](docs/PluginCollection.md)
- - [PluginCollectionAllOf](docs/PluginCollectionAllOf.md)
- - [PluginCollectionItem](docs/PluginCollectionItem.md)
- - [Pool](docs/Pool.md)
- - [PoolCollection](docs/PoolCollection.md)
- - [PoolCollectionAllOf](docs/PoolCollectionAllOf.md)
- - [Provider](docs/Provider.md)
- - [ProviderCollection](docs/ProviderCollection.md)
- - [RelativeDelta](docs/RelativeDelta.md)
- - [Resource](docs/Resource.md)
- - [Role](docs/Role.md)
- - [RoleCollection](docs/RoleCollection.md)
- - [RoleCollectionAllOf](docs/RoleCollectionAllOf.md)
- - [SLAMiss](docs/SLAMiss.md)
- - [ScheduleInterval](docs/ScheduleInterval.md)
- - [SchedulerStatus](docs/SchedulerStatus.md)
- - [SetDagRunNote](docs/SetDagRunNote.md)
- - [SetTaskInstanceNote](docs/SetTaskInstanceNote.md)
- - [Tag](docs/Tag.md)
- - [Task](docs/Task.md)
- - [TaskCollection](docs/TaskCollection.md)
- - [TaskExtraLinks](docs/TaskExtraLinks.md)
- - [TaskInstance](docs/TaskInstance.md)
- - [TaskInstanceCollection](docs/TaskInstanceCollection.md)
- - [TaskInstanceCollectionAllOf](docs/TaskInstanceCollectionAllOf.md)
- - [TaskInstanceReference](docs/TaskInstanceReference.md)
- - [TaskInstanceReferenceCollection](docs/TaskInstanceReferenceCollection.md)
+ - [DagStatsCollectionResponse](docs/DagStatsCollectionResponse.md)
+ - [DagStatsResponse](docs/DagStatsResponse.md)
+ - [DagStatsStateResponse](docs/DagStatsStateResponse.md)
+ - [DagTagResponse](docs/DagTagResponse.md)
+ - [DagVersionResponse](docs/DagVersionResponse.md)
+ - [DagWarningType](docs/DagWarningType.md)
+ - [Detail](docs/Detail.md)
+ - [DryRunBackfillCollectionResponse](docs/DryRunBackfillCollectionResponse.md)
+ - [DryRunBackfillResponse](docs/DryRunBackfillResponse.md)
+ - [EventLogCollectionResponse](docs/EventLogCollectionResponse.md)
+ - [EventLogResponse](docs/EventLogResponse.md)
+ - [ExtraLinkCollectionResponse](docs/ExtraLinkCollectionResponse.md)
+ - [FastAPIAppResponse](docs/FastAPIAppResponse.md)
+ - [FastAPIRootMiddlewareResponse](docs/FastAPIRootMiddlewareResponse.md)
+ - [HTTPExceptionResponse](docs/HTTPExceptionResponse.md)
+ - [HTTPValidationError](docs/HTTPValidationError.md)
+ - [HealthInfoResponse](docs/HealthInfoResponse.md)
+ - [ImportErrorCollectionResponse](docs/ImportErrorCollectionResponse.md)
+ - [ImportErrorResponse](docs/ImportErrorResponse.md)
+ - [JobCollectionResponse](docs/JobCollectionResponse.md)
+ - [JobResponse](docs/JobResponse.md)
+ - [PatchTaskInstanceBody](docs/PatchTaskInstanceBody.md)
+ - [PluginCollectionResponse](docs/PluginCollectionResponse.md)
+ - [PluginResponse](docs/PluginResponse.md)
+ - [PoolBody](docs/PoolBody.md)
+ - [PoolCollectionResponse](docs/PoolCollectionResponse.md)
+ - [PoolPatchBody](docs/PoolPatchBody.md)
+ - [PoolResponse](docs/PoolResponse.md)
+ - [ProviderCollectionResponse](docs/ProviderCollectionResponse.md)
+ - [ProviderResponse](docs/ProviderResponse.md)
+ - [QueuedEventCollectionResponse](docs/QueuedEventCollectionResponse.md)
+ - [QueuedEventResponse](docs/QueuedEventResponse.md)
+ - [ReprocessBehavior](docs/ReprocessBehavior.md)
+ - [ResponseClearDagRun](docs/ResponseClearDagRun.md)
+ - [ResponseGetXcomEntry](docs/ResponseGetXcomEntry.md)
+ - [SchedulerInfoResponse](docs/SchedulerInfoResponse.md)
+ - [StructuredLogMessage](docs/StructuredLogMessage.md)
+ - [TaskCollectionResponse](docs/TaskCollectionResponse.md)
+ - [TaskDependencyCollectionResponse](docs/TaskDependencyCollectionResponse.md)
+ - [TaskDependencyResponse](docs/TaskDependencyResponse.md)
+ - [TaskInstanceCollectionResponse](docs/TaskInstanceCollectionResponse.md)
+ - [TaskInstanceHistoryCollectionResponse](docs/TaskInstanceHistoryCollectionResponse.md)
+ - [TaskInstanceHistoryResponse](docs/TaskInstanceHistoryResponse.md)
+ - [TaskInstanceResponse](docs/TaskInstanceResponse.md)
+ - [TaskInstanceState](docs/TaskInstanceState.md)
+ - [TaskInstancesBatchBody](docs/TaskInstancesBatchBody.md)
+ - [TaskInstancesLogResponse](docs/TaskInstancesLogResponse.md)
  - [TaskOutletAssetReference](docs/TaskOutletAssetReference.md)
- - [TaskState](docs/TaskState.md)
+ - [TaskResponse](docs/TaskResponse.md)
  - [TimeDelta](docs/TimeDelta.md)
- - [Trigger](docs/Trigger.md)
- - [TriggerRule](docs/TriggerRule.md)
- - [UpdateDagRunState](docs/UpdateDagRunState.md)
- - [UpdateTaskInstance](docs/UpdateTaskInstance.md)
- - [UpdateTaskInstancesState](docs/UpdateTaskInstancesState.md)
- - [User](docs/User.md)
- - [UserAllOf](docs/UserAllOf.md)
- - [UserCollection](docs/UserCollection.md)
- - [UserCollectionAllOf](docs/UserCollectionAllOf.md)
- - [UserCollectionItem](docs/UserCollectionItem.md)
- - [UserCollectionItemRoles](docs/UserCollectionItemRoles.md)
- - [Variable](docs/Variable.md)
- - [VariableAllOf](docs/VariableAllOf.md)
- - [VariableCollection](docs/VariableCollection.md)
- - [VariableCollectionAllOf](docs/VariableCollectionAllOf.md)
- - [VariableCollectionItem](docs/VariableCollectionItem.md)
+ - [TriggerDAGRunPostBody](docs/TriggerDAGRunPostBody.md)
+ - [TriggerResponse](docs/TriggerResponse.md)
+ - [TriggererInfoResponse](docs/TriggererInfoResponse.md)
+ - [ValidationError](docs/ValidationError.md)
+ - [ValidationErrorLocInner](docs/ValidationErrorLocInner.md)
+ - [Value](docs/Value.md)
+ - [VariableBody](docs/VariableBody.md)
+ - [VariableCollectionResponse](docs/VariableCollectionResponse.md)
+ - [VariableResponse](docs/VariableResponse.md)
  - [VersionInfo](docs/VersionInfo.md)
- - [WeightRule](docs/WeightRule.md)
- - [XCom](docs/XCom.md)
- - [XComAllOf](docs/XComAllOf.md)
- - [XComCollection](docs/XComCollection.md)
- - [XComCollectionAllOf](docs/XComCollectionAllOf.md)
- - [XComCollectionItem](docs/XComCollectionItem.md)
+ - [XComCollectionResponse](docs/XComCollectionResponse.md)
+ - [XComCreateBody](docs/XComCreateBody.md)
+ - [XComResponse](docs/XComResponse.md)
+ - [XComResponseNative](docs/XComResponseNative.md)
+ - [XComResponseString](docs/XComResponseString.md)
+ - [XComUpdateBody](docs/XComUpdateBody.md)
 
 ## Documentation For Authorization
 
@@ -515,6 +591,7 @@ By default the generated client supports the three authentication schemes:
 * Basic
 * GoogleOpenID
 * Kerberos
+* OAuth2PasswordBearer
 
 However, you can generate client and documentation with your own schemes by adding your own schemes in
 the security section of the OpenAPI specification. You can do it with Breeze CLI by adding the
@@ -534,11 +611,11 @@ that uses the API to run the tests. To do that, you need to:
 
 ```ini
 [api]
-auth_backend = airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+auth_backend = airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 ```
 
 You can also set it by env variable:
-`export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth`
+`export AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth`
 
 * configure your airflow webserver to load example dags
   In the `[core]` section of your `airflow.cfg` set:
@@ -552,24 +629,22 @@ You can also set it by env variable: `export AIRFLOW__CORE__LOAD_EXAMPLES=True`
 
 * optionally expose configuration (NOTE! that this is dangerous setting). The script will happily run with
   the default setting, but if you want to see the configuration, you need to expose it.
-  In the `[webserver]` section of your `airflow.cfg` set:
+  In the `[api]` section of your `airflow.cfg` set:
 
 ```ini
-[webserver]
+[api]
 expose_config = True
 ```
 
-You can also set it by env variable: `export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True`
+You can also set it by env variable: `export AIRFLOW__API__EXPOSE_CONFIG=True`
 
 * Configure your host/ip/user/password in the `test_python_client.py` file
 
 ```python
 import airflow_client
 
-# Configure HTTP basic authorization: Basic
-configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080/api/v1", username="admin", password="admin"
-)
+# get the access token from Airflow API Server via /auth/token
+configuration = airflow_client.client.Configuration(host="http://localhost:8080", access_token=access_token)
 ```
 
 * Run scheduler (or dag file processor you have setup with standalone dag file processor) for few parsing
@@ -602,7 +677,7 @@ import sys
 
 sys.setrecursionlimit(1500)
 import airflow_client.client
-from airflow_client.client.apis import *
+from airflow_client.client.api import *
 from airflow_client.client.models import *
 ```
 

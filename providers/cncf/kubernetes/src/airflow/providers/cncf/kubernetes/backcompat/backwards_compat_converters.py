@@ -27,20 +27,18 @@ def _convert_kube_model_object(obj, new_class):
     convert_op = getattr(obj, "to_k8s_client_obj", None)
     if callable(convert_op):
         return obj.to_k8s_client_obj()
-    elif isinstance(obj, new_class):
+    if isinstance(obj, new_class):
         return obj
-    else:
-        raise AirflowException(f"Expected {new_class}, got {type(obj)}")
+    raise AirflowException(f"Expected {new_class}, got {type(obj)}")
 
 
 def _convert_from_dict(obj, new_class):
     if isinstance(obj, new_class):
         return obj
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         api_client = ApiClient()
         return api_client._ApiClient__deserialize_model(obj, new_class)
-    else:
-        raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")
+    raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")
 
 
 def convert_volume(volume) -> k8s.V1Volume:
@@ -111,8 +109,7 @@ def convert_image_pull_secrets(image_pull_secrets) -> list[k8s.V1LocalObjectRefe
     if isinstance(image_pull_secrets, str):
         secrets = image_pull_secrets.split(",")
         return [k8s.V1LocalObjectReference(name=secret) for secret in secrets]
-    else:
-        return image_pull_secrets
+    return image_pull_secrets
 
 
 def convert_configmap(configmaps) -> k8s.V1EnvFromSource:

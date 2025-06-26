@@ -22,7 +22,6 @@ from collections.abc import AsyncIterator
 from typing import IO, Any
 
 from airflow.providers.apache.beam.hooks.beam import BeamAsyncHook
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -32,6 +31,37 @@ class BeamPipelineBaseTrigger(BaseTrigger):
     @staticmethod
     def _get_async_hook(*args, **kwargs) -> BeamAsyncHook:
         return BeamAsyncHook(*args, **kwargs)
+
+    @staticmethod
+    def file_has_gcs_path(file_path: str):
+        return file_path.lower().startswith("gs://")
+
+    @staticmethod
+    async def provide_gcs_tempfile(gcs_file, gcp_conn_id):
+        try:
+            from airflow.providers.google.cloud.hooks.gcs import GCSHook
+        except ImportError:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Failed to import GCSHook. To use the GCSHook functionality, please install the "
+                "apache-airflow-google-provider."
+            )
+
+        gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+        loop = asyncio.get_running_loop()
+
+        # Running synchronous `enter_context()` method in a separate
+        # thread using the default executor `None`. The `run_in_executor()` function returns the
+        # file object, which is created using gcs function `provide_file()`, asynchronously.
+        # This means we can perform asynchronous operations with this file.
+        create_tmp_file_call = gcs_hook.provide_file(object_url=gcs_file)
+        tmp_gcs_file: IO[str] = await loop.run_in_executor(
+            None,
+            contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+            create_tmp_file_call,
+        )
+        return tmp_gcs_file
 
 
 class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
@@ -101,20 +131,8 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         hook = self._get_async_hook(runner=self.runner)
 
         try:
-            # Get the current running event loop to manage I/O operations asynchronously
-            loop = asyncio.get_running_loop()
-            if self.py_file.lower().startswith("gs://"):
-                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
-                # Running synchronous `enter_context()` method in a separate
-                # thread using the default executor `None`. The `run_in_executor()` function returns the
-                # file object, which is created using gcs function `provide_file()`, asynchronously.
-                # This means we can perform asynchronous operations with this file.
-                create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
-                tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                    None,
-                    contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
-                    create_tmp_file_call,
-                )
+            if self.file_has_gcs_path(self.py_file):
+                tmp_gcs_file = await self.provide_gcs_tempfile(self.py_file, self.gcp_conn_id)
                 self.py_file = tmp_gcs_file.name
 
             return_code = await hook.start_python_pipeline_async(
@@ -188,20 +206,8 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         hook = self._get_async_hook(runner=self.runner)
         return_code = 0
         try:
-            # Get the current running event loop to manage I/O operations asynchronously
-            loop = asyncio.get_running_loop()
-            if self.jar.lower().startswith("gs://"):
-                gcs_hook = GCSHook(self.gcp_conn_id)
-                # Running synchronous `enter_context()` method in a separate
-                # thread using the default executor `None`. The `run_in_executor()` function returns the
-                # file object, which is created using gcs function `provide_file()`, asynchronously.
-                # This means we can perform asynchronous operations with this file.
-                create_tmp_file_call = gcs_hook.provide_file(object_url=self.jar)
-                tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                    None,
-                    contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
-                    create_tmp_file_call,
-                )
+            if self.file_has_gcs_path(self.jar):
+                tmp_gcs_file = await self.provide_gcs_tempfile(self.jar, self.gcp_conn_id)
                 self.jar = tmp_gcs_file.name
 
             return_code = await hook.start_java_pipeline_async(

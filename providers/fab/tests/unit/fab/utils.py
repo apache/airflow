@@ -211,27 +211,17 @@ class _TemplateWithContext(NamedTuple):
             # flask_appbuilder.baseviews.BaseView.render_template
             "appbuilder",
             "base_template",
-            # airflow.www.app.py.create_app (inner method - jinja_globals)
             "server_timezone",
-            "default_ui_timezone",
             "hostname",
             "navbar_color",
             "navbar_text_color",
             "navbar_hover_color",
             "navbar_text_hover_color",
-            "navbar_logo_text_color",
-            "log_fetch_delay_sec",
-            "log_auto_tailing_offset",
-            "log_animation_speed",
-            "state_color_mapping",
             "airflow_version",
             "git_version",
             "k8s_or_k8scelery_executor",
-            # airflow.www.static_config.configure_manifest_files
             "url_for_asset",
-            # airflow.www.views.AirflowBaseView.render_template
             "scheduler_job",
-            # airflow.www.views.AirflowBaseView.extra_args
             "macros",
             "auth_manager",
             "triggerer_job",

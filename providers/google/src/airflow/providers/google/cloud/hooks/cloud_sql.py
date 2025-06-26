@@ -634,35 +634,32 @@ class CloudSqlProxyRunner(LoggingMixin):
         self._download_sql_proxy_if_needed()
         if self.sql_proxy_process:
             raise AirflowException(f"The sql proxy is already running: {self.sql_proxy_process}")
-        else:
-            command_to_run = [self.sql_proxy_path]
-            command_to_run.extend(self.command_line_parameters)
-            self.log.info("Creating directory %s", self.cloud_sql_proxy_socket_directory)
-            Path(self.cloud_sql_proxy_socket_directory).mkdir(parents=True, exist_ok=True)
-            command_to_run.extend(self._get_credential_parameters())
-            self.log.info("Running the command: `%s`", " ".join(command_to_run))
+        command_to_run = [self.sql_proxy_path]
+        command_to_run.extend(self.command_line_parameters)
+        self.log.info("Creating directory %s", self.cloud_sql_proxy_socket_directory)
+        Path(self.cloud_sql_proxy_socket_directory).mkdir(parents=True, exist_ok=True)
+        command_to_run.extend(self._get_credential_parameters())
+        self.log.info("Running the command: `%s`", " ".join(command_to_run))
 
-            self.sql_proxy_process = Popen(command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-            self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
-            while True:
-                line = (
-                    self.sql_proxy_process.stderr.readline().decode("utf-8")
-                    if self.sql_proxy_process.stderr
-                    else ""
-                )
-                return_code = self.sql_proxy_process.poll()
-                if line == "" and return_code is not None:
-                    self.sql_proxy_process = None
-                    raise AirflowException(
-                        f"The cloud_sql_proxy finished early with return code {return_code}!"
-                    )
-                if line != "":
-                    self.log.info(line)
-                if "googleapi: Error" in line or "invalid instance name:" in line:
-                    self.stop_proxy()
-                    raise AirflowException(f"Error when starting the cloud_sql_proxy {line}!")
-                if "Ready for new connections" in line:
-                    return
+        self.sql_proxy_process = Popen(command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
+        while True:
+            line = (
+                self.sql_proxy_process.stderr.readline().decode("utf-8")
+                if self.sql_proxy_process.stderr
+                else ""
+            )
+            return_code = self.sql_proxy_process.poll()
+            if line == "" and return_code is not None:
+                self.sql_proxy_process = None
+                raise AirflowException(f"The cloud_sql_proxy finished early with return code {return_code}!")
+            if line != "":
+                self.log.info(line)
+            if "googleapi: Error" in line or "invalid instance name:" in line:
+                self.stop_proxy()
+                raise AirflowException(f"Error when starting the cloud_sql_proxy {line}!")
+            if "Ready for new connections" in line:
+                return
 
     def stop_proxy(self) -> None:
         """
@@ -672,10 +669,9 @@ class CloudSqlProxyRunner(LoggingMixin):
         """
         if not self.sql_proxy_process:
             raise AirflowException("The sql proxy is not started yet")
-        else:
-            self.log.info("Stopping the cloud_sql_proxy pid: %s", self.sql_proxy_process.pid)
-            self.sql_proxy_process.kill()
-            self.sql_proxy_process = None
+        self.log.info("Stopping the cloud_sql_proxy pid: %s", self.sql_proxy_process.pid)
+        self.sql_proxy_process.kill()
+        self.sql_proxy_process = None
         # Cleanup!
         self.log.info("Removing the socket directory: %s", self.cloud_sql_proxy_socket_directory)
         shutil.rmtree(self.cloud_sql_proxy_socket_directory, ignore_errors=True)
@@ -704,8 +700,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         matched = re.search("[Vv]ersion (.*?);", result)
         if matched:
             return matched.group(1)
-        else:
-            return None
+        return None
 
     def get_socket_path(self) -> str:
         """
@@ -908,10 +903,9 @@ class CloudSQLDatabaseHook(BaseHook):
         secret_data = json.loads(base64.b64decode(secret.payload.data))
         if cert_name in secret_data:
             return secret_data[cert_name]
-        else:
-            raise AirflowException(
-                "Invalid secret format. Expected dictionary with keys: `sslcert`, `sslkey`, `sslrootcert`"
-            )
+        raise AirflowException(
+            "Invalid secret format. Expected dictionary with keys: `sslcert`, `sslkey`, `sslrootcert`"
+        )
 
     def _set_temporary_ssl_file(
         self, cert_name: str, cert_path: str | None = None, cert_value: str | None = None
@@ -1205,8 +1199,7 @@ class CloudSQLDatabaseHook(BaseHook):
 
         if self.database_type == "postgres":
             return self.cloudsql_connection.login.split(".gserviceaccount.com")[0]
-        else:
-            return self.cloudsql_connection.login.split("@")[0]
+        return self.cloudsql_connection.login.split("@")[0]
 
     def _generate_login_token(self, service_account) -> str:
         """Generate an IAM login token for Cloud SQL and return the token."""

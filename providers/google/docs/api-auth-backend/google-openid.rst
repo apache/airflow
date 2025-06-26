@@ -18,6 +18,8 @@
 Google OpenID authentication
 ''''''''''''''''''''''''''''
 
+.. note:: This authentication mechanism only works for Airflow 2.x
+
 You can also configure
 `Google OpenID <https://developers.google.com/identity/protocols/oauth2/openid-connect>`__
 for authentication. To enable it, set the following option in the configuration:

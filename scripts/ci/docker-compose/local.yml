@@ -27,6 +27,8 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
+      - root-airflow-volume:/root/airflow/
+      - airflow-cache-volume:/root/.cache
       # START automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
       - type: bind
         source: ../../../.bash_aliases
@@ -53,14 +55,14 @@ services:
         source: ../../../LICENSE
         target: /opt/airflow/LICENSE
       - type: bind
-        source: ../../../NOTICE
-        target: /opt/airflow/NOTICE
-      - type: bind
         source: ../../../RELEASE_NOTES.rst
         target: /opt/airflow/RELEASE_NOTES.rst
       - type: bind
-        source: ../../../airflow
-        target: /opt/airflow/airflow
+        source: ../../../airflow-core
+        target: /opt/airflow/airflow-core
+      - type: bind
+        source: ../../../airflow-ctl
+        target: /opt/airflow/airflow-ctl
       - type: bind
         source: ../../../constraints
         target: /opt/airflow/constraints
@@ -77,11 +79,14 @@ services:
         source: ../../../docs
         target: /opt/airflow/docs
       - type: bind
+        source: ../../../docker-stack-docs
+        target: /opt/airflow/docker-stack-docs
+      - type: bind
+        source: ../../../providers-summary-docs
+        target: /opt/airflow/providers-summary-docs
+      - type: bind
         source: ../../../generated
         target: /opt/airflow/generated
-      - type: bind
-        source: ../../../hooks
-        target: /opt/airflow/hooks
       - type: bind
         source: ../../../logs
         target: /root/airflow/logs
@@ -89,8 +94,8 @@ services:
         source: ../../../providers
         target: /opt/airflow/providers
       - type: bind
-        source: ../../../task_sdk
-        target: /opt/airflow/task_sdk
+        source: ../../../task-sdk
+        target: /opt/airflow/task-sdk
       - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
@@ -101,24 +106,21 @@ services:
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
       - type: bind
-        source: ../../../tests_common
-        target: /opt/airflow/tests_common
+        source: ../../../devel-common
+        target: /opt/airflow/devel-common
       - type: bind
-        source: ../../../tests
-        target: /opt/airflow/tests
+        source: ../../../helm-tests
+        target: /opt/airflow/helm-tests
       - type: bind
-        source: ../../../helm_tests
-        target: /opt/airflow/helm_tests
+        source: ../../../kubernetes-tests
+        target: /opt/airflow/kubernetes-tests
       - type: bind
-        source: ../../../kubernetes_tests
-        target: /opt/airflow/kubernetes_tests
-      - type: bind
-        source: ../../../docker_tests
-        target: /opt/airflow/docker_tests
+        source: ../../../docker-tests
+        target: /opt/airflow/docker-tests
       - type: bind
         source: ../../../chart
         target: /opt/airflow/chart
-      - type: bind
-        source: ../../../hatch_build.py
-        target: /opt/airflow/hatch_build.py
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
+volumes:
+  root-airflow-volume:
+  airflow-cache-volume:

@@ -125,9 +125,7 @@ with DAG(
         load_to_hive = HiveOperator(
             task_id=f"load_{channel}_to_hive",
             hql=(
-                f"LOAD DATA INPATH '{hdfs_dir}{channel}/{file_name}'"
-                f"INTO TABLE {channel}"
-                f"PARTITION(dt='{dt}')"
+                f"LOAD DATA INPATH '{hdfs_dir}{channel}/{file_name}'INTO TABLE {channel}PARTITION(dt='{dt}')"
             ),
         )
         # [END create_hive]

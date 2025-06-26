@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 EXECUTION_ARN = (

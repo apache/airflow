@@ -46,7 +46,7 @@ The time span is defined by the time span's start and end timestamps. If a DAG
 does not have a *next* DAG instance scheduled, the time span end infinite, meaning the operator
 processes all files older than ``data_interval_start``.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_transform_timespan.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_transform_timespan.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_timespan_file_transform_operator_Task]
@@ -66,7 +66,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_acl.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_acl.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -75,7 +75,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/gcs.py
+.. literalinclude:: /../../google/src/airflow/providers/google/cloud/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_bucket_create_acl_template_fields]
@@ -100,7 +100,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_acl.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_acl.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
@@ -109,7 +109,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/gcs.py
+.. literalinclude:: /../../google/src/airflow/providers/google/cloud/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_object_create_acl_template_fields]
@@ -132,7 +132,7 @@ Use the
 to list objects in a Google Cloud Storage bucket. Optionally specify a prefix to list only objects whose
 names begin with that prefix, and a delimiter to emulate directory-like organization.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_list_bucket]
@@ -147,7 +147,7 @@ Use the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator`
 to delete one or more objects from a Google Cloud Storage bucket.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_delete_object]
@@ -162,7 +162,7 @@ Deleting Bucket allows you to remove bucket object from the Google Cloud Storage
 It is performed through the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator` operator.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_upload_download.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_upload_download.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_delete_bucket]
@@ -191,7 +191,7 @@ GCSObjectExistenceSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor` to wait (poll) for the existence of a file in Google Cloud Storage.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_exists_task]
@@ -199,7 +199,7 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSe
 
 Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_exists_task_defered]
@@ -212,7 +212,7 @@ GCSObjectsWithPrefixExistenceSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor` to wait (poll) for the existence of a file with a specified prefix in Google Cloud Storage.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_with_prefix_exists_task]
@@ -222,7 +222,7 @@ You can set the ``deferrable`` param to True if you want this sensor to run asyn
 efficient utilization of resources in your Airflow deployment. However the triggerer component needs to be enabled
 for this functionality to work.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_with_prefix_exists_task_async]
@@ -237,7 +237,7 @@ GCSUploadSessionCompleteSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor` to check for a change in the number of files with a specified prefix in Google Cloud Storage.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_gcs_upload_session_complete_task]
@@ -246,7 +246,7 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionComp
 You can set the parameter ``deferrable`` to True if you want the worker slots to be freed up while sensor is running.
 
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_gcs_upload_session_async_task]
@@ -259,7 +259,7 @@ GCSObjectUpdateSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor` to check if an object is updated in Google Cloud Storage.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_update_exists_task]
@@ -269,7 +269,7 @@ You can set the ``deferrable`` param to True if you want this sensor to run asyn
 utilization of resources in your Airflow deployment. However the triggerer component needs to be enabled
 for this functionality to work.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_update_exists_task_async]

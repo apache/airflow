@@ -99,8 +99,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
     def get_namespace(self) -> str:
         if self._namespace:
             return self._namespace
-        else:
-            return self.hook.get_namespace() or "default"
+        return self.hook.get_namespace() or "default"
 
     def get_crd_fields(self, body: dict) -> tuple[str, str, str, str]:
         api_version = body["apiVersion"]

@@ -23,14 +23,26 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import prestodb
+from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.presto.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+else:
+    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
+        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+        DEFAULT_FORMAT_PREFIX,
+    )
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -68,7 +80,7 @@ def _boolify(value):
     if isinstance(value, str):
         if value.lower() == "false":
             return False
-        elif value.lower() == "true":
+        if value.lower() == "true":
             return True
     return value
 
@@ -100,7 +112,7 @@ class PrestoHook(DbApiHook):
         auth = None
         if db.password and extra.get("auth") == "kerberos":
             raise AirflowException("Kerberos authorization doesn't support password.")
-        elif db.password:
+        if db.password:
             auth = prestodb.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "kerberos":
             auth = prestodb.auth.KerberosAuthentication(
@@ -212,8 +224,13 @@ class PrestoHook(DbApiHook):
         """
         return super().run(sql, autocommit, parameters, handler, split_statements, return_last)
 
-    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        import pandas as pd
+    def _get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import pandas as pd
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Pandas is not installed. Please install it with `pip install pandas`."
+            )
 
         cursor = self.get_cursor()
         try:
@@ -228,6 +245,40 @@ class PrestoHook(DbApiHook):
         else:
             df = pd.DataFrame(**kwargs)
         return df
+
+    def _get_polars_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        cursor = self.get_cursor()
+        try:
+            cursor.execute(self.strip_sql_string(sql), parameters)
+            data = cursor.fetchall()
+        except DatabaseError as e:
+            raise PrestoException(e)
+        column_descriptions = cursor.description
+        if data:
+            df = pl.DataFrame(
+                data,
+                schema=[c[0] for c in column_descriptions],
+                orient="row",
+                **kwargs,
+            )
+        else:
+            df = pl.DataFrame(**kwargs)
+        return df
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def insert_rows(
         self,

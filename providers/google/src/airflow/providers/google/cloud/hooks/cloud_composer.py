@@ -52,8 +52,10 @@ if TYPE_CHECKING:
     )
     from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
-class CloudComposerHook(GoogleBaseHook):
+
+class CloudComposerHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Composer APIs."""
 
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
@@ -73,14 +75,6 @@ class CloudComposerHook(GoogleBaseHook):
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     def get_operation(self, operation_name):
         return self.get_environment_client().transport.operations_client.get_operation(name=operation_name)

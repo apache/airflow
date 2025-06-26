@@ -134,8 +134,7 @@ def mock_conn(request):
         return conn
     if request.param == "wrapped":
         return AwsConnectionWrapper(conn=conn)
-    else:
-        raise ValueError("invalid internal test config")
+    raise ValueError("invalid internal test config")
 
 
 class TestSessionFactory:
@@ -884,7 +883,6 @@ class TestAwsBaseHook:
         assert result
         assert hook.client_type == "s3"  # Same client_type which defined during initialisation
 
-    @pytest.mark.db_test
     @mock.patch("boto3.session.Session")
     def test_hook_connection_test_failed(self, mock_boto3_session):
         """Test ``test_connection`` failure."""
@@ -1136,7 +1134,6 @@ def test_waiter_config_params_not_provided(waiter_path_mock: MagicMock, caplog):
     assert "PARAM_1" in str(ae.value)
 
 
-@pytest.mark.db_test
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_no_params_needed(waiter_path_mock: MagicMock, caplog):
     waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION

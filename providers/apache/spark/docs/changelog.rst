@@ -29,6 +29,109 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``add root parent information to OpenLineage events (#49237)``
+
+Misc
+~~~~
+
+* ``Bump Pyspark to even higher version (#50308)``
+* ``Lower bind pyspark and pydruid to relatively new versions (#50205)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add openlineage as Extra dep for Spark provider (#48972)``
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+
+5.1.1
+.....
+
+Features
+~~~~~~~~
+
+* ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+5.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``spark on kubernetes removes dependency on Spark Exit code (#46817)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+Doc-only
+~~~~~~~~
+
+* ``Include driver classpath in --jars cmd docstring in spark-submit hook and operator (#45210)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Add run_after column to DagRun model (#45732)``
+   * ``Move Apache Spark to new provider structure (#46108)``
+
 5.0.0
 .....
 
@@ -256,7 +359,7 @@ Misc
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 4.4.0
 .....

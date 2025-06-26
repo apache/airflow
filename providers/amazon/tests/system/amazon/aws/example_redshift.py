@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_redshift"
@@ -73,7 +74,7 @@ with DAG(
         cluster_subnet_group_name=cluster_subnet_group_name,
         publicly_accessible=False,
         cluster_type="single-node",
-        node_type="dc2.large",
+        node_type="ra3.large",
         master_username=DB_LOGIN,
         master_user_password=DB_PASS,
     )

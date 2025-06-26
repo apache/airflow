@@ -21,9 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockBatchInferenceSensor,
     BedrockCustomizeModelCompletedSensor,
     BedrockIngestionJobSensor,
     BedrockKnowledgeBaseActiveSensor,
@@ -244,3 +245,95 @@ class TestBedrockIngestionJobSensor:
         sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+
+class TestBedrockBatchInferenceSensor:
+    SENSOR = BedrockBatchInferenceSensor
+
+    @pytest.fixture(
+        params=[
+            BedrockBatchInferenceSensor.SuccessState.COMPLETED,
+            BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
+        ]
+    )
+    def success_state(self, request):
+        return request.param
+
+    @pytest.fixture(params=["deferrable", "not deferrable"])
+    def is_deferrable(self, request):
+        # I did it this way instead of passing True/False purely so the pytest names are more descriptive.
+        return request.param == "deferrable"
+
+    def setup_method(self, is_deferrable):
+        self.default_op_kwargs = dict(
+            task_id="test_bedrock_batch_inference_sensor",
+            job_arn="job_arn",
+            deferrable=is_deferrable,
+        )
+
+    def test_base_aws_op_attributes(self, success_state):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
+
+        if success_state == BedrockBatchInferenceSensor.SuccessState.COMPLETED:
+            assert "Scheduled" in op.INTERMEDIATE_STATES
+            assert "Scheduled" not in op.SUCCESS_STATES
+        elif success_state == BedrockBatchInferenceSensor.SuccessState.SCHEDULED:
+            assert "Scheduled" in op.SUCCESS_STATES
+            assert "Scheduled" not in op.INTERMEDIATE_STATES
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = self.SENSOR(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_success_states(self, mock_conn, success_state, is_deferrable):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
+
+        for state in op.SUCCESS_STATES:
+            mock_conn.get_model_invocation_job.return_value = {"status": state}
+
+            if is_deferrable:
+                with pytest.raises(TaskDeferred):
+                    op.execute({})
+            else:
+                assert op.poke({}) is True
+
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_intermediate_states(self, mock_conn, success_state, is_deferrable):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
+
+        for state in op.INTERMEDIATE_STATES:
+            mock_conn.get_model_invocation_job.return_value = {"status": state}
+
+            if is_deferrable:
+                with pytest.raises(TaskDeferred):
+                    op.execute({})
+            else:
+                assert op.poke({}) is False
+
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_failure_states(self, mock_conn, success_state, is_deferrable):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
+
+        for state in op.FAILURE_STATES:
+            mock_conn.get_model_invocation_job.return_value = {"status": state}
+
+            if is_deferrable:
+                with pytest.raises(AirflowException, match=op.FAILURE_MESSAGE):
+                    op.poke({})
+            else:
+                with pytest.raises(TaskDeferred):
+                    op.execute({})

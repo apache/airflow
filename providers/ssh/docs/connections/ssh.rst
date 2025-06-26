@@ -99,7 +99,7 @@ Extra (optional)
 
     .. code-block:: bash
 
-       python -c 'import re, sys; print(re.sub("\r\n", "\\\\n", sys.stdin.read()))' < /path/to/your/key
+       python -c 'import re, sys; print(re.sub("\r?\n", "\\\\n", sys.stdin.read()))' < /path/to/your/key
 
     You can then provide the result in the extras JSON as:
 

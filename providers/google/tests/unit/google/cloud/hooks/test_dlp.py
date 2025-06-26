@@ -33,6 +33,7 @@ from google.cloud.dlp_v2.types import DlpJob
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE: dict[Any, Any] = {}

@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.openlineage.extractors import OperatorLineage
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CREATE_PROCESSING_PARAMS: dict = {

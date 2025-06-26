@@ -18,7 +18,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: airflow-webserver-node-port
+  name: airflow-api-server-node-port
 spec:
   type: NodePort
   selector:
@@ -26,6 +26,6 @@ spec:
     release: airflow
     tier: airflow
   ports:
-    - port: 9091
-      targetPort: 9091
+    - port: 8080
+      targetPort: 8080
       nodePort: 30007

@@ -20,9 +20,14 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
-from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+else:
+    from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     try:
@@ -81,5 +86,4 @@ class PythonSensor(BaseSensorOperator):
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
         if isinstance(return_value, PokeReturnValue):
             return return_value
-        else:
-            return PokeReturnValue(bool(return_value))
+        return PokeReturnValue(bool(return_value))

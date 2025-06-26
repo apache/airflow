@@ -127,8 +127,7 @@ class EmrServerlessLogsLink(BaseAwsLink):
         )
         if url:
             return url._replace(path="/logs/SPARK_DRIVER/stdout.gz").geturl()
-        else:
-            return ""
+        return ""
 
 
 class EmrServerlessDashboardLink(BaseAwsLink):
@@ -145,8 +144,7 @@ class EmrServerlessDashboardLink(BaseAwsLink):
         )
         if url:
             return url.geturl()
-        else:
-            return ""
+        return ""
 
 
 class EmrServerlessS3LogsLink(BaseAwsLink):

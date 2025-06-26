@@ -22,17 +22,30 @@ import os
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote_plus, urlencode
 
 import trino
+from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+else:
+    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
+        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+        DEFAULT_FORMAT_PREFIX,
+    )
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -70,7 +83,7 @@ def _boolify(value):
     if isinstance(value, str):
         if value.lower() == "false":
             return False
-        elif value.lower() == "true":
+        if value.lower() == "true":
             return True
     return value
 
@@ -139,7 +152,7 @@ class TrinoHook(DbApiHook):
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
-        elif db.password:
+        if db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
@@ -152,7 +165,7 @@ class TrinoHook(DbApiHook):
                 else:
                     msg += "none of them provided."
                 raise ValueError(msg)
-            elif jwt_file:
+            if jwt_file:
                 token = Path(extra["jwt__file"]).read_text()
             else:
                 token = extra["jwt__token"]
@@ -198,6 +211,8 @@ class TrinoHook(DbApiHook):
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
             timezone=extra.get("timezone") or None,
+            extra_credential=extra.get("extra_credential") or None,
+            roles=extra.get("roles") or None,
         )
 
         return trino_conn
@@ -230,8 +245,13 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
-        import pandas as pd
+    def _get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import pandas as pd
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Pandas is not installed. Please install it with `pip install pandas`."
+            )
 
         cursor = self.get_cursor()
         try:
@@ -292,6 +312,40 @@ class TrinoHook(DbApiHook):
         :return: if handler provided, returns query results (may be list of results depending on params)
         """
         return super().run(sql, autocommit, parameters, handler, split_statements, return_last)
+
+    def _get_polars_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        cursor = self.get_cursor()
+        try:
+            cursor.execute(self.strip_sql_string(sql), parameters)
+            data = cursor.fetchall()
+        except DatabaseError as e:
+            raise TrinoException(e)
+        column_descriptions = cursor.description
+        if data:
+            df = pl.DataFrame(
+                data,
+                schema=[c[0] for c in column_descriptions],
+                orient="row",
+                **kwargs,
+            )
+        else:
+            df = pl.DataFrame(**kwargs)
+        return df
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def insert_rows(
         self,
@@ -361,3 +415,38 @@ class TrinoHook(DbApiHook):
     def get_openlineage_default_schema(self):
         """Return Trino default schema."""
         return trino.constants.DEFAULT_SCHEMA
+
+    def get_uri(self) -> str:
+        """Return the Trino URI for the connection."""
+        conn = self.connection
+        uri = "trino://"
+
+        auth_part = ""
+        if conn.login:
+            auth_part = quote_plus(conn.login)
+            if conn.password:
+                auth_part = f"{auth_part}:{quote_plus(conn.password)}"
+            auth_part = f"{auth_part}@"
+
+        host_part = conn.host or "localhost"
+        if conn.port:
+            host_part = f"{host_part}:{conn.port}"
+
+        schema_part = ""
+        if conn.schema:
+            schema_part = f"/{quote_plus(conn.schema)}"
+            extra_schema = conn.extra_dejson.get("schema")
+            if extra_schema:
+                schema_part = f"{schema_part}/{quote_plus(extra_schema)}"
+
+        uri = f"{uri}{auth_part}{host_part}{schema_part}"
+
+        extra = conn.extra_dejson.copy()
+        if "schema" in extra:
+            extra.pop("schema")
+
+        query_params = {k: str(v) for k, v in extra.items() if v is not None}
+        if query_params:
+            uri = f"{uri}?{urlencode(query_params)}"
+
+        return uri

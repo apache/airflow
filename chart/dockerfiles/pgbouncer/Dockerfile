@@ -18,6 +18,7 @@ ARG ALPINE_VERSION="3.19"
 FROM alpine:${ALPINE_VERSION} AS builder
 SHELL ["/bin/ash", "-e", "-x", "-c", "-o", "pipefail"]
 
+ARG PGBOUNCER_TAG
 ARG PGBOUNCER_VERSION
 ARG AIRFLOW_PGBOUNCER_VERSION
 
@@ -30,7 +31,7 @@ RUN apk --no-cache add make pkgconfig build-base libtool wget gcc g++ libevent-d
 # We are not using Dash so we can safely ignore the "Dash warning"
 # "In dash, something is not supported." https://github.com/koalaman/shellcheck/wiki/SC2169
 # hadolint ignore=SC2169,SC3060
-RUN wget --progress=dot:giga "https://github.com/pgbouncer/pgbouncer/releases/download/pgbouncer_${PGBOUNCER_VERSION//\./_}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" \
+RUN wget --progress=dot:giga "https://github.com/pgbouncer/pgbouncer/releases/download/${PGBOUNCER_TAG}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" \
     && echo "${PGBOUNCER_SHA256}  pgbouncer-${PGBOUNCER_VERSION}.tar.gz" | sha256sum -c - \
     && tar -xzvf pgbouncer-$PGBOUNCER_VERSION.tar.gz
 

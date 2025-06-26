@@ -159,7 +159,7 @@ class HttpHook(BaseHook):
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)
-        if connection.extra:
+        if connection.extra or extra_options:
             session = self._configure_session_from_extra(session, connection, extra_options)
         session = self._configure_session_from_mount_adapters(session)
         if self.default_headers:
@@ -176,8 +176,8 @@ class HttpHook(BaseHook):
             self.base_url = host
         else:
             self.base_url = f"{schema}://{host}" if host else f"{schema}://"
-            if connection.port:
-                self.base_url = f"{self.base_url}:{connection.port}"
+        if connection.port:
+            self.base_url = f"{self.base_url}:{connection.port}"
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
@@ -189,7 +189,7 @@ class HttpHook(BaseHook):
     def _extract_auth(self, connection: Connection) -> Any | None:
         if connection.login:
             return self.auth_type(connection.login, connection.password)
-        elif self._auth_type:
+        if self._auth_type:
             return self.auth_type()
         return None
 
@@ -298,10 +298,10 @@ class HttpHook(BaseHook):
 
         settings = session.merge_environment_settings(
             prepped_request.url,
-            proxies=extra_options.get("proxies", {}),
-            stream=extra_options.get("stream", False),
-            verify=extra_options.get("verify"),
-            cert=extra_options.get("cert"),
+            proxies=session.proxies,
+            stream=session.stream,
+            verify=session.verify,
+            cert=session.cert,
         )
 
         # Send the request.

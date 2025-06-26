@@ -26,19 +26,19 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, console
+from common_precommit_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
 
 # List of files to update and whether to keep total length of the original value when replacing.
 FILES_TO_UPDATE: list[tuple[Path, bool]] = [
-    (AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile.ci", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "pyproject.toml", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
+    (AIRFLOW_ROOT_PATH / "Dockerfile", False),
+    (AIRFLOW_ROOT_PATH / "Dockerfile.ci", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
+    (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
-        AIRFLOW_SOURCES_ROOT_PATH
+        AIRFLOW_ROOT_PATH
         / "dev"
         / "breeze"
         / "src"
@@ -47,14 +47,18 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_SOURCES_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
-    (AIRFLOW_SOURCES_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
+    (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
+    (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
 ]
 
 
 def get_latest_pypi_version(package_name: str) -> str:
-    response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+    response = requests.get(
+        f"https://pypi.org/pypi/{package_name}/json", headers={"User-Agent": "Python requests"}
+    )
     response.raise_for_status()  # Ensure we got a successful response
     data = response.json()
     latest_version = data["info"]["version"]  # The version info is under the 'info' key
@@ -90,18 +94,22 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(uv>=)([0-9]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(uv>=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(UV_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to "
+            r"(\")([0-9.]+)(\"  # Keep this comment to "
             r"allow automatic replacement of uv version)"
         ),
         Quoting.UNQUOTED,
     ),
+]
+
+SETUPTOOLS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_SETUPTOOLS_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
 ]
 
 PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -116,7 +124,7 @@ PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit version)"
         ),
         Quoting.UNQUOTED,
@@ -135,7 +143,7 @@ PRE_COMMIT_UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit-uv version)"
         ),
         Quoting.UNQUOTED,
@@ -150,15 +158,16 @@ NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 def get_replacement(value: str, quoting: Quoting) -> str:
     if quoting == Quoting.DOUBLE_QUOTED:
         return f'"{value}"'
-    elif quoting == Quoting.SINGLE_QUOTED:
+    if quoting == Quoting.SINGLE_QUOTED:
         return f"'{value}'"
-    elif quoting == Quoting.REVERSE_SINGLE_QUOTED:
+    if quoting == Quoting.REVERSE_SINGLE_QUOTED:
         return f"`{value}`"
     return value
 
 
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
+UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
 
@@ -194,6 +203,7 @@ if __name__ == "__main__":
     changed = False
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
+    setuptools_version = get_latest_pypi_version("setuptools")
     pre_commit_version = get_latest_pypi_version("pre-commit")
     pre_commit_uv_version = get_latest_pypi_version("pre-commit-uv")
     node_lts_version = get_latest_lts_node_version()
@@ -206,6 +216,12 @@ if __name__ == "__main__":
             for line_pattern, quoting in PIP_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
+                )
+        if UPGRADE_SETUPTOOLS:
+            console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
+            for line_pattern, quoting in SETUPTOOLS_PATTERNS:
+                new_content = replace_version(
+                    line_pattern, get_replacement(setuptools_version, quoting), new_content, keep_length
                 )
         if UPGRADE_UV:
             console.print(f"[bright_blue]Latest uv version: {uv_version}")

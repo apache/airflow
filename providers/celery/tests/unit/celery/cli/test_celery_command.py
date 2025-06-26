@@ -17,16 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import importlib
+import json
 import os
-from argparse import Namespace
+from io import StringIO
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-import sqlalchemy
 
-import airflow
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 from airflow.executors import executor_loader
@@ -34,40 +34,7 @@ from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-
-pytestmark = pytest.mark.db_test
-
-
-@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
-class TestWorkerPrecheck:
-    @mock.patch("airflow.settings.validate_session")
-    def test_error(self, mock_validate_session):
-        """
-        Test to verify the exit mechanism of airflow-worker cli
-        by mocking validate_session method
-        """
-        mock_validate_session.return_value = False
-        with pytest.raises(SystemExit) as ctx, conf_vars({("core", "executor"): "CeleryExecutor"}):
-            celery_command.worker(Namespace(queues=1, concurrency=1))
-        assert str(ctx.value) == "Worker exiting, database connection precheck failed."
-
-    @conf_vars({("celery", "worker_precheck"): "False"})
-    def test_worker_precheck_exception(self):
-        """
-        Test to check the behaviour of validate_session method
-        when worker_precheck is absent in airflow configuration
-        """
-        assert airflow.settings.validate_session()
-
-    @mock.patch("sqlalchemy.orm.session.Session.execute")
-    @conf_vars({("celery", "worker_precheck"): "True"})
-    def test_validate_session_dbapi_exception(self, mock_session):
-        """
-        Test to validate connection failure scenario on SELECT 1 query
-        """
-        mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
-        assert airflow.settings.validate_session() is False
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -312,7 +279,7 @@ class TestFlowerCommand:
             ]
         )
         mock_open = mock.mock_open()
-        with mock.patch("airflow.cli.commands.local_commands.daemon_utils.open", mock_open):
+        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             celery_command.flower(args)
 
         mock_celery_app.start.assert_called_once_with(
@@ -347,13 +314,6 @@ class TestFlowerCommand:
                 stderr="/tmp/flower-stderr.log",
                 log="/tmp/flower.log",
             )
-            if AIRFLOW_V_2_10_PLUS
-            else mock.call(
-                process="flower",
-                stdout="/tmp/flower-stdout.log",
-                stderr="/tmp/flower-stderr.log",
-                log="/tmp/flower.log",
-            )
         ]
         mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
         assert mock_open.mock_calls == [
@@ -378,14 +338,81 @@ class TestFlowerCommand:
         self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.TimeoutPIDLockFile")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon_v3_above(
         self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file
     ):
         self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
+
+
+class TestRemoteCeleryControlCommands:
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_list_celery_workers(self, mock_inspect):
+        args = self.parser.parse_args(["celery", "list-workers", "--output", "json"])
+        mock_instance = MagicMock()
+        mock_instance.active_queues.return_value = {
+            "celery@host_1": [{"name": "queue1"}, {"name": "queue2"}],
+            "celery@host_2": [{"name": "queue3"}],
+        }
+        mock_inspect.return_value = mock_instance
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            celery_command.list_workers(args)
+            out = temp_stdout.getvalue()
+            celery_workers = json.loads(out)
+        for key in ["worker_name", "queues"]:
+            assert key in celery_workers[0]
+        assert any("celery@host_1" in h["worker_name"] for h in celery_workers)
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.shutdown")
+    def test_shutdown_worker(self, mock_shutdown):
+        args = self.parser.parse_args(["celery", "shutdown-worker", "-H", "celery@host_1"])
+        with patch(
+            "airflow.providers.celery.cli.celery_command._check_if_active_celery_worker", return_value=None
+        ):
+            celery_command.shutdown_worker(args)
+            mock_shutdown.assert_called_once_with(destination=["celery@host_1"])
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.broadcast")
+    def test_shutdown_all_workers(self, mock_broadcast):
+        args = self.parser.parse_args(["celery", "shutdown-all-workers", "-y"])
+        with patch(
+            "airflow.providers.celery.cli.celery_command._check_if_active_celery_worker", return_value=None
+        ):
+            celery_command.shutdown_all_workers(args)
+            mock_broadcast.assert_called_once_with("shutdown")
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.add_consumer")
+    def test_add_queue(self, mock_add_consumer):
+        args = self.parser.parse_args(["celery", "add-queue", "-q", "test1", "-H", "celery@host_1"])
+        with patch(
+            "airflow.providers.celery.cli.celery_command._check_if_active_celery_worker", return_value=None
+        ):
+            celery_command.add_queue(args)
+            mock_add_consumer.assert_called_once_with("test1", destination=["celery@host_1"])
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.cancel_consumer")
+    def test_remove_queue(self, mock_cancel_consumer):
+        args = self.parser.parse_args(["celery", "remove-queue", "-q", "test1", "-H", "celery@host_1"])
+        with patch(
+            "airflow.providers.celery.cli.celery_command._check_if_active_celery_worker", return_value=None
+        ):
+            celery_command.remove_queue(args)
+            mock_cancel_consumer.assert_called_once_with("test1", destination=["celery@host_1"])
 
 
 @patch("airflow.providers.celery.cli.celery_command.Process")

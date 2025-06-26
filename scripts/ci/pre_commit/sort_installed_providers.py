@@ -19,14 +19,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from common_precommit_utils import AIRFLOW_ROOT_PATH
+
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the ./{__file__} command"
     )
-
-
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 
 
 def stable_sort(x):
@@ -44,5 +43,5 @@ def sort_file(path: Path):
 
 
 if __name__ == "__main__":
-    prod_image_installed_providers_path = AIRFLOW_SOURCES / "prod_image_installed_providers.txt"
+    prod_image_installed_providers_path = AIRFLOW_ROOT_PATH / "prod_image_installed_providers.txt"
     sort_file(prod_image_installed_providers_path)

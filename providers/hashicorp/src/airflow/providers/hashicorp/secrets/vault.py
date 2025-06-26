@@ -74,6 +74,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param assume_role_kwargs: AWS assume role param.
         See AWS STS Docs:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
+    :param region: AWS region for STS API calls (for ``aws_iam`` auth_type).
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -108,6 +109,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         secret_id: str | None = None,
         role_id: str | None = None,
         assume_role_kwargs: dict | None = None,
+        region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -149,6 +151,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             secret_id=secret_id,
             role_id=role_id,
             assume_role_kwargs=assume_role_kwargs,
+            region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,
@@ -168,8 +171,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             if len(split_secret_path) < 2:
                 return None, None
             return split_secret_path[0], split_secret_path[1]
-        else:
-            return "", secret_path
+        return "", secret_path
 
     def get_response(self, conn_id: str) -> dict | None:
         """

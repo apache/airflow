@@ -67,7 +67,6 @@ TEST_UPGRADING_PACKAGES: dict[str, str | list[str]] = {
         "--upgrade-boto",
         "--downgrade-sqlalchemy",
         "--downgrade-pendulum",
-        "--remove-arm-packages",
     ],
 }
 
@@ -88,9 +87,10 @@ TEST_ADVANCED_FLAGS_FOR_INSTALLATION: dict[str, str | list[str]] = {
         "--clean-airflow-installation",
         "--force-lowest-dependencies",
         "--install-airflow-with-constraints",
-        "--package-format",
+        "--distribution-format",
         "--use-airflow-version",
-        "--use-packages-from-dist",
+        "--allow-pre-releases",
+        "--use-distributions-from-dist",
     ],
 }
 
@@ -150,6 +150,10 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
         "commands": ["task-sdk-tests"],
     },
     {
+        "name": "Airflow CTL Tests",
+        "commands": ["airflow-ctl-tests"],
+    },
+    {
         "name": "Other Tests",
         "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
     },
@@ -179,6 +183,15 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         TEST_ADVANCED_FLAGS,
     ],
+    "breeze testing airflow-ctl-tests": [
+        {
+            "name": "Test environment",
+            "options": [
+                "--python",
+                "--parallelism",
+            ],
+        },
+    ],
     "breeze testing core-integration-tests": [
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
@@ -195,6 +208,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
         TEST_ADVANCED_FLAGS,
+        TEST_ADVANCED_FLAGS_FOR_INSTALLATION,
     ],
     "breeze testing helm-tests": [
         {
@@ -221,6 +235,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--python",
                 "--skip-docker-compose-deletion",
+                "--include-success-outputs",
                 "--github-repository",
             ],
         }

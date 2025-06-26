@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 ROLE_ARN_KEY = "ROLE_ARN"

@@ -64,8 +64,6 @@ from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExe
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.serialization.serialized_objects import BaseSerialization
 
-pytestmark = pytest.mark.db_test
-
 BATCH_JOB_ID = "job_id"
 
 TEST_CLUSTER_IDENTIFIER = "test-cluster"
@@ -106,9 +104,6 @@ WAITER_DELAY = 5
 MAX_ATTEMPTS = 5
 AWS_CONN_ID = "aws_batch_job_conn"
 AWS_REGION = "us-east-2"
-
-
-pytest.importorskip("aiobotocore")
 
 
 def gen_test_name(trigger):

@@ -280,7 +280,6 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferJobLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=result[NAME],
             )
@@ -370,7 +369,6 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferJobLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=self.job_name,
             )
@@ -516,7 +514,6 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferJobLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=self.job_name,
             )
@@ -589,7 +586,6 @@ class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 operation_name=self.operation_name,
             )
@@ -666,7 +662,6 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 

@@ -146,41 +146,41 @@ the table below.
 This workflow is a regular workflow that performs all checks of Airflow code. The `main` and `v*-*-test`
 pushes are `canary` runs.
 
-| Job                             | Description                                              | PR      | main    | v*-*-test |
-|---------------------------------|----------------------------------------------------------|---------|---------|-----------|
-| Build info                      | Prints detailed information about the build              | Yes     | Yes     | Yes       |
-| Push early cache & images       | Pushes early cache/images to GitHub Registry             |         | Yes (2) | Yes (2)   |
-| Check that image builds quickly | Checks that image builds quickly                         |         | Yes     | Yes       |
-| Build CI images                 | Builds images                                            | Yes     | Yes     | Yes       |
-| Generate constraints/CI verify  | Generate constraints for the build and verify CI image   | Yes     | Yes     | Yes       |
-| Build PROD images               | Builds images                                            | Yes     | Yes     | Yes (3)   |
-| Run breeze tests                | Run unit tests for Breeze                                | Yes     | Yes     | Yes       |
-| Test OpenAPI client gen         | Tests if OpenAPIClient continues to generate             | Yes     | Yes     | Yes       |
-| React WWW tests                 | React UI tests for new Airflow UI                        | Yes     | Yes     | Yes       |
-| Test examples image building    | Tests if PROD image build examples work                  | Yes     | Yes     | Yes       |
-| Test git clone on Windows       | Tests if Git clone for for Windows                       | Yes (4) | Yes (4) | Yes (4)   |
-| Upgrade checks                  | Performs checks if there are some pending upgrades       |         | Yes     | Yes       |
-| Static checks                   | Performs full static checks                              | Yes (5) | Yes     | Yes (6)   |
-| Basic static checks             | Performs basic static checks (no image)                  | Yes (5) |         |           |
-| Build and publish docs          | Builds and tests publishing of the documentation         | Yes (8) | Yes (8) | Yes (8)   |
-| Spellcheck docs                 | Spellcheck docs                                          | Yes     | Yes     | Yes (7)   |
-| Tests wheel provider packages   | Tests if provider packages can be built and released     | Yes     | Yes     |           |
-| Tests Airflow compatibility     | Compatibility of provider packages with older Airflow    | Yes     | Yes     |           |
-| Tests dist provider packages    | Tests if dist provider packages can be built             |         | Yes     |           |
-| Tests airflow release commands  | Tests if airflow release command works                   |         | Yes     | Yes       |
-| DB tests matrix                 | Run the Pytest unit DB tests                             | Yes     | Yes     | Yes (7)   |
-| No DB tests                     | Run the Pytest unit Non-DB tests (with pytest-xdist)     | Yes     | Yes     | Yes (7)   |
-| Integration tests               | Runs integration tests (Postgres/Mysql)                  | Yes     | Yes     | Yes (7)   |
-| Quarantined tests               | Runs quarantined tests (with flakiness and side-effects) | Yes     | Yes     | Yes (7)   |
-| Test airflow packages           | Tests that Airflow package can be built and released     | Yes     | Yes     | Yes       |
-| Helm tests                      | Run the Helm integration tests                           | Yes     | Yes     |           |
-| Helm release tests              | Run the tests for Helm releasing                         | Yes     | Yes     |           |
-| Summarize warnings              | Summarizes warnings from all other tests                 | Yes     | Yes     | Yes       |
-| Docker Compose test/PROD verify | Tests quick-start Docker Compose and verify PROD image   | Yes     | Yes     | Yes       |
-| Tests Kubernetes                | Run Kubernetes test                                      | Yes     | Yes     |           |
-| Update constraints              | Upgrade constraints to latest ones                       | Yes     | Yes (2) | Yes (2)   |
-| Push cache & images             | Pushes cache/images to GitHub Registry (3)               |         | Yes (3) |           |
-| Build CI ARM images             | Builds CI images for ARM                                 | Yes (9) |         |           |
+| Job                                | Description                                                | PR      | main    | v*-*-test |
+|------------------------------------|------------------------------------------------------------|---------|---------|-----------|
+| Build info                         | Prints detailed information about the build                | Yes     | Yes     | Yes       |
+| Push early cache & images          | Pushes early cache/images to GitHub Registry               |         | Yes (2) | Yes (2)   |
+| Check that image builds quickly    | Checks that image builds quickly                           |         | Yes     | Yes       |
+| Build CI images                    | Builds images                                              | Yes     | Yes     | Yes       |
+| Generate constraints/CI verify     | Generate constraints for the build and verify CI image     | Yes     | Yes     | Yes       |
+| Build PROD images                  | Builds images                                              | Yes     | Yes     | Yes (3)   |
+| Run breeze tests                   | Run unit tests for Breeze                                  | Yes     | Yes     | Yes       |
+| Test OpenAPI client gen            | Tests if OpenAPIClient continues to generate               | Yes     | Yes     | Yes       |
+| React WWW tests                    | React UI tests for new Airflow UI                          | Yes     | Yes     | Yes       |
+| Test examples image building       | Tests if PROD image build examples work                    | Yes     | Yes     | Yes       |
+| Test git clone on Windows          | Tests if Git clone for for Windows                         | Yes (4) | Yes (4) | Yes (4)   |
+| Upgrade checks                     | Performs checks if there are some pending upgrades         |         | Yes     | Yes       |
+| Static checks                      | Performs full static checks                                | Yes (5) | Yes     | Yes (6)   |
+| Basic static checks                | Performs basic static checks (no image)                    | Yes (5) |         |           |
+| Build and publish docs             | Builds and tests publishing of the documentation           | Yes (8) | Yes (8) | Yes (8)   |
+| Spellcheck docs                    | Spellcheck docs                                            | Yes     | Yes     | Yes (7)   |
+| Tests wheel provider distributions | Tests if provider distributions can be built and released  | Yes     | Yes     |           |
+| Tests Airflow compatibility        | Compatibility of provider distributions with older Airflow | Yes     | Yes     |           |
+| Tests dist provider distributions  | Tests if dist provider distributions can be built          |         | Yes     |           |
+| Tests airflow release commands     | Tests if airflow release command works                     |         | Yes     | Yes       |
+| DB tests matrix                    | Run the Pytest unit DB tests                               | Yes     | Yes     | Yes (7)   |
+| No DB tests                        | Run the Pytest unit Non-DB tests (with pytest-xdist)       | Yes     | Yes     | Yes (7)   |
+| Integration tests                  | Runs integration tests (Postgres/Mysql)                    | Yes     | Yes     | Yes (7)   |
+| Quarantined tests                  | Runs quarantined tests (with flakiness and side-effects)   | Yes     | Yes     | Yes (7)   |
+| Test airflow packages              | Tests that Airflow package can be built and released       | Yes     | Yes     | Yes       |
+| Helm tests                         | Run the Helm integration tests                             | Yes     | Yes     |           |
+| Helm release tests                 | Run the tests for Helm releasing                           | Yes     | Yes     |           |
+| Summarize warnings                 | Summarizes warnings from all other tests                   | Yes     | Yes     | Yes       |
+| Docker Compose test/PROD verify    | Tests quick-start Docker Compose and verify PROD image     | Yes     | Yes     | Yes       |
+| Tests Kubernetes                   | Run Kubernetes test                                        | Yes     | Yes     |           |
+| Update constraints                 | Upgrade constraints to latest ones                         | Yes     | Yes (2) | Yes (2)   |
+| Push cache & images                | Pushes cache/images to GitHub Registry (3)                 |         | Yes (3) |           |
+| Build CI ARM images                | Builds CI images for ARM                                   | Yes (9) |         |           |
 
 `(1)` Scheduled jobs builds images from scratch - to test if everything
 works properly for clean builds

@@ -88,7 +88,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     :param max_concurrent_runs: The maximum number of concurrent runs for the workflow.
     :param notebook_params: A dictionary of notebook parameters to pass to the workflow. These parameters
         will be passed to all notebooks in the workflow.
-    :param tasks_to_convert: A list of tasks to convert to a Databricks workflow. This list can also be
+    :param tasks_to_convert: A dict of tasks to convert to a Databricks workflow. This list can also be
         populated after instantiation using the `add_task` method.
     """
 
@@ -105,7 +105,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         job_clusters: list[dict[str, object]] | None = None,
         max_concurrent_runs: int = 1,
         notebook_params: dict | None = None,
-        tasks_to_convert: list[BaseOperator] | None = None,
+        tasks_to_convert: dict[str, BaseOperator] | None = None,
         **kwargs,
     ):
         self.databricks_conn_id = databricks_conn_id
@@ -114,7 +114,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.job_clusters = job_clusters or []
         self.max_concurrent_runs = max_concurrent_runs
         self.notebook_params = notebook_params or {}
-        self.tasks_to_convert = tasks_to_convert or []
+        self.tasks_to_convert = tasks_to_convert or {}
         self.relevant_upstreams = [task_id]
         self.workflow_run_metadata: WorkflowRunMetadata | None = None
         super().__init__(task_id=task_id, **kwargs)
@@ -129,9 +129,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     def _hook(self) -> DatabricksHook:
         return self._get_hook(caller=self.caller)
 
-    def add_task(self, task: BaseOperator) -> None:
-        """Add a task to the list of tasks to convert to a Databricks workflow."""
-        self.tasks_to_convert.append(task)
+    def add_task(self, task_id, task: BaseOperator) -> None:
+        """Add a task to the dict of tasks to convert to a Databricks workflow."""
+        self.tasks_to_convert[task_id] = task
 
     @property
     def job_name(self) -> str:
@@ -143,9 +143,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         """Create a workflow json to be used in the Databricks API."""
         task_json = [
             task._convert_to_databricks_workflow_task(  # type: ignore[attr-defined]
-                relevant_upstreams=self.relevant_upstreams, context=context
+                relevant_upstreams=self.relevant_upstreams, task_dict=self.tasks_to_convert, context=context
             )
-            for task in self.tasks_to_convert
+            for task_id, task in self.tasks_to_convert.items()
         ]
 
         default_json = {
@@ -334,7 +334,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
 
             task.workflow_run_metadata = create_databricks_workflow_task.output
             create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
-            create_databricks_workflow_task.add_task(task)
+            create_databricks_workflow_task.add_task(task.task_id, task)
 
         for root_task in roots:
             root_task.set_upstream(create_databricks_workflow_task)

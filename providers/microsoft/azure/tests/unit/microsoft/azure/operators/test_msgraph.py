@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import locale
+import warnings
 from base64 import b64encode
 from os.path import dirname
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
@@ -28,24 +29,21 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from unit.microsoft.azure.base import Base
+from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
-if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
-    @pytest.mark.db_test
     def test_execute_with_old_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -77,7 +75,6 @@ class TestMSGraphAsyncOperator(Base):
                 assert events[1].payload["type"] == "builtins.dict"
                 assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_with_new_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -105,7 +102,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[1].payload["type"] == "builtins.dict"
             assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_with_old_paginate_function_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -140,7 +136,6 @@ class TestMSGraphAsyncOperator(Base):
                 assert events[1].payload["type"] == "builtins.dict"
                 assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         users.pop("@odata.nextLink")
@@ -163,7 +158,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.dict"
             assert events[0].payload["response"] == json.dumps(users)
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs(self):
         with self.patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
@@ -176,7 +170,6 @@ class TestMSGraphAsyncOperator(Base):
             with pytest.raises(AirflowException):
                 execute_operator(operator)
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_old_signature(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
@@ -206,7 +199,6 @@ class TestMSGraphAsyncOperator(Base):
                 assert events[0].payload["status"] == "failure"
                 assert events[0].payload["message"] == "An error occurred"
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
@@ -232,7 +224,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["status"] == "failure"
             assert events[0].payload["message"] == "An error occurred"
 
-    @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
@@ -260,8 +251,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.bytes"
             assert events[0].payload["response"] == base64_encoded_content
 
-    @pytest.mark.db_test
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_execute_with_lambda_parameter_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
@@ -336,17 +325,21 @@ class TestMSGraphAsyncOperator(Base):
                 execute_callable(
                     lambda context, response: response,
                     "response",
-                    {"execution_date": timezone.utcnow()},
+                    Context({"execution_date": timezone.utcnow()}),
                     "result_processor signature has changed, result parameter should be defined before context!",
                 )
                 == "response"
             )
-        assert (
-            execute_callable(
-                lambda response, **context: response,
-                "response",
-                {"execution_date": timezone.utcnow()},
-                "result_processor signature has changed, result parameter should be defined before context!",
+
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            warnings.simplefilter("error")  # Treat warnings as errors
+            assert (
+                execute_callable(
+                    lambda response, **context: response,
+                    "response",
+                    Context({"execution_date": timezone.utcnow()}),
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
+                == "response"
             )
-            == "response"
-        )
+            assert len(recorded_warnings) == 0

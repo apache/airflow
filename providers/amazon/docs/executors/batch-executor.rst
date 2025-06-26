@@ -19,7 +19,7 @@
 .. warning::
    The Batch Executor is alpha/experimental at the moment and may be subject to change without warning.
 .. |executorName| replace:: Batch
-.. |dockerfileLink| replace:: `here <https://github.com/apache/airflow/blob/main/amazon/aws/providers/src/airflow/providers/amazon/aws/executors/Dockerfile>`__
+.. |dockerfileLink| replace:: `here <https://github.com/apache/airflow/blob/main/providers/amazon/src/airflow/providers/amazon/aws/executors/Dockerfile>`__
 .. |configKwargs| replace:: SUBMIT_JOB_KWARGS
 
 ==================
@@ -140,6 +140,33 @@ newly created Job Role and  Execution role for the Job Definition.
 .. include:: general.rst
    :start-after: .. BEGIN DOCKERFILE_AUTH_SECOND_METHOD
    :end-before: .. END DOCKERFILE_AUTH_SECOND_METHOD
+
+.. include:: general.rst
+  :start-after: .. BEGIN BASE_IMAGE
+  :end-before: .. END BASE_IMAGE
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_OVERVIEW
+  :end-before: .. END LOADING_DAGS_OVERVIEW
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_S3
+  :end-before: .. END LOADING_DAGS_FROM_S3
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_LOCAL
+  :end-before: .. END LOADING_DAGS_FROM_LOCAL
+
+.. include:: general.rst
+  :start-after: .. BEGIN DEPENDENCIES
+  :end-before: .. END DEPENDENCIES
+
+Building Image for AWS Batch Executor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Detailed instructions on how to use the Docker image, that you have
+created via this readme, with the Batch Executor can be found
+:ref:`here <batch_setup_guide>`.
 
 .. _batch_logging:
 

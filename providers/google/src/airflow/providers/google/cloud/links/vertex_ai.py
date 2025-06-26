@@ -54,6 +54,10 @@ VERTEX_AI_PIPELINE_JOB_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/pipelines/runs/{pipeline_id}?project={project_id}"
 )
 VERTEX_AI_PIPELINE_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/pipelines/runs?project={project_id}"
+VERTEX_AI_RAY_CLUSTER_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{location}/ray-clusters/{cluster_id}?project={project_id}"
+)
+VERTEX_AI_RAY_CLUSTER_LIST_LINK = VERTEX_AI_BASE_LINK + "/ray?project={project_id}"
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -63,22 +67,6 @@ class VertexAIModelLink(BaseGoogleLink):
     key = "model_conf"
     format_str = VERTEX_AI_MODEL_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        model_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIModelLink.key,
-            value={
-                "model_id": model_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class VertexAIModelListLink(BaseGoogleLink):
     """Helper class for constructing Vertex AI Models Link."""
@@ -86,19 +74,6 @@ class VertexAIModelListLink(BaseGoogleLink):
     name = "Model List"
     key = "models_conf"
     format_str = VERTEX_AI_MODEL_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIModelListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class VertexAIModelExportLink(BaseGoogleLink):
@@ -113,19 +88,15 @@ class VertexAIModelExportLink(BaseGoogleLink):
         """Return bucket name from output configuration."""
         return config["artifact_destination"]["output_uri_prefix"].rpartition("gs://")[-1]
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
+    @classmethod
+    def persist(cls, context: Context, **value):
+        output_config = value.get("output_config")
+        bucket_name = cls.extract_bucket_name(output_config)
+        super().persist(
             context=context,
-            key=VertexAIModelExportLink.key,
-            value={
-                "project_id": task_instance.project_id,
-                "model_id": task_instance.model_id,
-                "bucket_name": VertexAIModelExportLink.extract_bucket_name(task_instance.output_config),
-            },
+            project_id=value.get("project_id"),
+            model_id=value.get("model_id"),
+            bucket_name=bucket_name,
         )
 
 
@@ -136,22 +107,6 @@ class VertexAITrainingLink(BaseGoogleLink):
     key = "training_conf"
     format_str = VERTEX_AI_TRAINING_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        training_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAITrainingLink.key,
-            value={
-                "training_id": training_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class VertexAITrainingPipelinesLink(BaseGoogleLink):
     """Helper class for constructing Vertex AI Training Pipelines link."""
@@ -159,19 +114,6 @@ class VertexAITrainingPipelinesLink(BaseGoogleLink):
     name = "Vertex AI Training Pipelines"
     key = "pipelines_conf"
     format_str = VERTEX_AI_TRAINING_PIPELINES_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAITrainingPipelinesLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class VertexAIDatasetLink(BaseGoogleLink):
@@ -181,18 +123,6 @@ class VertexAIDatasetLink(BaseGoogleLink):
     key = "dataset_conf"
     format_str = VERTEX_AI_DATASET_LINK
 
-    @staticmethod
-    def persist(context: Context, task_instance, dataset_id: str):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIDatasetLink.key,
-            value={
-                "dataset_id": dataset_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class VertexAIDatasetListLink(BaseGoogleLink):
     """Helper class for constructing Vertex AI Datasets Link."""
@@ -200,19 +130,6 @@ class VertexAIDatasetListLink(BaseGoogleLink):
     name = "Dataset List"
     key = "datasets_conf"
     format_str = VERTEX_AI_DATASET_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIDatasetListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
@@ -222,19 +139,6 @@ class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
     key = "hyperparameter_tuning_jobs_conf"
     format_str = VERTEX_AI_HYPERPARAMETER_TUNING_JOB_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIHyperparameterTuningJobListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class VertexAIBatchPredictionJobLink(BaseGoogleLink):
     """Helper class for constructing Vertex AI BatchPredictionJob link."""
@@ -242,22 +146,6 @@ class VertexAIBatchPredictionJobLink(BaseGoogleLink):
     name = "Batch Prediction Job"
     key = "batch_prediction_job_conf"
     format_str = VERTEX_AI_BATCH_PREDICTION_JOB_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        batch_prediction_job_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIBatchPredictionJobLink.key,
-            value={
-                "batch_prediction_job_id": batch_prediction_job_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class VertexAIBatchPredictionJobListLink(BaseGoogleLink):
@@ -267,19 +155,6 @@ class VertexAIBatchPredictionJobListLink(BaseGoogleLink):
     key = "batch_prediction_jobs_conf"
     format_str = VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIBatchPredictionJobListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class VertexAIEndpointLink(BaseGoogleLink):
     """Helper class for constructing Vertex AI Endpoint link."""
@@ -287,22 +162,6 @@ class VertexAIEndpointLink(BaseGoogleLink):
     name = "Endpoint"
     key = "endpoint_conf"
     format_str = VERTEX_AI_ENDPOINT_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        endpoint_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIEndpointLink.key,
-            value={
-                "endpoint_id": endpoint_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class VertexAIEndpointListLink(BaseGoogleLink):
@@ -312,19 +171,6 @@ class VertexAIEndpointListLink(BaseGoogleLink):
     key = "endpoints_conf"
     format_str = VERTEX_AI_ENDPOINT_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIEndpointListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class VertexAIPipelineJobLink(BaseGoogleLink):
     """Helper class for constructing Vertex AI PipelineJob link."""
@@ -332,22 +178,6 @@ class VertexAIPipelineJobLink(BaseGoogleLink):
     name = "Pipeline Job"
     key = "pipeline_job_conf"
     format_str = VERTEX_AI_PIPELINE_JOB_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        pipeline_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIPipelineJobLink.key,
-            value={
-                "pipeline_id": pipeline_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class VertexAIPipelineJobListLink(BaseGoogleLink):
@@ -357,15 +187,18 @@ class VertexAIPipelineJobListLink(BaseGoogleLink):
     key = "pipeline_job_list_conf"
     format_str = VERTEX_AI_PIPELINE_JOB_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=VertexAIPipelineJobListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
+
+class VertexAIRayClusterLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI Ray Cluster link."""
+
+    name = "Ray Cluster"
+    key = "ray_cluster_conf"
+    format_str = VERTEX_AI_RAY_CLUSTER_LINK
+
+
+class VertexAIRayClusterListLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI Ray Cluster List link."""
+
+    name = "Ray Cluster List"
+    key = "ray_cluster_list_conf"
+    format_str = VERTEX_AI_RAY_CLUSTER_LIST_LINK

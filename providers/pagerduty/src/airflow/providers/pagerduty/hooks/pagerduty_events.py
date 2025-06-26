@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import pdpyras
+import pagerduty
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -61,17 +61,19 @@ class PagerdutyEventsHook(BaseHook):
         self, integration_key: str | None = None, pagerduty_events_conn_id: str | None = None
     ) -> None:
         super().__init__()
-        self.integration_key = None
-        self._session = None
+        self.integration_key = ""
+        self._client = None
 
         if pagerduty_events_conn_id is not None:
             conn = self.get_connection(pagerduty_events_conn_id)
-            self.integration_key = conn.get_password()
+            password = conn.get_password()
+            if password is not None:
+                self.integration_key = password
 
         if integration_key is not None:  # token takes higher priority
             self.integration_key = integration_key
 
-        if self.integration_key is None:
+        if self.integration_key == "":
             raise AirflowException(
                 "Cannot get token: No valid integration key nor pagerduty_events_conn_id supplied."
             )
@@ -89,7 +91,7 @@ class PagerdutyEventsHook(BaseHook):
         class_type: str | None = None,
         images: list[Any] | None = None,
         links: list[Any] | None = None,
-    ) -> dict:
+    ) -> str:
         """
         Create event for service integration.
 
@@ -132,8 +134,8 @@ class PagerdutyEventsHook(BaseHook):
             links=links,
         )
 
-        session = pdpyras.EventsAPISession(self.integration_key)
-        return session.send_event(**data)
+        client = pagerduty.EventsApiV2Client(self.integration_key)
+        return client.send_event(**data)
 
     @staticmethod
     def prepare_event_data(
@@ -193,7 +195,7 @@ class PagerdutyEventsHook(BaseHook):
         custom_details: Any | None = None,
         timestamp: datetime | None = None,
         links: list[Any] | None = None,
-    ) -> dict:
+    ) -> str:
         """
         Create change event for service integration.
 
@@ -225,13 +227,13 @@ class PagerdutyEventsHook(BaseHook):
         if links is not None:
             data["links"] = links
 
-        session = pdpyras.ChangeEventsAPISession(self.integration_key)
-        return session.send_change_event(payload=payload, links=links)
+        client = pagerduty.EventsApiV2Client(self.integration_key)
+        return client.send_change_event(payload=payload, links=links)
 
     def test_connection(self):
         try:
-            session = pdpyras.EventsAPISession(self.integration_key)
-            session.resolve("some_dedup_key_that_dont_exist")
+            client = pagerduty.EventsApiV2Client(self.integration_key)
+            client.resolve("some_dedup_key_that_dont_exist")
         except Exception:
             return False, "connection test failed, invalid routing key"
         return True, "connection tested successfully"

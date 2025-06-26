@@ -51,7 +51,7 @@ Transferring data
 
 The following Operator copies data from a BigQuery table to MySQL.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_to_mysql.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_to_mysql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_mysql]

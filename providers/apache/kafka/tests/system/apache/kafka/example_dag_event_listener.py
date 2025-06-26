@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from pendulum import datetime
 
@@ -32,19 +33,15 @@ from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageTriggerFunc
 # This is just for setting up connections in the demo - you should use standard
 # methods for setting these connections in production
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils import db
 
 
 def load_connections():
-    db.merge_conn(
+    conns = [
         Connection(
             conn_id="fizz_buzz_1",
             conn_type="kafka",
             extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
-        )
-    )
-
-    db.merge_conn(
+        ),
         Connection(
             conn_id="fizz_buzz_2",
             conn_type="kafka",
@@ -56,8 +53,12 @@ def load_connections():
                     "auto.offset.reset": "beginning",
                 }
             ),
-        )
-    )
+        ),
+    ]
+
+    for c in conns:
+        envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+        os.environ[envvar] = c.get_uri()
 
 
 def _producer_function():
@@ -101,11 +102,10 @@ with DAG(
     def wait_for_event(message, **context):
         if message % 15 == 0:
             return f"encountered {message}!"
-        else:
-            if message % 3 == 0:
-                print(f"encountered {message} FIZZ !")
-            if message % 5 == 0:
-                print(f"encountered {message} BUZZ !")
+        if message % 3 == 0:
+            print(f"encountered {message} FIZZ !")
+        if message % 5 == 0:
+            print(f"encountered {message} BUZZ !")
 
     # [START howto_sensor_await_message_trigger_function]
     listen_for_message = AwaitMessageTriggerFunctionSensor(

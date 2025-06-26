@@ -29,35 +29,12 @@ from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from tests_common.test_utils.file_loading import load_file_from_resources
 
+pytestmark = pytest.mark.db_test
+
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
-
-PYMSSQL_CONN = Connection(
-    conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
-)
-PYMSSQL_CONN_ALT = Connection(
-    conn_type="mssql", host="ip", schema="", login="username", password="password", port=8081
-)
-PYMSSQL_CONN_ALT_1 = Connection(
-    conn_type="mssql",
-    host="ip",
-    schema="",
-    login="username",
-    password="password",
-    port=8081,
-    extra={"SQlalchemy_Scheme": "mssql+testdriver"},
-)
-PYMSSQL_CONN_ALT_2 = Connection(
-    conn_type="mssql",
-    host="ip",
-    schema="",
-    login="username",
-    password="password",
-    port=8081,
-    extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
-)
 
 
 def get_target_fields(self, table: str) -> list[str] | None:
@@ -214,7 +191,6 @@ class TestMsSqlHook:
         hook = MsSqlHook()
         assert hook.sqlalchemy_scheme == hook.DEFAULT_SQLALCHEMY_SCHEME
 
-    @pytest.mark.db_test
     def test_sqlalchemy_scheme_is_from_hook(self):
         hook = MsSqlHook(sqlalchemy_scheme="mssql+mytestdriver")
         assert hook.sqlalchemy_scheme == "mssql+mytestdriver"
@@ -245,6 +221,9 @@ class TestMsSqlHook:
         get_primary_keys,
     )
     def test_generate_insert_sql(self, get_connection):
+        PYMSSQL_CONN = Connection(
+            conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
+        )
         get_connection.return_value = PYMSSQL_CONN
 
         hook = MsSqlHook(escape_word_format="[{}]")

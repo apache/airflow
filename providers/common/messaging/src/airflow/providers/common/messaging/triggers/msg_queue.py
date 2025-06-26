@@ -17,13 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.messaging.providers import MESSAGE_QUEUE_PROVIDERS
+from airflow.providers_manager import ProvidersManager
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+
+providers_manager = ProvidersManager()
+providers_manager.initialize_providers_queues()
+
+
+def create_class_by_name(name: str):
+    module_name, class_name = name.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
+MESSAGE_QUEUE_PROVIDERS = [create_class_by_name(name)() for name in providers_manager.queue_class_names]
 
 
 class MessageQueueTrigger(BaseEventTrigger):
@@ -48,17 +60,30 @@ class MessageQueueTrigger(BaseEventTrigger):
 
     @cached_property
     def trigger(self) -> BaseEventTrigger:
+        if len(MESSAGE_QUEUE_PROVIDERS) == 0:
+            self.log.error(
+                "No message queue providers are available. "
+                "Please ensure that you have the necessary providers installed."
+            )
+            raise ValueError("No message queue providers are available. ")
         providers = [provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue)]
         if len(providers) == 0:
-            raise ValueError(f"The queue '{self.queue}' is not recognized by ``MessageQueueTrigger``.")
+            self.log.error(
+                "The queue '%s' is not recognized by any of the registered providers. "
+                "The available providers are: '%s'.",
+                self.queue,
+                ", ".join([provider for provider in MESSAGE_QUEUE_PROVIDERS]),
+            )
+            raise ValueError("The queue is not recognized by any of the registered providers.")
         if len(providers) > 1:
             self.log.error(
                 "The queue '%s' is recognized by more than one provider. "
                 "At least two providers in ``MESSAGE_QUEUE_PROVIDERS`` are colliding with each "
-                "other.",
+                "other: '%s'",
                 self.queue,
+                ", ".join([provider for provider in providers]),
             )
-            raise AirflowException(f"The queue '{self.queue}' is recognized by more than one provider.")
+            raise ValueError(f"The queue '{self.queue}' is recognized by more than one provider.")
         return providers[0].trigger_class()(
             **providers[0].trigger_kwargs(self.queue, **self.kwargs), **self.kwargs
         )

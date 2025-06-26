@@ -241,21 +241,19 @@ class BigQueryToGCSOperator(BaseOperator):
                     f"want to force rerun it consider setting `force_rerun=True`."
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
-            else:
-                # Job already reached state DONE
-                if job.state == "DONE":
-                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+            # Job already reached state DONE
+            if job.state == "DONE":
+                raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
 
-                # We are reattaching to a job
-                self.log.info("Reattaching to existing Job in state %s", job.state)
-                self._handle_job_error(job)
+            # We are reattaching to a job
+            self.log.info("Reattaching to existing Job in state %s", job.state)
+            self._handle_job_error(job)
 
         self.job_id = job.job_id
         conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
         dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
         BigQueryTableLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_id,
             project_id=project_id,
             table_id=table_id,

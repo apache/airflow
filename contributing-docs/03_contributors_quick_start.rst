@@ -29,19 +29,20 @@ if you follow the guide.
 
 There are three ways you can run the Airflow dev env:
 
-1. With Docker Containers and Docker Compose (on your local machine). This environment is managed
+1. With a local virtual environment (on your local machine)
+2. With Docker Containers and Docker Compose (on your local machine). This environment is managed
    with the `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes environment
    management, yeah you guessed it - a breeze.
-2. With a local virtual environment (on your local machine)
 3. With a remote, managed environment (via remote development environment)
 
 Before deciding which method to choose, there are a couple of factors to consider:
 
-* Running Airflow in a container is the most reliable way: it provides a more consistent environment
+* In most cases, installing Airflow in a local environment might be sufficient.
+  For a comprehensive local virtualenv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_
+* Running Airflow in a container is the most reliable and repeatable way: it provides a more consistent
+  environment - with almost no dependencies (except docker) on your Host OS / machine
   and allows integration tests with a number of integrations (Cassandra, MongoDB, MySQL, etc.).
   However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
-* If you are working on a basic feature, installing Airflow in a local environment might be sufficient.
-  For a comprehensive venv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_
 * You need to have a (usually paid) account to access managed, remote virtual environments.
 
 Local machine development
@@ -49,11 +50,13 @@ Local machine development
 
 If you do not work in a remote development environment, you will need these prerequisites:
 
-1. Docker Community Edition (you can also use Colima, see instructions below)
-2. Docker Compose
-3. Hatch (you can also use pyenv, pyenv-virtualenv or virtualenvwrapper)
+1. UV is recommended for managing Python versions and virtual environments
+2. Docker Community Edition (you can also use Colima or others, see instructions below)
+3. Docker buildx
+4. Docker Compose
 
-The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
+The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
+It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------
@@ -128,6 +131,7 @@ Docker Compose
 
 1. Installing latest version of the Docker Compose plugin
 
+on Debian / Ubuntu,
 Install using the repository:
 
 .. code-block:: bash
@@ -148,10 +152,16 @@ Install manually:
   sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
 
   sudo chmod +x /usr/local/bin/docker-compose
-
 .. note::
     This option requires you to manage updates manually.
     It is recommended that you set up Docker's repository for easier maintenance.
+
+on macOS, you can also install docker-compose via
+
+.. code-block:: bash
+
+  brew install docker-compose
+
 
 1. Verifying installation
 
@@ -162,11 +172,9 @@ Install manually:
 Setting up virtual-env
 ----------------------
 
-1. While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
-   as your build and integration frontend, and we already use ``hatchling`` build backend for Airflow.
-   You can read more about Hatch and it's use in Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
-   See `PEP-517 <https://peps.python.org/pep-0517/#terminology-and-goals>`_ for explanation of what the
-   frontend and backend meaning is
+1. While you can use any virtualenv manager, we recommend using `UV <https://github.com/astral-sh/uv>`__
+   as your build and integration frontend. You can read more about UV and its use in
+   Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
 
 2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
@@ -176,9 +184,9 @@ Setting up virtual-env
 
   sudo apt install openssl sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql
 
-If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
+If you want to install all Airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
-``devel-all`` extra while installing airflow.
+``all`` extras while installing airflow.
 
 .. code-block:: bash
 
@@ -188,13 +196,10 @@ like system, this command will install all necessary dependencies that should be
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
-3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
-   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details
-
 Forking and cloning Project
 ---------------------------
 
-1. Goto |airflow_github| and fork the project
+1. Go to |airflow_github| and fork the project
 
    .. |airflow_github| raw:: html
 
@@ -207,7 +212,7 @@ Forking and cloning Project
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` you will find the link to your repo
+2. Go to your github account's fork of Airflow click on ``Code`` you will find the link to your repo
 
    .. raw:: html
 
@@ -326,16 +331,16 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
 
 .. code-block:: bash
 
-  pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
+  pre-commit run  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
 
 
 6. Running specific hook for selected files
 
 .. code-block:: bash
 
-  pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     black...............................................................Passed
-  pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     Run ruff............................................................Passed
 
 
@@ -436,7 +441,7 @@ see in CI in your local environment.
 
    .. code-block:: bash
 
-      sudo apt install golang-docker-credential-helper
+      sudo apt install golang-docker-credential-helpers
 
    Once the package is installed, execute the breeze command again to resume image building.
 
@@ -445,7 +450,7 @@ see in CI in your local environment.
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
-6. Once you enter the Breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+6. Once you enter the Breeze environment, create Airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you
 
@@ -486,8 +491,8 @@ Using Breeze
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
-   It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, FastAPI API, DAG processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
+   Scheduler, API server (FastAPI api and UI), DAG processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -503,9 +508,9 @@ Using Breeze
 
    * Port forwarding:
 
-        Ports are forwarded to the running docker containers for webserver and database
+        Ports are forwarded to the running docker containers for components and database
           * 12322 -> forwarded to Airflow ssh server -> airflow:22
-          * 29091 -> forwarded to Airflow api server API -> airflow:9091
+          * 28080 -> forwarded to Airflow api server API -> airflow:8080
           * 25555 -> forwarded to Flower dashboard -> airflow:5555
           * 25433 -> forwarded to Postgres database -> postgres:5432
           * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -513,12 +518,12 @@ Using Breeze
 
         Direct links to those services that you can use from the host:
 
-          * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
-          * API server:    http://127.0.0.1:29091
-          * Flower:    http://127.0.0.1:25555
-          * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-          * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-          * Redis:     redis://127.0.0.1:26379/0
+          * ssh connection for remote debugging: ssh -p 12322 airflow@localhost (password: airflow)
+          * API server:    http://localhost:28080
+          * Flower:    http://localhost:25555
+          * Postgres:  jdbc:postgresql://localhost:25433/airflow?user=postgres&password=airflow
+          * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root
+          * Redis:     redis://localhost:26379/0
 
 
 .. raw:: html
@@ -541,32 +546,32 @@ Using Breeze
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# tmux
+     tmux
 
   3. Press Ctrl + B and "
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
+    airflow scheduler
 
 
   4. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow api-server
+    airflow api-server
 
   5. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow dag-processor
+    airflow dag-processor
 
   6. Press Ctrl + B and up arrow followed by Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow triggerer
+    airflow triggerer
 
   7. Press Ctrl + B followed by (Optional step for better tile arrangement)
 
@@ -575,12 +580,12 @@ Using Breeze
     :select-layout tiled
 
 
-2. Now you can access airflow web interface on your local machine at |http://localhost:29091| with user name ``admin``
+2. Now you can access Airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
    and password ``admin``
 
-   .. |http://localhost:29091| raw:: html
+   .. |http://localhost:28080| raw:: html
 
-      <a href="http://localhost:29091" target="_blank">http://localhost:29091</a>
+      <a href="http://localhost:28080" target="_blank">http://localhost:28080</a>
 
    .. raw:: html
 
@@ -590,7 +595,7 @@ Using Breeze
       </div>
 
 3. Setup a PostgreSQL database in your database management tool of choice
-   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
+   (e.g. DBeaver, DataGrip) with host ``localhost``, port ``25433``,
    user ``postgres``,  password ``airflow``, and default schema ``airflow``
 
    .. raw:: html
@@ -635,7 +640,7 @@ Following are some of important topics of `Breeze documentation <../dev/breeze/d
 * `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
 
 
-Installing airflow in the local venv
+Installing Airflow in the local venv
 ------------------------------------
 
 1. It may require some packages to be installed; watch the output of the command to see which ones are missing
@@ -749,7 +754,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst" target="_blank">
    Workflow for a contribution</a>
 
 
@@ -763,7 +768,7 @@ Raising Pull Request
 
     <div align="center" style="padding-bottom:10px">
       <img src="images/quick_start/pr1.png"
-           alt="Goto fork and select branches">
+           alt="Go to fork and select branches">
     </div>
 
 2. Click on ``New pull request`` button on branch from which you want to raise a pull request

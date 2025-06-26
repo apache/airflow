@@ -35,7 +35,6 @@ from botocore.signers import RequestSigner
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
-from airflow.utils.json import AirflowJsonEncoder
 
 DEFAULT_PAGINATION_TOKEN = ""
 STS_TOKEN_EXPIRES_IN = 60
@@ -80,16 +79,25 @@ class NodegroupStates(Enum):
 
 
 COMMAND = """
+            export PYTHON_OPERATORS_VIRTUAL_ENV_MODE=1
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} {args} 2>&1)
 
-            if [ $? -ne 0 ]; then
-                echo "Error running the script"
-                exit 1
+            status=$?
+
+            if [ "$status" -ne 0 ]; then
+                printf '%s' "$output" >&2
+                exit "$status"
             fi
 
-            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp: \\K[^,]+')
-            token=$(echo "$output" | grep -oP 'token: \\K[^,]+')
+            # Use pure bash below to parse so that it's posix compliant
+
+            last_line=${{output##*$'\\n'}}  # strip everything up to the last newline
+
+            timestamp=${{last_line#expirationTimestamp: }}  # drop the label
+            timestamp=${{timestamp%%,*}}  # keep up to the first comma
+
+            token=${{last_line##*, token: }}  # text after ", token: "
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
                 "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
@@ -315,7 +323,7 @@ class EksHook(AwsBaseHook):
         )
         if verbose:
             cluster_data = response.get("cluster")
-            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
+            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, default=repr))
         return response
 
     def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> dict:
@@ -343,7 +351,7 @@ class EksHook(AwsBaseHook):
             nodegroup_data = response.get("nodegroup")
             self.log.info(
                 "Amazon EKS managed node group details: %s",
-                json.dumps(nodegroup_data, cls=AirflowJsonEncoder),
+                json.dumps(nodegroup_data, default=repr),
             )
         return response
 
@@ -374,9 +382,7 @@ class EksHook(AwsBaseHook):
         )
         if verbose:
             fargate_profile_data = response.get("fargateProfile")
-            self.log.info(
-                "AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
-            )
+            self.log.info("AWS Fargate profile details: %s", json.dumps(fargate_profile_data, default=repr))
         return response
 
     def get_cluster_state(self, clusterName: str) -> ClusterStates:

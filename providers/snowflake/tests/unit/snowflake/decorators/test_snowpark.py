@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.decorators import task
+from airflow.providers.snowflake.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -156,7 +157,7 @@ class TestSnowparkDecorator:
         mock_snowflake_hook.return_value.get_snowpark_session.assert_called_once()
 
     @mock.patch("airflow.providers.snowflake.operators.snowpark.SnowflakeHook")
-    def test_snowpark_decorator_multiple_output(self, mock_snowflake_hook, dag_maker):
+    def test_snowpark_decorator_multiple_output(self, mock_snowflake_hook, dag_maker, request):
         @task.snowpark(
             task_id=TASK_ID,
             snowflake_conn_id=CONN_ID,
@@ -171,15 +172,23 @@ class TestSnowparkDecorator:
             assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
             return {"a": 1, "b": "2"}
 
-        with dag_maker(dag_id=TEST_DAG_ID):
-            ret = func()
+        if AIRFLOW_V_3_0_PLUS:
+            run_task = request.getfixturevalue("run_task")
+            op = func().operator
+            run_task(task=op)
+            assert run_task.xcom.get(key="a") == 1
+            assert run_task.xcom.get(key="b") == "2"
+            assert run_task.xcom.get(key="return_value") == {"a": 1, "b": "2"}
+        else:
+            with dag_maker(dag_id=TEST_DAG_ID):
+                ret = func()
 
-        dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key="a") == 1
-        assert ti.xcom_pull(key="b") == "2"
-        assert ti.xcom_pull() == {"a": 1, "b": "2"}
+            dr = dag_maker.create_dagrun()
+            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            ti = dr.get_task_instances()[0]
+            assert ti.xcom_pull(key="a") == 1
+            assert ti.xcom_pull(key="b") == "2"
+            assert ti.xcom_pull() == {"a": 1, "b": "2"}
         mock_snowflake_hook.assert_called_once()
         mock_snowflake_hook.return_value.get_snowpark_session.assert_called_once()
 

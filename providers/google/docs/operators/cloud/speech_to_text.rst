@@ -42,14 +42,14 @@ google.cloud.speech_v1.types module
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/api.html#google.cloud.speech_v1.SpeechClient.recognize
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/speech_to_text/example_speech_to_text.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/speech_to_text/example_speech_to_text.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_api_arguments]
       :end-before: [END howto_operator_text_to_speech_api_arguments]
 
 filename is a simple string argument:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/speech_to_text/example_speech_to_text.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/speech_to_text/example_speech_to_text.py
       :language: python
       :start-after: [START howto_operator_speech_to_text_api_arguments]
       :end-before: [END howto_operator_speech_to_text_api_arguments]
@@ -57,7 +57,7 @@ filename is a simple string argument:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/speech_to_text/example_speech_to_text.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/speech_to_text/example_speech_to_text.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_speech_to_text_recognize]
@@ -66,7 +66,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/speech_to_text.py
+.. literalinclude:: /../../google/src/airflow/providers/google/cloud/operators/speech_to_text.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_speech_to_text_synthesize_template_fields]

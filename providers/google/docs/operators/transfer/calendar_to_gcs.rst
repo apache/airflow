@@ -37,7 +37,7 @@ Upload data from Google Calendar to GCS
 To upload data from Google Calendar to Google Cloud Storage you can use the
 :class:`~airflow.providers.google.cloud.transfers.calendar_to_gcs.GoogleCalendarToGCSOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_calendar_to_gcs.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_calendar_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START upload_calendar_to_gcs]

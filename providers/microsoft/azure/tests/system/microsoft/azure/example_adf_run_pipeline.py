@@ -28,7 +28,7 @@ from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFact
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="call-arg"
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
+from airflow.sdk import Label
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_adf_run_pipeline"
@@ -45,7 +45,6 @@ with DAG(
         "factory_name": "my-data-factory",  # This can also be specified in the ADF connection.
         "resource_group_name": "my-resource-group",  # This can also be specified in the ADF connection.
     },
-    default_view="graph",
 ) as dag:
     begin = EmptyOperator(task_id="begin")
     end = EmptyOperator(task_id="end")
@@ -67,19 +66,19 @@ with DAG(
 
     pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor",
-        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        run_id=cast("str", XComArg(run_pipeline2, key="run_id")),
     )
 
     # Performs polling on the Airflow Triggerer thus freeing up resources on Airflow Worker
     pipeline_run_sensor_deferred = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor_defered",
-        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        run_id=cast("str", XComArg(run_pipeline2, key="run_id")),
         deferrable=True,
     )
 
     pipeline_run_async_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_async_sensor",
-        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        run_id=cast("str", XComArg(run_pipeline2, key="run_id")),
         deferrable=True,
     )
     # [END howto_operator_adf_run_pipeline_async]

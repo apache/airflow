@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
+from common_precommit_utils import AIRFLOW_ROOT_PATH
+
 README_SECTIONS_TO_EXTRACT = [
     "Apache Airflow",
     "Requirements",
@@ -53,14 +53,13 @@ def extract_section(content, section_name):
     )
     if section_match:
         return section_match.group(1)
-    else:
-        raise RuntimeError(f"Cannot find section {section_name} in README.md")
+    raise RuntimeError(f"Cannot find section {section_name} in README.md")
 
 
 if __name__ == "__main__":
-    readme_file = AIRFLOW_SOURCES / "README.md"
-    pypi_readme_file = AIRFLOW_SOURCES / "generated" / "PYPI_README.md"
-    license_file = AIRFLOW_SOURCES / "scripts" / "ci" / "license-templates" / "LICENSE.md"
+    readme_file = AIRFLOW_ROOT_PATH / "README.md"
+    pypi_readme_file = AIRFLOW_ROOT_PATH / "generated" / "PYPI_README.md"
+    license_file = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "license-templates" / "LICENSE.md"
 
     readme_content = readme_file.read_text()
     generated_pypi_readme_content = license_file.read_text() + "\n" + PYPI_README_HEADER

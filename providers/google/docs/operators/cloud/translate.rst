@@ -40,7 +40,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_text]
@@ -49,7 +49,7 @@ Basic usage of the operator:
 The result of translation is available as dictionary or array of dictionaries accessible via the usual
 XCom mechanisms of Airflow:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_access]
@@ -59,7 +59,7 @@ XCom mechanisms of Airflow:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/translate.py
+.. literalinclude:: /../../google/src/airflow/providers/google/cloud/operators/translate.py
     :language: python
     :dedent: 4
     :start-after: [START translate_template_fields]
@@ -82,7 +82,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_text.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_text.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_text_advanced]
@@ -114,7 +114,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_create_dataset]
@@ -135,7 +135,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_import_data]
@@ -156,7 +156,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_list_datasets]
@@ -177,7 +177,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_delete_dataset]
@@ -198,7 +198,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_model.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_create_model]
@@ -219,7 +219,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_model.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_list_models]
@@ -240,7 +240,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_model.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_automl_delete_model]
@@ -261,7 +261,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_document.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_document.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_document]
@@ -282,7 +282,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_document.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_document.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_document_batch]
@@ -303,7 +303,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_glossary.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_glossary.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_create_glossary]
@@ -326,7 +326,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_glossary.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_glossary.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_update_glossary]
@@ -347,7 +347,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_glossary.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_glossary.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_list_glossaries]
@@ -368,7 +368,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/translate/example_translate_glossary.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/translate/example_translate_glossary.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_translate_delete_glossary]

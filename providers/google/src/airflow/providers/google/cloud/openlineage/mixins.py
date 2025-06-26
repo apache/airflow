@@ -188,10 +188,10 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         return list(final_outputs.values())
 
     def _get_input_dataset(self, table: dict) -> InputDataset:
-        return cast(InputDataset, self._get_dataset(table, "input"))
+        return cast("InputDataset", self._get_dataset(table, "input"))
 
     def _get_output_dataset(self, table: dict) -> OutputDataset:
-        return cast(OutputDataset, self._get_dataset(table, "output"))
+        return cast("OutputDataset", self._get_dataset(table, "output"))
 
     def _get_dataset(self, table: dict, dataset_type: str) -> Dataset:
         project = table.get("projectId")
@@ -207,15 +207,14 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
                 name=dataset_name,
                 facets=dataset_facets,
             )
-        elif dataset_type == "output":
+        if dataset_type == "output":
             # Logic specific to creating OutputDataset (if needed)
             return OutputDataset(
                 namespace=BIGQUERY_NAMESPACE,
                 name=dataset_name,
                 facets=dataset_facets,
             )
-        else:
-            raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
+        raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
 
     def _get_table_facets_safely(self, table_name: str) -> dict[str, DatasetFacet]:
         try:

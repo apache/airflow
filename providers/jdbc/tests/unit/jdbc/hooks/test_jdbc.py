@@ -32,10 +32,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
 logger = logging.getLogger(__name__)
@@ -79,8 +75,9 @@ def get_hook(
 
 
 class TestJdbcHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="jdbc_default",
                 conn_type="jdbc",
@@ -309,3 +306,70 @@ class TestJdbcHook:
                     future.result()  # This will raise OSError if get_conn isn't threadsafe
 
             assert mock_connect.call_count == 10
+
+    @pytest.mark.parametrize(
+        "params,expected_uri",
+        [
+            # JDBC URL fallback cases
+            pytest.param(
+                {"host": "jdbc:mysql://localhost:3306/test"},
+                "jdbc:mysql://localhost:3306/test",
+                id="jdbc-mysql",
+            ),
+            pytest.param(
+                {"host": "jdbc:postgresql://localhost:5432/test?user=user&password=pass%40word"},
+                "jdbc:postgresql://localhost:5432/test?user=user&password=pass%40word",
+                id="jdbc-postgresql",
+            ),
+            pytest.param(
+                {"host": "jdbc:oracle:thin:@localhost:1521:xe"},
+                "jdbc:oracle:thin:@localhost:1521:xe",
+                id="jdbc-oracle",
+            ),
+            pytest.param(
+                {"host": "jdbc:sqlserver://localhost:1433;databaseName=test;trustServerCertificate=true"},
+                "jdbc:sqlserver://localhost:1433;databaseName=test;trustServerCertificate=true",
+                id="jdbc-sqlserver",
+            ),
+            # SQLAlchemy URI cases
+            pytest.param(
+                {
+                    "conn_params": {
+                        "extra": json.dumps(
+                            {"sqlalchemy_scheme": "mssql", "sqlalchemy_query": {"servicename": "test"}}
+                        )
+                    }
+                },
+                "mssql://login:password@host:1234/schema?servicename=test",
+                id="sqlalchemy-scheme-with-query",
+            ),
+            pytest.param(
+                {
+                    "conn_params": {
+                        "extra": json.dumps(
+                            {"sqlalchemy_scheme": "postgresql", "sqlalchemy_driver": "psycopg2"}
+                        )
+                    }
+                },
+                "postgresql+psycopg2://login:password@host:1234/schema",
+                id="sqlalchemy-scheme-with-driver",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "pass/word",
+                    "schema": "my/db",
+                    "conn_params": {"extra": json.dumps({"sqlalchemy_scheme": "mysql"})},
+                },
+                "mysql://user%40domain:pass%2Fword@host:1234/my%2Fdb",
+                id="sqlalchemy-with-encoding",
+            ),
+        ],
+    )
+    def test_get_uri(self, params, expected_uri):
+        """Test get_uri with different configurations including JDBC URLs and SQLAlchemy URIs."""
+        valid_keys = {"host", "login", "password", "schema", "conn_params"}
+        hook_params = {key: params[key] for key in valid_keys & params.keys()}
+
+        jdbc_hook = get_hook(**hook_params)
+        assert jdbc_hook.get_uri() == expected_uri

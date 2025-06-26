@@ -32,7 +32,7 @@ from airflow.utils.helpers import prune_dict
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 REGION_NAME = "us-east-1"
 AVP_POLICY_STORE_ID = "store_id"
@@ -301,7 +301,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 user=test_user,
             )
 
-    def test_is_policy_store_schema_up_to_date_when_schema_up_to_date(self, facade, providers_src_folder):
+    def test_is_policy_store_schema_up_to_date_when_schema_up_to_date(self, facade):
         from airflow.providers.amazon.aws.auth_manager import avp
 
         schema_path = Path(avp.__file__).parent / "schema.json"
@@ -312,7 +312,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
 
             assert facade.is_policy_store_schema_up_to_date()
 
-    def test_is_policy_store_schema_up_to_date_when_schema_is_modified(self, facade, providers_src_folder):
+    def test_is_policy_store_schema_up_to_date_when_schema_is_modified(self, facade):
         from airflow.providers.amazon.aws.auth_manager import avp
 
         schema_path = Path(avp.__file__).parent / "schema.json"

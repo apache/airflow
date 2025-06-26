@@ -29,9 +29,17 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1740734133
-# note that those versions are maintained by release manager - do not update them manually
+source-date-epoch: 1749897313
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 16.0.0
+  - 15.1.0
+  - 15.0.1
+  - 15.0.0
+  - 14.1.0
   - 14.0.0
   - 12.0.0
   - 11.0.0
@@ -486,9 +494,6 @@ operators:
   - integration-name: Google Compute Engine
     python-modules:
       - airflow.providers.google.cloud.operators.compute
-  - integration-name: Google Data Catalog
-    python-modules:
-      - airflow.providers.google.cloud.operators.datacatalog
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.operators.dataflow
@@ -596,6 +601,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
       - airflow.providers.google.cloud.operators.vertex_ai.feature_store
+      - airflow.providers.google.cloud.operators.vertex_ai.ray
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -744,9 +750,6 @@ hooks:
     python-modules:
       - airflow.providers.google.cloud.hooks.compute
       - airflow.providers.google.cloud.hooks.compute_ssh
-  - integration-name: Google Data Catalog
-    python-modules:
-      - airflow.providers.google.cloud.hooks.datacatalog
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.hooks.dataflow
@@ -834,6 +837,7 @@ hooks:
   - integration-name: Google
     python-modules:
       - airflow.providers.google.common.hooks.base_google
+      - airflow.providers.google.common.hooks.operation_helpers
   - integration-name: Google Discovery API
     python-modules:
       - airflow.providers.google.common.hooks.discovery_api
@@ -877,6 +881,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
       - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
+      - airflow.providers.google.cloud.hooks.vertex_ai.ray
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -1079,6 +1084,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.azure_blob_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst
+  - source-integration-name: Hypertext Transfer Protocol (HTTP)
+    target-integration-name: Google Cloud Storage (GCS)
+    python-module: airflow.providers.google.cloud.transfers.http_to_gcs
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/http_to_gcs.rst
 
 connection-types:
   - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook
@@ -1095,6 +1104,10 @@ connection-types:
     connection-type: gcpssh
   - hook-class-name: airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
     connection-type: leveldb
+  - hook-class-name: airflow.providers.google.ads.hooks.ads.GoogleAdsHook
+    connection-type: google_ads
+  - hook-class-name: airflow.providers.google.cloud.hooks.looker.LookerHook
+    connection-type: gcp_looker
 
 extra-links:
   - airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink
@@ -1127,9 +1140,6 @@ extra-links:
   - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
-  - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink
-  - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink
-  - airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.links.dataproc.DataprocClusterLink
@@ -1156,6 +1166,8 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink
@@ -1186,11 +1198,6 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
-  - airflow.providers.google.cloud.links.automl.AutoMLDatasetLink
-  - airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink
-  - airflow.providers.google.cloud.links.automl.AutoMLModelLink
-  - airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink
-  - airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink
   - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
@@ -1231,7 +1238,7 @@ extra-links:
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink
-
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

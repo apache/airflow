@@ -142,6 +142,17 @@ class BatchProtocol(Protocol):
         """
         ...
 
+    def create_compute_environment(self, **kwargs) -> dict:
+        """
+        Create an AWS Batch compute environment.
+
+        :param kwargs: Arguments for boto3 create_compute_environment
+
+        .. seealso::
+            - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch/client/create_compute_environment.html
+        """
+        ...
+
 
 # Note that the use of invalid-name parameters should be restricted to the boto3 mappings only;
 # all the Airflow wrappers of boto3 clients should not adopt invalid-names to match boto3.
@@ -416,8 +427,7 @@ class BatchClientHook(AwsBaseHook):
                 )
         else:
             raise AirflowException(
-                f"AWS Batch job ({job_id}) description error: exceeded status_retries "
-                f"({self.status_retries})"
+                f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
             )
 
     @staticmethod

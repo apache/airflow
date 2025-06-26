@@ -219,6 +219,13 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
             self.body["labels"] = {}
         self.body["labels"].update({"airflow-version": "v" + version.replace(".", "-").replace("+", "-")})
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "function_name": self.body["name"].split("/")[-1],
+        }
+
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -237,7 +244,6 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudFunctionsDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 location=self.location,
                 project_id=project_id,
                 function_name=self.body["name"].split("/")[-1],
@@ -379,10 +385,9 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
     def _validate_inputs(self) -> None:
         if not self.name:
             raise AttributeError("Empty parameter: name")
-        else:
-            pattern = FUNCTION_NAME_COMPILED_PATTERN
-            if not pattern.match(self.name):
-                raise AttributeError(f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}")
+        pattern = FUNCTION_NAME_COMPILED_PATTERN
+        if not pattern.match(self.name):
+            raise AttributeError(f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}")
 
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
@@ -395,7 +400,6 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudFunctionsListLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
                 )
             return hook.delete_function(self.name)
@@ -404,9 +408,8 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
             if status == 404:
                 self.log.info("The function does not exist in this project")
                 return None
-            else:
-                self.log.error("An error occurred. Exiting.")
-                raise e
+            self.log.error("An error occurred. Exiting.")
+            raise e
 
 
 class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
@@ -464,6 +467,13 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "function_name": self.function_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
             api_version=self.api_version,
@@ -484,10 +494,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudFunctionsDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                location=self.location,
                 project_id=project_id,
-                function_name=self.function_id,
             )
 
         return result

@@ -98,6 +98,13 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
   {{- end }}
+  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  - name: AIRFLOW__API_AUTH__JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "jwt_secret" . }}
+        key: jwt-secret
+  {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
@@ -396,6 +403,10 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
 {{- end }}
 
+{{- define "jwt_secret" -}}
+  {{- default (printf "%s-jwt-secret" .Release.Name) .Values.jwtSecretName }}
+{{- end }}
+
 {{- define "webserver_secret_key_secret" -}}
   {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
 {{- end }}
@@ -582,6 +593,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
   readOnly: True
 {{- end }}
 
+{{- define "airflow_api_server_config_configmap_name" -}}
+  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+{{- end }}
+
+{{- define "airflow_api_server_config_mount" -}}
+- name: api-server-config
+  mountPath: {{ template "airflow_webserver_config_path" . }}
+  subPath: webserver_config.py
+  readOnly: True
+{{- end }}
+
 {{- define "airflow_local_setting_path" -}}
   {{- printf "%s/config/airflow_local_settings.py" .Values.airflowHome | quote }}
 {{- end }}
@@ -663,6 +685,12 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- define "triggerer.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "triggerer") .) -}}
 {{- end }}
+
+{{/* Determine trigger capacity, taking Airflow 2 and 3 config option differences into account */}}
+{{- define "triggerer.capacity" -}}
+  {{- $triggerer_section := .Values.config.triggerer | default dict }}
+  {{- $triggerer_section.capacity | default $triggerer_section.default_capacity | default 1000 | int -}}
+{{- end -}}
 
 {{/* Create the name of the dag processor service account to use */}}
 {{- define "dagProcessor.serviceAccountName" -}}

@@ -289,9 +289,9 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(create_context(operator))
 
-        assert isinstance(
-            exc.value.trigger, SnowflakeSqlApiTrigger
-        ), "Trigger is not a SnowflakeSqlApiTrigger"
+        assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger), (
+            "Trigger is not a SnowflakeSqlApiTrigger"
+        )
 
     def test_snowflake_sql_api_execute_complete_failure(self):
         """Test SnowflakeSqlApiOperator raise AirflowException of error event"""
@@ -331,6 +331,48 @@ class TestSnowflakeSqlApiOperator:
         with mock.patch.object(operator.log, "info") as mock_log_info:
             operator.execute_complete(context=None, event=mock_event)
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
+
+    @pytest.mark.parametrize(
+        "mock_event",
+        [
+            None,
+            ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
+        ],
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    def test_snowflake_sql_api_execute_complete_reassigns_query_ids(self, mock_conn, mock_event):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        expected_query_ids = mock_event["statement_query_ids"] if mock_event else []
+
+        assert operator.query_ids == []
+        assert operator._hook.query_ids == []
+
+        operator.execute_complete(context=None, event=mock_event)
+
+        assert operator.query_ids == expected_query_ids
+        assert operator._hook.query_ids == expected_query_ids
+
+    def test_snowflake_sql_api_caches_hook(self):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        hook1 = operator._hook
+        hook2 = operator._hook
+        assert hook1 is hook2
 
     @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
     def test_snowflake_sql_api_execute_operator_failed_before_defer(
@@ -391,3 +433,66 @@ class TestSnowflakeSqlApiOperator:
         operator.execute(create_context(operator))
 
         assert mock_defer.called
+
+    def test_snowflake_sql_api_execute_operator_polling_running(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """
+        Tests that the execute method correctly loops and waits until all queries complete
+        when ``deferrable=False``
+        """
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+            deferrable=False,
+        )
+
+        mock_execute_query.return_value = ["uuid1"]
+
+        mock_get_sql_api_query_status.side_effect = [
+            # Initial get_sql_api_query_status check
+            {"status": "running"},
+            # 1st poll_on_queries check (poll_interval: 5s)
+            {"status": "running"},
+            # 2nd poll_on_queries check (poll_interval: 5s)
+            {"status": "running"},
+            # 3rd poll_on_queries check (poll_interval: 5s)
+            {"status": "success"},
+        ]
+
+        with mock.patch("time.sleep") as mock_sleep:
+            operator.execute(context=None)
+            mock_check_query_output.assert_called_once_with(["uuid1"])
+            assert mock_sleep.call_count == 3
+
+    def test_snowflake_sql_api_execute_operator_polling_failed(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """
+        Tests that the execute method raises AirflowException if any query fails during polling
+        when ``deferrable=False``
+        """
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+            deferrable=False,
+        )
+
+        mock_execute_query.return_value = ["uuid1"]
+
+        mock_get_sql_api_query_status.side_effect = [
+            # Initial get_sql_api_query_status check
+            {"status": "running"},
+            # 1st poll_on_queries check
+            {"status": "error"},
+        ]
+
+        with pytest.raises(AirflowException):
+            operator.execute(context=None)
+        mock_check_query_output.assert_not_called()

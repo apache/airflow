@@ -36,7 +36,7 @@ es_conn_args
 Usage Example
 ---------------------
 
-.. exampleinclude:: /../../providers/elasticsearch/tests/system/elasticsearch/example_elasticsearch_query.py
+.. exampleinclude:: /../../elasticsearch/tests/system/elasticsearch/example_elasticsearch_query.py
     :language: python
     :start-after: [START howto_elasticsearch_python_hook]
     :end-before: [END howto_elasticsearch_python_hook]

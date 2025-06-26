@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.sensors.ecs import (
     EcsTaskDefinitionStateSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_ecs"
@@ -149,6 +150,7 @@ with DAG(
     # [START howto_operator_ecs_run_task]
     run_task = EcsRunTaskOperator(
         task_id="run_task",
+        reattach=True,
         cluster=existing_cluster_name,
         task_definition=register_task.output,
         overrides={

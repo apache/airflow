@@ -38,7 +38,7 @@ When you use this operator, you can optionally compress the data being uploaded.
 
 Below is an example of using this operator to upload a file to GCS.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_upload_download.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_upload_download.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_local_filesystem_to_gcs]

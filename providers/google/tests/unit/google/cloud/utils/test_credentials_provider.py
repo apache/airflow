@@ -176,7 +176,6 @@ class TestProvideGcpConnAndCredentials:
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
 
-@pytest.mark.db_test
 class TestGetGcpCredentialsAndProjectId:
     test_scopes = _DEFAULT_SCOPES
     test_key_file = "KEY_PATH.json"
@@ -366,9 +365,7 @@ class TestGetGcpCredentialsAndProjectId:
     ):
         mock_secret_manager_client.return_value.is_valid_secret_name.return_value = True
         mock_secret_manager_client.return_value.get_secret.return_value = (
-            '{"type":"service_account","project_id":"pid",'
-            '"private_key_id":"pkid",'
-            '"private_key":"payload"}'
+            '{"type":"service_account","project_id":"pid","private_key_id":"pkid","private_key":"payload"}'
         )
 
         get_credentials_and_project_id(key_secret_name="secret name")

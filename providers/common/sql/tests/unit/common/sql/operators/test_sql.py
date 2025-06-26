@@ -26,7 +26,7 @@ import pytest
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
+from airflow.models import Connection, DagRun, TaskInstance as TI
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -46,11 +46,15 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
     from airflow.utils.types import DagRunTriggeredByType
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -109,6 +113,11 @@ class TestBaseSQLOperator:
 
 
 class TestSQLExecuteQueryOperator:
+    def setup_method(self):
+        self.task_id = "test_task"
+        self.conn_id = "sql_default"
+        self._operator = SQLExecuteQueryOperator(task_id=self.task_id, conn_id=self.conn_id, sql="sql")
+
     def _construct_operator(self, sql, **kwargs):
         dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
@@ -121,8 +130,11 @@ class TestSQLExecuteQueryOperator:
 
     @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
-    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output):
-        operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
+    @pytest.mark.parametrize("requires_result_fetch", [True, False])
+    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output, requires_result_fetch):
+        operator = self._construct_operator(
+            "SELECT 1;", do_xcom_push=True, requires_result_fetch=requires_result_fetch
+        )
         operator.execute(context=MagicMock())
 
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -149,6 +161,21 @@ class TestSQLExecuteQueryOperator:
         )
         mock_process_output.assert_not_called()
 
+    @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_requires_result_fetch_dont_xcom_push(self, mock_get_db_hook, mock_process_output):
+        operator = self._construct_operator("SELECT 1;", requires_result_fetch=True, do_xcom_push=False)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
+            return_last=True,
+        )
+        mock_process_output.assert_not_called()
+
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
     def test_output_processor(self, mock_get_db_hook):
         data = [(1, "Alice"), (2, "Bob")]
@@ -167,6 +194,23 @@ class TestSQLExecuteQueryOperator:
 
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_sql_operator_extra_dejson_fields_to_hook_params(self):
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+            return_value=Connection(conn_id="sql_default", conn_type="postgres"),
+        ) as mock_get_conn:
+            mock_get_conn.return_value = Connection(
+                conn_id="google_cloud_bigquery_default",
+                conn_type="gcpbigquery",
+                extra={"use_legacy_sql": False, "priority": "INTERACTIVE"},
+            )
+            self._operator.hook_params = {"use_legacy_sql": True, "location": "us-east1"}
+            assert self._operator._hook.conn_type == "gcpbigquery"
+            assert self._operator._hook.use_legacy_sql is True
+            assert self._operator._hook.location == "us-east1"
+            assert self._operator._hook.priority == "INTERACTIVE"
 
 
 class TestColumnCheckOperator:
@@ -331,7 +375,6 @@ class TestColumnCheckOperator:
             == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
-    @pytest.mark.db_test
     def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
         checks = self.short_valid_column_mapping["X"]
         operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
@@ -363,7 +406,6 @@ class TestColumnCheckOperator:
         )
         del self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"]
 
-    @pytest.mark.db_test
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
     def test_generated_sql_respects_templated_partitions(self, mock_get_db_hook):
         records = [
@@ -389,7 +431,6 @@ class TestColumnCheckOperator:
             self._full_check_sql(self.correct_generate_sql_query_with_partition),
         )
 
-    @pytest.mark.db_test
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
     def test_generated_sql_respects_templated_table(self, mock_get_db_hook):
         records = [
@@ -576,7 +617,6 @@ class TestTableCheckOperator:
             operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
-    @pytest.mark.db_test
     def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "{{ params.col }} > 10"
@@ -585,7 +625,6 @@ class TestTableCheckOperator:
             operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
-    @pytest.mark.db_test
     def test_generate_sql_query_with_templated_table(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.table = "{{ params.table }}"
@@ -656,6 +695,7 @@ class TestSQLCheckOperatorDbHook:
             assert isinstance(self._operator._hook, PostgresHook)
             mock_get_conn.assert_called_once_with(self.conn_id)
 
+    @skip_if_force_lowest_dependencies_marker
     def test_not_allowed_conn_type(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -665,6 +705,7 @@ class TestSQLCheckOperatorDbHook:
             with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
                 self._operator._hook
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_snowflake(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -685,6 +726,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.schema == "schema"
             assert not self._operator._hook.log_sql
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_biguery(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -698,6 +740,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_templated(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -763,7 +806,6 @@ class TestValueCheckOperator:
             tolerance=tolerance,
         )
 
-    @pytest.mark.db_test
     def test_pass_value_template_string(self):
         pass_value_str = "2018-03-22"
         operator = self._construct_operator("select date from tab1;", "{{ ds }}")
@@ -773,7 +815,6 @@ class TestValueCheckOperator:
         assert operator.task_id == self.task_id
         assert operator.pass_value == pass_value_str
 
-    @pytest.mark.db_test
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
         operator = self._construct_operator("select date from tab1;", pass_value_float)
@@ -1032,7 +1073,6 @@ class TestThresholdCheckOperator:
             operator.execute(context=MagicMock())
 
 
-@pytest.mark.db_test
 class TestSqlBranch:
     """
     Test for SQL Branch Operator
@@ -1061,15 +1101,25 @@ class TestSqlBranch:
             session.query(TI).delete()
             session.query(XCom).delete()
 
-    @pytest.mark.db_test
+    @pytest.fixture
+    def branch_op(self):
+        return BranchSQLOperator(
+            task_id="make_choice",
+            conn_id="mysql_default",
+            sql="SELECT 1",
+            follow_task_ids_if_true=["branch_1"],
+            follow_task_ids_if_false=["branch_2"],
+            dag=self.dag,
+        )
+
     def test_unsupported_conn_type(self):
         """Check if BranchSQLOperator throws an exception for unsupported connection type"""
         op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="redis_default",
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
+            follow_task_ids_if_true=["branch_1"],
+            follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
 
@@ -1082,8 +1132,8 @@ class TestSqlBranch:
             task_id="make_choice",
             conn_id="invalid_connection",
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
+            follow_task_ids_if_true=["branch_1"],
+            follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
 
@@ -1096,8 +1146,8 @@ class TestSqlBranch:
             task_id="make_choice",
             conn_id="invalid_connection",
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
-            follow_task_ids_if_true=None,
-            follow_task_ids_if_false="branch_2",
+            follow_task_ids_if_true=[],
+            follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
 
@@ -1110,8 +1160,8 @@ class TestSqlBranch:
             task_id="make_choice",
             conn_id="invalid_connection",
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false=None,
+            follow_task_ids_if_true=["branch_1"],
+            follow_task_ids_if_false=[],
             dag=self.dag,
         )
 
@@ -1119,16 +1169,8 @@ class TestSqlBranch:
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.backend("mysql")
-    def test_sql_branch_operator_mysql(self):
+    def test_sql_branch_operator_mysql(self, branch_op):
         """Check if BranchSQLOperator works with backend"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
-        )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.backend("postgres")
@@ -1138,24 +1180,15 @@ class TestSqlBranch:
             task_id="make_choice",
             conn_id="postgres_default",
             sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
+            follow_task_ids_if_true=["branch_1"],
+            follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
+    def test_branch_single_value_with_dag_run(self, mock_get_db_hook, branch_op):
         """Check BranchSQLOperator branch operation"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
-        )
-
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
@@ -1182,59 +1215,15 @@ class TestSqlBranch:
 
         mock_get_records.return_value = 1
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_1:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        tis = dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == "make_choice":
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == "branch_1":
-                assert ti.state == State.NONE
-            elif ti.task_id == "branch_2":
-                assert ti.state == State.SKIPPED
-            else:
-                raise ValueError(f"Invalid task id {ti.task_id} found!")
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_branch_true_with_dag_run(self, mock_get_db_hook):
-        """Check BranchSQLOperator branch operation"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun_kwargs = {
-                "logical_date": DEFAULT_DATE,
-                "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
-            }
+            assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **dagrun_kwargs,
-        )
-
-        mock_get_records = mock_get_db_hook.return_value.get_first
-
-        for true_value in SUPPORTED_TRUE_VALUES:
-            mock_get_records.return_value = true_value
-
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1246,18 +1235,58 @@ class TestSqlBranch:
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
+    @pytest.mark.parametrize("true_value", SUPPORTED_TRUE_VALUES)
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_branch_false_with_dag_run(self, mock_get_db_hook):
+    def test_branch_true_with_dag_run(self, mock_get_db_hook, true_value, branch_op):
         """Check BranchSQLOperator branch operation"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
+        self.dag.clear()
+
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun_kwargs = {
+                "logical_date": DEFAULT_DATE,
+                "run_after": DEFAULT_DATE,
+                "triggered_by": DagRunTriggeredByType.TEST,
+            }
+        else:
+            dagrun_kwargs = {"execution_date": DEFAULT_DATE}
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **dagrun_kwargs,
         )
 
+        mock_get_records = mock_get_db_hook.return_value.get_first
+        mock_get_records.return_value = true_value
+
+        if AIRFLOW_V_3_0_1:
+            from airflow.exceptions import DownstreamTasksSkipped
+
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            assert exc_info.value.tasks == [("branch_2", -1)]
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            tis = dr.get_task_instances()
+            for ti in tis:
+                if ti.task_id == "make_choice":
+                    assert ti.state == State.SUCCESS
+                elif ti.task_id == "branch_1":
+                    assert ti.state == State.NONE
+                elif ti.task_id == "branch_2":
+                    assert ti.state == State.SKIPPED
+                else:
+                    raise ValueError(f"Invalid task id {ti.task_id} found!")
+
+    @pytest.mark.parametrize("false_value", SUPPORTED_FALSE_VALUES)
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_branch_false_with_dag_run(self, mock_get_db_hook, false_value, branch_op):
+        """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
@@ -1281,10 +1310,15 @@ class TestSqlBranch:
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 
-        for false_value in SUPPORTED_FALSE_VALUES:
-            mock_get_records.return_value = false_value
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        mock_get_records.return_value = false_value
+        if AIRFLOW_V_3_0_1:
+            from airflow.exceptions import DownstreamTasksSkipped
 
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            assert exc_info.value.tasks == [("branch_1", -1)]
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1304,7 +1338,7 @@ class TestSqlBranch:
             conn_id="mysql_default",
             sql="SELECT 1",
             follow_task_ids_if_true=["branch_1", "branch_2"],
-            follow_task_ids_if_false="branch_3",
+            follow_task_ids_if_false=["branch_3"],
             dag=self.dag,
         )
 
@@ -1334,31 +1368,28 @@ class TestSqlBranch:
         mock_get_records = mock_get_db_hook.return_value.get_first
         mock_get_records.return_value = [["1"]]
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_1:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        tis = dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == "make_choice":
-                assert ti.state == State.SUCCESS
-            elif ti.task_id in ("branch_1", "branch_2"):
-                assert ti.state == State.NONE
-            elif ti.task_id == "branch_3":
-                assert ti.state == State.SKIPPED
-            else:
-                raise ValueError(f"Invalid task id {ti.task_id} found!")
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            assert exc_info.value.tasks == [("branch_3", -1)]
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            tis = dr.get_task_instances()
+            for ti in tis:
+                if ti.task_id == "make_choice":
+                    assert ti.state == State.SUCCESS
+                elif ti.task_id in ("branch_1", "branch_2"):
+                    assert ti.state == State.NONE
+                elif ti.task_id == "branch_3":
+                    assert ti.state == State.SKIPPED
+                else:
+                    raise ValueError(f"Invalid task id {ti.task_id} found!")
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_invalid_query_result_with_dag_run(self, mock_get_db_hook):
+    def test_invalid_query_result_with_dag_run(self, mock_get_db_hook, branch_op):
         """Check BranchSQLOperator branch operation"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
-        )
-
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
@@ -1388,17 +1419,8 @@ class TestSqlBranch:
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook):
+    def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook, branch_op):
         """Test SQL Branch with skipping all downstream dependencies"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
-        )
-
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
         self.dag.clear()
@@ -1436,18 +1458,10 @@ class TestSqlBranch:
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
+    @pytest.mark.parametrize("false_value", SUPPORTED_FALSE_VALUES)
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_with_skip_in_branch_downstream_dependencies2(self, mock_get_db_hook):
+    def test_with_skip_in_branch_downstream_dependencies2(self, mock_get_db_hook, false_value, branch_op):
         """Test skipping downstream dependency for false condition"""
-        branch_op = BranchSQLOperator(
-            task_id="make_choice",
-            conn_id="mysql_default",
-            sql="SELECT 1",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            dag=self.dag,
-        )
-
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
         self.dag.clear()
@@ -1470,12 +1484,16 @@ class TestSqlBranch:
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
+        mock_get_records.return_value = [false_value]
 
-        for false_value in SUPPORTED_FALSE_VALUES:
-            mock_get_records.return_value = [false_value]
+        if AIRFLOW_V_3_0_1:
+            from airflow.exceptions import DownstreamTasksSkipped
 
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            assert exc_info.value.tasks == [("branch_1", -1)]
+        else:
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":

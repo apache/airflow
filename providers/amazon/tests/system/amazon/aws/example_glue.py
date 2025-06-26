@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 if TYPE_CHECKING:

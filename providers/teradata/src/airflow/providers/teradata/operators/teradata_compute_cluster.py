@@ -157,7 +157,7 @@ class _TeradataComputeClusterOperator(BaseOperator):
     def _compute_cluster_execute_complete(self, event: dict[str, Any]) -> None:
         if event["status"] == "success":
             return event["message"]
-        elif event["status"] == "error":
+        if event["status"] == "error":
             raise AirflowException(event["message"])
 
     def _handle_cc_status(self, operation_type, sql):
@@ -170,7 +170,7 @@ class _TeradataComputeClusterOperator(BaseOperator):
         self.defer(
             timeout=timedelta(minutes=self.timeout),
             trigger=TeradataComputeClusterSyncTrigger(
-                teradata_conn_id=cast(str, self.teradata_conn_id),
+                teradata_conn_id=cast("str", self.teradata_conn_id),
                 compute_profile_name=self.compute_profile_name,
                 compute_group_name=self.compute_group_name,
                 operation_type=operation_type,
@@ -185,8 +185,7 @@ class _TeradataComputeClusterOperator(BaseOperator):
         try:
             if handler is not None:
                 return self.hook.run(query, handler=handler)
-            else:
-                return self.hook.run(query)
+            return self.hook.run(query)
         except Exception as ex:
             self.log.error(str(ex))
             raise
@@ -305,13 +304,12 @@ class TeradataComputeClusterProvisionOperator(_TeradataComputeClusterOperator):
             msg = f"Compute Profile {self.compute_profile_name} is already exists under Compute Group {self.compute_group_name}. Status is {cp_status_result}"
             self.log.info(msg)
             return cp_status_result
-        else:
-            create_cp_query = self._build_ccp_setup_query()
-            operation = Constants.CC_CREATE_OPR
-            initially_suspended = self._get_initially_suspended(create_cp_query)
-            if initially_suspended == "TRUE":
-                operation = Constants.CC_CREATE_SUSPEND_OPR
-            return self._handle_cc_status(operation, create_cp_query)
+        create_cp_query = self._build_ccp_setup_query()
+        operation = Constants.CC_CREATE_OPR
+        initially_suspended = self._get_initially_suspended(create_cp_query)
+        if initially_suspended == "TRUE":
+            operation = Constants.CC_CREATE_SUSPEND_OPR
+        return self._handle_cc_status(operation, create_cp_query)
 
 
 class TeradataComputeClusterDecommissionOperator(_TeradataComputeClusterOperator):
@@ -444,10 +442,9 @@ class TeradataComputeClusterResumeOperator(_TeradataComputeClusterOperator):
             if self.compute_group_name:
                 cp_resume_query = f"{cp_resume_query} IN COMPUTE GROUP {self.compute_group_name}"
             return self._handle_cc_status(Constants.CC_RESUME_OPR, cp_resume_query)
-        else:
-            self.log.info(
-                "Compute Cluster %s already %s", self.compute_profile_name, Constants.CC_RESUME_DB_STATUS
-            )
+        self.log.info(
+            "Compute Cluster %s already %s", self.compute_profile_name, Constants.CC_RESUME_DB_STATUS
+        )
 
 
 class TeradataComputeClusterSuspendOperator(_TeradataComputeClusterOperator):
@@ -516,7 +513,6 @@ class TeradataComputeClusterSuspendOperator(_TeradataComputeClusterOperator):
             if self.compute_group_name:
                 sql = f"{sql} IN COMPUTE GROUP {self.compute_group_name}"
             return self._handle_cc_status(Constants.CC_SUSPEND_OPR, sql)
-        else:
-            self.log.info(
-                "Compute Cluster %s already %s", self.compute_profile_name, Constants.CC_SUSPEND_DB_STATUS
-            )
+        self.log.info(
+            "Compute Cluster %s already %s", self.compute_profile_name, Constants.CC_SUSPEND_DB_STATUS
+        )

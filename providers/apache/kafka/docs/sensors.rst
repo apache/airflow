@@ -35,7 +35,7 @@ Using the sensor
 """"""""""""""""""
 
 
-.. exampleinclude:: /../../providers/apache/kafka/tests/system/apache/kafka/example_dag_hello_kafka.py
+.. exampleinclude:: /../tests/system/apache/kafka/example_dag_hello_kafka.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_await_message]
@@ -62,7 +62,7 @@ For parameter definitions take a look at :class:`~airflow.providers.apache.kafka
 Using the sensor
 """"""""""""""""""
 
-.. exampleinclude:: /../../providers/apache/kafka/tests/system/apache/kafka/example_dag_event_listener.py
+.. exampleinclude:: /../tests/system/apache/kafka/example_dag_event_listener.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_await_message_trigger_function]

@@ -36,35 +36,36 @@ TABLE2 = "city2"
 with models.DAG(
     dag_id="example_trino",
     schedule="@once",  # Override to match your needs
-    start_date=datetime(2022, 1, 1),
+    start_date=datetime(2025, 2, 24),
     catchup=False,
     tags=["example"],
 ) as dag:
     trino_create_schema = SQLExecuteQueryOperator(
         task_id="trino_create_schema",
-        sql=f"CREATE SCHEMA IF NOT EXISTS {SCHEMA} WITH (location = 's3://irisbkt/cities/');",
+        sql=f" CREATE SCHEMA IF NOT EXISTS {SCHEMA} WITH (location = 's3://irisbkt/cities/') ",
         handler=list,
     )
     trino_create_table = SQLExecuteQueryOperator(
         task_id="trino_create_table",
-        sql=f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE}(
-        cityid bigint,
-        cityname varchar
-        )""",
+        sql=f" CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE}( cityid bigint, cityname varchar) ",
         handler=list,
     )
     trino_insert = SQLExecuteQueryOperator(
         task_id="trino_insert",
-        sql=f"""INSERT INTO {SCHEMA}.{TABLE} VALUES (1, 'San Francisco');""",
+        sql=f" INSERT INTO {SCHEMA}.{TABLE} VALUES (1, 'San Francisco') ",
         handler=list,
+        requires_result_fetch=True,
     )
     trino_multiple_queries = SQLExecuteQueryOperator(
         task_id="trino_multiple_queries",
-        sql=f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE1}(cityid bigint,cityname varchar);
-        INSERT INTO {SCHEMA}.{TABLE1} VALUES (2, 'San Jose');
-        CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE2}(cityid bigint,cityname varchar);
-        INSERT INTO {SCHEMA}.{TABLE2} VALUES (3, 'San Diego');""",
+        sql=[
+            f" CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE1}(cityid bigint,cityname varchar) ",
+            f" INSERT INTO {SCHEMA}.{TABLE1} VALUES (2, 'San Jose') ",
+            f" CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE2}(cityid bigint,cityname varchar) ",
+            f" INSERT INTO {SCHEMA}.{TABLE2} VALUES (3, 'San Diego') ",
+        ],
         handler=list,
+        requires_result_fetch=True,
     )
     trino_templated_query = SQLExecuteQueryOperator(
         task_id="trino_templated_query",
@@ -74,7 +75,7 @@ with models.DAG(
     )
     trino_parameterized_query = SQLExecuteQueryOperator(
         task_id="trino_parameterized_query",
-        sql=f"select * from {SCHEMA}.{TABLE2} where cityname = ?",
+        sql=f" SELECT * FROM {SCHEMA}.{TABLE2} WHERE cityname = ?",
         parameters=("San Diego",),
         handler=list,
     )

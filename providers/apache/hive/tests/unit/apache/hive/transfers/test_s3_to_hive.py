@@ -39,7 +39,6 @@ moto = pytest.importorskip("moto")
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.db_test
 class TestS3ToHiveTransfer:
     @pytest.fixture(autouse=True)
     def setup_attrs(self):
@@ -172,17 +171,17 @@ class TestS3ToHiveTransfer:
 
     def test__match_headers(self):
         self.kwargs["field_dict"] = {"Sno": "BIGINT", "Some,Text": "STRING"}
-        assert S3ToHiveOperator(**self.kwargs)._match_headers(
-            ["Sno", "Some,Text"]
-        ), "Header row doesn't match expected value"
+        assert S3ToHiveOperator(**self.kwargs)._match_headers(["Sno", "Some,Text"]), (
+            "Header row doesn't match expected value"
+        )
         # Testing with different column order
-        assert not S3ToHiveOperator(**self.kwargs)._match_headers(
-            ["Some,Text", "Sno"]
-        ), "Header row doesn't match expected value"
+        assert not S3ToHiveOperator(**self.kwargs)._match_headers(["Some,Text", "Sno"]), (
+            "Header row doesn't match expected value"
+        )
         # Testing with extra column in header
-        assert not S3ToHiveOperator(**self.kwargs)._match_headers(
-            ["Sno", "Some,Text", "ExtraColumn"]
-        ), "Header row doesn't match expected value"
+        assert not S3ToHiveOperator(**self.kwargs)._match_headers(["Sno", "Some,Text", "ExtraColumn"]), (
+            "Header row doesn't match expected value"
+        )
 
     def test__delete_top_row_and_compress(self):
         s32hive = S3ToHiveOperator(**self.kwargs)
@@ -196,6 +195,7 @@ class TestS3ToHiveTransfer:
         fn_bz2 = self._get_fn(".bz2", False)
         assert self._check_file_equality(bz2_txt_nh, fn_bz2, ".bz2"), "bz2 Compressed file not as expected"
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
     @moto.mock_aws
     def test_execute(self, mock_hiveclihook):
@@ -229,6 +229,7 @@ class TestS3ToHiveTransfer:
             s32hive = S3ToHiveOperator(**self.kwargs)
             s32hive.execute(None)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
     @moto.mock_aws
     def test_execute_with_select_expression(self, mock_hiveclihook):

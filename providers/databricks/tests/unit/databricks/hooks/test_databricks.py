@@ -43,6 +43,7 @@ from airflow.providers.databricks.hooks.databricks import (
     ClusterState,
     DatabricksHook,
     RunState,
+    SQLStatementState,
 )
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_MANAGEMENT_ENDPOINT,
@@ -52,7 +53,6 @@ from airflow.providers.databricks.hooks.databricks_base import (
     TOKEN_REFRESH_LEAD_TIME,
     BearerAuth,
 )
-from airflow.utils.session import provide_session
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -65,6 +65,9 @@ JOB_ID = 42
 JOB_NAME = "job-name"
 PIPELINE_NAME = "some pipeline name"
 PIPELINE_ID = "its-a-pipeline-id"
+STATEMENT_ID = "statement_id"
+STATEMENT_STATE = "SUCCEEDED"
+WAREHOUSE_ID = "warehouse_id"
 DEFAULT_RETRY_NUMBER = 3
 DEFAULT_RETRY_ARGS = dict(
     wait=tenacity.wait_none(),
@@ -90,6 +93,7 @@ GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_out
 CLUSTER_STATE = "TERMINATED"
 CLUSTER_STATE_MESSAGE = "Inactive cluster terminated (inactive for 120 minutes)."
 GET_CLUSTER_RESPONSE = {"state": CLUSTER_STATE, "state_message": CLUSTER_STATE_MESSAGE}
+GET_SQL_STATEMENT_RESPONSE = {"statement_id": STATEMENT_ID, "status": {"state": STATEMENT_STATE}}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ""
@@ -273,6 +277,11 @@ def create_valid_response_mock(content):
     return response
 
 
+def sql_statements_endpoint(host):
+    """Utility function to generate the sql statements endpoint given the host."""
+    return f"https://{host}/api/2.0/sql/statements"
+
+
 def create_successful_response_mock(content):
     response = mock.MagicMock()
     response.json.return_value = content
@@ -283,11 +292,10 @@ def create_successful_response_mock(content):
 def create_post_side_effect(exception, status_code=500):
     if exception != requests_exceptions.HTTPError:
         return exception()
-    else:
-        response = mock.MagicMock()
-        response.status_code = status_code
-        response.raise_for_status.side_effect = exception(response=response)
-        return response
+    response = mock.MagicMock()
+    response.status_code = status_code
+    response.raise_for_status.side_effect = exception(response=response)
+    return response
 
 
 def setup_mock_requests(mock_requests, exception, status_code=500, error_count=None, response_content=None):
@@ -309,16 +317,17 @@ class TestDatabricksHook:
     Tests for DatabricksHook.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = LOGIN
-        conn.password = PASSWORD
-        conn.extra = None
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+            )
+        )
 
         self.hook = DatabricksHook(retry_delay=0)
 
@@ -1150,6 +1159,62 @@ class TestDatabricksHook:
         )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_post_sql_statement(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {
+            "statement_id": "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        }
+        json = {
+            "statement": "select * from test.test;",
+            "warehouse_id": WAREHOUSE_ID,
+            "catalog": "",
+            "schema": "",
+            "parameters": {},
+            "wait_timeout": "0s",
+        }
+        self.hook.post_sql_statement(json)
+
+        mock_requests.post.assert_called_once_with(
+            sql_statements_endpoint(HOST),
+            json=json,
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_sql_statement_state(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = GET_SQL_STATEMENT_RESPONSE
+
+        sql_statement_state = self.hook.get_sql_statement_state(STATEMENT_ID)
+
+        assert sql_statement_state == SQLStatementState(STATEMENT_STATE)
+        mock_requests.get.assert_called_once_with(
+            f"{sql_statements_endpoint(HOST)}/{STATEMENT_ID}",
+            json=None,
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_cancel_sql_statement(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = GET_SQL_STATEMENT_RESPONSE
+
+        self.hook.cancel_sql_statement(STATEMENT_ID)
+        mock_requests.post.assert_called_once_with(
+            f"{sql_statements_endpoint(HOST)}/{STATEMENT_ID}/cancel",
+            json=None,
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_connection_success(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = LIST_SPARK_VERSIONS_RESPONSE
@@ -1190,17 +1255,18 @@ class TestDatabricksHookToken:
     Tests for DatabricksHook when auth is done with token.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = None
-        conn.password = None
-        conn.extra = json.dumps({"token": TOKEN, "host": HOST})
-
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=None,
+                extra=json.dumps({"token": TOKEN, "host": HOST}),
+            )
+        )
 
         self.hook = DatabricksHook()
 
@@ -1225,16 +1291,18 @@ class TestDatabricksHookTokenInPassword:
     Tests for DatabricksHook.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = None
-        conn.password = TOKEN
-        conn.extra = None
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=TOKEN,
+                extra=None,
+            )
+        )
 
         self.hook = DatabricksHook(retry_delay=0)
 
@@ -1255,17 +1323,18 @@ class TestDatabricksHookTokenInPassword:
 
 @pytest.mark.db_test
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = None
-        conn.password = None
-        conn.extra = json.dumps({"token": TOKEN})
-
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=None,
+                extra=json.dumps({"token": TOKEN}),
+            )
+        )
 
         self.hook = DatabricksHook()
 
@@ -1276,16 +1345,20 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     Tests that `schema` and/or `port` get reflected in the requested API URLs.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = "http"
-        conn.port = 7908
-        conn.login = None
-        conn.password = None
-        conn.extra = json.dumps({"token": TOKEN})
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=None,
+                extra=json.dumps({"token": TOKEN}),
+                schema="http",
+                port=7908,
+            )
+        )
 
         self.hook = DatabricksHook()
 
@@ -1402,21 +1475,23 @@ class TestDatabricksHookAadToken:
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = None
-        conn.schema = None
-        conn.port = None
-        conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
-        conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
-            }
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=None,
+                login="9ff815a6-4404-4ab8-85cb-cd0e6f879c1d",
+                password="secret",
+                extra=json.dumps(
+                    {
+                        "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
+                    }
+                ),
+            )
         )
-        session.commit()
+
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
@@ -1443,25 +1518,26 @@ class TestDatabricksHookAadTokenOtherClouds:
     using non-global Azure cloud (China, GovCloud, Germany)
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         self.tenant_id = "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d"
         self.ad_endpoint = "https://login.microsoftonline.de"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = None
-        conn.schema = None
-        conn.port = None
-        conn.login = self.client_id
-        conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": self.tenant_id,
-                "azure_ad_endpoint": self.ad_endpoint,
-            }
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=None,
+                login=self.client_id,
+                password="secret",
+                extra=json.dumps(
+                    {
+                        "azure_tenant_id": self.tenant_id,
+                        "azure_ad_endpoint": self.ad_endpoint,
+                    }
+                ),
+            )
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
@@ -1495,23 +1571,25 @@ class TestDatabricksHookAadTokenSpOutside:
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         self.tenant_id = "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
-        conn.login = self.client_id
-        conn.password = "secret"
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.extra = json.dumps(
-            {
-                "azure_resource_id": "/Some/resource",
-                "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
-            }
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=self.client_id,
+                password="secret",
+                extra=json.dumps(
+                    {
+                        "azure_resource_id": "/Some/resource",
+                        "azure_tenant_id": self.tenant_id,
+                    }
+                ),
+            )
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
@@ -1551,18 +1629,22 @@ class TestDatabricksHookAadTokenManagedIdentity:
     Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.extra = json.dumps(
-            {
-                "use_azure_managed_identity": True,
-            }
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=None,
+                extra=json.dumps(
+                    {
+                        "use_azure_managed_identity": True,
+                    }
+                ),
+            )
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
@@ -1598,16 +1680,18 @@ class TestDatabricksHookAsyncMethods:
     Tests for async functionality of DatabricksHook.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = LOGIN
-        conn.password = PASSWORD
-        conn.extra = None
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
 
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1781,20 +1865,23 @@ class TestDatabricksHookAsyncAadToken:
     auth is done with AAD token for SP as user inside workspace.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.schema = None
-        conn.port = None
-        conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
-        conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
-            }
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login="9ff815a6-4404-4ab8-85cb-cd0e6f879c1d",
+                password="secret",
+                extra=json.dumps(
+                    {
+                        "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
+                    }
+                ),
+            )
         )
-        session.commit()
+
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
@@ -1824,24 +1911,26 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
     for SP as user inside workspace and using non-global Azure cloud (China, GovCloud, Germany)
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         self.tenant_id = "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d"
         self.ad_endpoint = "https://login.microsoftonline.de"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.schema = None
-        conn.port = None
-        conn.login = self.client_id
-        conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": self.tenant_id,
-                "azure_ad_endpoint": self.ad_endpoint,
-            }
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=self.client_id,
+                password="secret",
+                extra=json.dumps(
+                    {
+                        "azure_tenant_id": self.tenant_id,
+                        "azure_ad_endpoint": self.ad_endpoint,
+                    }
+                ),
+            )
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
@@ -1880,23 +1969,25 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
     Tests for DatabricksHook using async methods when auth is done with AAD token for SP outside of workspace.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         self.tenant_id = "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.login = self.client_id
-        conn.password = "secret"
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.extra = json.dumps(
-            {
-                "azure_resource_id": "/Some/resource",
-                "azure_tenant_id": self.tenant_id,
-            }
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=self.client_id,
+                password="secret",
+                extra=json.dumps(
+                    {
+                        "azure_resource_id": "/Some/resource",
+                        "azure_tenant_id": self.tenant_id,
+                    }
+                ),
+            )
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
@@ -1943,19 +2034,22 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
     auth is done with AAD leveraging Managed Identity authentication
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.extra = json.dumps(
-            {
-                "use_azure_managed_identity": True,
-            }
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=None,
+                extra=json.dumps(
+                    {
+                        "use_azure_managed_identity": True,
+                    }
+                ),
+            )
         )
-        session.commit()
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
@@ -1995,16 +2089,18 @@ class TestDatabricksHookSpToken:
     Tests for DatabricksHook when auth is done with Service Principal Oauth token.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = "c64f6d12-f6e4-45a4-846e-032b42b27758"
-        conn.password = "secret"
-        conn.extra = json.dumps({"service_principal_oauth": True})
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login="c64f6d12-f6e4-45a4-846e-032b42b27758",
+                password="secret",
+                extra=json.dumps({"service_principal_oauth": True}),
+            )
+        )
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
@@ -2036,16 +2132,18 @@ class TestDatabricksHookAsyncSpToken:
     Principal Oauth token.
     """
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.schema = None
-        conn.port = None
-        conn.login = "c64f6d12-f6e4-45a4-846e-032b42b27758"
-        conn.password = "secret"
-        conn.extra = json.dumps({"service_principal_oauth": True})
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login="c64f6d12-f6e4-45a4-846e-032b42b27758",
+                password="secret",
+                extra=json.dumps({"service_principal_oauth": True}),
+            )
+        )
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
@@ -2068,3 +2166,59 @@ class TestDatabricksHookAsyncSpToken:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+
+class TestSQLStatementState:
+    def test_sqlstatementstate_initialization_valid_states(self):
+        valid_states = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "CANCELED", "CLOSED"]
+        for state in valid_states:
+            obj = SQLStatementState(state=state)
+            assert obj.state == state
+
+    def test_sqlstatementstate_initialization_invalid_state(self):
+        with pytest.raises(AirflowException, match="Unexpected SQL statement life cycle state: UNKNOWN"):
+            SQLStatementState(state="UNKNOWN")
+
+    def test_sqlstatementstate_terminal_states(self):
+        terminal_states = ["SUCCEEDED", "FAILED", "CANCELED", "CLOSED"]
+        for state in terminal_states:
+            obj = SQLStatementState(state=state)
+            assert obj.is_terminal is True
+
+    def test_sqlstatementstate_running_states(self):
+        running_states = ["PENDING", "RUNNING"]
+        for state in running_states:
+            obj = SQLStatementState(state=state)
+            assert obj.is_running is True
+
+    def test_sqlstatementstate_successful_state(self):
+        obj = SQLStatementState(state="SUCCEEDED")
+        assert obj.is_successful is True
+
+    def test_sqlstatementstate_equality(self):
+        obj1 = SQLStatementState(state="FAILED", error_code="123", error_message="Error occurred")
+        obj2 = SQLStatementState(state="FAILED", error_code="123", error_message="Error occurred")
+        obj3 = SQLStatementState(state="SUCCEEDED")
+        assert obj1 == obj2
+        assert obj1 != obj3
+
+    def test_sqlstatementstate_repr(self):
+        obj = SQLStatementState(state="FAILED", error_code="123", error_message="Error occurred")
+        assert "'state': 'FAILED'" in repr(obj)
+        assert "'error_code': '123'" in repr(obj)
+        assert "'error_message': 'Error occurred'" in repr(obj)
+
+    def test_sqlstatementstate_to_json(self):
+        obj = SQLStatementState(state="FAILED", error_code="123", error_message="Error occurred")
+        json_data = obj.to_json()
+        expected_data = json.dumps(
+            {"state": "FAILED", "error_code": "123", "error_message": "Error occurred"}
+        )
+        assert json.loads(json_data) == json.loads(expected_data)
+
+    def test_sqlstatementstate_from_json(self):
+        json_data = json.dumps({"state": "FAILED", "error_code": "123", "error_message": "Error occurred"})
+        obj = SQLStatementState.from_json(json_data)
+        assert obj.state == "FAILED"
+        assert obj.error_code == "123"
+        assert obj.error_message == "Error occurred"

@@ -40,9 +40,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.triggers.base import TriggerEvent
 
-pytestmark = pytest.mark.db_test
-
-
 TEST_CONN_ID = "bq_default"
 TEST_JOB_ID = "1234"
 TEST_GCP_PROJECT_ID = "test-project"
@@ -303,9 +300,9 @@ class TestBigQueryInsertJobTrigger:
         except asyncio.CancelledError:
             pass
 
-        assert (
-            "Skipping to cancel job" in caplog.text
-        ), "Expected message about skipping cancellation not found in log."
+        assert "Skipping to cancel job" in caplog.text, (
+            "Expected message about skipping cancellation not found in log."
+        )
         assert mock_get_job_status.call_count == 2, "Job status should be checked multiple times"
 
 

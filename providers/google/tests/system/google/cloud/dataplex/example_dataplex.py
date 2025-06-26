@@ -40,6 +40,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.providers.google.cloud.sensors.dataplex import DataplexTaskStateSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

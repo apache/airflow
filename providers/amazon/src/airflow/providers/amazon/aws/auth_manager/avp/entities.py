@@ -20,7 +20,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 AVP_PREFIX_ENTITIES = "Airflow::"
 
@@ -34,6 +34,8 @@ class AvpEntities(Enum):
 
     # Resource types
     ASSET = "Asset"
+    ASSET_ALIAS = "AssetAlias"
+    BACKFILL = "Backfill"
     CONFIGURATION = "Configuration"
     CONNECTION = "Connection"
     CUSTOM = "Custom"

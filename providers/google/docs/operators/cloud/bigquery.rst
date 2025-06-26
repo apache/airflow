@@ -43,7 +43,7 @@ Create dataset
 To create an empty dataset in a BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_dataset]
@@ -59,7 +59,7 @@ To get the details of an existing dataset you can use
 
 This operator returns a `Dataset Resource <https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource>`__.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_get_dataset]
@@ -73,7 +73,7 @@ List tables in dataset
 To retrieve the list of tables in a given dataset use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_get_dataset_tables]
@@ -90,11 +90,27 @@ To update a table in BigQuery you can use
 The update method replaces the entire Table resource, whereas the patch
 method only replaces fields that are provided in the submitted Table resource.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_update_table]
     :end-before: [END howto_operator_bigquery_update_table]
+
+You can use this operator to update a view.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_view]
+    :end-before: [END howto_operator_bigquery_update_view]
+
+And use the same operator to update a materialized view.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_materialized_view]
+    :end-before: [END howto_operator_bigquery_update_materialized_view]
 
 .. _howto/operator:BigQueryUpdateDatasetOperator:
 
@@ -107,7 +123,7 @@ To update a dataset in BigQuery you can use
 The update method replaces the entire dataset resource, whereas the patch
 method only replaces fields that are provided in the submitted dataset resource.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_update_dataset]
@@ -121,7 +137,7 @@ Delete dataset
 To delete an existing dataset from a BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_dataset]
@@ -140,7 +156,7 @@ you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator` by providing `table structure <https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource:-table>`__
 in ``table_resource`` field.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_table]
@@ -149,7 +165,7 @@ in ``table_resource`` field.
 You can also specify Google Cloud Storage object name as a way to specify schema. The object in Google Cloud
 Storage must be a JSON file with the schema fields in it.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_table_schema_json]
@@ -157,7 +173,7 @@ Storage must be a JSON file with the schema fields in it.
 
 You can use this operator to create a view on top of an existing table.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_view]
@@ -166,7 +182,7 @@ You can use this operator to create a view on top of an existing table.
 You can also use this operator to create a materialized view that periodically
 caches results of a query for increased performance and efficiency.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_materialized_view]
@@ -214,7 +230,7 @@ nesting will a nested list where elements would represent the column values for
 that row.
 ``True`` - A Python list of dictionaries, where each dictionary represents a row. In each dictionary, the keys are the column names and the values are the corresponding values for those columns.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_get_data]
@@ -225,7 +241,7 @@ The below example shows how to use
 in async (deferrable) mode. Note that a deferrable task requires the Triggerer to be
 running on your Airflow deployment.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_get_data_async]
@@ -242,7 +258,7 @@ To upsert a table you can use
 This operator either updates the existing table or creates a new, empty table
 in the given dataset.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_upsert_table]
@@ -259,7 +275,7 @@ To update the schema of a table you can use
 This operator updates the schema field values supplied, while leaving the rest unchanged. This is useful
 for instance to set new field descriptions on an existing table schema.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_update_table_schema]
@@ -273,7 +289,7 @@ Delete table
 To delete an existing table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_table]
@@ -281,7 +297,7 @@ To delete an existing table you can use
 
 You can also use this operator to delete a view.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_view]
@@ -289,7 +305,7 @@ You can also use this operator to delete a view.
 
 You can also use this operator to delete a materialized view.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_materialized_view]
@@ -302,7 +318,7 @@ Execute BigQuery jobs
 
 Let's say you would like to execute the following query.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_bigquery_query]
@@ -312,7 +328,7 @@ To execute the SQL query in a specific BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
 with proper query job configuration that can be Jinja templated.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_insert_job]
@@ -323,7 +339,7 @@ The below example shows how to use
 in async (deferrable) mode. Note that a deferrable task requires the Triggerer to be
 running on your Airflow deployment.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_insert_job_async]
@@ -335,7 +351,7 @@ For more information on types of BigQuery job please check
 If you want to include some files in your configuration you can use ``include`` clause of Jinja template
 language as follow:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_select_job]
@@ -351,7 +367,7 @@ then it will reattach to the existing job.
 
 Also for all this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_insert_job_async]
@@ -372,7 +388,7 @@ This operator expects a sql query that will return a single row. Each value on
 that first row is evaluated using python ``bool`` casting. If any of the values
 return ``False`` the check is failed and errors out.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_check]
@@ -380,7 +396,7 @@ return ``False`` the check is failed and errors out.
 
 Also you can use deferrable mode in this operator
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_check_async]
@@ -398,7 +414,7 @@ These operators expects a sql query that will return a single row. Each value on
 that first row is evaluated against ``pass_value`` which can be either a string
 or numeric value. If numeric, you can also specify ``tolerance``.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_value_check]
@@ -406,7 +422,7 @@ or numeric value. If numeric, you can also specify ``tolerance``.
 
 Also you can use deferrable mode in this operator
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_value_check_async]
@@ -422,7 +438,7 @@ tolerance of the ones from ``days_back`` before you can either use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator` or
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckAsyncOperator`
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_interval_check]
@@ -430,7 +446,7 @@ tolerance of the ones from ``days_back`` before you can either use
 
 Also you can use deferrable mode in this operator
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_interval_check_async]
@@ -444,7 +460,7 @@ Check columns with predefined tests
 To check that columns pass user-configurable tests you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryColumnCheckOperator`
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_column_check]
@@ -458,7 +474,7 @@ Check table level data quality
 To check that tables pass user-defined tests you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryTableCheckOperator`
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_table_check]
@@ -476,7 +492,7 @@ use the ``{{ ds_nodash }}`` macro as the table name suffix.
 
 :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table]
@@ -484,13 +500,13 @@ use the ``{{ ds_nodash }}`` macro as the table name suffix.
 
 Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_defered]
     :end-before: [END howto_sensor_bigquery_table_defered]
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_async_bigquery_table]
@@ -502,7 +518,7 @@ Check that a Table Partition exists
 To check that a table exists and has a partition you can use.
 :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_partition]
@@ -512,13 +528,13 @@ For DAY partitioned tables, the partition_id parameter is a string on the "%Y%m%
 
 Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_partition_defered]
     :end-before: [END howto_sensor_bigquery_table_partition_defered]
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_partition_async]

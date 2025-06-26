@@ -26,6 +26,7 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:

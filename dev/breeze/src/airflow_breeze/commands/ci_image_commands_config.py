@@ -37,7 +37,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--upgrade-to-newer-dependencies",
                 "--upgrade-on-failure",
                 "--docker-cache",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--build-progress",
                 "--docker-host",
             ],
@@ -84,13 +84,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--dev-apt-command",
                 "--additional-dev-apt-command",
                 "--additional-dev-apt-env",
-            ],
-        },
-        {
-            "name": "Backtracking options",
-            "options": [
-                "--build-timeout-minutes",
-                "--eager-upgrade-additional-requirements",
             ],
         },
         {

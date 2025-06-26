@@ -35,6 +35,7 @@ from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
     option_all_integration,
+    option_allow_pre_releases,
     option_answer,
     option_backend,
     option_builder,
@@ -45,11 +46,12 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_excluded_providers,
+    option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
-    option_installation_package_format,
+    option_installation_distribution_format,
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
@@ -78,21 +80,20 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_constraints_mode_ci,
     option_providers_constraints_reference,
     option_providers_skip_constraints,
-    option_use_packages_from_dist,
+    option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.main_command import cleanup, main
-from airflow_breeze.commands.testing_commands import (
-    option_force_lowest_dependencies,
-)
+from airflow_breeze.commands.testing_commands import option_test_type
 from airflow_breeze.global_constants import (
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
-    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
@@ -112,9 +113,9 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.packages import expand_all_provider_packages
+from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -124,6 +125,8 @@ from airflow_breeze.utils.run_utils import (
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
+
+CELERY_INTEGRATION = "celery"
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -230,7 +233,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 option_install_airflow_python_client = click.option(
     "--install-airflow-python-client",
     is_flag=True,
-    help="Install airflow python client packages (--package-format determines type) from 'dist' folder "
+    help="Install airflow python client packages (--distribution-format determines type) from 'dist' folder "
     "when entering breeze.",
     envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
 )
@@ -304,7 +307,7 @@ option_load_default_connections = click.option(
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
-@option_installation_package_format
+@option_installation_distribution_format
 @option_load_example_dags
 @option_load_default_connections
 @option_all_integration
@@ -326,11 +329,13 @@ option_load_default_connections = click.option(
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
+@option_test_type
 @option_warn_image_upgrade_needed
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_allow_pre_releases
+@option_use_distributions_from_dist
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose
@@ -368,7 +373,7 @@ def shell(
     mount_sources: str,
     mysql_version: str,
     no_db_cleanup: bool,
-    package_format: str,
+    distribution_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
@@ -385,10 +390,12 @@ def shell(
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
     start_api_server_with_examples: bool,
+    test_type: str | None,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    allow_pre_releases: bool,
+    use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
     verbose_commands: bool,
@@ -397,7 +404,7 @@ def shell(
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
-        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_ROOT_PATH}[/]\n")
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
@@ -411,6 +418,7 @@ def shell(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -438,7 +446,7 @@ def shell(
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
-        package_format=package_format,
+        distribution_format=distribution_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
@@ -455,10 +463,11 @@ def shell(
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
         start_api_server_with_examples=start_api_server_with_examples,
+        test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
@@ -475,6 +484,14 @@ option_executor_start_airflow = click.option(
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
     help="Specify the executor to use with start-airflow (defaults to LocalExecutor "
     "or CeleryExecutor depending on the integration used).",
+)
+
+option_auth_manager_start_airflow = click.option(
+    "--auth-manager",
+    type=click.Choice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
+    help="Specify the auth manager to use with start-airflow",
+    default=ALLOWED_AUTH_MANAGERS[0],
+    show_default=True,
 )
 
 
@@ -497,6 +514,7 @@ option_executor_start_airflow = click.option(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
+@option_auth_manager_start_airflow
 @option_answer
 @option_backend
 @option_builder
@@ -510,7 +528,7 @@ option_executor_start_airflow = click.option(
 @option_force_build
 @option_forward_credentials
 @option_github_repository
-@option_installation_package_format
+@option_installation_distribution_format
 @option_install_selected_providers
 @option_all_integration
 @option_load_default_connections
@@ -530,7 +548,8 @@ option_executor_start_airflow = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_allow_pre_releases
+@option_use_distributions_from_dist
 @option_verbose
 def start_airflow(
     airflow_constraints_mode: str,
@@ -538,6 +557,8 @@ def start_airflow(
     airflow_constraints_reference: str,
     airflow_extras: str,
     airflow_skip_constraints: bool,
+    allow_pre_releases: bool,
+    auth_manager: str,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -557,7 +578,7 @@ def start_airflow(
     load_example_dags: bool,
     mount_sources: str,
     mysql_version: str,
-    package_format: str,
+    distribution_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
@@ -570,7 +591,7 @@ def start_airflow(
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
@@ -598,6 +619,8 @@ def start_airflow(
             # Otherwise default to LocalExecutor
             executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
+    get_console().print(f"[info]Airflow will be using: {executor} to execute the tasks.")
+
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
@@ -605,6 +628,8 @@ def start_airflow(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
+        auth_manager=auth_manager,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -625,7 +650,7 @@ def start_airflow(
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
-        package_format=package_format,
+        distribution_format=distribution_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
@@ -638,7 +663,7 @@ def start_airflow(
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
@@ -658,11 +683,20 @@ def start_airflow(
 @option_builder
 @click.option(
     "--clean-build",
-    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
-    "before the build - useful for a clean build.",
     is_flag=True,
+    help="Cleans the build directory before building the documentation and removes all inventory "
+    "cache (including external inventories).",
+)
+@click.option(
+    "--refresh-airflow-inventories",
+    is_flag=True,
+    help="When set, only airflow package inventories will be refreshed, regardless "
+    "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
+@click.option(
+    "--include-commits", help="Include commits in the documentation.", is_flag=True, envvar="INCLUDE_COMMITS"
+)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers
@@ -670,11 +704,6 @@ def start_airflow(
 @click.option(
     "--one-pass-only",
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
-    is_flag=True,
-)
-@click.option(
-    "--skip-deletion",
-    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*`.",
     is_flag=True,
 )
 @click.option(
@@ -686,8 +715,8 @@ def start_airflow(
     multiple=True,
 )
 @click.option(
-    "--package-list",
-    envvar="PACKAGE_LIST",
+    "--distributions-list",
+    envvar="DISTRIBUTIONS_LIST",
     type=str,
     help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
@@ -700,14 +729,15 @@ def start_airflow(
 def build_docs(
     builder: str,
     clean_build: bool,
+    refresh_airflow_inventories: bool,
     docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
+    include_commits: bool,
     one_pass_only: bool,
-    skip_deletion: bool,
     package_filter: tuple[str, ...],
-    package_list: str,
+    distributions_list: str,
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -718,27 +748,39 @@ def build_docs(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     build_params = BuildCiParams(
-        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
-        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
+        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "apis"]
     else:
-        directories_to_clean = ["_api"]
-    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+        directories_to_clean = ["apis"]
+    generated_path = AIRFLOW_ROOT_PATH / "generated"
     for dir_name in directories_to_clean:
-        for directory in docs_dir.rglob(dir_name):
+        get_console().print("Removing all generated dirs.")
+        for directory in generated_path.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
+    if refresh_airflow_inventories and not clean_build:
+        get_console().print("Removing airflow inventories.")
+        package_globs = ["helm-chart", "docker-stack", "apache-airflow*"]
+        for package_glob in package_globs:
+            for directory in (generated_path / "_inventory_cache").rglob(package_glob):
+                get_console().print(f"[info]Removing {directory}")
+                shutil.rmtree(directory, ignore_errors=True)
 
     docs_list_as_tuple: tuple[str, ...] = ()
-    if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
-        # Override doc_packages with values from PACKAGE_LIST
-        docs_list_as_tuple = tuple(package_list.split(","))
+    if distributions_list and len(distributions_list):
+        get_console().print(
+            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
+        )
+        # Override doc_packages with values from DISTRIBUTIONS_LIST
+        docs_list_as_tuple = tuple(distributions_list.split(","))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
-            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
             f"Overriding to {docs_list_as_tuple}"
         )
     doc_packages = docs_list_as_tuple or doc_packages
@@ -746,9 +788,9 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
-        skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
-        short_doc_packages=expand_all_provider_packages(
+        include_commits=include_commits,
+        short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
             include_not_ready=include_not_ready_providers,
@@ -760,6 +802,7 @@ def build_docs(
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        mount_sources=MOUNT_ALL,
     )
     result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
     fix_ownership_using_docker()
@@ -1000,14 +1043,23 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
+@click.option(
+    "-b",
+    "--cleanup-build-cache",
+    help="Additionally cleanup Build (pip/uv) cache.",
+    is_flag=True,
+)
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool, cleanup_build_cache: bool):
     perform_environment_checks()
     shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+    if cleanup_build_cache:
+        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
 
 
@@ -1079,9 +1131,8 @@ def find_airflow_container() -> str | None:
             # On docker-compose v1 we get '--------' as output here
             stop_exec_on_error(docker_compose_ps_command.returncode)
         return container_running
-    else:
-        stop_exec_on_error(1)
-        return None
+    stop_exec_on_error(1)
+    return None
 
 
 @main.command(
@@ -1128,7 +1179,7 @@ def doctor(ctx):
     shell_params.print_badge_info()
 
     perform_environment_checks()
-    fix_ownership_using_docker()
+    fix_ownership_using_docker(quiet=False)
 
     given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
     if not get_dry_run() and given_answer == Answer.YES:
@@ -1141,6 +1192,10 @@ def doctor(ctx):
     if given_answer == Answer.YES:
         get_console().print("\n[info]Cleaning mypy cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+
+        get_console().print("\n[info]Cleaning build cache...\n")
+        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
 
         get_console().print("\n[info]Deleting .build cache dir...\n")

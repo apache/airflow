@@ -394,7 +394,6 @@ class TranslateTextBatchOperator(GoogleCloudBaseOperator):
         self.log.info("Translate text batch job started.")
         TranslateTextBatchLink.persist(
             context=context,
-            task_instance=self,
             project_id=self.project_id or hook.project_id,
             output_config=self.output_config,
         )
@@ -486,9 +485,9 @@ class TranslateCreateDatasetOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         TranslationNativeDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_id,
             project_id=project_id,
+            location=self.location,
         )
         return result
 
@@ -556,7 +555,6 @@ class TranslateDatasetsListOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         TranslationDatasetsListLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
         )
         self.log.info("Requesting datasets list")
@@ -657,9 +655,9 @@ class TranslateImportDataOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         TranslationNativeDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=self.dataset_id,
             project_id=project_id,
+            location=self.location,
         )
         hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
         self.log.info("Importing data finished!")
@@ -827,10 +825,10 @@ class TranslateCreateModelOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         TranslationModelLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=self.dataset_id,
             model_id=model_id,
             project_id=project_id,
+            location=self.location,
         )
         return result
 
@@ -898,7 +896,6 @@ class TranslateModelsListOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         TranslationModelsListLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
         )
         self.log.info("Requesting models list")
@@ -1141,11 +1138,10 @@ class TranslateDocumentOperator(GoogleCloudBaseOperator):
         if self.document_output_config:
             TranslateResultByOutputConfigLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=self.project_id or hook.project_id,
                 output_config=self.document_output_config,
             )
-        return cast(dict, type(doc_translation_result).to_dict(doc_translation_result))
+        return cast("dict", type(doc_translation_result).to_dict(doc_translation_result))
 
 
 class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
@@ -1304,13 +1300,12 @@ class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
         self.log.info("Batch document translation job started.")
         TranslateResultByOutputConfigLink.persist(
             context=context,
-            task_instance=self,
             project_id=self.project_id or hook.project_id,
             output_config=self.output_config,
         )
         result = hook.wait_for_operation_result(batch_document_translate_operation)
         self.log.info("Batch document translation job finished")
-        return cast(dict, type(result).to_dict(result))
+        return cast("dict", type(result).to_dict(result))
 
 
 class TranslateCreateGlossaryOperator(GoogleCloudBaseOperator):
@@ -1610,7 +1605,6 @@ class TranslateListGlossariesOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         TranslationGlossariesListLink.persist(
             context=context,
-            task_instance=self,
             project_id=project_id,
         )
         self.log.info("Requesting glossaries list")

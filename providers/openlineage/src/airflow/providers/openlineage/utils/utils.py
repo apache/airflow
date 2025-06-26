@@ -26,12 +26,13 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
+from openlineage.client.facet_v2 import parent_run
 from openlineage.client.utils import RedactMixin
 
 from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import BaseOperator, DagRun, TaskReschedule
+from airflow.models import DagRun, TaskReschedule
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -50,16 +51,13 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import NEW_SESSION, provide_session
 
-try:
-    from airflow.sdk import BaseOperator as SdkBaseOperator
-except ImportError:
-    SdkBaseOperator = BaseOperator  # type: ignore[misc]
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
@@ -67,7 +65,9 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, MappedOperator
+    from airflow.sdk import DAG
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
@@ -77,9 +77,11 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG, MappedOperator
+        from airflow.sdk import DAG
+        from airflow.sdk.bases.operator import BaseOperator
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
-        from airflow.models import DAG, MappedOperator
+        from airflow.models import DAG, BaseOperator, MappedOperator
 
     try:
         from airflow.providers.common.compat.assets import Asset
@@ -114,7 +116,7 @@ def try_import_from_string(string: str) -> Any:
         return import_string(string)
 
 
-def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
+def get_operator_class(task: BaseOperator) -> type:
     if task.__class__.__name__ in ("DecoratedMappedOperator", "MappedOperator"):
         return task.operator_class
     return task.__class__
@@ -122,6 +124,27 @@ def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
 
 def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
+
+
+def get_task_parent_run_facet(
+    parent_run_id: str, parent_job_name: str, parent_job_namespace: str = conf.namespace()
+) -> dict[str, Any]:
+    """
+    Retrieve the parent run facet for task-level events.
+
+    This facet currently always points to the DAG-level run ID and name,
+    as external events for DAG runs are not yet handled.
+    """
+    return {
+        "parent": parent_run.ParentRunFacet(
+            run=parent_run.Run(runId=parent_run_id),
+            job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
+            root=parent_run.Root(
+                run=parent_run.RootRun(runId=parent_run_id),
+                job=parent_run.RootJob(namespace=parent_job_namespace, name=parent_job_name),
+            ),
+        )
+    }
 
 
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
@@ -177,7 +200,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
     return custom_facets
 
 
-def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> str:
+def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
@@ -185,44 +208,51 @@ def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator | Sdk
     return op_class.__module__ + "." + op_class.__name__
 
 
-def is_operator_disabled(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
+def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
     return get_fully_qualified_class_name(operator) in conf.disabled_operators()
 
 
-def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
+def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
     """If selective enable is active check if DAG or Task is enabled to emit events."""
     if not conf.selective_enable():
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    elif isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
+    if isinstance(obj, (BaseOperator, MappedOperator)):
         return is_task_lineage_enabled(obj)
-    else:
-        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
+    raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
-@provide_session
-def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-    from sqlalchemy import exists
+if not AIRFLOW_V_3_0_PLUS:
 
-    if not isinstance(ti.task, BaseSensorOperator):
-        return False
+    @provide_session
+    def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+        from sqlalchemy import exists
 
-    if not ti.task.reschedule:
-        return False
+        if not isinstance(ti.task, BaseSensorOperator):
+            return False
 
-    return (
-        session.query(
-            exists().where(
-                TaskReschedule.dag_id == ti.dag_id,
-                TaskReschedule.task_id == ti.task_id,
-                TaskReschedule.run_id == ti.run_id,
-                TaskReschedule.map_index == ti.map_index,
-                TaskReschedule.try_number == ti.try_number,
+        if not ti.task.reschedule:
+            return False
+        if AIRFLOW_V_3_0_PLUS:
+            return (
+                session.query(
+                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+                ).scalar()
+                is True
             )
-        ).scalar()
-        is True
-    )
+        return (
+            session.query(
+                exists().where(
+                    TaskReschedule.dag_id == ti.dag_id,
+                    TaskReschedule.task_id == ti.task_id,
+                    TaskReschedule.run_id == ti.run_id,
+                    TaskReschedule.map_index == ti.map_index,
+                    TaskReschedule.try_number == ti.try_number,
+                )
+            ).scalar()
+            is True
+        )
 
 
 class InfoJsonEncodable(dict):
@@ -316,6 +346,7 @@ class DagInfo(InfoJsonEncodable):
         "description",
         "fileloc",
         "owner",
+        "owner_links",
         "schedule_interval",  # For Airflow 2.
         "timetable_summary",  # For Airflow 3.
         "start_date",
@@ -365,10 +396,46 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_id",
         "data_interval_start",
         "data_interval_end",
+        "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "logical_date",  # Airflow 3
+        "run_after",  # Airflow 3
         "run_id",
         "run_type",
         "start_date",
+        "end_date",
     ]
+
+    casts = {
+        "duration": lambda dagrun: DagRunInfo.duration(dagrun),
+        "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
+        "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
+        "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
+        "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+    }
+
+    @classmethod
+    def duration(cls, dagrun: DagRun) -> float | None:
+        if not getattr(dagrun, "end_date", None) or not isinstance(dagrun.end_date, datetime.datetime):
+            return None
+        if not getattr(dagrun, "start_date", None) or not isinstance(dagrun.start_date, datetime.datetime):
+            return None
+        return (dagrun.end_date - dagrun.start_date).total_seconds()
+
+    @classmethod
+    def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+        # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
+        if not getattr(dagrun, "dag_versions", []):
+            return None
+        current_version = dagrun.dag_versions[-1]
+        if key == "bundle_name":
+            return current_version.bundle_name
+        if key == "bundle_version":
+            return current_version.bundle_version
+        if key == "version_id":
+            return str(current_version.id)
+        if key == "version_number":
+            return current_version.version_number
+        raise ValueError(f"Unsupported key: {key}`")
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
@@ -376,9 +443,12 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
-        "map_index": lambda ti: (
-            ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
-        )
+        "log_url": lambda ti: getattr(ti, "log_url", None),
+        "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
+        "dag_bundle_version": lambda ti: (
+            ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
+        ),
+        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
 
@@ -424,7 +494,6 @@ class TaskInfo(InfoJsonEncodable):
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
-        "weight_rule",
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -694,7 +763,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                elif is_json_serializable(item) and hasattr(item, "__dict__"):
+                if is_json_serializable(item) and hasattr(item, "__dict__"):
                     for dict_key, subval in item.__dict__.items():
                         if type(subval).__name__ == "Proxy":
                             return "<<non-redactable: Proxy>>"
@@ -710,8 +779,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                else:
-                    return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item
@@ -739,7 +807,9 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception:
                 log.warning(
-                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    "OpenLineage event emission failed. "
+                    "Exception below is being caught but it's printed for visibility. "
+                    "This has no impact on actual task execution status.",
                     exc_info=True,
                 )
 
@@ -755,12 +825,6 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
 
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    if not AIRFLOW_V_2_10_PLUS:
-        return hook.__class__.__name__ not in [
-            "SnowflakeHook",
-            "SnowflakeSqlApiHook",
-            "RedshiftSQLHook",
-        ]
     return True
 
 

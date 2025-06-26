@@ -47,8 +47,11 @@ Installing pre-commit hooks
 
 It is the best to use pre-commit hooks when you have your local virtualenv for
 Airflow activated since then pre-commit hooks and other dependencies are
-automatically installed. You can also install the pre-commit hooks manually
-using ``pip install``.
+automatically installed. You can also install the pre-commit hooks manually using ``uv`` or ``pip``.
+
+.. code-block:: bash
+
+    uv tool install pre-commit
 
 .. code-block:: bash
 
@@ -132,7 +135,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-usage                                 | * Check BaseOperator core imports                      |         |
 |                                                           | * Check BaseOperatorLink core imports                  |         |
-|                                                           | * Check BaseOperator[Link] other imports               |         |
+|                                                           | * Check BaseOperator other imports                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -176,13 +179,11 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-get-lineage-collector-providers                     | Check providers import hook lineage code from compat   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-google-re2-as-dependency                            | Check google-re2 declared as dep                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-hatch-build-order                                   | Check order of dependencies in hatch_build.py          |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-imports-in-providers                                | Check imports in providers                             |         |
+| check-i18n-json                                           | Check i18n files validity                              | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-imports-in-providers                                | Check imports in providers                             | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -220,7 +221,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-pyproject-toml-consistency                          | Check consistency of Airflow's pyproject.toml          |         |
+| check-pytest-mark-db-test-in-providers                    | Check pytest.mark.db_test use in providers             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -248,8 +249,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-usage-of-re2-over-re                                | Use re2 module instead of re                           |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-zip-file-is-not-committed                           | Check no zip files are committed                       |         |
@@ -276,15 +275,30 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gci                                                       | Consistent import ordering for Go files                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflow-diagrams                                 | Generate airflow diagrams                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflowctl-help-images                           | * Generate SVG from Airflow CTL Commands               | *       |
+|                                                           | * Generate SVG from Airflow CTL Commands               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-openapi-spec-fab                                 | Generate the FastAPI API spec for FAB                  | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-tasksdk-datamodels                               | Generate Datamodels for TaskSDK client                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| go-mockery                                                | Generate mocks for go                                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| go-mod-tidy                                               | Run go mod tidy                                        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gofmt                                                     | Format go code                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -299,6 +313,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all YAML files except Helm templates |         |
 |                                                           | * Add license for all Markdown files                   |         |
 |                                                           | * Add license for all other files                      |         |
+|                                                           | * Add license for all Go files                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | kubeconform                                               | Kubeconform check on our helm chart                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -319,22 +334,27 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-airflow                                              | * Run mypy for airflow                                 | *       |
-|                                                           | * Run mypy for airflow (manual)                        |         |
+| mypy-airflow-core                                         | * Run mypy for airflow-core                            | *       |
+|                                                           | * Run mypy for airflow-core (manual)                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-airflow-ctl                                          | * Run mypy for airflow-ctl                             | *       |
+|                                                           | * Run mypy for airflow-ctl (manual)                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-dev                                                  | * Run mypy for dev                                     | *       |
 |                                                           | * Run mypy for dev (manual)                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-docs                                                 | * Run mypy for /docs/ folder                           | *       |
-|                                                           | * Run mypy for /docs/ folder (manual)                  |         |
+| mypy-devel-common                                         | * Run mypy for devel-common                            | *       |
+|                                                           | * Run mypy for devel-common (manual)                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-providers                                            | * Run mypy for providers                               | *       |
 |                                                           | * Run mypy for providers (manual)                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-task-sdk                                             | * Run mypy for Task SDK                                | *       |
-|                                                           | * Run mypy for Task SDK (manual)                       |         |
+| mypy-task-sdk                                             | * Run mypy for task-sdk                                | *       |
+|                                                           | * Run mypy for task-sdk (manual)                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -352,7 +372,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| ts-compile-format-lint-ui                                 | Compile / format / lint UI                             |         |
+| ts-compile-lint-simple-auth-manager-ui                    | Compile / format / lint simple auth manager UI         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ts-compile-lint-ui                                        | Compile / format / lint UI                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere (manual)              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -363,8 +385,6 @@ require Breeze Docker image to be built locally.
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-er-diagram                                         | Update ER diagram                                      | *       |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-extras                                             | Update extras in documentation                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-in-the-wild-to-be-sorted                           | Sort INTHEWILD.md alphabetically                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -380,7 +400,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update dependencies for provider packages              |         |
+| update-providers-dependencies                             | Update dependencies for providers                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-pyproject-toml                                     | Update Airflow's meta-package pyproject.toml           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -451,7 +473,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=mypy-airflow,ruff pre-commit run --all-files
+    SKIP=mypy-airflow-core,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -466,12 +488,42 @@ In case you have a problem with running particular ``pre-commit`` check you can 
 benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
 checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
 when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
-``export SKIP=ruff,mypy-airflow,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+``export SKIP=ruff,mypy-airflow-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
 do not want to set it manually every time you enter the terminal.
 
 In case you do not have breeze image configured locally, you can also disable all checks that require breeze
 the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
 when run locally (note that those checks will anyway run in CI).
+
+Disabling goproxy for firewall issues
+-------------------------------------
+
+Sometimes your environment might not allow to connect to the ``goproxy`` server, which is used to
+proxy/cache Go modules. When your firewall blocks go proxy it usually ends with message similar to:
+
+.. code-block:: text
+
+  lookup proxy.golang.org: i/o timeout
+
+In such case, you can disable the ``goproxy`` by setting the
+``GOPROXY`` environment variable to "direct". You can do it by running:
+
+.. code-block:: bash
+
+    export GOPROXY=direct
+
+Alternatively if your company has its own Go proxy, you can set the ``GOPROXY`` to
+your company Go proxy URL. For example:
+
+.. code-block:: bash
+
+    export GOPROXY=https://mycompanygoproxy.com
+
+See `Go Proxy lesson <https://www.practical-go-lessons.com/chap-18-go-module-proxies#configuration-of-the-go-module-proxy>`__)
+for more details on how to configure Go proxy - including setting multiple proxies.
+
+You can add the variable to your ``.bashrc`` or ``.zshrc`` if you do not want to set it manually every time you
+enter the terminal.
 
 Manual pre-commits
 ------------------
@@ -481,13 +533,31 @@ there are some checks that are not run automatically and you need to run them ma
 checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
 them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
 
+Special pin-versions pre-commit
+-------------------------------
+
+There is a separate pre-commit ``pin-versions`` pre-commit which is used to pin versions of
+GitHub Actions in the CI workflows.
+
+This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
+is also configured in a separate ``.pre-commit-config.yaml`` file in the
+``.github`` directory as it requires Python 3.11 to run. It is not run automatically
+when you commit the code but in runs as a separate job in the CI. However, you can run it
+manually by running:
+
+.. code-block:: bash
+
+    export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
+    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
+
+
 Mypy checks
 -----------
 
 When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
-``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
+``mypy-dev``, ``mypy-providers``, ``mypy-airflow-ctl``, depending on the files you are changing. The mypy checks
 are run by passing those changed files to mypy. This is way faster than running checks for all files (even
-if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
+if mypy cache is used - especially when you change a file in Airflow core that is imported and used by many
 files). However, in some cases, it produces different results than when running checks for the whole set
 of files, because ``mypy`` does not even know that some types are defined in other files and it might not
 be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole

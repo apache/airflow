@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.servicebus import (
@@ -468,7 +468,15 @@ class MessageHook(BaseAzureServiceBusHook):
         self.log.info("Create and returns ServiceBusClient")
         return client
 
-    def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
+    def send_message(
+        self,
+        queue_name: str,
+        messages: str | list[str],
+        batch_message_flag: bool = False,
+        message_id: str | None = None,
+        reply_to: str | None = None,
+        message_headers: dict[str | bytes, int | float | bytes | bool | str | UUID] | None = None,
+    ):
         """
         Use ServiceBusClient Send to send message(s) to a Service Bus Queue.
 
@@ -478,38 +486,49 @@ class MessageHook(BaseAzureServiceBusHook):
         :param messages: Message which needs to be sent to the queue. It can be string or list of string.
         :param batch_message_flag: bool flag, can be set to True if message needs to be
             sent as batch message.
+        :param message_id: Message ID to set on message being sent to the queue. Please note, message_id may only be
+            set when a single message is sent.
+        :param reply_to: Reply to which needs to be sent to the queue.
+        :param message_headers: Headers to add to the message's application_properties field for Azure Service Bus.
         """
         if queue_name is None:
             raise TypeError("Queue name cannot be None.")
         if not messages:
             raise ValueError("Messages list cannot be empty.")
+        if message_id and isinstance(messages, list) and len(messages) != 1:
+            raise TypeError("Message ID can only be set if a single message is sent.")
         with (
             self.get_conn() as service_bus_client,
             service_bus_client.get_queue_sender(queue_name=queue_name) as sender,
             sender,
         ):
-            if isinstance(messages, str):
-                if not batch_message_flag:
-                    msg = ServiceBusMessage(messages)
-                    sender.send_messages(msg)
-                else:
-                    self.send_batch_message(sender, [messages])
+            message_creator = lambda msg_body: ServiceBusMessage(
+                msg_body, message_id=message_id, reply_to=reply_to, application_properties=message_headers
+            )
+            message_list = [messages] if isinstance(messages, str) else messages
+            if not batch_message_flag:
+                self.send_list_messages(sender, message_list, message_creator)
             else:
-                if not batch_message_flag:
-                    self.send_list_messages(sender, messages)
-                else:
-                    self.send_batch_message(sender, messages)
+                self.send_batch_message(sender, message_list, message_creator)
 
     @staticmethod
-    def send_list_messages(sender: ServiceBusSender, messages: list[str]):
-        list_messages = [ServiceBusMessage(message) for message in messages]
+    def send_list_messages(
+        sender: ServiceBusSender,
+        messages: list[str],
+        message_creator: Callable[[str], ServiceBusMessage],
+    ):
+        list_messages = [message_creator(body) for body in messages]
         sender.send_messages(list_messages)  # type: ignore[arg-type]
 
     @staticmethod
-    def send_batch_message(sender: ServiceBusSender, messages: list[str]):
+    def send_batch_message(
+        sender: ServiceBusSender,
+        messages: list[str],
+        message_creator: Callable[[str], ServiceBusMessage],
+    ):
         batch_message = sender.create_message_batch()
         for message in messages:
-            batch_message.add_message(ServiceBusMessage(message))
+            batch_message.add_message(message_creator(message))
         sender.send_messages(batch_message)
 
     def receive_message(

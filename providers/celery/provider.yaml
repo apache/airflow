@@ -22,9 +22,18 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1740734101
-# note that those versions are maintained by release manager - do not update them manually
+source-date-epoch: 1749896136
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 3.12.0
+  - 3.11.0
+  - 3.10.6
+  - 3.10.5
+  - 3.10.4
+  - 3.10.3
   - 3.10.2
   - 3.10.0
   - 3.9.0
@@ -308,13 +317,6 @@ config:
         type: integer
         example: ~
         default: "3"
-      worker_precheck:
-        description: |
-          Worker initialisation check to validate Metadata Database connection
-        version_added: ~
-        type: string
-        example: ~
-        default: "False"
       extra_celery_config:
         description: |
           Extra celery configs to include in the celery worker.
@@ -326,6 +328,18 @@ config:
         type: string
         example: ~
         default: "{{}}"
+      worker_umask:
+        description: |
+          The default umask to use for celery worker when run in daemon mode
+
+          This controls the file-creation mode mask which determines the initial value of file permission bits
+          for newly created files.
+
+          This value is treated as an octal-integer.
+        version_added: ~
+        type: string
+        default: ~
+        example: ~
   celery_broker_transport_options:
     description: |
       This section is for specifying options which can be passed to the

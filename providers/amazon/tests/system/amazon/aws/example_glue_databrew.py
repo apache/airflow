@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_glue_databrew"

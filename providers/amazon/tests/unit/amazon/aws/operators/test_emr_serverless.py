@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.utils.types import NOTSET
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:

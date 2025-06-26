@@ -31,6 +31,11 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Operators
 ---------
 
@@ -46,7 +51,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``eks.amazonaws.com`` must be added to the Trusted Relationships
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster]
@@ -65,7 +70,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroup_in_one_step.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroup_in_one_step.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster_with_nodegroup]
@@ -85,7 +90,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_fargate_in_one_step.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_fargate_in_one_step.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster_with_fargate_profile]
@@ -100,7 +105,7 @@ To delete an existing Amazon EKS Cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.
 You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_delete_cluster]
@@ -110,7 +115,7 @@ Note: If the cluster has any attached resources, such as an Amazon EKS Nodegroup
   Fargate profile, the cluster can not be deleted.  Using the ``force`` parameter will
   attempt to delete any attached resources first.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroup_in_one_step.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroup_in_one_step.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_force_delete_cluster]
@@ -130,7 +135,7 @@ Note:  An AWS IAM role with the following permissions is required:
   ``AmazonEC2ContainerRegistryReadOnly`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_nodegroup]
@@ -145,7 +150,7 @@ To delete an existing Amazon EKS managed node group you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.
 You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_delete_nodegroup]
@@ -164,7 +169,7 @@ Note:  An AWS IAM role with the following permissions is required:
   ``AmazonEC2ContainerRegistryReadOnly`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_fargate_profile.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_fargate_profile.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_fargate_profile]
@@ -178,7 +183,7 @@ Delete an AWS Fargate Profile
 To delete an existing AWS Fargate Profile you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteFargateProfileOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_fargate_profile.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_fargate_profile.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_delete_fargate_profile]
@@ -194,7 +199,7 @@ To run a pod on an existing Amazon EKS Cluster, you can use
 
 Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_pod_operator]
@@ -211,7 +216,7 @@ Wait on an Amazon EKS cluster state
 To check the state of an Amazon EKS Cluster until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_eks_cluster]
@@ -225,7 +230,7 @@ Wait on an Amazon EKS managed node group state
 To check the state of an Amazon EKS managed node group until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_eks_nodegroup]
@@ -239,7 +244,7 @@ Wait on an AWS Fargate profile state
 To check the state of an AWS Fargate profile until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksFargateProfileSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_eks_with_fargate_profile.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_fargate_profile.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_eks_fargate]

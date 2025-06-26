@@ -116,8 +116,8 @@ After you run Breeze for the first time, you will have empty directory ``files``
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
-By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES_ROOT>/files/dags`` and this is
-the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_ROOT_PATH>/files/dags`` and this is
+the directory used by Airflow scheduler and api-server to scan dags for. You can use it to test your dags
 from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
 
 The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
@@ -132,7 +132,7 @@ There are couple of things you might want to do when adding/changing dependencie
 Breeze. You can add dependencies temporarily (which will last until you exit Breeze shell), or you might
 want to add them permanently (which require you to rebuild the image). Also there are different things
 you need to do when you are adding system level (debian) level, Python (pip) dependencies or Node (yarn)
-dependencies for the webserver.
+dependencies for the api-server.
 
 Python dependencies
 ...................

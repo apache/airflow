@@ -121,10 +121,9 @@ class StackdriverHook(GoogleBaseHook):
         )
         if format_ == "dict":
             return [AlertPolicy.to_dict(policy) for policy in policies_]
-        elif format_ == "json":
+        if format_ == "json":
             return [AlertPolicy.to_jsoon(policy) for policy in policies_]
-        else:
-            return policies_
+        return policies_
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _toggle_policy_status(
@@ -395,10 +394,9 @@ class StackdriverHook(GoogleBaseHook):
         )
         if format_ == "dict":
             return [NotificationChannel.to_dict(channel) for channel in channels]
-        elif format_ == "json":
+        if format_ == "json":
             return [NotificationChannel.to_json(channel) for channel in channels]
-        else:
-            return channels
+        return channels
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _toggle_channel_status(

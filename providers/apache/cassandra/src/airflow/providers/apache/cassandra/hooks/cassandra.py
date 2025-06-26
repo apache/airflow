@@ -190,8 +190,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     def _sanitize_input(input_string: str) -> str:
         if re.match(r"^\w+$", input_string):
             return input_string
-        else:
-            raise ValueError(f"Invalid input: {input_string}")
+        raise ValueError(f"Invalid input: {input_string}")
 
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """

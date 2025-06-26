@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import platform
 import sys
 from pathlib import Path
@@ -78,10 +79,8 @@ def is_wsl2() -> bool:
     # Kernel WSL1 detection
     kernel_version: tuple[int, ...] = (0, 0)
     if len(parts := release_name.split(".", 2)[:2]) == 2:
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             kernel_version = tuple(map(int, parts))
-        except (TypeError, ValueError):
-            pass
     if kernel_version < (4, 19):
         message_on_wsl1_detected(release_name=None, kernel_version=kernel_version)
         sys.exit(1)

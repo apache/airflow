@@ -112,3 +112,10 @@ mappings:
     name: "airflow_executor_running_tasks"
     labels:
       executor: "$1"
+
+  - match: airflow.ti.running.*.*.*
+    name: "airflow_ti_running"
+    labels:
+      queue: "$1"
+      dag_id: "$2"
+      task_id: "$3"

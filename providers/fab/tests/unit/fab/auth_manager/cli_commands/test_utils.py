@@ -32,14 +32,12 @@ from tests_common.test_utils.config import conf_vars
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
-pytestmark = pytest.mark.db_test
-
 
 @pytest.fixture
 def flask_app():
     """Fixture to set up the Flask app with the necessary configuration."""
     # Get the webserver config file path
-    webserver_config = conf.get_mandatory_value("webserver", "config_file")
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
 
     with get_application_builder() as appbuilder:
         flask_app = appbuilder.app

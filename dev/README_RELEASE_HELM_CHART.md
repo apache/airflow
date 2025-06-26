@@ -27,6 +27,7 @@
   - [Build Release Notes](#build-release-notes)
   - [Update minimum version of Kubernetes](#update-minimum-version-of-kubernetes)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Publish rc documentation](#publish-rc-documentation)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -40,7 +41,9 @@
   - [Summarize the voting for the release](#summarize-the-voting-for-the-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish release tag](#publish-release-tag)
-  - [Publish documentation](#publish-documentation)
+  - [Publish final documentation](#publish-final-documentation)
+  - [Update `index.yaml` in airflow-site](#update-indexyaml-in-airflow-site)
+  - [Wait for ArtifactHUB to discover new release](#wait-for-artifacthub-to-discover-new-release)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -75,7 +78,7 @@ Instructions for installing the pre-requisites are explained in the steps below.
 
 ```shell
 # Set Version
-export VERSION=1.0.1
+export VERSION=1.1.0
 export VERSION_SUFFIX=rc1
 
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -122,7 +125,15 @@ towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir chart --con
 
 Then remove the `--draft` flag to have towncrier build the release notes for real.
 
+The significant changes section does require some reformatting - look at prior releases as an example.
+
 If no significant changes where added in this release, add the header and put "No significant changes.".
+
+Then, get the rest of the entries, categorize them into the appropriate sections, and add it to the release notes.
+
+``` shell script
+git log --oneline helm-chart/1.1.0..main --pretty='format:- %s' -- chart/ docs/helm-chart/
+```
 
 ### Add changelog annotations to `Chart.yaml`
 
@@ -272,6 +283,42 @@ popd
   git push apache tag helm-chart/${VERSION}${VERSION_SUFFIX}
   ```
 
+## Publish rc documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to the `staging` S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+
+You can specify the RC tag to use to build the docs and 'helm-chart' passed as packages to be built.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By
+default `auto` selection should publish to the `staging` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
+
+After that step, the provider documentation should be available under the https://airflow.staged.apache.org
+(same as in the helm chart documentation).
+
+2. Invalidate Fastly cache for the documentation.
+
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository. Make sure to use `staging` branch.
+
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated and Fastly cache should be invalidated.
+
 ## Prepare issue for testing status of rc
 
 Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
@@ -286,7 +333,7 @@ EOF
 Content is generated with:
 
 ```shell
-breeze release-management generate-issue-content-helm-chart
+breeze release-management generate-issue-content-helm-chart \
 --previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
@@ -583,7 +630,7 @@ Checking airflow-chart-1.0.0-source.tar.gz.sha512
 Contributors can run below commands to test the Helm Chart
 
 ```shell
-helm repo add apache-airflow-dev https://dist.apache.org/repos/dist/dev/airflow/helm-chart/1.0.1rc1/
+helm repo add apache-airflow-dev https://dist.apache.org/repos/dist/dev/airflow/helm-chart/1.1.0rc1/
 helm repo update
 helm install airflow apache-airflow-dev/airflow
 ```
@@ -600,7 +647,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Release Apache Airflow Helm Chart 1.0.1 based on 1.0.1rc1
+[RESULT][VOTE] Release Apache Airflow Helm Chart 1.1.0 based on 1.1.0rc1
 ```
 
 Message:
@@ -608,7 +655,7 @@ Message:
 ```
 Hello all,
 
-The vote to release Apache Airflow Helm Chart version 1.0.1 based on 1.0.1rc1 is now closed.
+The vote to release Apache Airflow Helm Chart version 1.1.0 based on 1.1.0rc1 is now closed.
 
 The vote PASSED with 4 binding "+1", 4 non-binding "+1" and 0 "-1" votes:
 
@@ -646,7 +693,7 @@ the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell
 # First clone the repo
-export VERSION=1.0.1
+export VERSION=1.1.0
 export VERSION_SUFFIX=rc1
 svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
@@ -676,63 +723,63 @@ git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart ${VERSION}"
 git push apache helm-chart/${VERSION}
 ```
 
-## Publish documentation
+## Publish final documentation
 
-In our cases, documentation for the released versions is published in a separate repository -
-[`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and
-build tools are available in the `apache/airflow` repository, so you have to coordinate
-between the two repositories to be able to build the documentation.
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
 
-- First, copy the airflow-site repository, create branch, and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+There are two steps to publish the documentation:
 
-    ```shell
-    git clone https://github.com/apache/airflow-site.git airflow-site
-    cd airflow-site
-    git checkout -b helm-${VERSION}-docs
-    export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
-    ```
+1. Publish the documentation to the `live` S3 bucket.
 
-- Then you can go to the directory and build the necessary documentation packages
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
-    ```shell
-    cd "${AIRFLOW_REPO_ROOT}"
-    git checkout helm-chart/${VERSION}
-    breeze build-docs helm-chart --clean-build
-    ```
+You should specify the tag to use to build the docs and 'helm-chart' passed as packages to be built.
 
-- Now you can preview the documentation.
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default
+`auto` selection should publish to the `live` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
 
-    ```shell
-    ./docs/start_doc_server.sh
-    ```
+After that step, the provider documentation should be available under the https://airflow.apache.org
+(same as in the helm chart documentation).
 
-- Copy the documentation to the ``airflow-site`` repository.
+2. Invalidated Fastly cache for the documentation.
 
-    ```shell
-    breeze release-management publish-docs helm-chart
-    ```
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository. Make sure to use `main` branch.
 
-- Update `index.yaml`
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated and Fastly cache should be invalidated.
 
-  Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
+## Update `index.yaml` in airflow-site
 
-    ```shell
-    breeze release-management add-back-references helm-chart
-    curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/index.yaml -o index.yaml
-    cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
-    helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
-    rm airflow-${VERSION}.tgz
-    mv index.yaml landing-pages/site/static/index.yaml
-    ```
+Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add apache-airflow https://airflow.apache.org`.
 
-- Commit new docs, push, and open PR
+```shell
+git clone https://github.com/apache/airflow-site.git airflow-site
+cd airflow-site
+curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/index.yaml -o index.yaml
+cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
+helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
+rm airflow-${VERSION}.tgz
+mv index.yaml landing-pages/site/static/index.yaml
+git add p . # leave the license at the top
+git commit -m "Add Apache Airflow Helm Chart Release ${VERSION} to chart index file"
+git push
+# and finally open a PR
+```
 
-    ```shell
-    git add .
-    git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
-    git push
-    # and finally open a PR
-    ```
+## Wait for ArtifactHUB to discover new release
+
+As we link out to ArtifactHUB in all of our release communications, we now wait until ArtifactHUB has discovered the new release. This can take 30 minutes or so to happen after the index change PR from above is merged.
 
 ## Notify developers of release
 
@@ -813,7 +860,7 @@ Don't forget to thank the folks who tested and close the issue tracking the test
 
 ## Update issue template with the new release
 
-Updating issue templates in `.github/ISSUE_TEMPLATE/airflow_helmchart_bug_report.yml` with the new version
+Updating issue templates in `.github/ISSUE_TEMPLATE/4-airflow_helmchart_bug_report.yml` with the new version
 
 ## Announce the release on the community slack
 
@@ -837,7 +884,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
