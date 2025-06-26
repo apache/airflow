@@ -41,7 +41,6 @@ PRE_COMMIT_LIST = [
     "check-code-deprecations",
     "check-common-compat-used-for-openlineage",
     "check-core-deprecation-classes",
-    "check-daysago-import-from-utils",
     "check-decorated-operator-implements-custom-name",
     "check-default-configuration",
     "check-deferrable-default",

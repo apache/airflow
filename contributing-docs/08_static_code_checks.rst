@@ -155,8 +155,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-daysago-import-from-utils                           | days_ago imported from airflow.utils.dates             |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-default-configuration                               | Check the default configuration                        | *       |
