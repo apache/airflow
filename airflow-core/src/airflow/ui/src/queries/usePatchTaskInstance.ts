@@ -50,7 +50,7 @@ export const usePatchTaskInstance = ({
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("toaster.update.error.title", {
+      title: translate("toaster.update.error", {
         resourceName: translate("taskInstance_one"),
       }),
       type: "error",

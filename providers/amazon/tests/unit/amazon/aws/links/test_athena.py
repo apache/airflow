@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.amazon.aws.links.athena import AthenaQueryResultsLink
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -24,13 +26,15 @@ from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
 
+pytestmark = pytest.mark.db_test
+
 
 class TestAthenaQueryResultsLink(BaseAwsLinksTestCase):
     link_class = AthenaQueryResultsLink
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=AthenaQueryResultsLink.key,
                 value={
                     "region_name": "eu-west-1",

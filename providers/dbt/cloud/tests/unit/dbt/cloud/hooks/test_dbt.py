@@ -36,9 +36,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     TokenAuth,
     fallback_to_default_account,
 )
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
+from airflow.utils import timezone
 
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"
@@ -151,12 +149,14 @@ class TestDbtCloudJobRunStatus:
 
 
 class TestDbtCloudHook:
-    def setup_class(self):
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         # Connection with ``account_id`` specified
         account_id_conn = Connection(
             conn_id=ACCOUNT_ID_CONN,
             conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
+            login=str(DEFAULT_ACCOUNT_ID),
             password=TOKEN,
         )
 
@@ -171,7 +171,7 @@ class TestDbtCloudHook:
         host_conn = Connection(
             conn_id=SINGLE_TENANT_CONN,
             conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
+            login=str(DEFAULT_ACCOUNT_ID),
             password=TOKEN,
             host=SINGLE_TENANT_DOMAIN,
         )
@@ -180,16 +180,16 @@ class TestDbtCloudHook:
         proxy_conn = Connection(
             conn_id=PROXY_CONN,
             conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
+            login=str(DEFAULT_ACCOUNT_ID),
             password=TOKEN,
             host=SINGLE_TENANT_DOMAIN,
             extra=EXTRA_PROXIES,
         )
 
-        db.merge_conn(account_id_conn)
-        db.merge_conn(no_account_id_conn)
-        db.merge_conn(host_conn)
-        db.merge_conn(proxy_conn)
+        create_connection_without_db(account_id_conn)
+        create_connection_without_db(no_account_id_conn)
+        create_connection_without_db(host_conn)
+        create_connection_without_db(proxy_conn)
 
     @pytest.mark.parametrize(
         argnames="conn_id, url",

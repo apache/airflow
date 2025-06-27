@@ -22,7 +22,7 @@ import boto3
 import botocore
 import pytest
 
-from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import (
     GlueDataQualityRuleRecommendationRunSensor,
     GlueDataQualityRuleSetEvaluationRunSensor,
@@ -103,4 +103,47 @@ class TestGlueDataQualityRuleRecommendationRunCompleteWaiter(TestGlueDataQuality
 
         GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(
             RunIc="run_id", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestGlueJobCompleteCustomWaiterBase:
+    @pytest.fixture(autouse=True)
+    def mock_conn(self, monkeypatch):
+        self.client = boto3.client("glue")
+        monkeypatch.setattr(GlueJobHook, "conn", self.client)
+
+
+class TestGlueJobCompleteWaiter(TestGlueJobCompleteCustomWaiterBase):
+    WAITER_NAME = "job_complete"
+
+    @pytest.fixture
+    def mock_get_job(self):
+        with mock.patch.object(self.client, "get_job_run") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", ["SUCCEEDED"])
+    def test_glue_job_run_success(self, state, mock_get_job):
+        mock_get_job.return_value = {"JobRun": {"JobRunState": state}}
+
+        GlueJobHook().get_waiter(self.WAITER_NAME).wait(JobName="example", RunId="run_id")
+
+    @pytest.mark.parametrize("state", ["STOPPED", "FAILED", "ERROR", "TIMEOUT"])
+    def test_glue_job_run_failure(self, state, mock_get_job):
+        mock_get_job.return_value = {"JobRun": {"JobRunState": state}}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            GlueJobHook().get_waiter(self.WAITER_NAME).wait(JobName="example", RunId="run_id")
+
+    @pytest.mark.parametrize("intermediate", ["STARTING", "RUNNING", "STOPPING"])
+    def test_glue_job_run_retry_then_success(self, intermediate, mock_get_job):
+        mock_get_job.side_effect = [
+            {"JobRun": {"JobRunState": intermediate}},
+            {"JobRun": {"JobRunState": intermediate}},
+            {"JobRun": {"JobRunState": "SUCCEEDED"}},
+        ]
+
+        GlueJobHook().get_waiter(self.WAITER_NAME).wait(
+            JobName="example",
+            RunId="run_id",
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
         )

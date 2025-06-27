@@ -27,10 +27,7 @@ import pytest
 from airflow import DAG
 from airflow.models import Connection
 from airflow.providers.apache.flink.operators.flink_kubernetes import FlinkKubernetesOperator
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
-
+from airflow.utils import timezone
 
 TEST_VALID_APPLICATION_YAML = """
 apiVersion: flink.apache.org/v1beta1
@@ -188,11 +185,12 @@ TEST_APPLICATION_DICT = {
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestFlinkKubernetesOperator:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",

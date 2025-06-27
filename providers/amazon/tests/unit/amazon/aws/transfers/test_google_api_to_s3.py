@@ -24,15 +24,14 @@ import pytest
 from airflow import models
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
-from airflow.utils import db
 
 # This test mocks json.dumps so it won't work for database isolation mode
-pytestmark = pytest.mark.db_test
 
 
 class TestGoogleApiToS3:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             models.Connection(
                 conn_id="google_test",
                 host="google",
@@ -42,7 +41,7 @@ class TestGoogleApiToS3:
                 password="client_secret",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="s3_test",
                 conn_type="s3",

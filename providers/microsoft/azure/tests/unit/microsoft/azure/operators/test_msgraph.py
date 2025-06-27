@@ -44,7 +44,6 @@ except ImportError:
 
 
 class TestMSGraphAsyncOperator(Base):
-    @pytest.mark.db_test
     def test_execute_with_old_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -76,7 +75,6 @@ class TestMSGraphAsyncOperator(Base):
                 assert events[1].payload["type"] == "builtins.dict"
                 assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_with_new_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -104,7 +102,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[1].payload["type"] == "builtins.dict"
             assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_with_old_paginate_function_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -139,7 +136,6 @@ class TestMSGraphAsyncOperator(Base):
                 assert events[1].payload["type"] == "builtins.dict"
                 assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         users.pop("@odata.nextLink")
@@ -162,7 +158,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.dict"
             assert events[0].payload["response"] == json.dumps(users)
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs(self):
         with self.patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
@@ -175,7 +170,6 @@ class TestMSGraphAsyncOperator(Base):
             with pytest.raises(AirflowException):
                 execute_operator(operator)
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_old_signature(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
@@ -205,7 +199,6 @@ class TestMSGraphAsyncOperator(Base):
                 assert events[0].payload["status"] == "failure"
                 assert events[0].payload["message"] == "An error occurred"
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
@@ -231,7 +224,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["status"] == "failure"
             assert events[0].payload["message"] == "An error occurred"
 
-    @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
@@ -259,7 +251,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.bytes"
             assert events[0].payload["response"] == base64_encoded_content
 
-    @pytest.mark.db_test
     def test_execute_with_lambda_parameter_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None

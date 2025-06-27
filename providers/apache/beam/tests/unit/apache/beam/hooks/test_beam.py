@@ -386,7 +386,6 @@ class TestBeamHook:
 
 
 class TestBeamRunner:
-    @pytest.mark.db_test
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
     def test_beam_wait_for_done_logging(self, mock_select, mock_popen, caplog):

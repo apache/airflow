@@ -124,7 +124,7 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.upload-package-artifact == 'true'
       - name: "Checkout target branch"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare and cleanup runner"
@@ -171,7 +171,7 @@ jobs:
           breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
         if: inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: prod-packages
           path: ./dist
@@ -211,7 +211,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout target branch"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare and cleanup runner"
@@ -224,14 +224,14 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Download packages prepared as artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: prod-packages
           path: ./docker-context-files
       - name: "Show downloaded packages"
         run: ls -la ./docker-context-files
       - name: "Download constraints"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: constraints
           path: ./docker-context-files

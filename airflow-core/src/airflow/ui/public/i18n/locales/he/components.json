@@ -1,0 +1,131 @@
+{
+  "backfill": {
+    "affected_one": "ריצה אחת תופעל.",
+    "affected_other": "{{count}} ריצות תופעלנה.",
+    "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
+    "backwards": "הרץ לאחור",
+    "dateRange": "טווח תאריכים",
+    "dateRangeFrom": "מתאריך",
+    "dateRangeTo": "עד תאריך",
+    "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
+    "maxRuns": "מספר ריצות מקבילות מירבי",
+    "reprocessBehavior": "התנהגות עיבוד מחדש",
+    "run": "הרץ Backfill",
+    "selectDescription": "הרץ DAG זה עבור טווח תאריכים",
+    "selectLabel": "Backfill",
+    "title": "הרץ Backfill",
+    "toaster": {
+      "success": {
+        "description": "משימות ה-Backfill הופעלו בהצלחה.",
+        "title": "Backfill נוצר"
+      }
+    },
+    "tooltip": "Backfill דורש לוח זמנים",
+    "unpause": "הפעל את {{dag_display_name}} בעת ההרצה",
+    "validation": {
+      "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
+      "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill בתהליך",
+    "cancel": "בטל backfill",
+    "pause": "השהה backfill",
+    "unpause": "הפעל מחדש backfill"
+  },
+  "clipboard": {
+    "copy": "העתק"
+  },
+  "close": "סגור",
+  "configForm": {
+    "advancedOptions": "אפשרויות מתקדמות",
+    "configJson": "הגדרות JSON",
+    "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "שגיאה אחת",
+    "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
+    "warning_one": "אזהרה אחת",
+    "warning_other": "{{count}} אזהרות"
+  },
+  "durationChart": {
+    "duration": "משך זמן (שניות)",
+    "lastDagRun_one": "ריצת DAG אחרונה",
+    "lastDagRun_other": "{{count}} ריצות DAG אחרונות",
+    "lastTaskInstance_one": "משימה אחרונה",
+    "lastTaskInstance_other": "{{count}} משימות אחרונות",
+    "queuedDuration": "זמן המתנה בתור",
+    "runAfter": "הרץ אחרי",
+    "runDuration": "משך זמן ריצה"
+  },
+  "fileUpload": {
+    "files_other": "{{count}} קבצים"
+  },
+  "flexibleForm": {
+    "placeholder": "בחר ערך",
+    "placeholderArray": "הכנס כל מחרוזת בשורה חדשה",
+    "placeholderExamples": "התחל להקליד כדי לראות אפשרויות",
+    "placeholderMulti": "בחר ערך אחד או יותר",
+    "validationErrorArrayNotArray": "הערך חייב להיות מערך.",
+    "validationErrorArrayNotNumbers": "כל האיברים במערך חייבים להיות מספרים.",
+    "validationErrorArrayNotObject": "כל האיברים במערך חייבים להיות אובייקטים.",
+    "validationErrorRequired": "שדה זה הוא חובה"
+  },
+  "graph": {
+    "directionDown": "מלמעלה למטה",
+    "directionLeft": "מימין לשמאל",
+    "directionRight": "משמאל לימין",
+    "directionUp": "מלמטה למעלה",
+    "downloadImage": "הורד תמונת גרף",
+    "downloadImageError": "הורדת תמונת הגרף נכשלה.",
+    "downloadImageErrorTitle": "ההורדה נכשלה",
+    "otherDagRuns": "+ ריצות DAG נוספות",
+    "taskCount_one": "משימה אחת",
+    "taskCount_other": "{{count}} משימות",
+    "taskGroup": "קבוצת משימות"
+  },
+  "limitedList": "+ {{count}} נוספים",
+  "logs": {
+    "file": "קובץ",
+    "location": "שורה {{line}} ב{{name}}"
+  },
+  "reparseDag": "נתח DAG מחדש",
+  "sortedAscending": "ממוין בסדר עולה",
+  "sortedDescending": "ממוין בסדר יורד",
+  "sortedUnsorted": "לא ממוין",
+  "taskTries": "ניסיונות משימה",
+  "toggleCardView": "הצג תצוגת כרטיסים",
+  "toggleTableView": "הצג תצוגת טבלה",
+  "triggerDag": {
+    "button": "הפעל",
+    "loading": "טוען מידע DAG...",
+    "loadingFailed": "טעינת מידע ה-DAG נכשלה. אנא נסו שוב.",
+    "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
+    "selectDescription": "הפעל ריצה בודדת של DAG זה",
+    "selectLabel": "ריצה בודדת",
+    "title": "הפעל DAG",
+    "toaster": {
+      "success": {
+        "description": "ריצת ה-DAG הופעלה בהצלחה.",
+        "title": "ריצת DAG הופעלה"
+      }
+    },
+    "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
+  },
+  "trimText": {
+    "details": "פרטים",
+    "empty": "ריק",
+    "noContent": "אין תוכן זמין."
+  },
+  "versionDetails": {
+    "bundleLink": "קישור לחבילה",
+    "bundleName": "שם החבילה",
+    "bundleVersion": "גרסת החבילה",
+    "createdAt": "נוצר ב",
+    "versionId": "מזהה גרסה"
+  },
+  "versionSelect": {
+    "dagVersion": "גרסת DAG",
+    "versionCode": "גרסה {{versionCode}}"
+  }
+}

@@ -227,13 +227,6 @@ def get_asset_triggered_next_run_info(
     }
 
 
-def _triggerer_is_healthy(session: Session):
-    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-
-    job = TriggererJobRunner.most_recent_job(session=session)
-    return job and job.is_alive()
-
-
 @provide_session
 def _create_orm_dagrun(
     *,
@@ -714,15 +707,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-        )
-
-    @provide_session
-    def has_dag_runs(self, session=NEW_SESSION, include_manually_triggered=True) -> bool:
-        return (
-            get_last_dagrun(
-                self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-            )
-            is not None
         )
 
     @property
@@ -1589,9 +1573,6 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
-        if TYPE_CHECKING:
-            # TODO: Task-SDK: remove this assert
-            assert self.params
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         if conf:
@@ -1756,7 +1737,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         of_type: type[AssetT] = Asset,  # type: ignore[assignment]
     ) -> Generator[tuple[str, AssetT], None, None]:
         for task in self.task_dict.values():
-            directions = ("inlets",) if inlets else ()
+            directions: tuple[str, ...] = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
@@ -1966,6 +1947,10 @@ class DagModel(Base):
         cascade="all, delete, delete-orphan",
     )
     schedule_assets = association_proxy("schedule_asset_references", "asset")
+    task_inlet_asset_references = relationship(
+        "TaskInletAssetReference",
+        cascade="all, delete, delete-orphan",
+    )
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",

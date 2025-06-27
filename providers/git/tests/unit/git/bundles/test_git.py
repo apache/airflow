@@ -32,12 +32,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
-from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections
-
-pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -71,18 +67,23 @@ def git_repo(tmp_path_factory):
 class TestGitDagBundle:
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections()
+        return
 
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db, request):
+        # Skip setup for tests that need to create their own connections
+        if request.function.__name__ in ["test_view_url", "test_view_url_subdir"]:
+            return
+
+        create_connection_without_db(
             Connection(
                 conn_id="git_default",
                 host="git@github.com:apache/airflow.git",
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_HTTPS,
                 host=AIRFLOW_HTTPS_URL,
@@ -90,7 +91,7 @@ class TestGitDagBundle:
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_NO_REPO_URL,
                 conn_type="git",
@@ -410,16 +411,17 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_view_url(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
-        session.query(Connection).delete()
-        conn = Connection(
-            conn_id="my_git_connection",
-            host=repo_url,
-            conn_type="git",
-            **(extra_conn_kwargs or {}),
+    def test_view_url(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="my_git_connection",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
         )
-        session.add(conn)
-        session.commit()
         bundle = GitDagBundle(
             name="test",
             git_conn_id="my_git_connection",
@@ -497,16 +499,17 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_view_url_subdir(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
-        session.query(Connection).delete()
-        conn = Connection(
-            conn_id="git_default",
-            host=repo_url,
-            conn_type="git",
-            **(extra_conn_kwargs or {}),
+    def test_view_url_subdir(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_default",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
         )
-        session.add(conn)
-        session.commit()
         bundle = GitDagBundle(
             name="test",
             tracking_ref="main",
@@ -554,6 +557,7 @@ class TestGitDagBundle:
 
                 assert "Repository path: %s not found" in str(exc_info.value)
 
+    @pytest.mark.db_test
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
     @pytest.mark.parametrize(
         "conn_id, expected_hook_type",

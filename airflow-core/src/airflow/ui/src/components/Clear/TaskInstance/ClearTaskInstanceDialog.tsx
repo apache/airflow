@@ -95,7 +95,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
-                {translate("dags:runAndTaskActions.clear.dialog.title", {
+                {translate("dags:runAndTaskActions.clear.title", {
                   type: translate("taskInstance_one"),
                 })}
                 :
@@ -110,6 +110,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
+              defaultValues={["downstream"]}
               multiple
               onChange={setSelectedOptions}
               options={[

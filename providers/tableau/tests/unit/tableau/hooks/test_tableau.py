@@ -22,9 +22,6 @@ import pytest
 
 from airflow import configuration, models
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 class TestTableauHook:
@@ -32,10 +29,11 @@ class TestTableauHook:
     Test class for TableauHook
     """
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         configuration.conf.load_test_config()
 
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="tableau_test_password",
                 conn_type="tableau",
@@ -45,7 +43,7 @@ class TestTableauHook:
                 extra='{"site_id": "my_site"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="tableau_test_ssl_connection_certificates_path",
                 conn_type="tableau",
@@ -55,7 +53,7 @@ class TestTableauHook:
                 extra='{"verify": "my_cert_path", "cert": "my_client_cert_path"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="tableau_test_ssl_false_connection",
                 conn_type="tableau",
@@ -65,7 +63,7 @@ class TestTableauHook:
                 extra='{"verify": "False"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="tableau_test_ssl_bool_param_connection",
                 conn_type="tableau",

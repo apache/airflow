@@ -36,6 +36,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
@@ -112,7 +113,8 @@ ALL_MYPY_CHECKS_EXCEPT_PROVIDERS = str(
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = (
@@ -121,7 +123,7 @@ ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = (
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
@@ -130,23 +132,26 @@ ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "check-provider-yaml-valid,identity,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
@@ -156,7 +161,8 @@ ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
@@ -1162,7 +1168,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                    "ci-image-build": "false",
+                    "ci-image-build": "true",
                     "prod-image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -1215,7 +1221,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -1269,6 +1275,10 @@ def test_expected_output_pull_request_main(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
+@pytest.mark.skipif(
+    not (AIRFLOW_ROOT_PATH / ".git").exists(),
+    reason="This test should not run if .git folder is missing (for example by default in breeze container)",
+)
 @pytest.mark.parametrize(
     "files, commit_ref, expected_outputs",
     [
