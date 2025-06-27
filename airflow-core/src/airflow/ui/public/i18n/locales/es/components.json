@@ -7,7 +7,7 @@
     "dateRange": "Rango de Fechas",
     "dateRangeFrom": "Desde",
     "dateRangeTo": "Hasta",
-    "errorStartDateBeforeEndDate": "La Fecha de Inicio debe ser antes de la Fecha de Fin",
+    "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
     "maxRuns": "Máximo de Ejecuciones Activas",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
@@ -23,8 +23,8 @@
     "tooltip": "Backfill requiere una programación",
     "unpause": "Reanudar {{dag_display_name}} al activarse",
     "validation": {
-      "datesRequired": "Ambos intervalos de Fecha de Inicio y Fecha de Fin deben ser proporcionados.",
-      "startBeforeEnd": "El intervalo de Fecha de Inicio debe ser menor o igual a la Fecha de Fin."
+      "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben ser proporcionados.",
+      "startBeforeEnd": "El intervalo de Fecha Inicial debe ser menor o igual a la Fecha Final."
     }
   },
   "banner": {

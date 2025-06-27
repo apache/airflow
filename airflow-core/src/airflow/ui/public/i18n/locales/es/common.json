@@ -69,7 +69,7 @@
     "restApiReference": "Referencia de REST API"
   },
   "duration": "Duración",
-  "endDate": "Fecha de Fin",
+  "endDate": "Fecha Final",
   "error": {
     "back": "Atrás",
     "defaultMessage": "Ocurrió un error inesperado",
@@ -148,7 +148,7 @@
   "showDetailsPanel": "Mostrar Panel de Detalles",
   "sourceAssetEvent_one": "Evento de Asset Fuente",
   "sourceAssetEvent_other": "Eventos de Asset Fuente",
-  "startDate": "Fecha de Inicio",
+  "startDate": "Fecha Inicial",
   "state": "Estado",
   "states": {
     "deferred": "Diferido",

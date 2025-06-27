@@ -71,8 +71,8 @@
       "desc": "Ordenar por Nombre (Z-A)"
     },
     "lastRunStartDate": {
-      "asc": "Ordenar por Fecha de Inicio de Ejecución (Más Antiguo-Más Reciente)",
-      "desc": "Ordenar por Fecha de Inicio de Ejecución (Más Reciente-Más Antiguo)"
+      "asc": "Ordenar por Fecha Inicial de Ejecución (Más Antiguo-Más Reciente)",
+      "desc": "Ordenar por Fecha Inicial de Ejecución (Más Reciente-Más Antiguo)"
     },
     "lastRunState": {
       "asc": "Ordenar por Estado de Ejecución (A-Z)",
