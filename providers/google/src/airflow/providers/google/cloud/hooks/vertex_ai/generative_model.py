@@ -36,8 +36,6 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
-    from vertexai.generative_models._generative_models import _GenerativeModel
-    from vertexai.tuning._supervised_tuning import SupervisedTuningJob
 
 
 class GenerativeModelHook(GoogleBaseHook):
@@ -83,7 +81,7 @@ class GenerativeModelHook(GoogleBaseHook):
     def get_cached_context_model(
         self,
         cached_content_name: str,
-    ) -> _GenerativeModel:
+    ) -> Any:
         """Return a Generative Model with Cached Context."""
         cached_content = CachedContent(cached_content_name=cached_content_name)
 
@@ -168,7 +166,7 @@ class GenerativeModelHook(GoogleBaseHook):
         adapter_size: Literal[1, 4, 8, 16] | None = None,
         learning_rate_multiplier: float | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> SupervisedTuningJob:
+    ) -> Any:
         """
         Use the Supervised Fine Tuning API to create a tuning job.
 
