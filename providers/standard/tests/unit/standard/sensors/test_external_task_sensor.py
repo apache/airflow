@@ -33,7 +33,12 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DagBag, DagRun, TaskInstance
-from airflow.models.baseoperator import BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg

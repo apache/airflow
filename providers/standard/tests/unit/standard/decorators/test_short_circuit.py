@@ -64,8 +64,8 @@ def test_short_circuit_decorator(dag_maker):
 
     dr = dag_maker.create_dagrun()
 
-    for t in dag_maker.dag.tasks:
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    for dag_task in dag_maker.dag.tasks:
+        dag_maker.run_ti(dag_task.task_id, dr, ignore_ti_state=True)
 
     task_state_mapping = {
         "short_circuit_false": State.SUCCESS,
@@ -180,10 +180,10 @@ def test_short_circuit_with_multiple_outputs(dag_maker):
         return {"x": 1, "y": 2}
 
     with dag_maker(serialized=True):
-        ret = multiple_output()
+        multiple_output()
 
     dr = dag_maker.create_dagrun()
-    ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+    dag_maker.run_ti("multiple_output", dr)
     ti = dr.get_task_instances()[0]
     assert ti.xcom_pull() == {"x": 1, "y": 2}
 
@@ -194,9 +194,9 @@ def test_short_circuit_with_multiple_outputs_and_empty_dict(dag_maker):
         return {}
 
     with dag_maker(serialized=True):
-        ret = empty_dict()
+        empty_dict()
 
     dr = dag_maker.create_dagrun()
-    ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+    dag_maker.run_ti("empty_dict", dr)
     ti = dr.get_task_instances()[0]
     assert ti.xcom_pull() == {}

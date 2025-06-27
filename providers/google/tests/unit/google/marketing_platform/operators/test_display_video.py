@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateQueryOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
@@ -143,7 +143,7 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
 
     @pytest.mark.parametrize(
         "test_bucket_name",
-        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
+        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='taskflow_op') }}"],
     )
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.shutil")
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.urllib.request")
@@ -160,37 +160,34 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
         mock_request,
         mock_shutil,
         test_bucket_name,
+        dag_maker,
     ):
         mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
         mock_hook.return_value.get_report.return_value = {
             "metadata": {"status": {"state": "DONE"}, "googleCloudStoragePath": "TEST"}
         }
 
-        dag = DAG(
-            dag_id="test_set_bucket_name",
-            start_date=DEFAULT_DATE,
-            schedule=None,
-            catchup=False,
-        )
+        with dag_maker(dag_id="test_set_bucket_name", start_date=DEFAULT_DATE) as dag:
+            if BUCKET_NAME not in test_bucket_name:
 
-        if BUCKET_NAME not in test_bucket_name:
+                @dag.task(task_id="taskflow_op")
+                def f():
+                    return BUCKET_NAME
 
-            @dag.task
-            def f():
-                return BUCKET_NAME
+                taskflow_op = f()
 
-            taskflow_op = f()
-            taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            GoogleDisplayVideo360DownloadReportV2Operator(
+                query_id=QUERY_ID,
+                report_id=REPORT_ID,
+                bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
+                report_name=REPORT_NAME,
+                task_id="test_task",
+            )
 
-        op = GoogleDisplayVideo360DownloadReportV2Operator(
-            query_id=QUERY_ID,
-            report_id=REPORT_ID,
-            bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
-            report_name=REPORT_NAME,
-            task_id="test_task",
-            dag=dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dr = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances():
+            ti.run()
 
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET_NAME,
