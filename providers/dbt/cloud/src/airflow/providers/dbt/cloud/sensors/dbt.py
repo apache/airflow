@@ -28,7 +28,7 @@ from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_e
 from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
 else:
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 

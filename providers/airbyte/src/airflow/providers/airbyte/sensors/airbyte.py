@@ -29,7 +29,12 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.airbyte.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
