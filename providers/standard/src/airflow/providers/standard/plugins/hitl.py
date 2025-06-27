@@ -16,19 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import FastAPI
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.utils.session import NEW_SESSION, provide_session
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 
-@provide_session
-def _get_api_endpoint(session: Session = NEW_SESSION) -> dict[str, Any]:
+def _get_api_endpoint() -> dict[str, Any]:
     from airflow.providers.standard.api_fastapi.core_api.routes.hitl import hitl_router
 
     hitl_api_app = FastAPI(
