@@ -1,7 +1,7 @@
 {
   "auditLog":{
     "actions": {
-      "collapseAllExtra": "Colapsar todos os extra json",
+      "collapseAllExtra": "Recolher todos os extra json",
       "expandAllExtra": "Expandir todos os extra json"
     },
     "columns":{

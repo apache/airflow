@@ -17,7 +17,7 @@
     "auditLog": "Log de Auditoria",
     "xcoms": "XComs"
   },
-  "collapseDetailsPanel": "Colapsar Painel de Detalhes",
+  "collapseDetailsPanel": "Recolher Painel de Detalhes",
   "createdAssetEvent_one": "Evento de Asset Criado",
   "createdAssetEvent_other": "Eventos de Asset Criados",
   "dag_one": "DAG",

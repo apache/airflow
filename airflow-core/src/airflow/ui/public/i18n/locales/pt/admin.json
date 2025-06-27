@@ -35,7 +35,7 @@
       "connectionTypeRequired": "Tipo de Conexão é obrigatório",
       "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra JSON",
-      "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote de fornecedores correspondente do Airflow.",
+      "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote do fornecedor correspondente ao Airflow.",
       "selectConnectionType": "Selecionar Tipo de Conexão",
       "standardFields": "Campos Padrão"
     },
@@ -142,7 +142,7 @@
       "errorParsingJsonFile": "Erro ao Analisar Arquivo JSON: Upload um arquivo JSON contendo variáveis (exemplo: {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
-          "description": "Falha na importação se quaisquer variáveis existentes forem detectadas.",
+          "description": "Falha na importação se forem detetadas variáveis que já existem.",
           "title": "Falha"
         },
         "overwrite": {
