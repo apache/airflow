@@ -273,8 +273,8 @@
   "tryNumber": "Número de Tentativas",
   "user": "Usuário",
   "wrap": {
-    "tooltip": "Pressione {{hotkey}} para alternar o wrap",
-    "unwrap": "Desembrulhar",
-    "wrap": "Embrulhar"
+    "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
+    "unwrap": "Expandir",
+    "wrap": "Recolher"
   }
 }
