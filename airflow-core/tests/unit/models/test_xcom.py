@@ -210,12 +210,14 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_one")
     def test_xcom_get_one(self, session, task_instance):
-        stored_value = XComModel.get_many(
-            key="xcom_1",
-            dag_ids=task_instance.dag_id,
-            task_ids=task_instance.task_id,
-            run_id=task_instance.run_id,
-            session=session,
+        stored_value = session.execute(
+            XComModel.get_many(
+                key="xcom_1",
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
         ).first()
         assert XComModel.deserialize_value(stored_value) == {"key": "value"}
 
@@ -256,13 +258,15 @@ class TestXComGet:
 
     def test_xcom_get_one_from_prior_date(self, session, tis_for_xcom_get_one_from_prior_date):
         _, ti2 = tis_for_xcom_get_one_from_prior_date
-        retrieved_value = XComModel.get_many(
-            run_id=ti2.run_id,
-            key="xcom_1",
-            task_ids="task_1",
-            dag_ids="dag",
-            include_prior_dates=True,
-            session=session,
+        retrieved_value = session.execute(
+            XComModel.get_many(
+                run_id=ti2.run_id,
+                key="xcom_1",
+                task_ids="task_1",
+                dag_ids="dag",
+                include_prior_dates=True,
+                session=session,
+            )
         ).first()
         assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
 
@@ -270,13 +274,15 @@ class TestXComGet:
         self, session, tis_for_xcom_get_one_from_prior_date_without_logical_date
     ):
         _, ti2 = tis_for_xcom_get_one_from_prior_date_without_logical_date
-        retrieved_value = XComModel.get_many(
-            run_id=ti2.run_id,
-            key="xcom_1",
-            task_ids="task_1",
-            dag_ids="dag",
-            include_prior_dates=True,
-            session=session,
+        retrieved_value = session.execute(
+            XComModel.get_many(
+                run_id=ti2.run_id,
+                key="xcom_1",
+                task_ids="task_1",
+                dag_ids="dag",
+                include_prior_dates=True,
+                session=session,
+            )
         ).first()
         assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
 
@@ -286,12 +292,14 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
     def test_xcom_get_many_single_argument_value(self, session, task_instance):
-        stored_xcoms = XComModel.get_many(
-            key="xcom_1",
-            dag_ids=task_instance.dag_id,
-            task_ids=task_instance.task_id,
-            run_id=task_instance.run_id,
-            session=session,
+        stored_xcoms = session.execute(
+            XComModel.get_many(
+                key="xcom_1",
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
         ).all()
         assert len(stored_xcoms) == 1
         assert stored_xcoms[0].key == "xcom_1"
@@ -472,12 +480,14 @@ class TestXComRoundTrip:
         """Test that XComModel serialization and deserialization work as expected."""
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value=value)
 
-        stored_value = XComModel.get_many(
-            key="xcom_1",
-            dag_ids=task_instance.dag_id,
-            task_ids=task_instance.task_id,
-            run_id=task_instance.run_id,
-            session=session,
+        stored_value = session.execute(
+            XComModel.get_many(
+                key="xcom_1",
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
 
