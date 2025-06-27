@@ -61,7 +61,9 @@ function check_db_backend {
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     elif [[ ${BACKEND} == "none" ]]; then
-        echo "${COLOR_YELLOW}WARNING: Using no database backend!${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: 'start-airflow' cannot be used with --backend=none.${COLOR_RESET}"
+        echo "${COLOR_RED}Supported database backends are: sqlite, postgres, mysql, mssql.${COLOR_RESET}"
+        echo "${COLOR_RED}Please specify one using '--backend'.${COLOR_RESET}"
         return
     else
         echo "Unknown backend. Supported values: [postgres,mysql,mssql,sqlite]. Current value: [${BACKEND}]"
