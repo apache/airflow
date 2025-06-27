@@ -21,8 +21,9 @@ import inspect
 import pathlib
 import sys
 import textwrap
+from collections.abc import Callable
 from socket import socketpair
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest

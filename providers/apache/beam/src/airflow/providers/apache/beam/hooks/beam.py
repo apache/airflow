@@ -31,7 +31,8 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 

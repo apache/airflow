@@ -21,7 +21,7 @@ import contextlib
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, inspect, text
 from sqlalchemy.exc import NoSuchTableError
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
     CommandType = Sequence[str]
     # Task tuple to send to be executed
-    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 

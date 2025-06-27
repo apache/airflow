@@ -30,7 +30,8 @@ from __future__ import annotations
 import itertools
 import random
 import time
-from typing import TYPE_CHECKING, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import botocore.client
 import botocore.exceptions

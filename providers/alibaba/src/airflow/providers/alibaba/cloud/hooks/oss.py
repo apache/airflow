@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 from urllib.parse import urlsplit
 
 import oss2

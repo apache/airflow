@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.spark.version_compat import AIRFLOW_V_3_0_PLUS
 

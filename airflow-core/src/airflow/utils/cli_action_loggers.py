@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow.utils.session import NEW_SESSION, provide_session
 

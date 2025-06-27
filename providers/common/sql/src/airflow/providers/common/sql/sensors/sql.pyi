@@ -32,8 +32,8 @@ Definition of the public interface for airflow.providers.common.sql.src.airflow.
 isort:skip_file
 """
 
-from collections.abc import Mapping, Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from _typeshed import Incomplete as Incomplete
 

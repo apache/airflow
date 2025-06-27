@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.9")
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())

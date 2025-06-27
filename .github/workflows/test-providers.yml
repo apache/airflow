@@ -126,10 +126,6 @@ jobs:
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
         if: matrix.package-format == 'wheel'
-      - name: Remove Python 3.9-incompatible provider distributions
-        run: |
-          echo "Removing Python 3.9-incompatible provider: cloudant"
-          rm -vf dist/*cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >

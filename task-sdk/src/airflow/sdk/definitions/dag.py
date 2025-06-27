@@ -91,7 +91,7 @@ __all__ = [
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
 ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
 

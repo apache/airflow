@@ -28,7 +28,7 @@ import os
 import re
 import shutil
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -37,7 +37,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -652,7 +652,7 @@ class S3Hook(AwsBaseHook):
             response = paginator.paginate(**params)
             async for page in response:
                 if "Contents" in page:
-                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
+                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), int | float))
         return keys
 
     async def _list_keys_async(

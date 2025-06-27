@@ -38,7 +38,7 @@ from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -3747,7 +3747,7 @@ def generate_issue_content(
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
-    PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
+    PullRequestOrIssue = PullRequest.PullRequest | Issue.Issue
     verbose = get_verbose()
 
     previous = previous_release

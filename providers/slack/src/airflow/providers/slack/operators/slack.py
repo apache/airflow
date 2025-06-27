@@ -20,9 +20,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook

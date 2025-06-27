@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import suppress
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
 

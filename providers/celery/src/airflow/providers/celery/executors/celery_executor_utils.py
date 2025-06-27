@@ -32,7 +32,7 @@ import traceback
 import warnings
 from collections.abc import Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -71,11 +71,9 @@ if TYPE_CHECKING:
     # the type as the union of both kinds
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[
-        TaskInstanceKey, Union[workloads.All, CommandType], Optional[str], Task
-    ]
+    TaskInstanceInCelery: TypeAlias = tuple[TaskInstanceKey, workloads.All | CommandType, str | None, Task]
 
-    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 

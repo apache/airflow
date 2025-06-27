@@ -133,7 +133,7 @@ def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, A
 
 
 def _count_tis(node: int | MappedTaskGroup | MappedOperator, run_id: str, session: SessionDep) -> int:
-    if not isinstance(node, (MappedTaskGroup, MappedOperator)):
+    if not isinstance(node, MappedTaskGroup | MappedOperator):
         return node
     with contextlib.suppress(NotFullyPopulated, NotMapped):
         return DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session)

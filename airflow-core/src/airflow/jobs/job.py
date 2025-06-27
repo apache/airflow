@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import cached_property, lru_cache
 from time import sleep
-from typing import TYPE_CHECKING, Callable, NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError

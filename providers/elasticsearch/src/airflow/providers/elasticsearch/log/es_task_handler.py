@@ -27,8 +27,9 @@ import shutil
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -57,11 +58,9 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
 if AIRFLOW_V_3_0_PLUS:
-    from typing import Union
-
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    EsLogMsgType = Union[list[StructuredLogMessage], str]
+    EsLogMsgType = list[StructuredLogMessage] | str
 else:
     EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 

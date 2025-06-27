@@ -29,7 +29,7 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, NoReturn, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -57,7 +57,6 @@ from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
-from typing_extensions import Literal
 
 from airflow.exceptions import (
     AirflowException,
@@ -89,7 +88,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
+BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
 
 
 class BigQueryHook(GoogleBaseHook, DbApiHook):

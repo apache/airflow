@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.context import context_merge

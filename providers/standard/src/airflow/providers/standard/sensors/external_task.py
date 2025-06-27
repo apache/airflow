@@ -19,8 +19,8 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
@@ -79,7 +79,7 @@ class ExternalDagLink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
+            assert isinstance(operator, ExternalTaskMarker | ExternalTaskSensor)
 
         external_dag_id = operator.external_dag_id
 

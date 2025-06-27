@@ -19,10 +19,10 @@ from __future__ import annotations
 import logging
 import os
 import shutil
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from subprocess import run
-from typing import Any, Callable
+from typing import Any
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.plugin.interface import BuilderInterface

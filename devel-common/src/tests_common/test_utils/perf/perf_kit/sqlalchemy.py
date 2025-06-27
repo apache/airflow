@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import time
 import traceback
-from typing import Callable
+from collections.abc import Callable
 
 from sqlalchemy import event
 

@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
 )
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred

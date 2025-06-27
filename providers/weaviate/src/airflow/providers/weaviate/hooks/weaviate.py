@@ -36,7 +36,8 @@ from weaviate.util import generate_uuid5
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from collections.abc import Callable
+    from typing import Literal
 
     import pandas as pd
     from weaviate.auth import AuthCredentials

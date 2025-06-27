@@ -26,10 +26,10 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import google.auth
 import google.oauth2.service_account
@@ -93,7 +93,7 @@ def is_soft_quota_exception(exception: Exception):
     if isinstance(exception, Forbidden):
         return any(reason in error.details() for reason in INVALID_REASONS for error in exception.errors)
 
-    if isinstance(exception, (ResourceExhausted, TooManyRequests)):
+    if isinstance(exception, ResourceExhausted | TooManyRequests):
         return any(key in error.details() for key in INVALID_KEYS for error in exception.errors)
 
     return False

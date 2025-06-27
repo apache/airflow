@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Callable
 
 from airflow.utils import timezone
 

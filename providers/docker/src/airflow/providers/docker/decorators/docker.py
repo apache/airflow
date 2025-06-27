@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import base64
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
 

@@ -20,9 +20,9 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
-from collections.abc import Container, Sequence
+from collections.abc import Callable, Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory

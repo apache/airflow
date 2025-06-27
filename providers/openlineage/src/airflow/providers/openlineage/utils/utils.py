@@ -20,10 +20,11 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+from collections.abc import Callable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import attrs
 from openlineage.client.facet_v2 import parent_run
@@ -205,7 +206,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 
 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
-    if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
+    if isinstance(operator, MappedOperator | SerializedBaseOperator):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
     op_class = get_operator_class(operator)
@@ -222,7 +223,7 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    if isinstance(obj, (BaseOperator, MappedOperator)):
+    if isinstance(obj, BaseOperator | MappedOperator):
         return is_task_lineage_enabled(obj)
     raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
@@ -300,7 +301,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, list, tuple)):
+        if isinstance(value, set | list | tuple):
             return str(list(value))
         return value
 
@@ -375,7 +376,7 @@ class DagInfo(InfoJsonEncodable):
                 return serialized
 
             def _serialize_ds(ds: BaseDatasetEventInput) -> dict[str, Any]:
-                if isinstance(ds, (DatasetAny, DatasetAll)):
+                if isinstance(ds, DatasetAny | DatasetAll):
                     return {
                         "__type": "dataset_all" if isinstance(ds, DatasetAll) else "dataset_any",
                         "objects": [_serialize_ds(child) for child in ds.objects],

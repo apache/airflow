@@ -23,8 +23,9 @@ from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from simple_salesforce.bulk import SFBulkHandler
-    from typing_extensions import Literal
 
     try:
         from airflow.sdk.definitions.context import Context
