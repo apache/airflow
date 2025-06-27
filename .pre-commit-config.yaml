@@ -237,7 +237,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
-        additional_dependencies: ['libcst>=1.1.0,!=1.8.0']
+        additional_dependencies: ['libcst>=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
