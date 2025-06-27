@@ -39,7 +39,7 @@
     ]
   },
   "devDependencies": {
-    "@babel/core": "^7.27.4",
+    "@babel/core": "^7.27.7",
     "@babel/eslint-parser": "^7.27.5",
     "@babel/plugin-transform-runtime": "^7.27.4",
     "@babel/preset-env": "^7.27.2",
@@ -58,7 +58,7 @@
     "mini-css-extract-plugin": "^2.9.2",
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
-    "prettier": "^3.6.0",
+    "prettier": "^3.6.2",
     "stylelint": "^16.21.0",
     "terser-webpack-plugin": "<6.0.0",
     "url-loader": "4.1.1",
