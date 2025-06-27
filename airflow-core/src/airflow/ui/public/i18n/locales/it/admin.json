@@ -91,7 +91,7 @@
     },
     "edit": "Modifica Pool",
     "form": {
-      "checkbox": "Seleziona per includere le tare deferite quando si calcolano i slot liberi del pool",
+      "checkbox": "Seleziona per includere le tare deferite quando si calcolano gli slot liberi del pool",
       "description": "Descrizione",
       "includeDeferred": "Includi Deferiti",
       "nameMaxLength": "Il nome può contenere un massimo di 256 caratteri",
