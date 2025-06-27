@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
 import vertexai
 from google.cloud import aiplatform
@@ -36,6 +36,8 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
+
+PreviewGenerativeModel: TypeAlias = generative_models.GenerativeModel
 
 
 class GenerativeModelHook(GoogleBaseHook):

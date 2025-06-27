@@ -36,6 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy: TypeAlias = DCAwareRoundRobinPolicy | RoundRobinPolicy | TokenAwarePolicy | WhiteListRoundRobinPolicy
 
+
 class CassandraHook(BaseHook, LoggingMixin):
     """
     Hook used to interact with Cassandra.
