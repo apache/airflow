@@ -473,7 +473,7 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         model_name: str,
-        system_instruction: str | None = None,
+        system_instruction: Any | None = None,
         contents: list[Any] | None = None,
         ttl_hours: float = 1,
         display_name: str | None = None,
