@@ -153,6 +153,45 @@ def get_task_parent_run_facet(
     }
 
 
+def get_task_documentation(operator: BaseOperator | MappedOperator | None) -> tuple[str | None, str | None]:
+    if not operator:
+        return None, None
+
+    doc, mime_type = None, None
+    if operator.doc:
+        doc = operator.doc
+        mime_type = "text/plain"
+    elif operator.doc_md:
+        doc = operator.doc_md
+        mime_type = "text/markdown"
+    elif operator.doc_json:
+        doc = operator.doc_json
+        mime_type = "application/json"
+    elif operator.doc_yaml:
+        doc = operator.doc_yaml
+        mime_type = "application/x-yaml"
+    elif operator.doc_rst:
+        doc = operator.doc_rst
+        mime_type = "text/x-rst"
+
+    return doc, mime_type
+
+
+def get_dag_documentation(dag: DAG | None) -> tuple[str | None, str | None]:
+    if not dag:
+        return None, None
+
+    doc, mime_type = None, None
+    if dag.doc_md:
+        doc = dag.doc_md
+        mime_type = "text/markdown"
+    elif dag.description:
+        doc = dag.description
+        mime_type = "text/plain"
+
+    return doc, mime_type
+
+
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
