@@ -25,15 +25,13 @@ import os
 import sys
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, MutableSet
+from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Union,
     cast,
     overload,
 )
@@ -93,7 +91,7 @@ __all__ = [
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -124,7 +122,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
         return OnceTimetable()
     if interval == "@continuous":
         return ContinuousTimetable()
-    if isinstance(interval, (timedelta, relativedelta)):
+    if isinstance(interval, timedelta | relativedelta):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
             return DeltaDataIntervalTimetable(interval)
         return DeltaTriggerTimetable(interval)
@@ -809,7 +807,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
+                upstream = (u for u in t.upstream_list if isinstance(u, BaseOperator | MappedOperator))
                 direct_upstreams.extend(upstream)
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -1284,12 +1282,7 @@ def _run_inline_trigger(trigger):
     import asyncio
 
     async def _run_inline_trigger_main():
-        # We can replace it with `return await anext(trigger.run(), default=None)`
-        # when we drop support for Python 3.9
-        try:
-            return await trigger.run().__anext__()
-        except StopAsyncIteration:
-            return None
+        return await anext(trigger.run(), default=None)
 
     return asyncio.run(_run_inline_trigger_main())
 
