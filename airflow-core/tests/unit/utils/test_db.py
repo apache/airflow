@@ -37,6 +37,7 @@ from sqlalchemy import Column, Integer, MetaData, Table, select
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.providers.fab.auth_manager.models.db import FABDBManager
+from airflow.providers.standard.models.db import HITLProviderDBManager
 from airflow.settings import engine
 from airflow.utils.db import (
     _REVISION_HEADS_MAP,
@@ -73,6 +74,9 @@ class TestDb:
                 all_meta_data._add_table(table_name, table.schema, table)
         # test FAB models
         for table_name, table in FABDBManager.metadata.tables.items():
+            all_meta_data._add_table(table_name, table.schema, table)
+        # test Human-in-the-loop models
+        for table_name, table in HITLProviderDBManager.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
