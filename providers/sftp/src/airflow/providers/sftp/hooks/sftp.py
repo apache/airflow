@@ -729,7 +729,7 @@ class SFTPHookAsync(BaseHook):
         if conn.extra is not None:
             self._parse_extras(conn)  # type: ignore[arg-type]
 
-        conn_config = {
+        conn_config: dict[str, Any] = {
             "host": conn.host,
             "port": conn.port,
             "username": conn.login,
@@ -744,7 +744,7 @@ class SFTPHookAsync(BaseHook):
                 conn_config.update(known_hosts=self.known_hosts)  # type: ignore
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)
-            conn_config.update(client_keys=[_private_key])
+            conn_config["client_keys"] = [_private_key]
         if self.passphrase:
             conn_config.update(passphrase=self.passphrase)
         ssh_client_conn = await asyncssh.connect(**conn_config)
