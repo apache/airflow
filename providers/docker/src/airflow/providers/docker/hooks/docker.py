@@ -154,7 +154,7 @@ class DockerHook(BaseHook):
                     raise AirflowException(msg)
                 if self.docker_conn_id:
                     # Obtain connection and try to login to Container Registry only if ``docker_conn_id`` set.
-                    self.__login(client, self.get_connection(self.docker_conn_id))
+                    self.__login(client, self.get_connection(self.docker_conn_id))  # type: ignore[arg-type]
             except APIError:
                 raise
             except DockerException as e:

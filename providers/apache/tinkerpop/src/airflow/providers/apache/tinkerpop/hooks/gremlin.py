@@ -70,11 +70,14 @@ class GremlinHook(BaseHook):
 
         self.connection = self.get_connection(self.gremlin_conn_id)
 
-        uri = self.get_uri(self.connection)
+        uri = self.get_uri(self.connection)  # type: ignore[arg-type]
         self.log.info("Connecting to URI: %s", uri)
 
         self.client = self.get_client(
-            self.connection, self.traversal_source, uri, message_serializer=serializer
+            self.connection,  # type: ignore[arg-type]
+            self.traversal_source,
+            uri,
+            message_serializer=serializer,
         )
         return self.client
 

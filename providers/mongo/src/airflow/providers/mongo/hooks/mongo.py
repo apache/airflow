@@ -125,7 +125,7 @@ class MongoHook(BaseHook):
         self.mongo_conn_id = mongo_conn_id
 
         conn = self.get_connection(self.mongo_conn_id)
-        self._validate_connection(conn)
+        self._validate_connection(conn)  # type: ignore[arg-type]
         self.connection = conn
 
         self.extras = self.connection.extra_dejson.copy()

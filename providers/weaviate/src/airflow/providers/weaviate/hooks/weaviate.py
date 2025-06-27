@@ -140,7 +140,7 @@ class WeaviateHook(BaseHook):
             grpc_port=extras.pop("grpc_port", 443 if grpc_secure else 80),
             grpc_secure=grpc_secure,
             headers=extras.pop("additional_headers", {}),
-            auth_credentials=self._extract_auth_credentials(conn),
+            auth_credentials=self._extract_auth_credentials(conn),  # type: ignore[arg-type]
         )
 
     def _extract_auth_credentials(self, conn: Connection) -> AuthCredentials:

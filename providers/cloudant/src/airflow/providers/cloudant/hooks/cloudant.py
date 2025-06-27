@@ -78,13 +78,14 @@ class CloudantHook(BaseHook):
         """
         conn = self.get_connection(self.cloudant_conn_id)
 
-        self._validate_connection(conn)
+        self._validate_connection(conn)  # type: ignore[arg-type]
+        if conn.login and conn.password:
+            authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
+            service = CloudantV1(authenticator=authenticator)
+            service.set_service_url(f"https://{conn.host}.cloudant.com")
 
-        authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
-        service = CloudantV1(authenticator=authenticator)
-        service.set_service_url(f"https://{conn.host}.cloudant.com")
-
-        return service
+            return service
+        raise AirflowException("Missing login or password in Cloudant connection.")
 
     @staticmethod
     def _validate_connection(conn: Connection) -> None:
