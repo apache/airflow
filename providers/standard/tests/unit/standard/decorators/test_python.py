@@ -19,7 +19,6 @@ import sys
 import typing
 from collections import namedtuple
 from datetime import date
-from typing import Union
 
 import pytest
 
@@ -128,7 +127,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_infer_multiple_outputs_union_type(self):
         @task_decorator
-        def t1() -> Union[str, None]:
+        def t1() -> str | None:
             return "foo"
 
         assert t1().operator.multiple_outputs is False
@@ -918,7 +917,7 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
             return "example"
 
         @dag.task(multiple_outputs=multiple_outputs)
-        def up2(x) -> Union[dict, None]:
+        def up2(x) -> dict | None:
             if x == 2:
                 return {"x": "example"}
             raise AirflowSkipException()

@@ -25,8 +25,9 @@ import os
 import platform
 import sys
 import warnings
+from collections.abc import Callable
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pluggy
 from packaging.version import Version

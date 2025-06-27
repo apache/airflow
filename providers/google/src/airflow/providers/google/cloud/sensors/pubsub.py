@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
