@@ -24,6 +24,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import airflow
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI
@@ -1137,7 +1138,11 @@ class TestSqlBranch:
             dag=self.dag,
         )
 
-        with pytest.raises(AirflowException):
+        exception_expected = (
+            airflow.sdk.exceptions.AirflowRuntimeError if AIRFLOW_V_3_0_PLUS else AirflowException
+        )
+
+        with pytest.raises(exception_expected):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_true(self):
@@ -1150,8 +1155,10 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-
-        with pytest.raises(AirflowException):
+        exception_expected = (
+            airflow.sdk.exceptions.AirflowRuntimeError if AIRFLOW_V_3_0_PLUS else AirflowException
+        )
+        with pytest.raises(exception_expected):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_false(self):
@@ -1164,8 +1171,10 @@ class TestSqlBranch:
             follow_task_ids_if_false=[],
             dag=self.dag,
         )
-
-        with pytest.raises(AirflowException):
+        exception_expected = (
+            airflow.sdk.exceptions.AirflowRuntimeError if AIRFLOW_V_3_0_PLUS else AirflowException
+        )
+        with pytest.raises(exception_expected):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.backend("mysql")
