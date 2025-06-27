@@ -1,0 +1,110 @@
+{
+  "allRuns": "Todas as Execuções",
+  "blockingDeps": {
+    "dependency": "Dependência",
+    "reason": "Motivo",
+    "title": "Dependências Bloqueando Tarefa de Ser Agendada"
+  },
+  "code": {
+    "bundleUrl": "URL do Bundle",
+    "noCode": "Nenhum Código Encontrado",
+    "parsedAt": "Processado em:"
+  },
+  "extraLinks": "Links Extra",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Redefinir para a Última",
+      "toggleGroup": "Alternar Grupo"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Documentação do DAG"
+    }
+  },
+  "logs": {
+    "noTryNumber": "Nenhum número de tentativa",
+    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Execução Falhada",
+      "failedRun_other": "Execuções Falhadas",
+      "failedTask_one": "Tarefa Falhada",
+      "failedTask_other": "Tarefas Falhadas",
+      "failedTaskInstance_one": "Instância de Tarefa Falhada",
+      "failedTaskInstance_other": "Instâncias de Tarefa Falhadas"
+    },
+    "charts": {
+      "assetEvent_one": "Evento de Asset Criado",
+      "assetEvent_other": "Eventos de Asset Criados"
+    },
+    "failedLogs": {
+      "title": "Logs Recentes de Tarefas Falhadas",
+      "viewFullLogs": "Ver logs completos"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opções",
+      "showGraph": "Mostrar Gráfico",
+      "showGrid": "Mostrar Grade"
+    },
+    "dagRuns": {
+      "label": "Número de Execuções do DAG"
+    },
+    "dependencies": {
+      "label": "Dependências",
+      "options": {
+        "allDagDependencies": "Todas as Dependências do DAG",
+        "externalConditions": "Condições Externas",
+        "onlyTasks": "Apenas Tarefas"
+      },
+      "placeholder": "Dependências"
+    },
+    "graphDirection": {
+      "label": "Direção do Gráfico"
+    }
+  },
+  "paramsFailed": "Falha ao carregar parâmetros",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Falha ao processar o DAG. Pode haver solicitações de processamento pendentes ainda não processadas.",
+        "title": "Falha ao Reprocessar o DAG"
+      },
+      "success": {
+        "description": "O DAG deve ser reprocessado em breve.",
+        "title": "Solicitação de Reprocessamento Enviada com Sucesso"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Asset Events",
+    "auditLog": "Log de Auditoria",
+    "backfills": "Backfills",
+    "code": "Código",
+    "details": "Detalhes",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Instância de Tarefa [{{count}}]",
+    "mappedTaskInstances_other": "Instâncias de Tarefa [{{count}}]",
+    "overview": "Visão Geral",
+    "renderedTemplates": "Modelos Renderizados",
+    "runs": "Execuções",
+    "taskInstances": "Instâncias de Tarefa",
+    "tasks": "Tarefas",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Colapsar todos os grupos de tarefas",
+    "expandAll": "Expandir todos os grupos de tarefas"
+  },
+  "taskLogs": {
+    "allLogLevels": "Todos os Níveis de Log",
+    "allSources": "Todas as Fontes",
+    "fullscreen": {
+      "button": "Tela Cheia",
+      "tooltip": "Pressione {{hotkey}} para tela cheia"
+    }
+  }
+}
