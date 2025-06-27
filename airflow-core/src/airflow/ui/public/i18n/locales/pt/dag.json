@@ -96,7 +96,7 @@
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "Colapsar todos os grupos de tarefas",
+    "collapseAll": "Recolher todos os grupos de tarefas",
     "expandAll": "Expandir todos os grupos de tarefas"
   },
   "taskLogs": {
