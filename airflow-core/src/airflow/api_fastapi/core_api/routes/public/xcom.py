@@ -93,7 +93,7 @@ def get_xcom_entry(
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database.
-    result = xcom_query.limit(1).first()
+    result = session.execute(xcom_query.limit(1)).first()
 
     if result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
@@ -251,7 +251,7 @@ def create_xcom_entry(
         map_indexes=request_body.map_index,
         session=session,
     )
-    result = already_existing_query.with_entities(XComModel.value).first()
+    result = session.execute(already_existing_query.with_only_columns(XComModel.value)).first()
     if result:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
