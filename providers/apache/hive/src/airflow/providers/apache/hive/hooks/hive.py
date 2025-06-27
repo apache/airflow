@@ -281,7 +281,7 @@ class HiveCliHook(BaseHook):
         True
         """
         conn = self.conn
-        schema = schema or conn.schema
+        schema = schema or conn.schema or ""
 
         invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
         if invalid_chars_list:
@@ -609,7 +609,9 @@ class HiveMetastoreHook(BaseHook):
 
     def _find_valid_host(self) -> Any:
         conn = self.conn
-        hosts = conn.host.split(",")
+        hosts = []
+        if conn.host:
+            hosts = conn.host.split(",")
         for host in hosts:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", host, conn.port)

@@ -643,7 +643,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                     raise
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
+            conn=connection,  # type: ignore[arg-type]
+            region_name=self._region_name,
+            botocore_config=self._config,
+            verify=self._verify,
         )
 
     def _resolve_service_name(self, is_resource_type: bool = False) -> str:
