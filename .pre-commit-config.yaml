@@ -868,12 +868,6 @@ repos:
         entry: "LoggingMixin\\(\\)"
         files: \.py$
         pass_filenames: true
-      - id: check-daysago-import-from-utils
-        language: pygrep
-        name: days_ago imported from airflow.utils.dates
-        entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
-        files: \.py$
-        pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
         name: start_date not in default_args
