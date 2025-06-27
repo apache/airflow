@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from google.api_core import exceptions
 
@@ -222,7 +222,7 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         tuned_model_display_name: str | None = None,
         validation_dataset: str | None = None,
         epochs: int | None = None,
-        adapter_size: int | None = None,
+        adapter_size: Literal[1, 4, 8, 16] | None = None,
         learning_rate_multiplier: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
