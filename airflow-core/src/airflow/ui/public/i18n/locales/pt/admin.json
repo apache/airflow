@@ -31,11 +31,11 @@
     "edit": "Editar Conexão",
     "form":{
       "connectionIdRequired": "ID da Conexão é obrigatório",
-      "connectionIdRequirement": "ID da Conexão não pode conter apenas espaços",
+      "connectionIdRequirement": "ID da Conexão não pode conter somente espaços",
       "connectionTypeRequired": "Tipo de Conexão é obrigatório",
       "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra JSON",
-      "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote de provedores correspondente do Airflow.",
+      "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote de fornecedores correspondente do Airflow.",
       "selectConnectionType": "Selecionar Tipo de Conexão",
       "standardFields": "Campos Padrão"
     },

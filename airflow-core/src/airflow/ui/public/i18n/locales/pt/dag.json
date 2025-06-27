@@ -58,7 +58,7 @@
       "options": {
         "allDagDependencies": "Todas as Dependências do DAG",
         "externalConditions": "Condições Externas",
-        "onlyTasks": "Apenas Tarefas"
+        "onlyTasks": "Somente Tarefas"
       },
       "placeholder": "Dependências"
     },

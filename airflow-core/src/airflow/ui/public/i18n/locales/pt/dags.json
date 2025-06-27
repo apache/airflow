@@ -52,7 +52,7 @@
       "downstream": "Downstream",
       "existingTasks": "Limpar tarefas existentes",
       "future": "Futuro",
-      "onlyFailed": "Limpar apenas tarefas falhadas",
+      "onlyFailed": "Limpar somente tarefas falhadas",
       "past": "Passado",
       "queueNew": "Enfileirar novas tarefas",
       "upstream": "Upstream"
