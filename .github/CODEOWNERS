@@ -43,7 +43,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1rac
 airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
-airflow-core/src/airflow/ui/public/i18n/locales/pt/ @bbovenzi
+airflow-core/src/airflow/ui/public/i18n/locales/pt/ @bbovenzi  # + @aoelvp94 @victoru2
 airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
 airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 
