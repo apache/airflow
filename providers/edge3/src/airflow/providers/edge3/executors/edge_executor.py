@@ -72,6 +72,7 @@ class EdgeExecutor(BaseExecutor):
         """
         inspector = inspect(engine)
         edge_job_columns = None
+        edge_job_command_len = None
         with contextlib.suppress(NoSuchTableError):
             edge_job_schema = inspector.get_columns("edge_job")
             edge_job_columns = [column["name"] for column in edge_job_schema]
