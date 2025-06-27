@@ -56,10 +56,19 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
-        from airflow.sdk.definitions.connection import Connection
+        import sys
 
-        conn = Connection.get(conn_id)
-        log.info("Connection Retrieved '%s'", conn.conn_id)
+        # if SUPERVISOR_COMMS is set, we're in task sdk context
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            from airflow.sdk.definitions.connection import Connection
+
+            conn = Connection.get(conn_id)
+            log.info("Connection Retrieved '%s' (via task-sdk)", conn.conn_id)
+            return conn
+        from airflow.models.connection import Connection as ConnectionModel
+
+        conn = ConnectionModel.get_connection_from_secrets(conn_id)
+        log.info("Connection Retrieved '%s' (via core Airflow)", conn.conn_id)
         return conn
 
     @classmethod
