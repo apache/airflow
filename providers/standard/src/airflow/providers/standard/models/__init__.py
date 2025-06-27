@@ -16,15 +16,26 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, ForeignKeyConstraint, Integer, MetaData, String, Text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import registry, relationship
 
-from airflow.models.base import Base
+from airflow.models.base import Base, _get_schema, naming_convention
+from airflow.models.taskinstance import TaskInstance
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+mapper_registry = registry(metadata=metadata)
+
+if TYPE_CHECKING:
+    Base = Any
+else:
+    Base = mapper_registry.generate_base()
 
 
 class HITLInputRequestModel(Base):
@@ -42,17 +53,18 @@ class HITLInputRequestModel(Base):
 
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        nullable=False,
-    )
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            (ti_id,),
-            ("task_instance.id",),
-            name="hitl_input_request_ti_fkey",
+        ForeignKey(
+            TaskInstance.id,
             ondelete="CASCADE",
             onupdate="CASCADE",
+            name="hitl_input_request_ti_fkey",
         ),
+        nullable=False,
+    )
+    task_instance = relationship(
+        "TaskInstance",
+        primaryjoin="HITLInputRequestModel.ti_id == foreign(TaskInstance.id)",
+        uselist=False,
     )
 
 

@@ -82,3 +82,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("hitl_response")
+    op.drop_table("hitl_input_request")
