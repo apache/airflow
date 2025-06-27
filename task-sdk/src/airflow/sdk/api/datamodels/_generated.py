@@ -189,11 +189,13 @@ class HITLInputRequestResponse(BaseModel):
 
 class HITLResponseContentDetail(BaseModel):
     """
-    Response for HITLResponse.
+    Schema for Human-in-the-loop response content detail for a specific task instance.
     """
 
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
-    content: Annotated[str | None, Field(title="Content")] = None
+    response_received: Annotated[bool, Field(title="Response Received")]
+    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    user_id: Annotated[str | None, Field(title="User Id")] = None
+    response_content: Annotated[str | None, Field(title="Response Content")] = None
 
 
 class InactiveAssetsResponse(BaseModel):

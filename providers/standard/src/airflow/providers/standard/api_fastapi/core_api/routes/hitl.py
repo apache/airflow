@@ -21,14 +21,12 @@ from uuid import UUID
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from structlog.contextvars import bind_contextvars
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
-from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     AddHITLResponsePayload,
     HITLInputRequest,
@@ -51,9 +49,7 @@ log = structlog.get_logger(__name__)
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[
-        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
-    ],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def write_hitl_response_by_ti_id(
     task_instance_id: UUID,
@@ -88,11 +84,7 @@ def write_hitl_response_by_ti_id(
     )
     session.add(hitl_response_model)
     session.commit()
-    return HITLResponse(
-        ti_id=ti_id_str,
-        content=hitl_response_model.content,
-        created_at=hitl_response_model.created_at,
-    )
+    return HITLResponse.model_validate(hitl_response_model)
 
 
 @hitl_router.get(
@@ -104,9 +96,7 @@ def write_hitl_response_by_ti_id(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[
-        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
-    ],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_hitl_input_request_by_ti_id(
     task_instance_id: UUID,
@@ -114,28 +104,16 @@ def get_hitl_input_request_by_ti_id(
 ) -> HITLInputRequest:
     """Get a Human-in-the-loop input request of a specific task instance."""
     ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
-    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti:
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
-        )
-
     input_request_model = session.scalar(
         select(HITLInputRequestModel).where(HITLInputRequestModel.ti_id == ti_id_str)
     )
     if not input_request_model:
-        log.error("HITL input request not found")
+        log.error("Human-in-the-loop input request not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": "HITL input request not found",
+                "message": "Human-in-the-loop input request not found",
             },
         )
     return HITLInputRequest.model_validate(input_request_model)
@@ -150,17 +128,9 @@ def get_hitl_input_request_by_ti_id(
 )
 def get_hitl_input_requests(
     session: SessionDep,
-    # readable_ti_filter: ReadableTIFilterDep,
 ) -> HITLInputRequestCollection:
-    """Get a Human-in-the-loop input request of a specific task instance."""
-    query = select(HITLInputRequestModel)
-    # input_reuqest_select, total_entries = paginated_select(
-    #     statement=query,
-    #     # filters=[readable_ti_filter],
-    #     filters=[],
-    #     session=session,
-    # )
-    input_requests = session.scalars(query).all()
+    """Get Human-in-the-loop input requests."""
+    input_requests = session.scalars(select(HITLInputRequestModel)).all()
     return HITLInputRequestCollection(
         hitl_input_requests=input_requests,
         total_entries=len(input_requests),

@@ -19,7 +19,7 @@ from __future__ import annotations
 import sqlalchemy_jsonfield
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, String, Text
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import registry, relationship
 
 from airflow.models.base import Base
 from airflow.settings import json

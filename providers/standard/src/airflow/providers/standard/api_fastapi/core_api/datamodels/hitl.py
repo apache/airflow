@@ -25,7 +25,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class AddHITLResponsePayload(BaseModel):
-    """Schema for adding an HITLResponse for a specific Task Instance."""
+    """Schema for adding an Human-in-the-loop Response for a specific Task Instance."""
 
     content: str
 
@@ -33,13 +33,14 @@ class AddHITLResponsePayload(BaseModel):
 class HITLResponse(BaseModel):
     """Schema for added HITLResponse."""
 
-    ti_id: str
+    input_request_id: str
     content: str
     created_at: datetime
+    user_id: str
 
 
 class HITLInputRequest(BaseModel):
-    """Schema for details from Human-in-the-loop task."""
+    """Schema for details for that awaiting Human-in-the-loop input request."""
 
     ti_id: str
 
@@ -59,7 +60,7 @@ class HITLInputRequest(BaseModel):
 
 
 class HITLInputRequestCollection(BaseModel):
-    """Schema for details from Human-in-the-loop tasks."""
+    """Schema for a collection details for that awaiting Human-in-the-loop input request."""
 
     hitl_input_requests: list[HITLInputRequest]
     total_entries: int

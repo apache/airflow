@@ -23,15 +23,14 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class FetchHITLResponsePayload(BaseModel):
-    """Schema for fetching an HITLResponse for a specific task instance."""
+    """Schema for fetching an  Human-in-the-loop Response  for a specific task instance."""
 
     ti_id: UUID
 
 
 class HITLResponse(BaseModel):
-    """Response for HITLResponse."""
+    """Schema for Human-in-the-loop Response for a specific task instance."""
 
-    ti_id: UUID
     content: str | None
 
 
