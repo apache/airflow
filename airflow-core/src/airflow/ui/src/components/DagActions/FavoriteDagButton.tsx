@@ -34,7 +34,7 @@ type FavoriteDagButtonProps = {
 
 export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-  const { data: favorites, refetch } = useDagServiceGetDagsUi({ isFavorite: true });
+  const { data: favorites } = useDagServiceGetDagsUi({ isFavorite: true });
 
   const isFavorite = useMemo(
     () => favorites?.dags.some((fav) => fav.dag_id === dagId) ?? false,
@@ -47,15 +47,8 @@ export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonP
   const onToggle = useCallback(() => {
     const mutationFn = isFavorite ? unfavoriteDag : favoriteDag;
 
-    mutationFn(
-      { dagId },
-      {
-        onSuccess: () => {
-          void refetch();
-        },
-      },
-    );
-  }, [dagId, isFavorite, favoriteDag, unfavoriteDag, refetch]);
+    mutationFn({ dagId });
+  }, [dagId, isFavorite, favoriteDag, unfavoriteDag]);
 
   return (
     <Box>
