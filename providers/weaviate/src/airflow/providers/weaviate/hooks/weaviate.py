@@ -133,7 +133,7 @@ class WeaviateHook(BaseHook):
         http_secure = extras.pop("http_secure", False)
         grpc_secure = extras.pop("grpc_secure", False)
         return weaviate.connect_to_custom(
-            http_host=conn.host,
+            http_host=conn.host,  # type: ignore[arg-type]
             http_port=conn.port or 443 if http_secure else 80,
             http_secure=http_secure,
             grpc_host=extras.pop("grpc_host", conn.host),
