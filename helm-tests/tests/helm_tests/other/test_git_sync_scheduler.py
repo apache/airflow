@@ -408,3 +408,121 @@ class TestGitSyncSchedulerTest:
             jmespath.search("spec.template.spec.containers[1].resources.requests.memory", docs[0]) == "169Mi"
         )
         assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"
+
+    def test_validate_github_app_authentication_with_app_id(self):
+        """Test that GitHub App authentication environment variables are set correctly with githubAppId."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.10.5",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "githubAppSecret": "github-app-secret",
+                        "githubAppId": 123456,
+                        "githubAppInstallationId": 789012,
+                        "githubAppBaseUrl": "https://api.github.com/",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        git_sync_env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        
+        # Check GitHub App environment variables
+        assert {"name": "GITSYNC_GITHUB_APP_PRIVATE_KEY_FILE", "value": "/etc/git-secret/github-app"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_APPLICATION_ID", "value": "123456"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_INSTALLATION_ID", "value": "789012"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_BASE_URL", "value": "https://api.github.com/"} in git_sync_env
+
+        # Check that GitHub App secret volume is created
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        github_app_volume = [v for v in volumes if v.get("name") == "github-app-secret"]
+        assert len(github_app_volume) == 1
+        assert github_app_volume[0]["secret"]["secretName"] == "github-app-secret"
+
+    def test_validate_github_app_authentication_with_client_id(self):
+        """Test that GitHub App authentication works with githubAppClientId instead of githubAppId."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.10.5",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "githubAppSecret": "github-app-secret",
+                        "githubAppClientId": 654321,
+                        "githubAppInstallationId": 789012,
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        git_sync_env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        
+        # Check that Client ID is used instead of App ID
+        assert {"name": "GITSYNC_GITHUB_APP_PRIVATE_KEY_FILE", "value": "/etc/git-secret/github-app"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_CLIENT_ID", "value": "654321"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_INSTALLATION_ID", "value": "789012"} in git_sync_env
+        
+        # Ensure App ID is not set when Client ID is used
+        app_id_env = [env for env in git_sync_env if env.get("name") == "GITSYNC_GITHUB_APP_APPLICATION_ID"]
+        assert len(app_id_env) == 0
+
+    def test_validate_github_app_authentication_minimal_config(self):
+        """Test GitHub App authentication with minimal required configuration."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.10.5",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "githubAppSecret": "github-app-secret",
+                        "githubAppId": 123456,
+                        "githubAppInstallationId": 789012,
+                        # No base URL - should default or be omitted
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        git_sync_env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        
+        # Check required environment variables are present
+        assert {"name": "GITSYNC_GITHUB_APP_PRIVATE_KEY_FILE", "value": "/etc/git-secret/github-app"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_APPLICATION_ID", "value": "123456"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_INSTALLATION_ID", "value": "789012"} in git_sync_env
+        
+        # Base URL should not be set when not specified
+        base_url_env = [env for env in git_sync_env if env.get("name") == "GITSYNC_GITHUB_APP_BASE_URL"]
+        assert len(base_url_env) == 0
+
+    def test_github_app_authentication_not_set_when_disabled(self):
+        """Test that GitHub App environment variables are not set when GitHub App authentication is disabled."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.10.5",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        # No GitHub App configuration
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        git_sync_env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        
+        # Ensure no GitHub App environment variables are set
+        github_app_env_vars = [
+            env for env in git_sync_env 
+            if env.get("name", "").startswith("GITSYNC_GITHUB_APP")
+        ]
+        assert len(github_app_env_vars) == 0
+
+        # Ensure no GitHub App volume is created
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        github_app_volumes = [v for v in volumes if v.get("name") == "github-app-secret"]
+        assert len(github_app_volumes) == 0

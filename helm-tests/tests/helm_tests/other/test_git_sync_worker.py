@@ -113,6 +113,42 @@ class TestGitSyncWorker:
         )
         assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"
 
+    def test_validate_github_app_authentication_in_worker(self):
+        """Test that GitHub App authentication works correctly in worker deployment."""
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "githubAppSecret": "worker-github-app-secret",
+                        "githubAppId": 123456,
+                        "githubAppInstallationId": 789012,
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Check GitHub App environment variables in git-sync container
+        git_sync_env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {"name": "GITSYNC_GITHUB_APP_PRIVATE_KEY_FILE", "value": "/etc/git-secret/github-app"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_APPLICATION_ID", "value": "123456"} in git_sync_env
+        assert {"name": "GITSYNC_GITHUB_APP_INSTALLATION_ID", "value": "789012"} in git_sync_env
+
+        # Check that GitHub App secret volume is created
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        github_app_volume = [v for v in volumes if v.get("name") == "github-app-secret"]
+        assert len(github_app_volume) == 1
+        assert github_app_volume[0]["secret"]["secretName"] == "worker-github-app-secret"
+
+        # Check volume mount in git-sync container
+        git_sync_volume_mounts = jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0])
+        github_app_mount = [vm for vm in git_sync_volume_mounts if vm.get("name") == "github-app-secret"]
+        assert len(github_app_mount) == 1
+        assert github_app_mount[0]["mountPath"] == "/etc/git-secret/github-app"
+        assert github_app_mount[0]["readOnly"] is True
+
     def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
         docs = render_chart(
             values={

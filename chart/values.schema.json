@@ -9104,6 +9104,46 @@
                                 "<host1>,<ip1> <key1>"
                             ]
                         },
+                        "githubAppSecret": {
+                            "description": "Name of a Secret containing the GitHub App private key for authentication.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "githubAppId": {
+                            "description": "The application ID of the GitHub App used for authentication.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "githubAppClientId": {
+                            "description": "The client ID of the GitHub App used for authentication (alternative to githubAppId).",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "githubAppInstallationId": {
+                            "description": "The installation ID of the GitHub App used for authentication.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "githubAppBaseUrl": {
+                            "description": "The GitHub base URL for GitHub App authentication requests (defaults to https://api.github.com/).",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "env": {
                             "description": "Environment variables for git sync container.",
                             "type": "array",
