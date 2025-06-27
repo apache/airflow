@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 import json
 import re
 from typing import Any
@@ -54,21 +53,15 @@ ALL_KUBERNETES_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_KUB
 ALL_PYTHON_VERSIONS_AS_STRING = " ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS)
 ALL_PYTHON_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
 
+PYTHON_K8S_COMBO_LENGTH = max(len(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), len(ALLOWED_KUBERNETES_VERSIONS))
+PYTHON_VERSIONS_MAX = (ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
+KUBERNETES_VERSIONS_MAX = (ALLOWED_KUBERNETES_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
+
 ZIP_PYTHON_AND_KUBERNETES_VERSIONS_AS_STRING = " ".join(
-    [
-        f"{t[0]}-{t[1]}"
-        for t in itertools.zip_longest(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS, ALLOWED_KUBERNETES_VERSIONS)
-    ]
+    [f"{t[0]}-{t[1]}" for t in zip(PYTHON_VERSIONS_MAX, KUBERNETES_VERSIONS_MAX)]
 )
 ZIP_PYTHON_AND_KUBERNETES_VERSIONS_AS_LIST = (
-    "["
-    + ", ".join(
-        [
-            f"'{t[0]}-{t[1]}'"
-            for t in itertools.zip_longest(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS, ALLOWED_KUBERNETES_VERSIONS)
-        ]
-    )
-    + "]"
+    "[" + ", ".join([f"'{t[0]}-{t[1]}'" for t in zip(PYTHON_VERSIONS_MAX, KUBERNETES_VERSIONS_MAX)]) + "]"
 )
 
 
@@ -814,9 +807,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("generated/provider_dependencies.json",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "all-python-versions": "['3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                    "python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "python-versions": "['3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "ci-image-build": "true",
                     "prod-image-build": "true",
@@ -841,9 +834,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("generated/provider_dependencies.json",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "all-python-versions": "['3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                    "python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "python-versions": "['3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "ci-image-build": "true",
                     "prod-image-build": "true",
@@ -1345,7 +1338,10 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({DEFAULT_PYTHON_MAJOR_MINOR_VERSION: ["cloudant"]}),
+            # In case dict is empty we have no exclusions.
+            # if you need to exclude version use syntax
+            # {DEFAULT_PYTHON_MAJOR_MINOR_VERSION: ["provider_name_package"]}
+            "excluded-providers-as-string": json.dumps({}),
         },
         str(stderr),
     )
@@ -1448,11 +1444,11 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-versions": "true",
-                    "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "all-python-versions": "['3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "mysql-versions": "['8.0', '8.4']",
                     "postgres-versions": "['13', '14', '15', '16', '17']",
-                    "python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "python-versions": "['3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "kubernetes-versions": ALL_KUBERNETES_VERSIONS_AS_LIST,
                     "kubernetes-versions-list-as-string": ALL_KUBERNETES_VERSIONS_AS_STRING,
@@ -1827,7 +1823,7 @@ def test_expected_output_pull_request_v2_7(
             "main",
             {
                 "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions": "['3.10', '3.11', '3.12']",
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -1848,7 +1844,7 @@ def test_expected_output_pull_request_v2_7(
             (),
             "v2-3-stable",
             {
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions": "['3.10', '3.11', '3.12']",
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -1871,7 +1867,7 @@ def test_expected_output_pull_request_v2_7(
             "main",
             {
                 "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions": "['3.10', '3.11', '3.12']",
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -2155,7 +2151,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     )
     assert_outputs_are_printed(
         {
-            "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+            "all-python-versions": "['3.10', '3.11', '3.12']",
             "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
             "ci-image-build": "true",
             "prod-image-build": "true",
