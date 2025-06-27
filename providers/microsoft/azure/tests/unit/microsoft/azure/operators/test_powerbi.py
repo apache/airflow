@@ -39,6 +39,13 @@ DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
 GROUP_ID = "group_id"
 DATASET_ID = "dataset_id"
+REQUEST_BODY = {
+    "type": "full",
+    "commitMode": "transactional",
+    "objects": [{"table": "Customer", "partition": "Robert"}],
+    "applyRefreshPolicy": "false",
+    "timeout": "05:00:00",
+}
 CONFIG = {
     "task_id": TASK_ID,
     "conn_id": DEFAULT_CONNECTION_CLIENT_SECRET,
@@ -46,6 +53,7 @@ CONFIG = {
     "dataset_id": DATASET_ID,
     "check_interval": 1,
     "timeout": 3,
+    "request_body": REQUEST_BODY,
 }
 NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 

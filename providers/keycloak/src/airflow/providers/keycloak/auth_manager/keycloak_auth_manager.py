@@ -23,6 +23,7 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from keycloak import KeycloakOpenID
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -33,6 +34,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
@@ -206,6 +208,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.keycloak.auth_manager.routes.login import login_router
+        from airflow.providers.keycloak.auth_manager.routes.token import token_router
 
         app = FastAPI(
             title="Keycloak auth manager sub application",
@@ -216,6 +219,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             ),
         )
         app.include_router(login_router)
+        app.include_router(token_router)
 
         return app
 
@@ -229,6 +233,20 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                 subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
             ),
         ]
+
+    @staticmethod
+    def get_keycloak_client() -> KeycloakOpenID:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        return KeycloakOpenID(
+            server_url=server_url,
+            client_id=client_id,
+            client_secret_key=client_secret,
+            realm_name=realm,
+        )
 
     def _is_authorized(
         self,

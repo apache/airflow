@@ -21,7 +21,7 @@ from airflow.exceptions import AirflowException
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 _EXCEPTION_MESSAGE = """The old HDFS Hooks have been removed in 4.0.0 version of the apache.hdfs provider.
 Please convert your DAGs to use the WebHdfsHook or downgrade the provider to below 4.*
