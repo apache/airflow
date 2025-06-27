@@ -49,7 +49,7 @@ mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 
 if TYPE_CHECKING:
-    Base = Any
+    Base = Any  # type: ignore[misc]
 else:
     Base = mapper_registry.generate_base()
 
