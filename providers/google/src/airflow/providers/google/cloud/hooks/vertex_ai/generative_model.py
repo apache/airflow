@@ -21,15 +21,15 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import vertexai
 from google.cloud import aiplatform
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
+from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
 from vertexai.preview.evaluation import EvalResult, EvalTask
-from vertexai.preview.generative_models import GenerativeModel as preview_generative_model
 from vertexai.preview.tuning import sft
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
@@ -86,7 +86,7 @@ class GenerativeModelHook(GoogleBaseHook):
         """Return a Generative Model with Cached Context."""
         cached_content = CachedContent(cached_content_name=cached_content_name)
 
-        cached_context_model = preview_generative_model.from_cached_content(cached_content)
+        cached_context_model = preview_generative_model.GenerativeModel.from_cached_content(cached_content)
         return cached_context_model
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -164,7 +164,7 @@ class GenerativeModelHook(GoogleBaseHook):
         tuned_model_display_name: str | None = None,
         validation_dataset: str | None = None,
         epochs: int | None = None,
-        adapter_size: int | None = None,
+        adapter_size: Literal[1, 4, 8, 16] | None = None,
         learning_rate_multiplier: float | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types_v1.TuningJob:
@@ -301,7 +301,7 @@ class GenerativeModelHook(GoogleBaseHook):
         location: str,
         ttl_hours: float = 1,
         system_instruction: str | None = None,
-        contents: list | None = None,
+        contents: list[Any] | None = None,
         display_name: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
