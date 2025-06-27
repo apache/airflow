@@ -979,7 +979,7 @@ workers:
   #           storage: "20Gi"
 
   # One common Service Account for all workers will be created if flag is set to false.
-  # If true, dedicated Service Accounts will be created.
+  # If true, dedicated Service Accounts for every worker type will be created.
   useWorkerDedicatedServiceAccounts: false
 
   celery:

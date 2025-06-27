@@ -1577,6 +1577,7 @@
             "description": "Airflow Worker configuration.",
             "type": "object",
             "x-docsSection": "Workers",
+            "additionalProperties": false,
             "properties": {
                 "replicas": {
                     "description": "Number of Airflow Celery workers.",
@@ -2499,14 +2500,14 @@
                     ]
                 },
                 "useWorkerDedicatedServiceAccounts": {
-                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts will be created.",
+                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
                     "type": "boolean",
                     "default": false
                 },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
-                    "x-docsSection": "Celery",
+                    "x-docsSection": "Workers",
                     "properties": {
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
@@ -2545,7 +2546,7 @@
                 "kubernetes": {
                     "description": "Airflow pod-template-file configuration.",
                     "type": "object",
-                    "x-docsSection": "Kubernetes",
+                    "x-docsSection": "Workers",
                     "properties": {
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
