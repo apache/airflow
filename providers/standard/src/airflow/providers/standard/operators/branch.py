@@ -22,8 +22,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin

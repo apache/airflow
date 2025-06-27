@@ -27,12 +27,11 @@ import os
 import sys
 import time
 import warnings
-from collections.abc import Generator, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Protocol,
     TypeVar,
     overload,

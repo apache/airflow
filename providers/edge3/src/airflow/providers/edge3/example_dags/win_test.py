@@ -26,11 +26,11 @@ and serves as a PoC test for the Windows worker.
 from __future__ import annotations
 
 import os
-from collections.abc import Container, Sequence
+from collections.abc import Callable, Container, Sequence
 from datetime import datetime
 from subprocess import STDOUT, Popen
 from time import sleep
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException

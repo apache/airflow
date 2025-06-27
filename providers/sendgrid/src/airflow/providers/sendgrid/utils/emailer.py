@@ -24,7 +24,6 @@ import logging
 import mimetypes
 import os
 from collections.abc import Iterable
-from typing import Union
 
 import sendgrid
 from sendgrid.helpers.mail import (
@@ -44,7 +43,7 @@ from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
 
-AddressesType = Union[str, Iterable[str]]
+AddressesType = str | Iterable[str]
 
 
 def send_email(
