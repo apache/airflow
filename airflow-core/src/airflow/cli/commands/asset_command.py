@@ -154,7 +154,7 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     try:
         user = getuser()
     except AirflowConfigException as e:
-        log.warning("Failed to get user name from os: %s", e)
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
         user = None
     dagrun = trigger_dag(
         dag_id=dag_id, triggered_by=DagRunTriggeredByType.CLI, triggering_user=user, session=session

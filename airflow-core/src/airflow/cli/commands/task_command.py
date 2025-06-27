@@ -124,7 +124,7 @@ def _get_dag_run(
     try:
         user = getuser()
     except AirflowConfigException as e:
-        log.warning("Failed to get user name from os: %s", e)
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
         user = None
     if create_if_necessary == "memory":
         dag_run = DagRun(
