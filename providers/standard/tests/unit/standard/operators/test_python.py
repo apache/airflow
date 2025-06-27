@@ -48,6 +48,7 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1326,6 +1327,37 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return a
 
         self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+
+    def test_with_index_url_from_connection(self, monkeypatch):
+        class MockConnection(Connection):
+            """Mock for the Connection class."""
+
+            def __init__(self, host: str | None, login: str | None, password: str | None):
+                super().__init__()
+                self.host = host
+                self.login = login
+                self.password = password
+
+        monkeypatch.setattr(
+            "airflow.providers.standard.hooks.package_index.PackageIndexHook.get_connection",
+            lambda *_: MockConnection("https://my.package.index", "my_username", "my_password"),
+        )
+
+        def f(a):
+            import sys
+            from pathlib import Path
+
+            pip_conf = (Path(sys.executable).parents[1] / "pip.conf").read_text()
+            assert "abc.def.de" in pip_conf
+            assert "https://my_username:my_password@my.package.index" in pip_conf
+            return a
+
+        self.run_as_task(
+            f,
+            index_urls=["https://abc.def.de"],
+            index_urls_from_connection_ids=["my_connection"],
+            op_args=[4],
+        )
 
     def test_caching(self):
         def f(a):
