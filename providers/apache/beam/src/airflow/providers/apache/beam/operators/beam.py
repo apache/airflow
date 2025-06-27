@@ -24,11 +24,11 @@ import os
 import stat
 import tempfile
 from abc import ABC, ABCMeta, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from packaging.version import parse as parse_version
 

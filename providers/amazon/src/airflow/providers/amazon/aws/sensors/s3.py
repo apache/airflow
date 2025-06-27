@@ -21,9 +21,9 @@ import fnmatch
 import inspect
 import os
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event

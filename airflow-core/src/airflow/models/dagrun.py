@@ -21,14 +21,12 @@ import itertools
 import os
 import re
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     NamedTuple,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -978,16 +976,9 @@ class DagRun(Base, LoggingMixin):
         if self._state == DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
-        attribute_value_type = Union[
-            str,
-            bool,
-            int,
-            float,
-            Sequence[str],
-            Sequence[bool],
-            Sequence[int],
-            Sequence[float],
-        ]
+        attribute_value_type = (
+            str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
+        )
 
         # Explicitly set the value type to Union[...] to avoid a mypy error.
         attributes: dict[str, attribute_value_type] = {

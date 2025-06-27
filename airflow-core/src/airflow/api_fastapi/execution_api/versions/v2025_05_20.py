@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
@@ -30,7 +28,7 @@ class DowngradeUpstreamMapIndexes(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("upstream_map_indexes").had(type=Optional[dict[str, int]]),  # type: ignore
+        schema(TIRunContext).field("upstream_map_indexes").had(type=dict[str, int] | None),  # type: ignore
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]

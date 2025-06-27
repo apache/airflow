@@ -40,7 +40,7 @@ Typical command to install Airflow from scratch in a reproducible way from PyPI 
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
 
 
 Typically, you can add other dependencies and providers as separate command after the reproducible
@@ -112,7 +112,7 @@ but you can pick your own set of extras and providers to install.
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
 
 
 .. note::
@@ -143,7 +143,7 @@ performing dependency resolution.
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
     pip install "apache-airflow==|version|" apache-airflow-providers-google==10.1.1
 
 You can also downgrade or upgrade other dependencies this way - even if they are not compatible with
@@ -151,7 +151,7 @@ those dependencies that are stored in the original constraints file:
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
     pip install "apache-airflow[celery]==|version|" dbt-core==0.20.0
 
 .. warning::
@@ -194,7 +194,7 @@ one provided by the community.
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
     pip install "apache-airflow==|version|" dbt-core==0.20.0
     pip freeze > my-constraints.txt
 

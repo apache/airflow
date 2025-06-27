@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable
+from collections.abc import Callable
 
 from openlineage.client.facet_v2 import source_code_job
 

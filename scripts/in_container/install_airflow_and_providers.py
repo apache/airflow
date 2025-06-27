@@ -542,7 +542,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
 )
 @click.option(
     "--python-version",
-    default="3.9",
+    default="3.10",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",

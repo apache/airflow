@@ -79,19 +79,15 @@ class TestBranchExternalPythonDecoratedOperator:
             branchoperator.set_downstream(task_2)
 
         dr = dag_maker.create_dagrun()
-        df.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+        dag_maker.run_ti("dummy_f", dr)
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branchoperator.operator.run(
-                    start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
-                )
+                dag_maker.run_ti("branching", dr)
             assert exc_info.value.tasks == [(skipped_task_name, -1)]
         else:
-            branchoperator.operator.run(
-                start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
-            )
-            task_1.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-            task_2.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+            dag_maker.run_ti("branching", dr)
+            dag_maker.run_ti("task_1", dr)
+            dag_maker.run_ti("task_2", dr)
             tis = dr.get_task_instances()
 
             for ti in tis:

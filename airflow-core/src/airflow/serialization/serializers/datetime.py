@@ -59,7 +59,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
+def deserialize(classname: str, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
     import datetime
 
     from pendulum import DateTime
@@ -86,16 +86,16 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
                 else None
             )
 
-    if cls is datetime.datetime and isinstance(data, dict):
+    if classname == qualname(datetime.datetime) and isinstance(data, dict):
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
-    if cls is DateTime and isinstance(data, dict):
+    if classname == qualname(DateTime) and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
-    if cls is datetime.timedelta and isinstance(data, (str, float)):
+    if classname == qualname(datetime.timedelta) and isinstance(data, str | float):
         return datetime.timedelta(seconds=float(data))
 
-    if cls is datetime.date and isinstance(data, str):
+    if classname == qualname(datetime.date) and isinstance(data, str):
         return datetime.date.fromisoformat(data)
 
-    raise TypeError(f"unknown date/time format {qualname(cls)}")
+    raise TypeError(f"unknown date/time format {classname}")

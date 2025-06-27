@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import aiohttp

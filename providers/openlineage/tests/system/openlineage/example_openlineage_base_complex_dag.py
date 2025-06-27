@@ -31,6 +31,7 @@ It checks:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Any
 
 from airflow import DAG
 from airflow.models import Variable
@@ -106,7 +107,9 @@ with DAG(
         task_5 = PythonOperator(task_id="task_5", python_callable=lambda: 1)
         with TaskGroup("section_2", parent_group=tg, tooltip="group_tooltip") as tg2:
             if AIRFLOW_VERSION.major == 3:
-                add_args = {"run_as_user": "some_user"}  # Random user break task execution on AF2
+                add_args: dict[str, Any] = {
+                    "run_as_user": "some_user"
+                }  # Random user break task execution on AF2
             else:
                 add_args = {"sla": timedelta(seconds=123)}  # type: ignore[dict-item] # SLA is not present in AF3 yet
             task_6 = EmptyOperator(task_id="task_6", on_success_callback=lambda x: print(1), **add_args)

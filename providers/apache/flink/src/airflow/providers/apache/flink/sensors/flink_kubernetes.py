@@ -23,8 +23,13 @@ from typing import TYPE_CHECKING
 from kubernetes import client
 
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.flink.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.sensors.base import BaseSensorOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

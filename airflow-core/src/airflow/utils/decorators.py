@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import sys
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 import libcst as cst
 

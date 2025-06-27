@@ -35,20 +35,20 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return list(cast("list", o)), qualname(o), __version__, True
 
 
-def deserialize(cls: type, version: int, data: list) -> tuple | set | frozenset:
+def deserialize(classname: str, version: int, data: list) -> tuple | set | frozenset:
     if version > __version__:
-        raise TypeError(f"serialized version {version} is newer than class version {__version__}")
+        raise TypeError("serialized version is newer than class version")
 
-    if cls is tuple:
+    if classname == qualname(tuple):
         return tuple(data)
 
-    if cls is set:
+    if classname == qualname(set):
         return set(data)
 
-    if cls is frozenset:
+    if classname == qualname(frozenset):
         return frozenset(data)
 
-    raise TypeError(f"do not know how to deserialize {qualname(cls)}")
+    raise TypeError(f"do not know how to deserialize {classname}")
 
 
 def stringify(classname: str, version: int, data: list) -> str:

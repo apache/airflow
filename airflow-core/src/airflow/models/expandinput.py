@@ -20,7 +20,7 @@ from __future__ import annotations
 import functools
 import operator
 from collections.abc import Iterable, Sized
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
@@ -54,7 +54,7 @@ __all__ = [
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | SchedulerXComArg]:
     from airflow.models.xcom_arg import SchedulerXComArg
 
-    return isinstance(v, (MappedArgument, SchedulerXComArg))
+    return isinstance(v, MappedArgument | SchedulerXComArg)
 
 
 @attrs.define
@@ -138,7 +138,7 @@ _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
     "list-of-dicts": SchedulerListOfDictsExpandInput,
 }
 
-SchedulerExpandInput = Union[SchedulerDictOfListsExpandInput, SchedulerListOfDictsExpandInput]
+SchedulerExpandInput = SchedulerDictOfListsExpandInput | SchedulerListOfDictsExpandInput
 
 
 def create_expand_input(kind: str, value: Any) -> SchedulerExpandInput:

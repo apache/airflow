@@ -19,8 +19,9 @@ from __future__ import annotations
 import os
 import sys
 import traceback
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -88,12 +89,12 @@ class DagFileParsingResult(BaseModel):
 
 
 ToManager = Annotated[
-    Union[DagFileParsingResult, GetConnection, GetVariable, PutVariable, DeleteVariable],
+    DagFileParsingResult | GetConnection | GetVariable | PutVariable | DeleteVariable,
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    Union[DagFileParseRequest, ConnectionResult, VariableResult, ErrorResponse, OKResponse],
+    DagFileParseRequest | ConnectionResult | VariableResult | ErrorResponse | OKResponse,
     Field(discriminator="type"),
 ]
 

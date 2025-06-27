@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Collection, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 

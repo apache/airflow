@@ -404,7 +404,7 @@ def collect_dags(dag_folder=None):
             "providers/*/*/tests/system/*/*/",
         ]
     else:
-        if isinstance(dag_folder, (list, tuple)):
+        if isinstance(dag_folder, list | tuple):
             patterns = dag_folder
         else:
             patterns = [dag_folder]
@@ -723,7 +723,7 @@ class TestStringifiedDAGs:
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         assert not isinstance(task, SerializedBaseOperator)
-        assert isinstance(task, (BaseOperator, MappedOperator))
+        assert isinstance(task, BaseOperator | MappedOperator)
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
         assert serialized_task.task_group

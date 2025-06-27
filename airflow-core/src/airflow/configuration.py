@@ -39,7 +39,7 @@ from copy import deepcopy
 from io import StringIO
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any, Union
+from typing import IO, TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from packaging.version import parse as parse_version
@@ -64,9 +64,9 @@ if not sys.warnoptions:
 
 _SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
-ConfigType = Union[str, int, float, bool]
+ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
-ConfigSectionSourcesType = dict[str, Union[str, tuple[str, str]]]
+ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"

@@ -19,10 +19,10 @@ from __future__ import annotations
 import base64
 import os
 import pickle
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from shlex import quote
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import dill
 from kubernetes.client import models as k8s
