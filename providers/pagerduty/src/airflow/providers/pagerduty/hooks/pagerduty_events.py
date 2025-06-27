@@ -70,7 +70,7 @@ class PagerdutyEventsHook(BaseHook):
 
         if pagerduty_events_conn_id is not None:
             conn = self.get_connection(pagerduty_events_conn_id)
-            password = conn.get_password()
+            password = conn.password
             if password is not None:
                 self.integration_key = password
 

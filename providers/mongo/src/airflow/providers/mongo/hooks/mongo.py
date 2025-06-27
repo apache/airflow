@@ -36,10 +36,10 @@ except ImportError:
 
 if TYPE_CHECKING:
     from types import TracebackType
+    from typing import Literal
 
     from pymongo.collection import Collection as MongoCollection
     from pymongo.command_cursor import CommandCursor
-    from typing_extensions import Literal
 
     from airflow.models import Connection
 

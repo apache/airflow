@@ -39,7 +39,8 @@ except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from collections.abc import Callable
+    from typing import Literal
 
     import pandas as pd
     from weaviate.auth import AuthCredentials

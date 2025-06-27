@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any, Union
+from typing import Any
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
@@ -45,7 +45,7 @@ try:
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore
 
-Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
+Credentials = ClientSecretCredential | AzureIdentityCredentialAdapter | DefaultAzureCredential
 
 
 class AzureDataLakeHook(BaseHook):

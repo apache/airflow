@@ -88,7 +88,7 @@ class PagerdutyHook(BaseHook):
 
         if pagerduty_conn_id is not None:
             conn = self.get_connection(pagerduty_conn_id)
-            password = conn.get_password()
+            password = conn.password
             if password is not None:
                 self.token = password
 

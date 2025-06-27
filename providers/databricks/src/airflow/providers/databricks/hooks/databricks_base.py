@@ -770,7 +770,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _retryable_error(exception: BaseException) -> bool:
         if isinstance(exception, requests_exceptions.RequestException):
-            if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
+            if isinstance(exception, requests_exceptions.ConnectionError | requests_exceptions.Timeout) or (
                 exception.response is not None
                 and (
                     exception.response.status_code >= 500
@@ -787,7 +787,7 @@ class BaseDatabricksHook(BaseHook):
             if exception.status >= 500 or exception.status == 429:
                 return True
 
-        if isinstance(exception, (ClientConnectorError, TimeoutError)):
+        if isinstance(exception, ClientConnectorError | TimeoutError):
             return True
 
         return False

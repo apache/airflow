@@ -35,8 +35,9 @@ from __future__ import annotations
 
 import inspect
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, Union, cast
+from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
 from asgiref.sync import sync_to_async
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -72,8 +73,8 @@ if TYPE_CHECKING:
         TriggerResource,
     )
 
-Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
-AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
+Credentials = ClientSecretCredential | DefaultAzureCredential
+AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
 T = TypeVar("T", bound=Any)
 

@@ -22,9 +22,7 @@ import gzip
 import io
 from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, cast
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

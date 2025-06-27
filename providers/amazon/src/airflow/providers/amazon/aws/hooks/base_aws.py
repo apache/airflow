@@ -31,10 +31,11 @@ import json
 import logging
 import os
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 import boto3
 import botocore
@@ -43,6 +44,8 @@ import jinja2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from boto3.resources.base import ServiceResource
+from botocore.client import BaseClient
 from botocore.config import Config
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
@@ -67,7 +70,16 @@ except ImportError:
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
+# We need to set typeignore, sadly without it Sphinx build and mypy don't agree.
+# ideally the code should be:
+# BaseAwsConnection = TypeVar("BaseAwsConnection", bound=BaseClient | ServiceResource)
+# but if we do that Sphinx complains about:
+# TypeError: unsupported operand type(s) for |: 'BaseClient' and 'ServiceResource'
+# If we change to Union syntax then mypy is not happy with UP007 Use `X | Y` for type annotations
+# The only way to workaround it for now is to keep the union syntax with ignore for mypy
+# We should try to resolve this later.
+BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[BaseClient, ServiceResource])  # type: ignore[operator] # noqa: UP007
+
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.exceptions import AirflowRuntimeError
@@ -1042,7 +1054,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return WaiterModel(model_config).waiter_names
 
 
-class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
+class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):  # type: ignore[operator] # noqa: UP007
     """
     Base class for interact with AWS.
 

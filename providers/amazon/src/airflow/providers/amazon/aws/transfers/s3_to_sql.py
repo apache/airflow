@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

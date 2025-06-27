@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Union
+from typing import Any, TypeAlias
 
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster, Session
@@ -37,7 +37,7 @@ except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
+Policy: TypeAlias = DCAwareRoundRobinPolicy | RoundRobinPolicy | TokenAwarePolicy | WhiteListRoundRobinPolicy
 
 
 class CassandraHook(BaseHook, LoggingMixin):
