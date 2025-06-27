@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
-from typing import TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 import attr
 
