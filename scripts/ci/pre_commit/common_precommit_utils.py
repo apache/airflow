@@ -41,7 +41,7 @@ AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 # Here we should add the second level paths that we want to have sub-packages in
 KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
 try:
     from rich.console import Console
@@ -277,12 +277,12 @@ def validate_cmd_result(cmd_result, include_ci_env_check=False):
                 "\n[yellow]If you see strange stacktraces above, especially about missing imports "
                 "run this command:[/]\n"
             )
-            console.print("[magenta]breeze ci-image build --python 3.9 --upgrade-to-newer-dependencies[/]\n")
+            console.print("[magenta]breeze ci-image build --python 3.10 --upgrade-to-newer-dependencies[/]\n")
 
     elif cmd_result.returncode != 0:
         console.print(
             "[warning]\nIf you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.9` and try again."
+            "run `breeze ci-image build --python 3.10` and try again."
         )
     sys.exit(cmd_result.returncode)
 

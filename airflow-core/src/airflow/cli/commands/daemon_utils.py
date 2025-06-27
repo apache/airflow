@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import signal
 from argparse import Namespace
-from typing import Callable
+from collections.abc import Callable
 
 from daemon import daemon
 from daemon.pidfile import TimeoutPIDLockFile

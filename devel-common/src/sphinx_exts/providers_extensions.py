@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import ast
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from provider_yaml_utils import load_package_data
@@ -140,7 +140,7 @@ def get_import_mappings(tree) -> dict[str, str]:
     """
     imports = {}
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
+        if isinstance(node, ast.Import | ast.ImportFrom):
             for alias in node.names:
                 module_prefix = f"{node.module}." if hasattr(node, "module") and node.module else ""
                 imports[alias.asname or alias.name] = f"{module_prefix}{alias.name}"

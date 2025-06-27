@@ -24,6 +24,14 @@ from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import ClientError
+from tenacity import (
+    AsyncRetrying,
+    Retrying,
+    before_sleep_log,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -46,11 +54,11 @@ class GlueJobHook(AwsBaseHook):
     :param script_location: path to etl script on s3
     :param retry_limit: Maximum number of times to retry this job if it fails
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
-    :param region_name: aws region name (example: us-east-1)
     :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
     :param iam_role_arn: AWS IAM Role ARN for Glue Job Execution, If set `iam_role_name` must equal None.
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param update_config: Update job configuration on Glue (default: False)
+    :param api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -80,6 +88,7 @@ class GlueJobHook(AwsBaseHook):
         create_job_kwargs: dict | None = None,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
+        api_retry_args: dict[Any, Any] | None = None,
         *args,
         **kwargs,
     ):
@@ -95,6 +104,17 @@ class GlueJobHook(AwsBaseHook):
         self.create_job_kwargs = create_job_kwargs or {}
         self.update_config = update_config
         self.job_poll_interval = job_poll_interval
+
+        self.retry_config: dict[str, Any] = {
+            "retry": retry_if_exception(self._should_retry_on_error),
+            "wait": wait_exponential(multiplier=1, min=1, max=60),
+            "stop": stop_after_attempt(5),
+            "before_sleep": before_sleep_log(self.log, log_level=20),
+            "reraise": True,
+        }
+
+        if api_retry_args:
+            self.retry_config.update(api_retry_args)
 
         worker_type_exists = "WorkerType" in self.create_job_kwargs
         num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
@@ -115,6 +135,29 @@ class GlueJobHook(AwsBaseHook):
 
         kwargs["client_type"] = "glue"
         super().__init__(*args, **kwargs)
+
+    def _should_retry_on_error(self, exception: BaseException) -> bool:
+        """
+        Determine if an exception should trigger a retry.
+
+        :param exception: The exception that occurred
+        :return: True if the exception should trigger a retry, False otherwise
+        """
+        if isinstance(exception, ClientError):
+            error_code = exception.response.get("Error", {}).get("Code", "")
+            retryable_errors = {
+                "ThrottlingException",
+                "RequestLimitExceeded",
+                "ServiceUnavailable",
+                "InternalFailure",
+                "InternalServerError",
+                "TooManyRequestsException",
+                "RequestTimeout",
+                "RequestTimeoutException",
+                "HttpTimeoutException",
+            }
+            return error_code in retryable_errors
+        return False
 
     def create_glue_job_config(self) -> dict:
         default_command = {
@@ -217,8 +260,21 @@ class GlueJobHook(AwsBaseHook):
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
-        return job_run["JobRun"]["JobRunState"]
+        for attempt in Retrying(**self.retry_config):
+            with attempt:
+                try:
+                    job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+                    return job_run["JobRun"]["JobRunState"]
+                except ClientError as e:
+                    self.log.error("Failed to get job state for job %s run %s: %s", job_name, run_id, e)
+                    raise
+                except Exception as e:
+                    self.log.error(
+                        "Unexpected error getting job state for job %s run %s: %s", job_name, run_id, e
+                    )
+                    raise
+        # This should never be reached due to reraise=True, but mypy needs it
+        raise RuntimeError("Unexpected end of retry loop")
 
     async def async_get_job_state(self, job_name: str, run_id: str) -> str:
         """
@@ -226,9 +282,22 @@ class GlueJobHook(AwsBaseHook):
 
         The async version of get_job_state.
         """
-        async with await self.get_async_conn() as client:
-            job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
-        return job_run["JobRun"]["JobRunState"]
+        async for attempt in AsyncRetrying(**self.retry_config):
+            with attempt:
+                try:
+                    async with await self.get_async_conn() as client:
+                        job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
+                    return job_run["JobRun"]["JobRunState"]
+                except ClientError as e:
+                    self.log.error("Failed to get job state for job %s run %s: %s", job_name, run_id, e)
+                    raise
+                except Exception as e:
+                    self.log.error(
+                        "Unexpected error getting job state for job %s run %s: %s", job_name, run_id, e
+                    )
+                    raise
+        # This should never be reached due to reraise=True, but mypy needs it
+        raise RuntimeError("Unexpected end of retry loop")
 
     @cached_property
     def logs_hook(self):
@@ -372,7 +441,7 @@ class GlueJobHook(AwsBaseHook):
         )
         return None
 
-    def has_job(self, job_name) -> bool:
+    def has_job(self, job_name: str) -> bool:
         """
         Check if the job already exists.
 
@@ -422,6 +491,9 @@ class GlueJobHook(AwsBaseHook):
 
         :return:Name of the Job
         """
+        if self.job_name is None:
+            raise ValueError("job_name must be set to get or create a Glue job")
+
         if self.has_job(self.job_name):
             return self.job_name
 
@@ -441,6 +513,9 @@ class GlueJobHook(AwsBaseHook):
 
         :return:Name of the Job
         """
+        if self.job_name is None:
+            raise ValueError("job_name must be set to create or update a Glue job")
+
         config = self.create_glue_job_config()
 
         if self.has_job(self.job_name):

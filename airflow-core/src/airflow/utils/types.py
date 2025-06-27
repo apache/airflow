@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 import airflow.sdk.definitions._internal.types
 
@@ -55,12 +55,6 @@ class DagRunType(str, enum.Enum):
             if run_id and run_id.startswith(f"{run_type.value}__"):
                 return run_type
         return DagRunType.MANUAL
-
-
-class EdgeInfoType(TypedDict):
-    """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
-
-    label: str | None
 
 
 class DagRunTriggeredByType(enum.Enum):

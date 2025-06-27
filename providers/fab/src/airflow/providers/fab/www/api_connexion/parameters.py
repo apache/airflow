@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Container
+from collections.abc import Callable, Container
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text

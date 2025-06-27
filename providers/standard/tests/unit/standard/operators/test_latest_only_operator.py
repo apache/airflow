@@ -83,9 +83,9 @@ class TestLatestOnlyOperator:
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
         ):
-            task = LatestOnlyOperator(task_id="latest")
-        dag_maker.create_dagrun()
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            LatestOnlyOperator(task_id="latest")
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("latest", dr)
 
     def test_skipping_non_latest(self, dag_maker):
         with dag_maker(
@@ -166,7 +166,8 @@ class TestLatestOnlyOperator:
             latest_ti2.task = latest_task
             latest_ti2.run()
         else:
-            latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+            for dr in [dr0, dr1, dr2]:
+                dag_maker.run_ti("latest", dr)
 
         if AIRFLOW_V_3_0_PLUS:
             date_getter = operator.attrgetter("logical_date")
@@ -182,9 +183,10 @@ class TestLatestOnlyOperator:
         }
 
         # Verify the state of the other downstream tasks
-        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        for dr in [dr0, dr1, dr2]:
+            dag_maker.run_ti("downstream", dr)
+            dag_maker.run_ti("downstream_2", dr)
+            dag_maker.run_ti("downstream_3", dr)
 
         downstream_instances = get_task_instances("downstream")
         exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
@@ -251,9 +253,12 @@ class TestLatestOnlyOperator:
             **triggered_by_kwargs,
         )
 
-        latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        # Get all created dag runs and run tasks for each
+        all_drs = dag_maker.session.query(DagRun).filter_by(dag_id=dag_maker.dag.dag_id).all()
+        for dr in all_drs:
+            dag_maker.run_ti("latest", dr)
+            dag_maker.run_ti("downstream", dr)
+            dag_maker.run_ti("downstream_2", dr)
 
         latest_instances = get_task_instances("latest")
         if AIRFLOW_V_3_0_PLUS:

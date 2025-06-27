@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
     GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -153,7 +153,7 @@ class TestGoogleCampaignManagerDownloadReportOperator:
 
     @pytest.mark.parametrize(
         "test_bucket_name",
-        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
+        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='taskflow_op') }}"],
     )
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.http")
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.tempfile")
@@ -168,6 +168,7 @@ class TestGoogleCampaignManagerDownloadReportOperator:
         tempfile_mock,
         http_mock,
         test_bucket_name,
+        dag_maker,
     ):
         http_mock.MediaIoBaseDownload.return_value.next_chunk.return_value = (
             None,
@@ -175,33 +176,29 @@ class TestGoogleCampaignManagerDownloadReportOperator:
         )
         tempfile_mock.NamedTemporaryFile.return_value.__enter__.return_value.name = TEMP_FILE_NAME
 
-        dag = DAG(
-            dag_id="test_set_bucket_name",
-            start_date=DEFAULT_DATE,
-            schedule=None,
-            catchup=False,
-        )
+        with dag_maker(dag_id="test_set_bucket_name", start_date=DEFAULT_DATE) as dag:
+            if BUCKET_NAME not in test_bucket_name:
 
-        if BUCKET_NAME not in test_bucket_name:
+                @dag.task(task_id="taskflow_op")
+                def f():
+                    return BUCKET_NAME
 
-            @dag.task
-            def f():
-                return BUCKET_NAME
+                taskflow_op = f()
 
-            taskflow_op = f()
-            taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            GoogleCampaignManagerDownloadReportOperator(
+                profile_id=PROFILE_ID,
+                report_id=REPORT_ID,
+                file_id=FILE_ID,
+                bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
+                report_name=REPORT_NAME,
+                api_version=API_VERSION,
+                task_id="test_task",
+            )
 
-        op = GoogleCampaignManagerDownloadReportOperator(
-            profile_id=PROFILE_ID,
-            report_id=REPORT_ID,
-            file_id=FILE_ID,
-            bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
-            report_name=REPORT_NAME,
-            api_version=API_VERSION,
-            task_id="test_task",
-            dag=dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dr = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances():
+            ti.run()
 
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET_NAME,

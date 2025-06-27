@@ -30,7 +30,6 @@ import math
 import operator
 import time
 from collections import Counter
-from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any

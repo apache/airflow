@@ -141,8 +141,6 @@ class BteqOperator(BaseOperator):
         elif self.bteq_script_encoding == "UTF16":
             self.temp_file_read_encoding = "UTF-16"
 
-        if not self.remote_working_dir:
-            self.remote_working_dir = "/tmp"
         # Handling execution on local:
         if not self._ssh_hook:
             if self.sql:

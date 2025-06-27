@@ -23,6 +23,7 @@ import random
 import pytest
 from sqlalchemy import select
 
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
@@ -677,9 +678,13 @@ class TestClearTasks:
                 assert ti.max_tries == 1
 
     def test_operator_clear(self, dag_maker, session):
+        class ClearOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
         with dag_maker("test_operator_clear"):
-            op1 = EmptyOperator(task_id="test1")
-            op2 = EmptyOperator(task_id="test2", retries=1)
+            op1 = ClearOperator(task_id="test1")
+            op2 = ClearOperator(task_id="test2", retries=1)
             op1 >> op2
 
         dr = dag_maker.create_dagrun(

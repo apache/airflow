@@ -18,39 +18,11 @@ from __future__ import annotations
 
 from unittest.mock import ANY, Mock, patch
 
-import pytest
-from fastapi.testclient import TestClient
-
-from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
-from airflow.providers.keycloak.auth_manager.constants import (
-    CONF_CLIENT_ID_KEY,
-    CONF_CLIENT_SECRET_KEY,
-    CONF_REALM_KEY,
-    CONF_SECTION_NAME,
-)
-
-from tests_common.test_utils.config import conf_vars
-
-
-@pytest.fixture
-def client():
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
-            (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "test",
-            (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "test",
-            (CONF_SECTION_NAME, CONF_REALM_KEY): "test",
-            (CONF_SECTION_NAME, "base_url"): "http://host.docker.internal:48080",
-        }
-    ):
-        yield TestClient(create_app())
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
 
 class TestLoginRouter:
-    @patch("airflow.providers.keycloak.auth_manager.routes.login._get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login(self, mock_get_keycloak_client, client):
         redirect_url = "redirect_url"
         mock_keycloak_client = Mock()
@@ -62,7 +34,7 @@ class TestLoginRouter:
         assert response.headers["location"] == redirect_url
 
     @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.routes.login._get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login_callback(self, mock_get_keycloak_client, mock_get_auth_manager, client):
         code = "code"
         token = "token"

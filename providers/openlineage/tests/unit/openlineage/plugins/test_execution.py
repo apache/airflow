@@ -110,7 +110,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
 
             return job_runner.task_runner.return_code(timeout=60)
 
-        @pytest.mark.db_test
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
         def test_not_stalled_task_emits_proper_lineage(self):
             task_name = "execute_no_stall"
@@ -122,7 +121,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 
-        @pytest.mark.db_test
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
         def test_not_stalled_failing_task_emits_proper_lineage(self):
             task_name = "execute_fail"
@@ -139,7 +137,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 ("openlineage", "execution_timeout"): "15",
             }
         )
-        @pytest.mark.db_test
         def test_short_stalled_task_emits_proper_lineage(self):
             self.setup_job("execute_short_stall", "test_short_stalled_task_emits_proper_lineage")
             events = get_sorted_events(tmp_dir)
@@ -152,7 +149,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 ("openlineage", "execution_timeout"): "3",
             }
         )
-        @pytest.mark.db_test
         def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(self):
             self.setup_job(
                 "execute_short_stall",
@@ -163,7 +159,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
 
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
-        @pytest.mark.db_test
         def test_mid_stalled_task_is_killed_by_ol_timeout(self):
             self.setup_job("execute_mid_stall", "test_mid_stalled_task_is_killed_by_openlineage")
             events = get_sorted_events(tmp_dir)
@@ -177,7 +172,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 ("core", "task_success_overtime"): "3",
             }
         )
-        @pytest.mark.db_test
         def test_success_overtime_kills_tasks(self):
             # This test checks whether LocalTaskJobRunner kills OL listener which take
             # longer time than permitted by core.task_success_overtime setting

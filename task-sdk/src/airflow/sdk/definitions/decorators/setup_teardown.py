@@ -35,6 +35,18 @@ else:
 
 
 def setup_task(func: Callable) -> Callable:
+    """
+    Decorate a function to mark it as a setup task.
+
+    A setup task runs before all other tasks in its DAG or TaskGroup context
+    and can perform initialization or resource preparation.
+
+    Example::
+
+        @setup
+        def initialize_context(...):
+            ...
+    """
     # Using FunctionType here since _TaskDecorator is also a callable
     if isinstance(func, types.FunctionType):
         func = python_task(func)
@@ -45,6 +57,19 @@ def setup_task(func: Callable) -> Callable:
 
 
 def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callable:
+    """
+    Decorate a function to mark it as a teardown task.
+
+    A teardown task runs after all main tasks in its DAG or TaskGroup context.
+    If ``on_failure_fail_dagrun=True``, a failure in teardown will mark the DAG run as failed.
+
+    Example::
+
+        @teardown(on_failure_fail_dagrun=True)
+        def cleanup(...):
+            ...
+    """
+
     def teardown(func: Callable) -> Callable:
         # Using FunctionType here since _TaskDecorator is also a callable
         if isinstance(func, types.FunctionType):

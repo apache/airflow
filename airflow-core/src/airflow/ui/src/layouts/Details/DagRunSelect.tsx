@@ -21,13 +21,13 @@ import { forwardRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { GridDAGRunwithTIs } from "openapi/requests/types.gen";
+import type { GridRunsResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { useGrid } from "src/queries/useGrid";
+import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 type DagRunSelected = {
-  run: GridDAGRunwithTIs;
+  run: GridRunsResponse;
   value: string;
 };
 
@@ -40,34 +40,33 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
   const { t: translate } = useTranslation(["dag", "common"]);
   const navigate = useNavigate();
 
-  const { data, isLoading } = useGrid(limit);
-
+  const { data: gridRuns, isLoading } = useGridRuns({ limit });
   const runOptions = useMemo(
     () =>
       createListCollection({
-        items: (data?.dag_runs ?? []).map((dr: GridDAGRunwithTIs) => ({
+        items: (gridRuns ?? []).map((dr: GridRunsResponse) => ({
           run: dr,
-          value: dr.dag_run_id,
+          value: dr.run_id,
         })),
       }),
-    [data],
+    [gridRuns],
   );
 
   const selectDagRun = ({ items }: SelectValueChangeDetails<DagRunSelected>) => {
-    const run = items.length > 0 ? `/runs/${items[0]?.run.dag_run_id}` : "";
+    const runPartialPath = items.length > 0 ? `/runs/${items[0]?.run.run_id}` : "";
 
     navigate({
-      pathname: `/dags/${dagId}${run}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+      pathname: `/dags/${dagId}${runPartialPath}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
     });
   };
 
-  const selectedRun = (data?.dag_runs ?? []).find((dr) => dr.dag_run_id === runId);
+  const selectedRun = (gridRuns ?? []).find((dr) => dr.run_id === runId);
 
   return (
     <Select.Root
       collection={runOptions}
       data-testid="dag-run-select"
-      disabled={isLoading || !data?.dag_runs}
+      disabled={isLoading || !gridRuns}
       onValueChange={selectDagRun}
       ref={ref}
       size="sm"

@@ -17,8 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Callable
+from collections.abc import Callable, Sequence
 
 from airflow.providers.sftp.version_compat import AIRFLOW_V_3_0_PLUS
 

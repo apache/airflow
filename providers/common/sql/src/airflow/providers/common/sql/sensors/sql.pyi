@@ -32,12 +32,18 @@ Definition of the public interface for airflow.providers.common.sql.src.airflow.
 isort:skip_file
 """
 
-from collections.abc import Mapping, Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from _typeshed import Incomplete as Incomplete
 
-from airflow.sensors.base import BaseSensorOperator as BaseSensorOperator
+from airflow.providers.common.sql.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+
 from airflow.utils.context import Context as Context
 
 class SqlSensor(BaseSensorOperator):

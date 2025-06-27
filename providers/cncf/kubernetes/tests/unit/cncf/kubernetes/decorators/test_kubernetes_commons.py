@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable
+from collections.abc import Callable
 from unittest import mock
 
 import pytest

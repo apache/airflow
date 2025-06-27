@@ -22,8 +22,8 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 

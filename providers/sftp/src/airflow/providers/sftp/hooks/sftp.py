@@ -24,12 +24,12 @@ import datetime
 import os
 import stat
 import warnings
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import asyncssh
 from asgiref.sync import sync_to_async

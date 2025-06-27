@@ -37,12 +37,9 @@ import sys
 if sys.version_info >= (3, 10, 1) or (3, 9, 8) <= sys.version_info < (3, 10):
     from typing import Literal
 else:
-    from typing_extensions import Literal  # type: ignore[assignment]
+    from typing import Literal  # type: ignore[assignment]
 
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec, TypeAlias, TypeGuard
-else:
-    from typing_extensions import ParamSpec, TypeAlias, TypeGuard
+from typing import ParamSpec, TypeAlias, TypeGuard
 
 if sys.version_info >= (3, 11):
     from typing import Self

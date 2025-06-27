@@ -20,8 +20,8 @@ import datetime
 import json
 import time
 import urllib
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from botocore.exceptions import ClientError
 

@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import Any, Callable, overload
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, overload
 
 from vertica_python import connect
 

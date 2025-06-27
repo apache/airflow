@@ -51,7 +51,7 @@ class TestBteqOperator:
 
         # Then
         mock_hook_init.assert_called_once_with(teradata_conn_id=teradata_conn_id, ssh_conn_id=None)
-        mock_execute_bteq.assert_called_once_with(sql + "\n.EXIT", "/tmp", "", 600, None, "", None, "UTF-8")
+        mock_execute_bteq.assert_called_once_with(sql + "\n.EXIT", None, "", 600, None, "", None, "UTF-8")
         assert result == "BTEQ execution result"
 
     @mock.patch.object(BteqHook, "execute_bteq_script")
@@ -81,7 +81,7 @@ class TestBteqOperator:
         mock_hook_init.assert_called_once_with(teradata_conn_id=teradata_conn_id, ssh_conn_id=None)
         mock_execute_bteq.assert_called_once_with(
             sql + "\n.EXIT",  # Assuming the prepare_bteq_script_for_local_execution appends ".EXIT"
-            "/tmp",  # default remote_working_dir
+            None,  # default remote_working_dir
             "",  # bteq_script_encoding (default ASCII => empty string)
             600,  # timeout default
             None,  # timeout_rc

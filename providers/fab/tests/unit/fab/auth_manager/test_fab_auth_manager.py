@@ -154,7 +154,6 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.serialize_user(user)
         assert result == {"sub": str(user.id)}
 
-    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -163,7 +162,6 @@ class TestFabAuthManager:
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
-    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -690,11 +688,9 @@ class TestFabAuthManager:
 
         delete_user(flask_app, "username")
 
-    @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)
 
-    @pytest.mark.db_test
     def test_security_manager_return_custom_provided(self, flask_app, auth_manager_with_appbuilder):
         class TestSecurityManager(FabAirflowSecurityManagerOverride):
             pass
@@ -702,7 +698,6 @@ class TestFabAuthManager:
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
         assert isinstance(auth_manager_with_appbuilder.security_manager, TestSecurityManager)
 
-    @pytest.mark.db_test
     def test_security_manager_wrong_inheritance_raise_exception(
         self, flask_app, auth_manager_with_appbuilder
     ):

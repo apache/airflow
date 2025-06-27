@@ -31,7 +31,7 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import os
 from multiprocessing import Queue, SimpleQueue
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from setproctitle import setproctitle
 
@@ -43,7 +43,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
+    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
 def _run_worker(

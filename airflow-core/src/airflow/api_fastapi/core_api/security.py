@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable
+from typing import TYPE_CHECKING, Annotated
 from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status

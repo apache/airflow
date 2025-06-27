@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -86,6 +86,6 @@ class DagCallbackRequest(BaseCallbackRequest):
 
 
 CallbackRequest = Annotated[
-    Union[DagCallbackRequest, TaskCallbackRequest],
+    DagCallbackRequest | TaskCallbackRequest,
     Field(discriminator="type"),
 ]

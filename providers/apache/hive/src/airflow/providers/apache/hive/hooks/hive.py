@@ -25,10 +25,10 @@ import subprocess
 import time
 from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
-from typing_extensions import Literal, overload
+from typing_extensions import overload
 
 if TYPE_CHECKING:
     import pandas as pd

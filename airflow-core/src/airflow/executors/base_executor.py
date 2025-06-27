@@ -23,7 +23,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = tuple[Optional[str], Any]
+    EventBufferValueType = tuple[str | None, Any]
 
 
 log = logging.getLogger(__name__)

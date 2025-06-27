@@ -51,7 +51,7 @@ class TestSnowparkOperator:
             def func2():
                 return number
 
-            operators = [
+            _ = [
                 SnowparkOperator(
                     task_id=f"{TASK_ID}_{i}",
                     snowflake_conn_id=CONN_ID,
@@ -67,9 +67,8 @@ class TestSnowparkOperator:
             ]
 
         dr = dag_maker.create_dagrun()
-        for operator in operators:
-            operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         for ti in dr.get_task_instances():
+            ti.run()
             assert ti.xcom_pull() == number
         assert mock_snowflake_hook.call_count == 2
         assert mock_snowflake_hook.return_value.get_snowpark_session.call_count == 2
@@ -91,7 +90,7 @@ class TestSnowparkOperator:
             def func3(number: int):
                 return number
 
-            operators = [
+            _ = [
                 SnowparkOperator(
                     task_id=f"{TASK_ID}_{i}",
                     snowflake_conn_id=CONN_ID,
@@ -108,9 +107,8 @@ class TestSnowparkOperator:
             ]
 
         dr = dag_maker.create_dagrun()
-        for operator in operators:
-            operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         for ti in dr.get_task_instances():
+            ti.run()
             assert ti.xcom_pull() == number
         assert mock_snowflake_hook.call_count == 3
         assert mock_snowflake_hook.return_value.get_snowpark_session.call_count == 3
@@ -122,7 +120,7 @@ class TestSnowparkOperator:
             def func(session: Session):
                 assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
 
-            operator = SnowparkOperator(
+            SnowparkOperator(
                 task_id=TASK_ID,
                 snowflake_conn_id=CONN_ID,
                 python_callable=func,
@@ -135,8 +133,8 @@ class TestSnowparkOperator:
             )
 
         dr = dag_maker.create_dagrun()
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         for ti in dr.get_task_instances():
+            ti.run()
             assert ti.xcom_pull() is None
         mock_snowflake_hook.assert_called_once()
         mock_snowflake_hook.return_value.get_snowpark_session.assert_called_once()
@@ -157,7 +155,7 @@ class TestSnowparkOperator:
             def func(session: Session):
                 return session.query_tag
 
-            operator = SnowparkOperator(
+            SnowparkOperator(
                 task_id=TASK_ID,
                 snowflake_conn_id=CONN_ID,
                 python_callable=func,
@@ -170,8 +168,8 @@ class TestSnowparkOperator:
             )
 
         dr = dag_maker.create_dagrun()
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti = dr.get_task_instances()[0]
+        ti.run()
         query_tag = ti.xcom_pull()
         assert query_tag == {
             "dag_id": TEST_DAG_ID,

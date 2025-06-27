@@ -53,9 +53,9 @@ class AsanaCreateTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         name: str,
         task_parameters: dict | None = None,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,9 +92,9 @@ class AsanaUpdateTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         asana_task_gid: str,
         task_parameters: dict,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -124,8 +124,8 @@ class AsanaDeleteTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         asana_task_gid: str,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -160,8 +160,8 @@ class AsanaFindTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         search_parameters: dict | None = None,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

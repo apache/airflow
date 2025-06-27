@@ -100,6 +100,16 @@ class TestPluginsCommand:
                         "category": "browse",
                     },
                 ],
+                "react_apps": [
+                    {
+                        "name": "Test React App",
+                        "bundle_url": "https://example.com/test-plugin-bundle.js",
+                        "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                        "url_route": "test_react_app",
+                        "destination": "nav",
+                        "category": "browse",
+                    }
+                ],
                 "appbuilder_views": [
                     {
                         "name": "Test View",

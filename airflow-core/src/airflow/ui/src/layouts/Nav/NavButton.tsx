@@ -45,6 +45,13 @@ export const NavButton = ({ icon, isExternal = false, title, to, ...rest }: NavB
       <Box fontSize="xs">{title}</Box>
     </Button>
   ) : isExternal ? (
+    <Link href={to} px={2} rel="noopener noreferrer" target="_blank">
+      <Button {...styles} variant="ghost" {...rest}>
+        <Box alignSelf="center">{icon}</Box>
+        <Box fontSize="xs">{title}</Box>
+      </Button>
+    </Link>
+  ) : (
     <NavLink to={to}>
       {({ isActive }: { readonly isActive: boolean }) => (
         <Button {...styles} variant={isActive ? "solid" : "ghost"} {...rest}>
@@ -53,11 +60,4 @@ export const NavButton = ({ icon, isExternal = false, title, to, ...rest }: NavB
         </Button>
       )}
     </NavLink>
-  ) : (
-    <Link href={to} px={2} rel="noopener noreferrer" target="_blank">
-      <Button {...styles} variant="ghost" {...rest}>
-        <Box alignSelf="center">{icon}</Box>
-        <Box fontSize="xs">{title}</Box>
-      </Button>
-    </Link>
   );
