@@ -241,8 +241,8 @@ class DbApiHook(BaseHook):
     @property
     def connection(self) -> Connection:
         if self._connection is None:
-            self._connection = self.get_connection(self.get_conn_id())
-        return self._connection
+            self._connection = self.get_connection(self.get_conn_id())  # type: ignore[assignment]
+        return self._connection  # type: ignore[return-value]
 
     @connection.setter
     def connection(self, value: Any) -> None:

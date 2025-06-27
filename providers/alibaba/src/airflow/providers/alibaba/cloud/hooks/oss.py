@@ -96,7 +96,7 @@ class OSSHook(BaseHook):
 
     def get_conn(self) -> Connection:
         """Return connection for the hook."""
-        return self.oss_conn
+        return self.oss_conn  # type: ignore[return-value]
 
     @staticmethod
     def parse_oss_url(ossurl: str) -> tuple:

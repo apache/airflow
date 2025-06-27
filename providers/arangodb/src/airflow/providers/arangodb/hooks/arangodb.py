@@ -74,7 +74,7 @@ class ArangoDBHook(BaseHook):
 
     @cached_property
     def _conn(self) -> Connection:
-        return self.get_connection(self.arangodb_conn_id)
+        return self.get_connection(self.arangodb_conn_id)  # type: ignore[return-value]
 
     @property
     def hosts(self) -> list[str]:

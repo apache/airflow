@@ -104,7 +104,7 @@ class SparkSqlHook(BaseHook):
         conn: Connection | None = None
 
         try:
-            conn = self.get_connection(conn_id)
+            conn = self.get_connection(conn_id)  # type: ignore[assignment]
         except AirflowNotFoundException:
             conn = None
         if conn:

@@ -177,7 +177,7 @@ class HttpHook(BaseHook):
         session = Session()
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
-        session = self._configure_session_from_auth(session, connection)
+        session = self._configure_session_from_auth(session, connection)  # type: ignore[arg-type]
 
         # Since get_conn can be called outside of run, we'll check this again
         extra_options = extra_options or {}

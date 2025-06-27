@@ -178,7 +178,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         default to cluster-derived credentials.
         """
         try:
-            return super().get_connection(conn_id)
+            return super().get_connection(conn_id)  # type: ignore[return-value]
         except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)

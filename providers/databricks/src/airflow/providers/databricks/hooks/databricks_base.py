@@ -139,7 +139,7 @@ class BaseDatabricksHook(BaseHook):
 
     @cached_property
     def databricks_conn(self) -> Connection:
-        return self.get_connection(self.databricks_conn_id)
+        return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
