@@ -25,7 +25,7 @@ from typing import Any, Callable
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 logger = logging.getLogger(__name__)
 

@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions

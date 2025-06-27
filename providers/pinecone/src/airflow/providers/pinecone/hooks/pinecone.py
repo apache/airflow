@@ -29,7 +29,7 @@ from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from pinecone import Vector

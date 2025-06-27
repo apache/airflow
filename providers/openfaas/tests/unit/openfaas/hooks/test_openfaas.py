@@ -28,7 +28,7 @@ from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 FUNCTION_NAME = "function_name"
 

@@ -39,7 +39,7 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models import Connection

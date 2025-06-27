@@ -34,7 +34,7 @@ from airflow.exceptions import AirflowException
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
     MessageType.DEBUG_RECORD: DEBUG,

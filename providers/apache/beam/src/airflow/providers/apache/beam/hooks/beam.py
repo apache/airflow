@@ -41,7 +41,7 @@ from airflow.providers.common.compat.standard.utils import prepare_virtualenv
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     import logging

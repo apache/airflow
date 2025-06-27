@@ -34,7 +34,7 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions

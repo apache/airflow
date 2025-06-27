@@ -27,7 +27,7 @@ from tempfile import TemporaryDirectory, gettempdir
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
 

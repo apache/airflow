@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

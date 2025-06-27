@@ -40,7 +40,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from paramiko import SSHClient

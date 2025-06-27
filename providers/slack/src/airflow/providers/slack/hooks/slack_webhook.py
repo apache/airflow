@@ -30,7 +30,7 @@ from airflow.providers.slack.utils import ConnectionExtraConfig
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
