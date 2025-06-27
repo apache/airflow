@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from google.api_core import exceptions
 
@@ -474,7 +474,7 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
         location: str,
         model_name: str,
         system_instruction: str | None = None,
-        contents: list | None = None,
+        contents: list[Any] | None = None,
         ttl_hours: float = 1,
         display_name: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
