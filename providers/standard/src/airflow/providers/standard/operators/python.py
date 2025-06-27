@@ -695,7 +695,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
-        index_urls_from_connection_ids: list[str] | None = None,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
@@ -730,7 +730,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = list(index_urls)
         else:
             self.index_urls = None
-        self.index_urls_from_connection_ids = index_urls_from_connection_ids
+        if isinstance(index_urls_from_connection_ids, str):
+            self.index_urls_from_connection_ids: list[str] | None = [index_urls_from_connection_ids]
+        elif isinstance(index_urls_from_connection_ids, Collection):
+            self.index_urls_from_connection_ids = list(index_urls_from_connection_ids)
+        else:
+            self.index_urls_from_connection_ids = None
         self.venv_cache_path = venv_cache_path
         super().__init__(
             python_callable=python_callable,
