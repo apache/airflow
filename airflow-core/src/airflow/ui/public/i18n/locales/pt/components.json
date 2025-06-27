@@ -90,9 +90,9 @@
     "location": "linha {{line}} em {{name}}"
   },
   "reparseDag": "Reparse DAG",
-  "sortedAscending": "ordenado em ordem crescente",
-  "sortedDescending": "ordenado em ordem decrescente",
-  "sortedUnsorted": "não ordenado",
+  "sortedAscending": "Ordenado em ordem crescente",
+  "sortedDescending": "Ordenado em ordem decrescente",
+  "sortedUnsorted": "Não ordenado",
   "taskTries": "Tentativas de Tarefa",
   "toggleCardView": "Mostrar visualização de cartão",
   "toggleTableView": "Mostrar visualização de tabela",
