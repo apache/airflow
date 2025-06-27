@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 from neo4j import Driver, GraphDatabase
 
 try:
-    from airflow.sdk import BaseHook
+    from airflow.sdk.bases.hook import BaseHook
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore
 
@@ -60,12 +60,12 @@ class Neo4jHook(BaseHook):
 
         self.connection = self.get_connection(self.neo4j_conn_id)
 
-        uri = self.get_uri(self.connection)
+        uri = self.get_uri(self.connection)  # type: ignore
         self.log.info("URI: %s", uri)
 
         is_encrypted = self.connection.extra_dejson.get("encrypted", False)
 
-        self.client = self.get_client(self.connection, is_encrypted, uri)
+        self.client = self.get_client(self.connection, is_encrypted, uri)  # type: ignore
 
         return self.client
 

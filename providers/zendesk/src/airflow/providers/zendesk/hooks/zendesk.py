@@ -67,13 +67,16 @@ class ZendeskHook(BaseHook):
         :return: zenpy.Zenpy client and the url for the API.
         """
         conn = self.get_connection(self.zendesk_conn_id)
-        url = "https://" + conn.host
-        domain = conn.host
+        domain = ""
+        url = ""
         subdomain: str | None = None
-        if conn.host.count(".") >= 2:
-            dot_splitted_string = conn.host.rsplit(".", 2)
-            subdomain = dot_splitted_string[0]
-            domain = ".".join(dot_splitted_string[1:])
+        if conn.host:
+            url = "https://" + conn.host
+            domain = conn.host
+            if conn.host.count(".") >= 2:
+                dot_splitted_string = conn.host.rsplit(".", 2)
+                subdomain = dot_splitted_string[0]
+                domain = ".".join(dot_splitted_string[1:])
         return Zenpy(domain=domain, subdomain=subdomain, email=conn.login, password=conn.password), url
 
     def get_conn(self) -> Zenpy:
