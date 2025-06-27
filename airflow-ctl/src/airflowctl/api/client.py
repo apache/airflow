@@ -22,8 +22,9 @@ import enum
 import json
 import os
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
 import httpx
 import keyring
