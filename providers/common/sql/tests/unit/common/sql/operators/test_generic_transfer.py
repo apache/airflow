@@ -256,7 +256,7 @@ class TestGenericTransfer:
 
     def test_non_paginated_read(self):
         with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=self.get_connection):
-            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
+            with mock.patch("airflow.sdk.bases.hook.BaseHook.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",
@@ -284,7 +284,7 @@ class TestGenericTransfer:
         """
 
         with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=self.get_connection):
-            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
+            with mock.patch("airflow.sdk.bases.hook.BaseHook.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",
