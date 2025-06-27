@@ -21,7 +21,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, cast
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -155,6 +155,7 @@ class PsrpHook(BaseHook):
                 "ssl",
             ),
         )
+        conn.host = cast("str", conn.host)
         wsman = WSMan(conn.host, username=conn.login, password=conn.password, **wsman_options)
         runspace_options = apply_extra(self._runspace_options, ("configuration_name",))
 
