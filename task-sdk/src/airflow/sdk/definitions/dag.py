@@ -1282,7 +1282,7 @@ def _run_inline_trigger(trigger):
     import asyncio
 
     async def _run_inline_trigger_main():
-        return await anext(trigger.run(), default=None)
+        return await anext(trigger.run(), None)
 
     return asyncio.run(_run_inline_trigger_main())
 
