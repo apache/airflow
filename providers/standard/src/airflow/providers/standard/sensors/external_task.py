@@ -46,7 +46,7 @@ from airflow.utils.state import State, TaskInstanceState
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.sensor import BaseSensorOperator
 else:
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sensors.base import BaseSensorOperator  # type:ignore[no-redef]
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -54,11 +54,10 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    try:
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
+    else:
         from airflow.models.baseoperator import BaseOperator
         from airflow.utils.context import Context
 

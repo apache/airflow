@@ -30,6 +30,7 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
+from airflow.models import Connection
 from airflow.providers.http.triggers.http import HttpSensorTrigger, HttpTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -83,6 +84,14 @@ def client_response():
 
 
 class TestHttpTrigger:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bearer": "test"}'
+            )
+        )
+
     @staticmethod
     def _mock_run_result(result_to_mock):
         f = Future()
@@ -151,7 +160,6 @@ class TestHttpTrigger:
         assert response.reason == client_response.reason
         assert dict(response.cookies) == dict(client_response.cookies)
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("aiohttp.client.ClientSession.post")
     async def test_trigger_on_post_with_data(self, mock_http_post, trigger):

@@ -30,10 +30,11 @@ from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import task
+    from airflow.sdk import BaseOperator, task
 else:
     from airflow.decorators import task
-from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperator import BaseOperator
+
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset
@@ -1436,7 +1437,6 @@ def test_dagrun_info_af3(mocked_dag_versions):
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
-@pytest.mark.db_test
 def test_dagrun_info_af2():
     date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
     dag = DAG(

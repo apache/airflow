@@ -32,7 +32,13 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.baseoperator import BaseOperator
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator
+
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -44,8 +50,6 @@ from tests_common.test_utils.compat import EmptyOperator, PythonOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-pytestmark = pytest.mark.db_test
 
 EXPECTED_TRY_NUMBER_1 = 1
 
@@ -757,6 +761,7 @@ class TestOpenLineageListenerAirflow2:
         mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
         mock_executor.return_value.submit.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("method", "dag_run_state"),
         [
@@ -1574,6 +1579,7 @@ class TestOpenLineageListenerAirflow3:
         mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
         mock_executor.return_value.submit.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("method", "dag_run_state"),
         [
