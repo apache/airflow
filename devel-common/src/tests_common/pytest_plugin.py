@@ -26,11 +26,11 @@ import re
 import subprocess
 import sys
 import warnings
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from unittest import mock
 
 import pytest
