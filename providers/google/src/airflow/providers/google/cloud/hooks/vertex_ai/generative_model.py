@@ -38,7 +38,6 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
 
 
-
 class GenerativeModelHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Generative Model APIs."""
 
