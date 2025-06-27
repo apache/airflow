@@ -93,7 +93,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 
-        conn_config = {}
+        conn_config: dict[str, Any] = {}
         if conn.host:
             conn_config["contact_points"] = conn.host.split(",")
 
