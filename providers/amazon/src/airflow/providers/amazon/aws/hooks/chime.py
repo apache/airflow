@@ -66,7 +66,7 @@ class ChimeWebhookHook(HttpHook):
         :return: Endpoint(str) for chime webhook.
         """
         conn = self.get_connection(conn_id)
-        token = conn.get_password()
+        token = conn.password
         if token is None:
             raise AirflowException("Webhook token field is missing and is required.")
         url = conn.schema + "://" + conn.host
