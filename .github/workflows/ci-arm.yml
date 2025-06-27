@@ -18,8 +18,6 @@
 ---
 name: Tests ARM
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '28 3,9,15,21 * * *'
   push:
     branches:
       - v[0-9]+-[0-9]+-test
