@@ -27,7 +27,7 @@ the default database and collection to use (see connection `azure_cosmos_default
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 from azure.cosmos import PartitionKey
@@ -135,6 +135,7 @@ class AzureCosmosDBHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             endpoint_uri = conn.login
+            endpoint_uri = cast("str", endpoint_uri)
             resource_group_name = self._get_field(extras, "resource_group_name")
 
             if conn.password:
@@ -151,12 +152,12 @@ class AzureCosmosDBHook(BaseHook):
                     credential=credential,
                     subscription_id=subscritption_id,
                 )
-
+                conn.login = cast("str", conn.login)
                 database_account = urlparse(conn.login).netloc.split(".")[0]
                 database_account_keys = management_client.database_accounts.list_keys(
                     resource_group_name, database_account
                 )
-                master_key = database_account_keys.primary_master_key
+                master_key = cast("str", database_account_keys.primary_master_key)
             else:
                 raise AirflowException("Either password or resource_group_name is required")
 

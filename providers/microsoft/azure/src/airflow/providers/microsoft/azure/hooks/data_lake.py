@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
@@ -359,12 +359,13 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             app_id = conn.login
             app_secret = conn.password
             proxies = extra.get("proxies", {})
-
+            app_id = cast("str", app_id)
+            app_secret = cast("str", app_secret)
             credential = ClientSecretCredential(
                 tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
             )
         elif conn.password:
-            credential = conn.password
+            credential = conn.password  # type: ignore[assignment]
         else:
             managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
