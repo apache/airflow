@@ -79,6 +79,7 @@ if TYPE_CHECKING:
         SecretsMasker,
         should_hide_value_for_key,
     )
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
@@ -127,7 +128,7 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
-def get_job_name(task: TaskInstance) -> str:
+def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
