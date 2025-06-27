@@ -86,7 +86,7 @@ class SmtpHook(BaseHook):
         """
         if not self.smtp_client:
             try:
-                self.smtp_connection = self.get_connection(self.smtp_conn_id)
+                self.smtp_connection = self.get_connection(self.smtp_conn_id)  # type: ignore[assignment]
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 

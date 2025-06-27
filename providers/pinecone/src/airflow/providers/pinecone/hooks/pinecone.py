@@ -130,7 +130,7 @@ class PineconeHook(BaseHook):
 
     @cached_property
     def conn(self) -> Connection:
-        return self.get_connection(self.conn_id)
+        return self.get_connection(self.conn_id)  # type: ignore[return-value]
 
     def test_connection(self) -> tuple[bool, str]:
         try:
