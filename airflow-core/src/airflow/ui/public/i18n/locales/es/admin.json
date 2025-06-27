@@ -65,7 +65,7 @@
     "modal":{
       "confirmButton": "Sí, Eliminar",
       "secondConfirmMessage": "Esta acción es permanente y no se puede deshacer.",
-      "thirdConfirmMessage": "¿Estás seguro de que quieres proceder?"
+      "thirdConfirmMessage": "¿Confirmas de que quieres proceder?"
     },
     "selected": "Seleccionado",
     "tooltip": "Eliminar conexiones seleccionadas"

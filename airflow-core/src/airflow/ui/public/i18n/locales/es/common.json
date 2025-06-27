@@ -92,7 +92,7 @@
     "confirm": "Confirmar",
     "delete": {
       "button": "Eliminar",
-      "confirmation": "¿Estás seguro de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
+      "confirmation": "¿Confirmas de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
     }
   },
   "nav": {
