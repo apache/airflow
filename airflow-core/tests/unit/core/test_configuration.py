@@ -158,6 +158,17 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
+    def test_config_team(self):
+        assert conf.get("core", "executor") == "LocalExecutor"
+        assert conf.get("core", "executor", team_id="unit_test_team") == "SequentialExecutor"
+
+    def test_env_team(self):
+        with patch(
+            "os.environ", {"AIRFLOW__CORE__EXECUTOR": "FOO", "AIRFLOW__UNIT_TEST_TEAM__CORE__EXECUTOR": "BAR"}
+        ):
+            assert conf.get("core", "executor") == "FOO"
+            assert conf.get("core", "executor", team_id="unit_test_team") == "BAR"
+
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
