@@ -88,7 +88,6 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         super().__init__()
         # parameters that should be hardcoded in the child's implem
         self.serialized_fields = serialized_fields
-
         self.waiter_name = waiter_name
         self.waiter_args = waiter_args
         self.failure_message = failure_message
