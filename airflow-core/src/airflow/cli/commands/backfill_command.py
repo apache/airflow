@@ -77,7 +77,7 @@ def create_backfill(args) -> None:
     try:
         user = getuser()
     except AirflowConfigException as e:
-        log.warning("Failed to get user name from os: %s", e)
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
         user = None
     _create_backfill(
         dag_id=args.dag_id,
