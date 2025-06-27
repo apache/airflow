@@ -21,16 +21,14 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
-from structlog.contextvars import bind_contextvars
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
     HITLInputRequestResponse,
     HITLResponse,
 )
+from airflow.providers.standard.execution_time.comms import CreateHITLInputRequestPayload
 from airflow.providers.standard.models import HITLInputRequestModel, HITLResponseModel
-from airflow.sdk.execution_time.comms import CreateHITLInputRequestPayload
 
 router = APIRouter()
 
@@ -72,27 +70,15 @@ def add_hitl_input_request(
 
 
 @router.get(
-    "/{task_instance_id}/response",
+    "/{task_instance_id}/responses",
     status_code=status.HTTP_200_OK,
 )
-def get_hitl_response(
+def get_hitl_response_by_ti_id(
     task_instance_id: UUID,
     session: SessionDep,
 ) -> HITLResponse:
     """Get Human-in-the-loop Response for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
-    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti:
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
-        )
-
     input_request_id = session.scalar(
         select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
     )
@@ -104,10 +90,9 @@ def get_hitl_response(
                 "message": "Human-in-the-loop Input Request not found.",
             },
         )
+
     hitl_response = session.scalar(
         select(HITLResponseModel).where(HITLResponseModel.input_request_id == input_request_id),
     )
-    return HITLResponse(
-        ti_id=task_instance_id,
-        content=hitl_response.content if hitl_response else None,
-    )
+    # Return content as None is not yet created
+    return HITLResponse(content=hitl_response.content if hitl_response else None)

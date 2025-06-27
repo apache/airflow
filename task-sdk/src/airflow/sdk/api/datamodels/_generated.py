@@ -187,10 +187,9 @@ class HITLInputRequestResponse(BaseModel):
 
 class HITLResponse(BaseModel):
     """
-    Response for HITLResponse.
+    Schema for Human-in-the-loop Response for a specific task instance.
     """
 
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
     content: Annotated[str | None, Field(title="Content")] = None
 
 

@@ -55,6 +55,6 @@ authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"
 with contextlib.suppress(ModuleNotFoundError):
     from airflow.providers.standard.api_fastapi.execution_api.routes import hitl
 
-    authenticated_router.include_router(hitl.router, prefix="/hitl", tags=["HITLResponse"])
+    authenticated_router.include_router(hitl.router, prefix="/hitl", tags=["Human in the Loop"])
 
 execution_api_router.include_router(authenticated_router)
