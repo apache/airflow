@@ -1,0 +1,110 @@
+{
+  "allRuns": "Tutti i Run",
+  "blockingDeps": {
+    "dependency": "Dipendenza",
+    "reason": "Motivo",
+    "title": "Dipendenze che bloccano la Task da essere pianificata"
+  },
+  "code": {
+    "bundleUrl": "URL del Bundle",
+    "noCode": "Nessun Codice Trovato",
+    "parsedAt": "Parsato il:"
+  },
+  "extraLinks": "Extra Links",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Resetta al più recente",
+      "toggleGroup": "Attiva/Disattiva gruppo"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Documentazione DAG"
+    }
+  },
+  "logs": {
+    "noTryNumber": "Nessun numero di tentativo",
+    "viewInExternal": "Visualizza i logs in {{name}} (tentativo {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Run Fallito",
+      "failedRun_other": "Run Falliti",
+      "failedTask_one": "Task Fallito",
+      "failedTask_other": "Task Falliti",
+      "failedTaskInstance_one": "Istanza di Task Fallita",
+      "failedTaskInstance_other": "Istanze di Task Fallite"
+    },
+    "charts": {
+      "assetEvent_one": "Evento di Asset Creato",
+      "assetEvent_other": "Eventi di Asset Creati"
+    },
+    "failedLogs": {
+      "title": "Logs delle Task Fallite Recenti",
+      "viewFullLogs": "Visualizza i logs completi"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opzioni",
+      "showGraph": "Mostra il Grafico",
+      "showGrid": "Mostra la Griglia"
+    },
+    "dagRuns": {
+      "label": "Numero di Run del DAG"
+    },
+    "dependencies": {
+      "label": "Dipendenze",
+      "options": {
+        "allDagDependencies": "Tutte le Dipendenze del DAG",
+        "externalConditions": "Condizioni Esterne",
+        "onlyTasks": "Solo le Task"
+      },
+      "placeholder": "Dipendenze"
+    },
+    "graphDirection": {
+      "label": "Direzione del Grafico"
+    }
+  },
+  "paramsFailed": "Impossibile caricare i parametri",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "La richiesta di parsing del DAG è fallita. Potrebbero esserci richieste di parsing in sospeso da processare.",
+        "title": "Parsing del DAG Fallito"
+      },
+      "success": {
+        "description": "Il DAG dovrebbe essere riparsat presto.",
+        "title": "Richiesta di riparsing inviata con successo"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Eventi di Asset",
+    "auditLog": "Registro di Controllo (Logs)",
+    "backfills": "Backfills",
+    "code": "Codice",
+    "details": "Dettagli",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Istanza di Task [{{count}}]",
+    "mappedTaskInstances_other": "Istanze di Task [{{count}}]",
+    "overview": "Panoramica",
+    "renderedTemplates": "Template Renderizzato",
+    "runs": "Run",
+    "taskInstances": "Istanze di Task",
+    "tasks": "Tasks",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Collassa tutti i gruppi di task",
+    "expandAll": "Espandi tutti i gruppi di task"
+  },
+  "taskLogs": {
+    "allLogLevels": "Tutti i Livelli di Log",
+    "allSources": "Tutte le Fonti",
+    "fullscreen": {
+      "button": "Schermo Intero",
+      "tooltip": "Premi {{hotkey}} per schermo intero"
+    }
+  }
+}
