@@ -50,7 +50,7 @@ mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 
 if TYPE_CHECKING:
-    Base = Any
+    Base = Any  # type: ignore[misc]
 else:
     Base = mapper_registry.generate_base()
     # TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
