@@ -52,9 +52,13 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
