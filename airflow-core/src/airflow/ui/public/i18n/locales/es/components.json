@@ -23,8 +23,8 @@
     "tooltip": "Backfill requiere una programación",
     "unpause": "Reanudar {{dag_display_name}} al activarse",
     "validation": {
-      "datesRequired": "Ambos Data Interval Start Date y End Date deben ser proporcionados.",
-      "startBeforeEnd": "Data Interval Start Date debe ser menor o igual a Data Interval End Date."
+      "datesRequired": "Ambos intervalos de Fecha de Inicio y Fecha de Fin deben ser proporcionados.",
+      "startBeforeEnd": "El intervalo de Fecha de Inicio debe ser menor o igual a la Fecha de Fin."
     }
   },
   "banner": {
@@ -76,8 +76,8 @@
     "directionLeft": "De derecha a izquierda",
     "directionRight": "De izquierda a derecha",
     "directionUp": "De abajo a arriba",
-    "downloadImage": "Descargar imagen del gráfico",
-    "downloadImageError": "Error al descargar la imagen del gráfico.",
+    "downloadImage": "Descargar imagen",
+    "downloadImageError": "Error al descargar la imagen.",
     "downloadImageErrorTitle": "Descarga Fallida",
     "otherDagRuns": "+Otras Ejecuciones de DAG",
     "taskCount_one": "{{count}} Tarea",
