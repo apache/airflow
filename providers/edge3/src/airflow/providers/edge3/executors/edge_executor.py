@@ -72,6 +72,7 @@ class EdgeExecutor(BaseExecutor):
         """
         inspector = inspect(engine)
         edge_job_columns = None
+        edge_job_command_len = None
         with contextlib.suppress(NoSuchTableError):
             edge_job_schema = inspector.get_columns("edge_job")
             edge_job_columns = [column["name"] for column in edge_job_schema]
@@ -84,7 +85,7 @@ class EdgeExecutor(BaseExecutor):
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
 
         # version 1.1.0 the command column was changed to VARCHAR(2048)
-        elif edge_job_columns and edge_job_command_len and edge_job_command_len != 2048:
+        elif edge_job_command_len and edge_job_command_len != 2048:
             with Session(engine) as session:
                 query = "ALTER TABLE edge_job ALTER COLUMN command TYPE VARCHAR(2048);"
                 session.execute(text(query))
