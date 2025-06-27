@@ -26,14 +26,13 @@ from typing import TYPE_CHECKING, Any
 from mergedeep import merge
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairAllFailedLink,
     WorkflowJobRunLink,
     store_databricks_job_run_link,
 )
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
