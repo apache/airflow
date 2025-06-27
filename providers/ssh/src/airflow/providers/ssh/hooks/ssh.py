@@ -159,7 +159,8 @@ class SSHHook(BaseHook):
             if self.password is None:
                 self.password = conn.password
             if not self.remote_host:
-                self.remote_host = conn.host
+                if conn.host:
+                    self.remote_host = conn.host
             if self.port is None:
                 self.port = conn.port
 
