@@ -1120,6 +1120,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             Returns the created TaskInstance.
             """
+            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
             if dag_run is None:
                 if dag_run_kwargs is None:
                     dag_run_kwargs = {}
@@ -1131,7 +1133,21 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     f"Task instance with task_id '{task_id}' not found in dag run. "
                     f"Available task_ids: {available_task_ids}"
                 )
-            ti.refresh_from_task(self.dag.get_task(ti.task_id))
+            task = self.dag.get_task(ti.task_id)
+
+            if not AIRFLOW_V_3_1_PLUS:
+                # Airflow <3.1 has a bug for DecoratedOperator has an unused signature for
+                # `DecoratedOperator._handle_output` for xcom_push
+                # This worked for `models.BaseOperator` since it had xcom_push method but for
+                # `airflow.sdk.BaseOperator`, this does not exist, so this returns an AttributeError
+                # Since this is an unused attribute anyway, we just monkey patch it with a lambda.
+                # Error otherwise:
+                # /usr/local/lib/python3.11/site-packages/airflow/sdk/bases/decorator.py:253: in execute
+                #     return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
+                #                                                                                      ^^^^^^^^^^^^^^
+                # E   AttributeError: '_PythonDecoratedOperator' object has no attribute 'xcom_push'
+                task.xcom_push = lambda *args, **kwargs: None
+            ti.refresh_from_task(task)
             ti.run(**kwargs)
             return ti
 
