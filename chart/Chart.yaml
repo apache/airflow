@@ -136,7 +136,7 @@ annotations:
     - description: 'Fix execution_api_server_url when base_url has a subpath'
       kind: changed
       links:
-      - name: '#51454
+      - name: '#51454'
         url: https://github.com/apache/airflow/pull/51454
     - description: 'Docs: Bump minimum helm version in docs'
       kind: changed
