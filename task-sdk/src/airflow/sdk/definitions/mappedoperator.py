@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 import methodtools
@@ -82,9 +82,9 @@ if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
-    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
+    TaskStateChangeCallbackAttrType = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+ValidationSource = Literal["expand"] | Literal["partial"]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -144,9 +144,9 @@ def is_mappable_value(value: Any) -> TypeGuard[Collection]:
 
     :meta private:
     """
-    if not isinstance(value, (Sequence, dict)):
+    if not isinstance(value, Sequence | dict):
         return False
-    if isinstance(value, (bytearray, bytes, str)):
+    if isinstance(value, bytearray | bytes | str):
         return False
     return True
 
@@ -196,7 +196,7 @@ class OperatorPartial:
 
         if isinstance(kwargs, Sequence):
             for item in kwargs:
-                if not isinstance(item, (XComArg, Mapping)):
+                if not isinstance(item, XComArg | Mapping):
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
