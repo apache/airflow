@@ -96,6 +96,7 @@ class TestProjectStructure:
             "providers/apache/livy/tests/unit/apache/livy/test_version_compat.py",
             "providers/apache/spark/tests/unit/apache/spark/test_version_compat.py",
             "providers/arangodb/tests/unit/arangodb/test_version_compat.py",
+            "providers/asana/tests/unit/asana/test_version_compat.py",
             "providers/atlassian/jira/tests/unit/atlassian/jira/test_version_compat.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
