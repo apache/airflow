@@ -20,7 +20,7 @@
 ################################
 ## Airflow Api-Server HPA
 #################################
-{{- if and .Values.apiServer.enabled .Values.apiServer.hpa.enabled }}
+{{- if .Values.apiServer.hpa.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
