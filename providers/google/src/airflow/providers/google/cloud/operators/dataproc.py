@@ -1353,7 +1353,11 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             self.log.info("Job %s submitted successfully.", job_id)
             # Save data required for extra links no matter what the job status will be
             DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_JOB_LINK_DEPRECATED, resource=job_id
+                context=context,
+                url=DATAPROC_JOB_LINK_DEPRECATED,
+                resource=job_id,
+                region=self.region,
+                project_id=self.project_id,
             )
 
             if self.deferrable:
