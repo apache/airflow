@@ -3581,8 +3581,7 @@ class XComOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
-
-    def get_link(self, session: Session,operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+    def get_link(self, session: Session, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Retrieve the link from the XComs.
 
