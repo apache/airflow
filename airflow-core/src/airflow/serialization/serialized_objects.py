@@ -96,7 +96,10 @@ from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from inspect import Parameter
+
     from sqlalchemy.orm.session import Session
+
     from airflow.models import DagRun
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.models.taskinstance import TaskInstance
@@ -2170,8 +2173,7 @@ class XComOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
-
-    def get_link(self, session: Session,operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+    def get_link(self, session: Session, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Retrieve the link from the XComs.
 
