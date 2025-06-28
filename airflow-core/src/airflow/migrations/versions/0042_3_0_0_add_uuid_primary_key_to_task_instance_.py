@@ -26,6 +26,8 @@ Create Date: 2024-10-21 22:39:12.394079
 
 from __future__ import annotations
 
+import contextlib
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import text
@@ -304,6 +306,9 @@ def downgrade():
     elif dialect_name == "sqlite":
         with op.batch_alter_table("task_instance") as batch_op:
             batch_op.drop_constraint("task_instance_composite_key", type_="unique")
+
+    with contextlib.suppress(Exception):
+        op.drop_constraint("hitl_input_request_ti_fkey", "hitl_input_request")
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_pkey", type_="primary")
