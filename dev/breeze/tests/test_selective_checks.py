@@ -160,7 +160,8 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
 
 
 All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
-    "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,"
+    "check-airflow-provider-compatibility,check-airflow-providers-bug-report-template,"
+    "check-extra-packages-references,check-provider-yaml-valid,"
     "compile-fab-assets,generate-openapi-spec-fab,identity,"
     "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
     "mypy-devel-common,mypy-providers,mypy-task-sdk,validate-operators-init"

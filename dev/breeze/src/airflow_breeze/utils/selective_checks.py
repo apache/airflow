@@ -1230,6 +1230,7 @@ class SelectiveChecks:
                 (
                     "compile-fab-assets",
                     "generate-openapi-spec-fab",
+                    "check-airflow-providers-bug-report-template",
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
