@@ -28,7 +28,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.providers.google.version_compat import BaseOperator
 
 
 def get_dag_run(dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:

@@ -27,11 +27,9 @@ SPREADSHEET_ID = "1234567890"
 
 class TestGoogleSheetsCreateSpreadsheet:
     @mock.patch("airflow.providers.google.suite.operators.sheets.GSheetsHook")
-    @mock.patch(
-        "airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator.xcom_push"
-    )
-    def test_execute(self, mock_xcom, mock_hook):
-        context = {}
+    def test_execute(self, mock_hook):
+        mock_task_instance = mock.MagicMock()
+        context = {"task_instance": mock_task_instance}
         spreadsheet = mock.MagicMock()
         mock_hook.return_value.create_spreadsheet.return_value = {
             "spreadsheetId": SPREADSHEET_ID,
@@ -43,6 +41,11 @@ class TestGoogleSheetsCreateSpreadsheet:
         op_execute_result = op.execute(context)
 
         mock_hook.return_value.create_spreadsheet.assert_called_once_with(spreadsheet=spreadsheet)
+
+        # Verify xcom_push was called with correct arguments
+        assert mock_task_instance.xcom_push.call_count == 2
+        mock_task_instance.xcom_push.assert_any_call(key="spreadsheet_id", value=SPREADSHEET_ID)
+        mock_task_instance.xcom_push.assert_any_call(key="spreadsheet_url", value=SPREADSHEET_URL)
 
         assert op_execute_result["spreadsheetId"] == "1234567890"
         assert op_execute_result["spreadsheetUrl"] == "https://example/sheets"

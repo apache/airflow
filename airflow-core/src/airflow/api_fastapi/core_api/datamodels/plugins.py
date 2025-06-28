@@ -130,7 +130,7 @@ class PluginResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def convert_external_views(cls, data: Any) -> Any:
-        data["external_views"] = [*data["external_views"], *data.get("appbuilder_menu_items", [])]
+        data["external_views"] = [*data["external_views"], *data["appbuilder_menu_items"]]
         return data
 
 

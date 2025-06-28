@@ -125,7 +125,7 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
             location=self.location,
         )
 
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildLink.persist(
@@ -235,7 +235,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=self.id_)
+        context["task_instance"].xcom_push(key="id", value=self.id_)
         if not self.wait:
             return Build.to_dict(
                 hook.get_build(id_=self.id_, project_id=self.project_id, location=self.location)
@@ -358,7 +358,7 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildTriggerDetailsLink.persist(
@@ -854,7 +854,7 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
             location=self.location,
         )
 
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildLink.persist(
@@ -944,7 +944,7 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildLink.persist(
@@ -1030,7 +1030,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildTriggerDetailsLink.persist(
