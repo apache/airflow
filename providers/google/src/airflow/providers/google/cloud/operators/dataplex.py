@@ -4043,7 +4043,7 @@ class DataplexCatalogUpdateEntryOperator(DataplexCatalogBaseOperator):
     :param entry_configuration: Required. The updated configuration body of the Entry.
     :param allow_missing: Optional. If set to true and entry doesn't exist, the service will create it.
     :param delete_missing_aspects: Optional. If set to true and the aspect_keys specify aspect
-        ranges, the service deletes any existing aspects from that range that weren't provided
+        ranges, the service deletes any existing aspects from that range that were not provided
         in the request.
     :param aspect_keys: Optional. The map keys of the Aspects which the service should modify.
         It supports the following syntax:
