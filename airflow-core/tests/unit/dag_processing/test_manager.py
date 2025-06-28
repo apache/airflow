@@ -1158,3 +1158,61 @@ class TestDagFileProcessorManager:
 
         bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
         assert bundle_names_being_parsed == expected
+
+    @pytest.mark.usefixtures("clear_parse_import_errors")
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_clear_orphaned_import_errors_path_consistency(self, tmp_path, configure_testing_dag_bundle):
+        """Test that orphaned import errors are cleaned up regardless of path format differences."""
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text("invalid syntax +++")
+
+        with configure_testing_dag_bundle(tmp_path):
+            with create_session() as session:
+                errors = [
+                    ParseImportError(
+                        filename="test_dag.py",
+                        bundle_name="testing",
+                        timestamp=timezone.utcnow(),
+                        stacktrace="error1",
+                    ),
+                    ParseImportError(
+                        filename="test_dag.py",
+                        bundle_name="testing",  # Windows style
+                        timestamp=timezone.utcnow(),
+                        stacktrace="error2",
+                    ),
+                    ParseImportError(
+                        filename="./test_dag.py",
+                        bundle_name="testing",  # Relative prefix
+                        timestamp=timezone.utcnow(),
+                        stacktrace="error3",
+                    ),
+                ]
+                for error in errors:
+                    session.add(error)
+                session.commit()
+
+                assert session.query(ParseImportError).count() == 3
+
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400)
+            dag_file.unlink()
+            manager.run()
+
+            with create_session() as session:
+                remaining = session.query(ParseImportError).filter_by(bundle_name="testing").count()
+                assert remaining == 0, "All orphaned import errors should be cleaned up"
+
+    def test_normalize_relative_paths_utility(self):
+        """Test _normalize_relative_paths handles Path objects correctly."""
+        manager = DagFileProcessorManager(max_runs=1)
+
+        files = {
+            DagFileInfo(bundle_name="test", bundle_path=Path("/dags"), rel_path=Path("simple.py")),
+            DagFileInfo(bundle_name="test", bundle_path=Path("/dags"), rel_path=Path("sub/nested.py")),
+        }
+
+        result = manager._normalize_relative_paths(files)
+        expected = {"simple.py", "sub/nested.py"}
+
+        assert result == expected
+        assert all(isinstance(path, str) for path in result)
