@@ -18,19 +18,11 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Protocol,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
@@ -40,7 +32,6 @@ from more_itertools import chunked
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
-from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -425,7 +416,6 @@ class DbApiHook(BaseHook):
         df_type: Literal["pandas"] = "pandas",
         **kwargs: Any,
     ) -> PandasDataFrame: ...
-
     @overload
     def get_df(
         self,
@@ -522,7 +512,6 @@ class DbApiHook(BaseHook):
         df_type: Literal["pandas"] = "pandas",
         **kwargs,
     ) -> Generator[PandasDataFrame, None, None]: ...
-
     @overload
     def get_df_by_chunks(
         self,

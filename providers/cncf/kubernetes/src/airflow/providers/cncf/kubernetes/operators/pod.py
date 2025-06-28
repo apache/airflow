@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import logging
@@ -26,11 +27,11 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
 import tenacity
@@ -83,6 +84,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -602,12 +604,20 @@ class KubernetesPodOperator(BaseOperator):
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
         try:
-            self.pod_manager.await_pod_start(
-                pod=pod,
-                schedule_timeout=self.schedule_timeout_seconds,
-                startup_timeout=self.startup_timeout_seconds,
-                check_interval=self.startup_check_interval_seconds,
+            loop = asyncio.get_event_loop()
+            events_task = asyncio.ensure_future(
+                self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
             )
+            loop.run_until_complete(
+                self.pod_manager.await_pod_start(
+                    pod=pod,
+                    schedule_timeout=self.schedule_timeout_seconds,
+                    startup_timeout=self.startup_timeout_seconds,
+                    check_interval=self.startup_check_interval_seconds,
+                )
+            )
+            loop.run_until_complete(events_task)
+            loop.close()
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
@@ -620,7 +630,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("xcom result file is empty.")
             return None
 
-        self.log.info("xcom result: \n%s", result)
+        self.log.debug("xcom result: \n%s", result)
         return json.loads(result)
 
     def execute(self, context: Context):
@@ -711,6 +721,8 @@ class KubernetesPodOperator(BaseOperator):
             self.cleanup(
                 pod=pod_to_clean,
                 remote_pod=self.remote_pod,
+                xcom_result=result,
+                context=context,
             )
             for callback in self.callbacks:
                 callback.on_pod_cleanup(
@@ -982,7 +994,13 @@ class KubernetesPodOperator(BaseOperator):
                 pod=pod, client=self.client, mode=ExecutionMode.SYNC, operator=self, context=context
             )
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+    def cleanup(
+        self,
+        pod: k8s.V1Pod,
+        remote_pod: k8s.V1Pod,
+        xcom_result: dict | None = None,
+        context: Context | None = None,
+    ) -> None:
         # Skip cleaning the pod in the following scenarios.
         # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
@@ -1002,6 +1020,10 @@ class KubernetesPodOperator(BaseOperator):
         )
 
         if failed:
+            if self.do_xcom_push and xcom_result and context:
+                # Ensure that existing XCom is pushed even in case of failure
+                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_result)
+
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 

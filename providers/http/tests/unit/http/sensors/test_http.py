@@ -265,6 +265,10 @@ class FakeSession:
         self.response = requests.Response()
         self.response.status_code = 200
         self.response._content = "apache/airflow".encode("ascii", "ignore")
+        self.proxies = None
+        self.stream = None
+        self.verify = False
+        self.cert = None
 
     def send(self, *args, **kwargs):
         return self.response
@@ -383,7 +387,11 @@ class TestHttpSensorAsync:
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
-    @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
+    @mock.patch(
+        "airflow.sdk.bases.sensor.BaseSensorOperator.execute"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.sensors.base.BaseSensorOperator.execute"
+    )
     def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
         task = HttpSensor(
             task_id="run_now",

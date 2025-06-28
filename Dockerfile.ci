@@ -16,7 +16,7 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
@@ -76,7 +76,7 @@ function get_runtime_apt_deps() {
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin krb5-user libev4 libgeos-dev \
+curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -1388,8 +1388,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
-ARG AIRFLOW_UV_VERSION=0.7.8
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
+ARG AIRFLOW_UV_VERSION=0.7.16
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"

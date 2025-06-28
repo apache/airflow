@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Pre-commit script to check that all .json files in airflow-core/src/airflow/ui/src/i18n/locales/
+Pre-commit script to check that all .json files in airflow-core/src/airflow/ui/public/i18n/locales/
 are valid JSON and do not contain any 'TODO:' entries.
 """
 
@@ -32,7 +32,7 @@ COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
 sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_ROOT_PATH, console
 
-LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "src" / "i18n" / "locales"
+LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 
 
 def main():

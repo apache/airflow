@@ -479,6 +479,127 @@ class TestGlueJobHook:
 
         assert get_state_mock.call_count == 3
 
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_get_job_state_success(self, mock_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "SUCCEEDED"
+
+        mock_conn.get_job_run.return_value = {"JobRun": {"JobRunState": expected_state}}
+
+        result = hook.get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        mock_conn.get_job_run.assert_called_once_with(
+            JobName=job_name, RunId=run_id, PredecessorsIncluded=True
+        )
+
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_get_job_state_retry_on_client_error(self, mock_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "SUCCEEDED"
+
+        mock_conn.get_job_run.side_effect = [
+            ClientError(
+                {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "get_job_run"
+            ),
+            {"JobRun": {"JobRunState": expected_state}},
+        ]
+
+        result = hook.get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        assert mock_conn.get_job_run.call_count == 2
+
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_get_job_state_fails_after_all_retries(self, mock_conn):
+        """Test get_job_state raises exception when all retries are exhausted."""
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+
+        mock_conn.get_job_run.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "get_job_run"
+        )
+
+        with pytest.raises(ClientError) as exc_info:
+            hook.get_job_state(job_name, run_id)
+
+        assert exc_info.value.response["Error"]["Code"] == "ThrottlingException"
+        assert mock_conn.get_job_run.call_count == 5
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_async_get_job_state_success(self, mock_get_async_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "RUNNING"
+
+        mock_client = mock.AsyncMock()
+        mock_client.get_job_run.return_value = {"JobRun": {"JobRunState": expected_state}}
+        mock_context = mock.AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_context.__aexit__.return_value = None
+        mock_get_async_conn.return_value = mock_context
+
+        result = await hook.async_get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        mock_client.get_job_run.assert_called_once_with(JobName=job_name, RunId=run_id)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_async_get_job_state_retry_on_client_error(self, mock_get_async_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "FAILED"
+
+        mock_client = mock.AsyncMock()
+        mock_client.get_job_run.side_effect = [
+            ClientError(
+                {"Error": {"Code": "ServiceUnavailable", "Message": "Service temporarily unavailable"}},
+                "get_job_run",
+            ),
+            {"JobRun": {"JobRunState": expected_state}},
+        ]
+        mock_context = mock.AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_context.__aexit__.return_value = None
+        mock_get_async_conn.return_value = mock_context
+
+        result = await hook.async_get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        assert mock_client.get_job_run.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_async_get_job_state_fails_after_all_retries(self, mock_get_async_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+
+        mock_client = mock.AsyncMock()
+        mock_client.get_job_run.side_effect = ClientError(
+            {"Error": {"Code": "ServiceUnavailable", "Message": "Service temporarily unavailable"}},
+            "get_job_run",
+        )
+        mock_context = mock.AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_context.__aexit__.return_value = None
+        mock_get_async_conn.return_value = mock_context
+
+        with pytest.raises(ClientError) as exc_info:
+            await hook.async_get_job_state(job_name, run_id)
+
+        assert exc_info.value.response["Error"]["Code"] == "ServiceUnavailable"
+        assert mock_client.get_job_run.call_count == 5
+
 
 class TestGlueDataQualityHook:
     RUN_ID = "1234"

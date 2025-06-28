@@ -287,7 +287,7 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
         if isinstance(child, ast.ClassDef):
             analyze_decorators(child, file_path, object_type="class")
             deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=child.name))
-        elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        elif isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
             analyze_decorators(
                 child, file_path, _class_name=class_name, object_type="method" if class_name else "function"
             )
@@ -521,6 +521,19 @@ class AssetSchemeDirective(BaseJinjaReferenceDirective):
         )
 
 
+class AuthManagersDirective(BaseJinjaReferenceDirective):
+    """Generate list of auth managers"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="auth-managers",
+            template="auth-managers.rst.jinja2",
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -536,6 +549,7 @@ def setup(app):
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
     app.add_directive("airflow-dataset-schemes", AssetSchemeDirective)
+    app.add_directive("airflow-auth-managers", AuthManagersDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

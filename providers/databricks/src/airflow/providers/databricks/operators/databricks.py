@@ -42,6 +42,7 @@ from airflow.providers.databricks.operators.databricks_workflow import (
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
+    store_databricks_job_run_link,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -1214,10 +1215,16 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         super().__init__(**kwargs)
 
         if self._databricks_workflow_task_group is not None:
-            self.operator_extra_links = (
-                WorkflowJobRunLink(),
-                WorkflowJobRepairSingleTaskLink(),
-            )
+            # Conditionally set operator_extra_links based on Airflow version. In Airflow 3, only show the job run link.
+            # In Airflow 2, show the job run link and the repair link.
+            # TODO: Once we expand the plugin functionality in Airflow 3.1, this can be re-evaluated on how to handle the repair link.
+            if AIRFLOW_V_3_0_PLUS:
+                self.operator_extra_links = (WorkflowJobRunLink(),)
+            else:
+                self.operator_extra_links = (
+                    WorkflowJobRunLink(),
+                    WorkflowJobRepairSingleTaskLink(),
+                )
         else:
             # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
             self.operator_extra_links = (DatabricksJobRunLink(),)
@@ -1427,6 +1434,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             )
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
+
+            # Store operator links in XCom for Airflow 3 compatibility
+            if AIRFLOW_V_3_0_PLUS:
+                # Store the job run link
+                store_databricks_job_run_link(
+                    context=context,
+                    metadata=workflow_run_metadata,
+                    logger=self.log,
+                )
         else:
             self._launch_job(context=context)
         if self.wait_for_termination:

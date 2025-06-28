@@ -73,6 +73,7 @@ class _TableConfig:
         in the table.  to ignore certain records even if they are the latest in the table, you can
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
+    :param dependent_tables: list of tables which have FK relationship with this table
     """
 
     table_name: str
@@ -81,6 +82,10 @@ class _TableConfig:
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
+    # We explicitly list these tables instead of detecting foreign keys automatically,
+    # because the relationships are unlikely to change and the number of tables is small.
+    # Relying on automation here would increase complexity and reduce maintainability.
+    dependent_tables: list[str] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -104,7 +109,11 @@ class _TableConfig:
 
 config_list: list[_TableConfig] = [
     _TableConfig(table_name="job", recency_column_name="latest_heartbeat"),
-    _TableConfig(table_name="dag", recency_column_name="last_parsed_time"),
+    _TableConfig(
+        table_name="dag",
+        recency_column_name="last_parsed_time",
+        dependent_tables=["dag_version", "deadline"],
+    ),
     _TableConfig(
         table_name="dag_run",
         recency_column_name="start_date",
@@ -112,12 +121,17 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
+        dependent_tables=["task_instance", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
-    _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(
+        table_name="task_instance",
+        recency_column_name="start_date",
+        dependent_tables=["task_instance_history", "xcom"],
+    ),
     _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp"),
@@ -125,9 +139,17 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
-    _TableConfig(table_name="trigger", recency_column_name="created_date"),
-    _TableConfig(table_name="dag_version", recency_column_name="created_at"),
-    _TableConfig(table_name="deadline", recency_column_name="deadline"),
+    _TableConfig(
+        table_name="trigger",
+        recency_column_name="created_date",
+        dependent_tables=["task_instance"],
+    ),
+    _TableConfig(
+        table_name="dag_version",
+        recency_column_name="created_at",
+        dependent_tables=["task_instance", "dag_run"],
+    ),
+    _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -169,61 +191,81 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
         raise AirflowException(f"Export format {export_format} is not supported.")
 
 
-def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Session) -> None:
+def _do_delete(
+    *, query: Query, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+) -> None:
+    import itertools
     import re
 
-    print("Performing Delete...")
-    # using bulk delete
-    # create a new table and copy the rows there
-    timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
-    target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
-    print(f"Moving data to table {target_table_name}")
     bind = session.get_bind()
     dialect_name = bind.dialect.name
-    target_table = None
-    try:
-        if dialect_name == "mysql":
-            # MySQL with replication needs this split into two queries, so just do it for all MySQL
-            # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-            session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
-            metadata = reflect_tables([target_table_name], session)
-            target_table = metadata.tables[target_table_name]
-            insert_stm = target_table.insert().from_select(target_table.c, query)
-            logger.debug("insert statement:\n%s", insert_stm.compile())
-            session.execute(insert_stm)
-        else:
-            stmt = CreateTableAs(target_table_name, query.selectable)
-            logger.debug("ctas query:\n%s", stmt.compile())
-            session.execute(stmt)
-        session.commit()
+    batch_counter = itertools.count(1)
 
-        # delete the rows from the old table
-        metadata = reflect_tables([orm_model.name, target_table_name], session)
-        source_table = metadata.tables[orm_model.name]
-        target_table = metadata.tables[target_table_name]
-        logger.debug("rows moved; purging from %s", source_table.name)
-        if dialect_name == "sqlite":
-            pk_cols = source_table.primary_key.columns
-            delete = source_table.delete().where(
-                tuple_(*pk_cols).in_(
-                    select(*[target_table.c[x.name] for x in source_table.primary_key.columns])
-                )
-            )
+    while True:
+        limited_query = query.limit(batch_size) if batch_size else query
+        if limited_query.count() == 0:  # nothing left to delete
+            break
+
+        batch_no = next(batch_counter)
+        suffix = f"__b{batch_no}" if batch_size else ""
+
+        if batch_size:
+            print(f"Performing Delete (batch {batch_no}, max {batch_size} rows)...")
         else:
-            delete = source_table.delete().where(
-                and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
-            )
-        logger.debug("delete statement:\n%s", delete.compile())
-        session.execute(delete)
-        session.commit()
-    except BaseException as e:
-        raise e
-    finally:
-        if target_table is not None and skip_archive:
-            bind = session.get_bind()
-            target_table.drop(bind=bind)
+            print("Performing Delete...")
+
+        # using bulk delete
+        # create a new table and copy the rows there
+        timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
+        target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}"
+        print(f"Moving data to table {target_table_name}")
+        target_table = None
+
+        try:
+            if dialect_name == "mysql":
+                # MySQL with replication needs this split into two queries, so just do it for all MySQL
+                # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
+                session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
+                metadata = reflect_tables([target_table_name], session)
+                target_table = metadata.tables[target_table_name]
+                insert_stm = target_table.insert().from_select(target_table.c, limited_query)
+                logger.debug("insert statement:\n%s", insert_stm.compile())
+                session.execute(insert_stm)
+            else:
+                stmt = CreateTableAs(target_table_name, limited_query.selectable)
+                logger.debug("ctas query:\n%s", stmt.compile())
+                session.execute(stmt)
             session.commit()
-            print("Finished Performing Delete")
+
+            # delete the rows from the old table
+            metadata = reflect_tables([orm_model.name, target_table_name], session)
+            source_table = metadata.tables[orm_model.name]
+            target_table = metadata.tables[target_table_name]
+            logger.debug("rows moved; purging from %s", source_table.name)
+            if dialect_name == "sqlite":
+                pk_cols = source_table.primary_key.columns
+                delete = source_table.delete().where(
+                    tuple_(*pk_cols).in_(
+                        select(*[target_table.c[x.name] for x in source_table.primary_key.columns])
+                    )
+                )
+            else:
+                delete = source_table.delete().where(
+                    and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+                )
+            logger.debug("delete statement:\n%s", delete.compile())
+            session.execute(delete)
+            session.commit()
+
+        except BaseException as e:
+            raise e
+        finally:
+            if target_table is not None and skip_archive:
+                bind = session.get_bind()
+                target_table.drop(bind=bind)
+                session.commit()
+
+    print("Finished Performing Delete")
 
 
 def _subquery_keep_last(
@@ -306,6 +348,7 @@ def _cleanup_table(
     verbose: bool = False,
     skip_archive: bool = False,
     session: Session,
+    batch_size: int | None = None,
     **kwargs,
 ) -> None:
     print()
@@ -325,7 +368,13 @@ def _cleanup_table(
     num_rows = _check_for_rows(query=query, print_rows=False)
 
     if num_rows and not dry_run:
-        _do_delete(query=query, orm_model=orm_model, skip_archive=skip_archive, session=session)
+        _do_delete(
+            query=query,
+            orm_model=orm_model,
+            skip_archive=skip_archive,
+            session=session,
+            batch_size=batch_size,
+        )
 
     session.commit()
 
@@ -388,17 +437,37 @@ def _suppress_with_logging(table: str, session: Session):
             session.rollback()
 
 
-def _effective_table_names(*, table_names: list[str] | None) -> tuple[set[str], dict[str, _TableConfig]]:
+def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
-    effective_table_names = set(effective_config_dict)
-    if desired_table_names != effective_table_names:
-        outliers = desired_table_names - effective_table_names
+
+    outliers = desired_table_names - set(config_dict.keys())
+    if outliers:
         logger.warning(
-            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+            "The following table(s) are not valid choices and will be skipped: %s",
+            sorted(outliers),
         )
-    if not effective_table_names:
+    desired_table_names = desired_table_names - outliers
+
+    visited: set[str] = set()
+    effective_table_names: list[str] = []
+
+    def collect_deps(table: str):
+        if table in visited:
+            return
+        visited.add(table)
+        config = config_dict[table]
+        for dep in config.dependent_tables or []:
+            collect_deps(dep)
+        effective_table_names.append(table)
+
+    for table_name in desired_table_names:
+        collect_deps(table_name)
+
+    effective_config_dict = {n: config_dict[n] for n in effective_table_names}
+
+    if not effective_config_dict:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+
     return effective_table_names, effective_config_dict
 
 
@@ -432,6 +501,7 @@ def run_cleanup(
     confirm: bool = True,
     skip_archive: bool = False,
     session: Session = NEW_SESSION,
+    batch_size: int | None = None,
 ) -> None:
     """
     Purges old records in airflow metadata database.
@@ -453,6 +523,8 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
+
+    # Get all tables to clean (root + dependents)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
     if dry_run:
         print("Performing dry run for db cleanup.")
@@ -464,6 +536,7 @@ def run_cleanup(
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
+
     for table_name, table_config in effective_config_dict.items():
         if table_name in existing_tables:
             with _suppress_with_logging(table_name, session):
@@ -474,6 +547,7 @@ def run_cleanup(
                     **table_config.__dict__,
                     skip_archive=skip_archive,
                     session=session,
+                    batch_size=batch_size,
                 )
                 session.commit()
         else:
