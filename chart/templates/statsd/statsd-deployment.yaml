@@ -103,9 +103,9 @@ spec:
           {{- else}}
           args:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
-            - "--statsd.cache-size={{ default 1000 .Values.statsd.cacheSize }}"
-            - "--statsd.cache-type={{ default 'lru' .Values.statsd.cacheType }}"
-            - "--ttl={{ default '0s' .Values.statsd.ttl }}"
+            - "--statsd.cache-size={{ .Values.statsd.cacheSize }}"
+            - "--statsd.cache-type={{ .Values.statsd.cacheType }}"
+            - "--ttl={{ .Values.statsd.ttl }}"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
           {{- with .Values.statsd.env }}

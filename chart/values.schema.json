@@ -466,17 +466,17 @@
                         "cacheSize": {
                             "description": "Add cache size for your statsD deployment.",
                             "type": "integer",
-                            "default": false
+                            "default": true
                         },
                         "cacheType": {
                             "description": "Add cache type for your statsD deployment (lru/random).",
                             "type": "string",
-                            "default": false
+                            "default": true
                         },
                         "ttl": {
                             "description": "Configure Time TO Live time for StatsD Metrics.",
                             "type": "string",
-                            "default": false
+                            "default": true
                         },
                         "annotations": {
                             "description": "Annotations for the statsd Ingress.",
