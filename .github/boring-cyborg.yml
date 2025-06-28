@@ -72,9 +72,6 @@ labelPRBasedOnFilePath:
   provider:apache-spark:
     - providers/apache/spark/**
 
-  provider:apache-tinkerpop:
-    - providers/apache/tinkerpop/**
-
   provider:apprise:
     - providers/apprise/**
 
