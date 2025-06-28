@@ -61,11 +61,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether local venv should be used for tests (true/false)"
         required: true
         type: string
+      test-timeout:
+        required: false
+        type: number
+        default: 60
+
 permissions:
   contents: read
 jobs:
   distributions-tests:
-    timeout-minutes: 80
+    timeout-minutes: ${{ fromJSON(inputs.test-timeout) }}
     name: ${{ inputs.distribution-name }}:P${{ matrix.python-version }} tests
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
