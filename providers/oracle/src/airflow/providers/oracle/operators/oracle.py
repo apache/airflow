@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING
 
 import oracledb
 
-from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
+from airflow.providers.oracle.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
