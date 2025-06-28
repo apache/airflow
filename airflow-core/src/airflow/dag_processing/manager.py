@@ -42,7 +42,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -54,6 +54,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
+from airflow.models import DagRun
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -75,6 +76,7 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
     from socket import socket
@@ -334,6 +336,14 @@ class DagFileProcessorManager(LoggingMixin):
             loop_start_time = time.monotonic()
 
             self.heartbeat()
+
+            with create_session() as session:
+                running_dags = (
+                    session.query(func.count(DagRun.dag_id))
+                    .filter(DagRun.state == DagRunState.RUNNING)
+                    .scalar()
+                )
+                Stats.gauge("executor.running_dags", running_dags)
 
             self._kill_timed_out_processors()
 
