@@ -240,6 +240,7 @@ class TestProjectStructure:
             "providers/standard/tests/unit/standard/utils/test_sensor_helper.py",
             "providers/tableau/tests/unit/tableau/test_version_compat.py",
             "providers/trino/tests/unit/trino/test_version_compat.py",
+            "providers/weaviate/tests/unit/weaviate/test_version_compat.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")
