@@ -197,7 +197,7 @@ class TestCloudLoggingHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_logging.ConfigServiceV2Client")
     def test_update_sink_failure(self, mock_config_client, cloud_logging_hook):
         updated_sink = LogSink(name=SINK_NAME, destination="storage.googleapis.com/new-bucket")
-        updated_mask = {"paths":["name","destination"]}
+        updated_mask = {"paths": ["name", "destination"]}
 
         mock_config_client.return_value.update_sink.side_effect = Exception("Permission denied")
 

@@ -268,7 +268,7 @@ class CloudLoggingUpdateSinkOperator(GoogleCloudBaseOperator):
             elif hasattr(self.update_mask, "paths"):
                 paths = self.update_mask.paths
 
-                self.log.info("Updating fields: %s", ", ".join(paths))
+            self.log.info("Updating fields: %s", ", ".join(paths))
 
             response = hook.update_sink(
                 sink_name=self.sink_name,

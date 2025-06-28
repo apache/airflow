@@ -82,7 +82,7 @@ with DAG(
             "disabled": False,
         },
         update_mask={"paths": ["description", "filter", "disabled"]},
-        unique_writer_identity = True,
+        unique_writer_identity=True,
         gcp_conn_id=CONN_ID,
     )
     # [END howto_operator_cloud_logging_update_sink_sink_native_obj]

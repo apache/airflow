@@ -23,8 +23,8 @@ from datetime import datetime
 # [START howto_operator_import_protobuf_obj]
 from google.cloud.logging_v2.types import LogSink
 from google.protobuf.field_mask_pb2 import FieldMask
-# [END howto_operator_import_protobuf_obj]
 
+# [END howto_operator_import_protobuf_obj]
 from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_logging_sink import (
     CloudLoggingCreateSinkOperator,
@@ -52,7 +52,7 @@ with DAG(
     create_sink = CloudLoggingCreateSinkOperator(
         task_id="create_sink",
         project_id=PROJECT_ID,
-        unique_writer_identity = False,
+        unique_writer_identity=False,
         sink_config=LogSink(
             **{
                 "name": SINK_NAME,
@@ -92,7 +92,7 @@ with DAG(
                 "disabled": False,
             }
         ),
-        unique_writer_identity = True,
+        unique_writer_identity=True,
         update_mask=FieldMask(paths=["description", "filter", "disabled"]),
         gcp_conn_id=CONN_ID,
     )
