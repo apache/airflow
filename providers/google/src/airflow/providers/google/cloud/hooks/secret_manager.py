@@ -138,7 +138,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str | None = None,  # I have added at end for maintaining backward compatibility.
+        location: str | None = None,
     ) -> Secret:
         """
         Create a secret.
@@ -187,7 +187,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str | None = None,  # I have added at end for maintaining backward compatibility.
+        location: str | None = None,
     ) -> SecretVersion:
         """
         Add a version to the secret.
@@ -229,7 +229,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str | None = None,  # I have added at end for maintaining backward compatibility.
+        location: str | None = None,
     ) -> ListSecretsPager:
         """
         List secrets.
@@ -296,7 +296,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str | None = None,  # I have added at end for maintaining backward compatibility.
+        location: str | None = None,
     ) -> AccessSecretVersionResponse:
         """
         Access a secret version.
@@ -335,7 +335,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str | None = None,  # I have added at end for maintaining backward compatibility.
+        location: str | None = None,
     ) -> None:
         """
         Delete a secret.
