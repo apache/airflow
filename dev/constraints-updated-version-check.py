@@ -14,16 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "rich",
+#   "rich-click",
+#   "packaging",
+# ]
+# ///
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import urllib.request
 from datetime import datetime
 from urllib.error import HTTPError, URLError
 
+import rich_click as click
 from packaging import version
+from rich.console import Console
+
+console = Console(width=400, color_system="standard")
 
 
 def parse_constraints_generation_date(lines):
@@ -33,7 +44,9 @@ def parse_constraints_generation_date(lines):
             try:
                 return datetime.fromisoformat(date_str).replace(tzinfo=None)
             except ValueError:
-                print(f"Warning: Could not parse constraints generation date from: {date_str}")
+                console.print(
+                    f"[yellow]Warning: Could not parse constraints generation date from: {date_str}[/]"
+                )
                 return None
     return None
 
@@ -45,17 +58,17 @@ def get_constraints_file(python_version):
         return response.read().decode("utf-8").splitlines()
     except HTTPError as e:
         if e.code == 404:
-            print(f"Error: Constraints file for Python {python_version} not found.")
-            print(f"URL: {url}")
-            print("Please check if the Python version is correct and the file exists.")
+            console.print(f"[bold red]Error: Constraints file for Python {python_version} not found.[/]")
+            console.print(f"[bold red]URL: {url}[/]")
+            console.print("[bold red]Please check if the Python version is correct and the file exists.[/]")
         else:
-            print(f"HTTP Error: {e.code} - {e.reason}")
+            console.print(f"[bold red]HTTP Error: {e.code} - {e.reason}[/]")
         exit(1)
     except URLError as e:
-        print(f"Error connecting to GitHub: {e.reason}")
+        console.print(f"[bold red]Error connecting to GitHub: {e.reason}[/]")
         exit(1)
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        console.print(f"[bold red]Unexpected error: {str(e)}[/]")
         exit(1)
 
 
@@ -143,51 +156,15 @@ def get_first_newer_release_date_str(releases, current_version):
     return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="""
-Python Package Version Checker for Airflow Constraints
-
-This script checks Python package versions against the Airflow constraints file and reports:
-- Current constrained version vs latest available version
-- Release dates for both versions
-- Status indicator showing how outdated the package is
-- Number of versions between constrained and latest version
-- Direct PyPI link to the package
-
-Status Indicators:
-✅ OK          - Package is up to date
-📢 <5d         - Less than 5 days behind latest version
-⚠ <30d         - Between 5-30 days behind latest version
-🚨 >Xd         - More than X days behind latest version (X = actual days)
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-
-    parser.add_argument(
-        "--python-version", required=True, help="Python version to check constraints for (e.g., 3.12)"
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["full", "diff-constraints", "diff-all"],
-        default="diff-constraints",
-        help="""
-Operation modes:
-  full            : Show all packages, including up-to-date ones
-  diff-constraints: (Default) Show only outdated packages with updates
-                   before constraints generation
-  diff-all       : Show all outdated packages regardless of update timing
-                       """,
-    )
-
-    args = parser.parse_args()
-
-    lines = get_constraints_file(args.python_version)
+def main(python_version, mode):
+    lines = get_constraints_file(python_version)
 
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
-        print(f"Constraints file generation date: {constraints_date.strftime('%Y-%m-%d %H:%M:%S')}")
-        print()
+        console.print(
+            f"[bold cyan]Constraints file generation date:[/] [white]{constraints_date.strftime('%Y-%m-%d %H:%M:%S')}[/]"
+        )
+        console.print()
 
     packages = []
     for line in lines:
@@ -202,11 +179,11 @@ Operation modes:
     col_widths = {
         "Library Name": max(35, max_pkg_length),
         "Constraint Version": 18,
-        "Constraint Date": 12,
+        "Constraint Date": 15,
         "Latest Version": 15,
         "Latest Date": 12,
-        "Status": 15,
-        "# Versions Behind": 16,
+        "📢 Status": 17,
+        "# Versions Behind": 19,
         "PyPI Link": 60,
     }
 
@@ -216,8 +193,8 @@ Operation modes:
         f"{{:<{col_widths['Constraint Date']}}} | "
         f"{{:<{col_widths['Latest Version']}}} | "
         f"{{:<{col_widths['Latest Date']}}} | "
-        f"{{:<{col_widths['Status']}}} | "
-        f"{{:>15}} | "
+        f"{{:<{col_widths['📢 Status']}}} | "
+        f"{{:<{col_widths['# Versions Behind']}}} | "
         f"{{:<{col_widths['PyPI Link']}}}"
     )
 
@@ -227,14 +204,14 @@ Operation modes:
         "Constraint Date",
         "Latest Version",
         "Latest Date",
-        "Status",
+        "📢 Status",
         "# Versions Behind",
         "PyPI Link",
     ]
 
-    print(format_str.format(*headers))
+    console.print(f"[bold magenta]{format_str.format(*headers)}[/]")
     total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
-    print("=" * total_width)
+    console.print(f"[magenta]{'=' * total_width}[/]")
 
     outdated_count = 0
     skipped_count = 0
@@ -272,51 +249,74 @@ Operation modes:
                 versions_behind = count_versions_between(releases, pinned_version, latest_version)
                 versions_behind_str = str(versions_behind) if versions_behind > 0 else ""
 
-                if should_show_package(
-                    releases, latest_version, constraints_date, args.mode, is_latest_version
-                ):
+                if should_show_package(releases, latest_version, constraints_date, mode, is_latest_version):
                     # Use the first newer release date instead of latest version date
                     first_newer_date_str = get_first_newer_release_date_str(releases, pinned_version)
                     status = get_status_emoji(
                         first_newer_date_str or constraint_release_date,
-                        datetime.utcnow().strftime("%Y-%m-%d"),  # noqa: TID251
+                        datetime.now().strftime("%Y-%m-%d"),
                         is_latest_version,
                     )
                     pypi_link = f"https://pypi.org/project/{pkg}/{latest_version}"
 
-                    print(
-                        format_str.format(
-                            pkg,
-                            pinned_version[: col_widths["Constraint Version"]],
-                            constraint_release_date[: col_widths["Constraint Date"]],
-                            latest_version[: col_widths["Latest Version"]],
-                            latest_release_date[: col_widths["Latest Date"]],
-                            status[: col_widths["Status"]],
-                            versions_behind_str,
-                            pypi_link,
-                        )
+                    color = (
+                        "green"
+                        if is_latest_version
+                        else ("yellow" if status.startswith("📢") or status.startswith("⚠") else "red")
                     )
+                    string_to_print = format_str.format(
+                        pkg,
+                        pinned_version[: col_widths["Constraint Version"]],
+                        constraint_release_date[: col_widths["Constraint Date"]],
+                        latest_version[: col_widths["Latest Version"]],
+                        latest_release_date[: col_widths["Latest Date"]],
+                        # The utf character takes 2 bytes so we need to subtract 1
+                        status[: col_widths["📢 Status"]],
+                        versions_behind_str,
+                        pypi_link,
+                    )
+                    console.print(f"[{color}]{string_to_print}[/]")
                     if not is_latest_version:
                         outdated_count += 1
-                    else:
-                        skipped_count += 1
+                else:
+                    skipped_count += 1
 
         except HTTPError as e:
-            print(f"Error fetching {pkg} from PyPI: HTTP {e.code}")
+            console.print(f"[bold red]Error fetching {pkg} from PyPI: HTTP {e.code}[/]")
             continue
         except URLError as e:
-            print(f"Error fetching {pkg} from PyPI: {e.reason}")
+            console.print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
             continue
         except Exception as e:
-            print(f"Error processing {pkg}: {str(e)}")
+            console.print(f"[bold red]Error processing {pkg}: {str(e)}[/]")
             continue
 
-    print("=" * total_width)
-    print(f"\nTotal packages checked: {len(packages)}")
-    print(f"Outdated packages found: {outdated_count}")
-    if args.mode == "diff-constraints":
-        print(f"Skipped packages (updated after constraints generation): {skipped_count}")
+    console.print(f"[magenta]{'=' * total_width}[/]")
+    console.print(f"[bold cyan]\nTotal packages checked:[/] [white]{len(packages)}[/]")
+    console.print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
+    if mode == "diff-constraints":
+        console.print(
+            f"[bold blue]Skipped packages (updated after constraints generation):[/] [white]{skipped_count}[/]"
+        )
+
+
+@click.command()
+@click.option(
+    "--python-version",
+    required=False,
+    default="3.10",
+    help="Python version to check constraints for (e.g., 3.12)",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(["full", "diff-constraints", "diff-all"]),
+    default="diff-constraints",
+    show_default=True,
+    help="Operation mode: full, diff-constraints, or diff-all.",
+)
+def cli(python_version, mode):
+    main(python_version, mode)
 
 
 if __name__ == "__main__":
-    main()
+    cli()
