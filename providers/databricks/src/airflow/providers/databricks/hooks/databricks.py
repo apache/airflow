@@ -37,33 +37,33 @@ from requests import exceptions as requests_exceptions
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
-GET_CLUSTER_ENDPOINT = ("GET", "api/2.0/clusters/get")
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
+GET_CLUSTER_ENDPOINT = ("GET", "2.0/clusters/get")
+RESTART_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/delete")
 
-CREATE_ENDPOINT = ("POST", "api/2.1/jobs/create")
-RESET_ENDPOINT = ("POST", "api/2.1/jobs/reset")
-UPDATE_ENDPOINT = ("POST", "api/2.1/jobs/update")
-RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
-SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
-GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
-CANCEL_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel")
-DELETE_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/delete")
-REPAIR_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/repair")
-OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "api/2.1/jobs/runs/get-output")
-CANCEL_ALL_RUNS_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel-all")
+CREATE_ENDPOINT = ("POST", "2.1/jobs/create")
+RESET_ENDPOINT = ("POST", "2.1/jobs/reset")
+UPDATE_ENDPOINT = ("POST", "2.1/jobs/update")
+RUN_NOW_ENDPOINT = ("POST", "2.1/jobs/run-now")
+SUBMIT_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/submit")
+GET_RUN_ENDPOINT = ("GET", "2.1/jobs/runs/get")
+CANCEL_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/cancel")
+DELETE_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/delete")
+REPAIR_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/repair")
+OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.1/jobs/runs/get-output")
+CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.1/jobs/runs/cancel-all")
 
-INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
-UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
+INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
+UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
 
-LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
+LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
+LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
 
-WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
+WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 
-SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
-SQL_STATEMENTS_ENDPOINT = "api/2.0/sql/statements"
+SPARK_VERSIONS_ENDPOINT = ("GET", "2.0/clusters/spark-versions")
+SQL_STATEMENTS_ENDPOINT = "2.0/sql/statements"
 
 
 class RunLifeCycleState(Enum):
