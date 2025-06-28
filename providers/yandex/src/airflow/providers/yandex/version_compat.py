@@ -14,27 +14,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
-from airflow.providers.yandex.version_compat import BaseOperatorLink, XCom
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.yandex.version_compat import BaseOperator, Context
+    from airflow import __version__
 
-XCOM_WEBLINK_KEY = "web_link"
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class YQLink(BaseOperatorLink):
-    """Web link to query in Yandex Query UI."""
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
-    name = "Yandex Query"
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator, BaseOperatorLink
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import BaseOperator, XCom
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.utils.context import Context
 
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-        return XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key) or "https://yq.cloud.yandex.ru"
 
-    @staticmethod
-    def persist(context: Context, web_link: str) -> None:
-        context["task_instance"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)
+__all__ = [
+    "AIRFLOW_V_3_1_PLUS",
+    "BaseOperator",
+    "BaseOperatorLink",
+    "Context",
+    "XCom",
+]

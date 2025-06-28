@@ -37,7 +37,7 @@ yandexcloud = pytest.importorskip("yandexcloud")
 def test_persist():
     mock_context = mock.MagicMock()
 
-    YQLink.persist(context=mock_context, task_instance=MockOperator(task_id="test_task_id"), web_link="g.com")
+    YQLink.persist(context=mock_context, web_link="g.com")
 
     ti = mock_context["ti"]
     if AIRFLOW_V_3_0_PLUS:
