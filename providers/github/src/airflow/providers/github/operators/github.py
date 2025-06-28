@@ -27,13 +27,7 @@ from airflow.providers.github.hooks.github import GithubHook
 from airflow.providers.github.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.github.version_compat import AIRFLOW_V_3_0_PLUS
-
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.definitions.context import Context
-    else:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.github.version_compat import Context
 
 
 class GithubOperator(BaseOperator):
