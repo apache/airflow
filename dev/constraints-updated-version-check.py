@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import urllib.request
 from datetime import datetime
@@ -156,7 +157,7 @@ def get_first_newer_release_date_str(releases, current_version):
     return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
 
-def main(python_version, mode):
+def main(python_version, mode, selected_packages=None, explain_why=False):
     lines = get_constraints_file(python_version)
 
     constraints_date = parse_constraints_generation_date(lines)
@@ -172,7 +173,9 @@ def main(python_version, mode):
         if line and not line.startswith("#") and "@" not in line:
             match = re.match(r"^([a-zA-Z0-9_.\-]+)==([\w.\-]+)$", line)
             if match:
-                packages.append((match.group(1), match.group(2)))
+                pkg_name = match.group(1)
+                if not selected_packages or (pkg_name in selected_packages):
+                    packages.append((pkg_name, match.group(2)))
 
     max_pkg_length = get_max_package_length(packages)
 
@@ -209,12 +212,83 @@ def main(python_version, mode):
         "PyPI Link",
     ]
 
-    console.print(f"[bold magenta]{format_str.format(*headers)}[/]")
-    total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
-    console.print(f"[magenta]{'=' * total_width}[/]")
+    if not explain_why:
+        console.print(f"[bold magenta]{format_str.format(*headers)}[/]")
+        total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
+        console.print(f"[magenta]{'=' * total_width}[/]")
+    else:
+        total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
 
     outdated_count = 0
     skipped_count = 0
+
+    if explain_why and packages:
+        import shutil
+        import subprocess
+        from contextlib import contextmanager
+        from pathlib import Path
+
+        @contextmanager
+        def pyproject_backup_restore(pyproject_path):
+            backup_path = pyproject_path.with_suffix(pyproject_path.suffix + ".bak")
+            shutil.copyfile(pyproject_path, backup_path)
+            try:
+                yield
+            finally:
+                if backup_path.exists():
+                    shutil.copyfile(backup_path, pyproject_path)
+                    backup_path.unlink()
+
+        def run_uv_sync(cmd, cwd):
+            env = os.environ.copy()
+            env.pop("VIRTUAL_ENV", None)
+            result = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True)
+            return result.stdout + result.stderr
+
+        airflow_pyproject = Path(__file__).parent.parent / "pyproject.toml"
+        airflow_pyproject = airflow_pyproject.resolve()
+        repo_root = airflow_pyproject.parent
+        with pyproject_backup_restore(airflow_pyproject):
+            for pkg, _ in packages:
+                console.print(f"[bold blue]\n--- Explaining for {pkg} ---[/]")
+                # 1. Run uv sync --all-packages
+                before_output = run_uv_sync(
+                    ["uv", "sync", "--all-packages", "--resolution", "highest"], cwd=repo_root
+                )
+                with open("/tmp/uv_sync_before.txt", "w") as f:
+                    f.write(before_output)
+                # 2. Get latest version from PyPI
+                pypi_url = f"https://pypi.org/pypi/{pkg}/json"
+                with urllib.request.urlopen(pypi_url) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    latest_version = data["info"]["version"]
+                # 3. Update pyproject.toml (append dependency line)
+                lines = airflow_pyproject.read_text().splitlines()
+                new_lines = []
+                in_deps = False
+                dep_added = False
+                for line in lines:
+                    new_lines.append(line)
+                    if line.strip() == "dependencies = [":
+                        in_deps = True
+                    elif in_deps and line.strip().startswith("]") and not dep_added:
+                        # Add the new dependency just before closing bracket
+                        new_lines.insert(-1, f'    "{pkg}=={latest_version}",')
+                        dep_added = True
+                        in_deps = False
+                if not dep_added:
+                    # fallback: just append at the end
+                    new_lines.append(f'    "{pkg}=={latest_version}",')
+                airflow_pyproject.write_text("\n".join(new_lines) + "\n")
+                # 4. Run uv sync --all-packages and capture output
+                after_output = run_uv_sync(
+                    ["uv", "sync", "--all-packages", "--resolution", "highest"], cwd=repo_root
+                )
+                with open("/tmp/uv_sync_after.txt", "w") as f:
+                    f.write(after_output)
+                console.print(f"[yellow]uv sync output for {pkg}=={latest_version}:[/]")
+                console.print(after_output)
+        return
 
     for pkg, pinned_version in packages:
         try:
@@ -314,8 +388,23 @@ def main(python_version, mode):
     show_default=True,
     help="Operation mode: full, diff-constraints, or diff-all.",
 )
-def cli(python_version, mode):
-    main(python_version, mode)
+@click.option(
+    "--selected-packages",
+    required=False,
+    default=None,
+    help="Comma-separated list of package names to check (e.g., 'requests,flask'). If not set, all packages are checked.",
+)
+@click.option(
+    "--explain-why",
+    is_flag=True,
+    default=False,
+    help="For each selected package, attempts to upgrade to the latest version and explains why it cannot be upgraded.",
+)
+def cli(python_version, mode, selected_packages, explain_why):
+    selected_packages_set = None
+    if selected_packages:
+        selected_packages_set = set(pkg.strip() for pkg in selected_packages.split(",") if pkg.strip())
+    main(python_version, mode, selected_packages_set, explain_why)
 
 
 if __name__ == "__main__":
