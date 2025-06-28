@@ -50,7 +50,7 @@ class TestWeaviateIngestOperator:
     def test_execute_with_input_data(self, mock_log, operator):
         operator.hook.batch_data = MagicMock()
 
-        operator.execute(context=None)  # type: ignore[arg-type]
+        operator.execute(context=None)
 
         operator.hook.batch_data.assert_called_once_with(
             collection_name="my_collection",
