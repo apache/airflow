@@ -53,6 +53,6 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
         request_options=request_options,
     )
 
-    val = op.execute(context={})  # type: ignore[arg-type]
+    val = op.execute(context={})
     cohere_client.assert_called_once_with(api_key=api_key, base_url=base_url, timeout=timeout)
     assert val == embedded_obj
