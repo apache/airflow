@@ -784,6 +784,7 @@ jobs:
       distribution-cmd-format: "prepare-task-sdk-distributions"
       test-type: "task-sdk-tests"
       use-local-venv: 'false'
+      test-timeout: 20
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
