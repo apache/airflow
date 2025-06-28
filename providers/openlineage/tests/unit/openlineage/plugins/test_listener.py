@@ -33,7 +33,8 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
