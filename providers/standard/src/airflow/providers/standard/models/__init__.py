@@ -33,7 +33,7 @@ metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 
 if TYPE_CHECKING:
-    Base = Any
+    Base = Any  # type: ignore[misc]
 else:
     Base = mapper_registry.generate_base()
 
