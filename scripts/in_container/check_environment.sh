@@ -64,9 +64,9 @@ function check_db_backend {
         echo "${COLOR_YELLOW}WARNING: Using no database backend${COLOR_RESET}"
 
         if [[ ${START_AIRFLOW} == "true" ]]; then
-            echo "${COLOR_RED}ERROR: 'start-airflow' cannot be used with --backend=none.${COLOR_RESET}"
+            echo "${COLOR_RED}ERROR: 'start-airflow' cannot be used with --backend=none${COLOR_RESET}"
             echo "${COLOR_RED}Supported values are: [postgres,mysql,sqlite]${COLOR_RESET}"
-            echo "${COLOR_RED}Please specify one using '--backend'.${COLOR_RESET}"
+            echo "${COLOR_RED}Please specify one using '--backend'${COLOR_RESET}"
             exit 1
         fi
     else
