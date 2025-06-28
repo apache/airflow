@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
+from airflow.providers.weaviate.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd
