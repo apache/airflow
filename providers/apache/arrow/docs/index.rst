@@ -75,7 +75,7 @@
 apache-airflow-providers-arrow package
 ------------------------------------------------------
 
-`ADBC: Arrow Database Connectivity <https://github.com/apache/arrow-adbc/>`__
+`ADBC: Arrow Database Connectivity <https://arrow.apache.org/adbc/current/index.html>`__
 
 
 Release: 1.0.0
