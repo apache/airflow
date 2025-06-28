@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, TypedDict
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypedDict
 
 import sqlparse
 from attrs import define
