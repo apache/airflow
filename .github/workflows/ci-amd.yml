@@ -878,7 +878,7 @@ jobs:
       - tests-sqlite-core
       - tests-sqlite-providers
       - tests-task-sdk
-      - tests-airflow-ctl
+      # - tests-airflow-ctl
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
