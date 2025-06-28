@@ -61,7 +61,7 @@ class TestGithubOperator:
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
     )
-    def test_find_repos(self, github_mock):
+    def test_find_repos(self, github_mock, dag_maker):
         class MockRepository:
             pass
 
@@ -69,16 +69,15 @@ class TestGithubOperator:
         repo.full_name = "apache/airflow"
 
         github_mock.return_value.get_repo.return_value = repo
-
-        github_operator = GithubOperator(
-            task_id="github-test",
-            github_method="get_repo",
-            github_method_args={"full_name_or_id": "apache/airflow"},
-            result_processor=lambda r: r.full_name,
-            dag=self.dag,
-        )
-
-        github_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        with dag_maker():
+            GithubOperator(
+                task_id="github-test",
+                github_method="get_repo",
+                github_method_args={"full_name_or_id": "apache/airflow"},
+                result_processor=lambda r: r.full_name,
+            )
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("github-test", dr)
 
         assert github_mock.called
         assert github_mock.return_value.get_repo.called
