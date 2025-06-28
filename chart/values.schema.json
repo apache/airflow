@@ -1731,6 +1731,14 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "connectionEnv": {
+                            "description": "Optional environment variable name that overrides the default database connection used by the KEDA scaler. If not set, the default connection will be applied based on the pooling configuration.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "enabled": {
                             "description": "Allow KEDA autoscaling.",
                             "type": "boolean",
@@ -3597,6 +3605,14 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "connectionEnv": {
+                            "description": "Optional environment variable name that overrides the default database connection used by the KEDA scaler. If not set, the default connection will be applied based on the pooling configuration.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "enabled": {
                             "description": "Allow KEDA autoscaling.",
                             "type": "boolean",
