@@ -149,7 +149,7 @@ class TranslationNativeDatasetLink(BaseGoogleLink):
     """
 
     name = "Translation Native Dataset"
-    key = "translation_naive_dataset"
+    key = "translation_native_dataset"
     format_str = TRANSLATION_NATIVE_DATASET_LINK
 
 

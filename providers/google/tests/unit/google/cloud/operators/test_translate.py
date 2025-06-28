@@ -22,6 +22,7 @@ from unittest import mock
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.translate_v3.types import (
     BatchTranslateDocumentResponse,
+    Dataset,
     TranslateDocumentResponse,
     automl_translation,
     translation_service,
@@ -331,6 +332,19 @@ class TestTranslateImportData:
             "input_files": [{"usage": "UNASSIGNED", "gcs_source": {"input_uri": "import data gcs path"}}]
         }
         mock_hook.return_value.import_dataset_data.return_value = mock.MagicMock()
+
+        SAMPLE_DATASET = {
+            "name": "sample_translation_dataset",
+            "example_count": None,
+            "source_language_code": "en",
+            "target_language_code": "es",
+        }
+        INITIAL_DS_SIZE = 1
+        FINAL_DS_SIZE = 101
+        INITIAL_DS = {**SAMPLE_DATASET, "example_count": INITIAL_DS_SIZE}
+        FINAL_DS = {**SAMPLE_DATASET, "example_count": FINAL_DS_SIZE}
+
+        mock_hook.return_value.get_dataset.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
         op = TranslateImportDataOperator(
             task_id="task_id",
             dataset_id=DATASET_ID,
@@ -343,7 +357,7 @@ class TestTranslateImportData:
             retry=DEFAULT,
         )
         context = mock.MagicMock()
-        op.execute(context=context)
+        res = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -363,6 +377,7 @@ class TestTranslateImportData:
             location=LOCATION,
             project_id=PROJECT_ID,
         )
+        assert res["total_imported"] == FINAL_DS_SIZE - INITIAL_DS_SIZE
 
 
 class TestTranslateDeleteData:
