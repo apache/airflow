@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
