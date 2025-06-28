@@ -94,6 +94,7 @@ class TestProjectStructure:
             "providers/apache/hive/tests/unit/apache/hive/test_version_compat.py",
             "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",
             "providers/apache/livy/tests/unit/apache/livy/test_version_compat.py",
+            "providers/apache/pig/tests/unit/apache/pig/test_version_compat.py",
             "providers/apache/spark/tests/unit/apache/spark/test_version_compat.py",
             "providers/arangodb/tests/unit/arangodb/test_version_compat.py",
             "providers/asana/tests/unit/asana/test_version_compat.py",
