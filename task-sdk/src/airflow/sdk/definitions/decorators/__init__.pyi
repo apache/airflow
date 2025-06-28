@@ -20,9 +20,9 @@
 # documentation for more details.
 from __future__ import annotations
 
-from collections.abc import Collection, Container, Iterable, Mapping
+from collections.abc import Callable, Collection, Container, Iterable, Mapping
 from datetime import timedelta
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from docker.types import Mount
 from kubernetes.client import models as k8s
