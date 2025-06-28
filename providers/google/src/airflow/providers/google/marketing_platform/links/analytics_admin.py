@@ -18,12 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
-
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
@@ -64,11 +63,9 @@ class GoogleAnalyticsPropertyLink(GoogleAnalyticsBaseLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance: BaseOperator,
         property_id: str,
     ):
-        task_instance.xcom_push(
-            context,
+        context["task_instance"].xcom_push(
             key=GoogleAnalyticsPropertyLink.key,
             value={"property_id": property_id},
         )

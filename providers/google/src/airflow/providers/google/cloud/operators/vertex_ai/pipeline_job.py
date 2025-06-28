@@ -195,7 +195,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         )
         pipeline_job_id = pipeline_job_obj.job_id
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
-        self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
+        context["ti"].xcom_push(key="pipeline_job_id", value=pipeline_job_id)
         VertexAIPipelineJobLink.persist(context=context, pipeline_id=pipeline_job_id)
 
         if self.deferrable:

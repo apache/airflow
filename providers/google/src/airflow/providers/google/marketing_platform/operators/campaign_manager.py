@@ -28,9 +28,9 @@ from typing import TYPE_CHECKING, Any
 from googleapiclient import http
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -237,7 +237,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
                 mime_type="text/csv",
             )
 
-        self.xcom_push(context, key="report_name", value=report_name)
+        context["task_instance"].xcom_push(key="report_name", value=report_name)
 
 
 class GoogleCampaignManagerInsertReportOperator(BaseOperator):
@@ -308,7 +308,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         self.log.info("Inserting Campaign Manager report.")
         response = hook.insert_report(profile_id=self.profile_id, report=self.report)
         report_id = response.get("id")
-        self.xcom_push(context, key="report_id", value=report_id)
+        context["task_instance"].xcom_push(key="report_id", value=report_id)
         self.log.info("Report successfully inserted. Report id: %s", report_id)
         return response
 
@@ -381,7 +381,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
             synchronous=self.synchronous,
         )
         file_id = response.get("id")
-        self.xcom_push(context, key="file_id", value=file_id)
+        context["task_instance"].xcom_push(key="file_id", value=file_id)
         self.log.info("Report file id: %s", file_id)
         return response
 

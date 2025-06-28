@@ -113,7 +113,7 @@ class CreateDatasetOperator(GoogleCloudBaseOperator):
         dataset_id = hook.extract_dataset_id(dataset)
         self.log.info("Dataset was created. Dataset id: %s", dataset_id)
 
-        self.xcom_push(context, key="dataset_id", value=dataset_id)
+        context["ti"].xcom_push(key="dataset_id", value=dataset_id)
         VertexAIDatasetLink.persist(context=context, dataset_id=dataset_id)
         return dataset
 

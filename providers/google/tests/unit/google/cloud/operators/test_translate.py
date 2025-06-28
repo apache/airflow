@@ -214,9 +214,8 @@ class TestTranslateTextBatchOperator:
 
 class TestTranslateDatasetCreate:
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslationNativeDatasetLink.persist")
-    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateCreateDatasetOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
-    def test_minimal_green_path(self, mock_hook, mock_xcom_push, mock_link_persist):
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
         DS_CREATION_RESULT_SAMPLE = {
             "display_name": "",
             "example_count": 0,
@@ -249,8 +248,9 @@ class TestTranslateDatasetCreate:
             timeout=TIMEOUT_VALUE,
             retry=None,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        result = op.execute(context=mock_context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -263,9 +263,9 @@ class TestTranslateDatasetCreate:
             retry=None,
             metadata=(),
         )
-        mock_xcom_push.assert_called_once_with(context, key="dataset_id", value=DATASET_ID)
+        mock_ti.xcom_push.assert_any_call(key="dataset_id", value=DATASET_ID)
         mock_link_persist.assert_called_once_with(
-            context=context,
+            context=mock_context,
             dataset_id=DATASET_ID,
             location=LOCATION,
             project_id=PROJECT_ID,
@@ -402,9 +402,8 @@ class TestTranslateDeleteData:
 
 class TestTranslateModelCreate:
     @mock.patch("airflow.providers.google.cloud.links.translate.TranslationModelLink.persist")
-    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateCreateModelOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
-    def test_minimal_green_path(self, mock_hook, mock_xcom_push, mock_link_persist):
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
         MODEL_DISPLAY_NAME = "model_display_name_01"
         MODEL_CREATION_RESULT_SAMPLE = {
             "display_name": MODEL_DISPLAY_NAME,
@@ -435,8 +434,9 @@ class TestTranslateModelCreate:
             timeout=TIMEOUT_VALUE,
             retry=None,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        result = op.execute(context=mock_context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -450,9 +450,9 @@ class TestTranslateModelCreate:
             retry=None,
             metadata=(),
         )
-        mock_xcom_push.assert_called_once_with(context, key="model_id", value=MODEL_ID)
+        mock_ti.xcom_push.assert_any_call(key="model_id", value=MODEL_ID)
         mock_link_persist.assert_called_once_with(
-            context=context,
+            context=mock_context,
             model_id=MODEL_ID,
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
@@ -711,11 +711,8 @@ class TestTranslateDocumentOperator:
 
 
 class TestTranslateGlossaryCreate:
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.translate.TranslateCreateGlossaryOperator.xcom_push"
-    )
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
-    def test_minimal_green_path(self, mock_hook, mock_xcom_push):
+    def test_minimal_green_path(self, mock_hook):
         GLOSSARY_CREATION_RESULT = {
             "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID}",
             "display_name": f"{GLOSSARY_ID}",
@@ -746,8 +743,9 @@ class TestTranslateGlossaryCreate:
             timeout=TIMEOUT_VALUE,
             retry=None,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        result = op.execute(context=mock_context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -764,7 +762,7 @@ class TestTranslateGlossaryCreate:
             retry=None,
             metadata=(),
         )
-        mock_xcom_push.assert_called_once_with(context, key="glossary_id", value=GLOSSARY_ID)
+        mock_ti.xcom_push.assert_any_call(key="glossary_id", value=GLOSSARY_ID)
         assert result == GLOSSARY_CREATION_RESULT
 
 

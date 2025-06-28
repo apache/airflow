@@ -186,7 +186,7 @@ class GetModelOperator(GoogleCloudBaseOperator):
             )
             self.log.info("Model found. Model ID: %s", self.model_id)
 
-            self.xcom_push(context, key="model_id", value=self.model_id)
+            context["ti"].xcom_push(key="model_id", value=self.model_id)
             VertexAIModelLink.persist(context=context, model_id=self.model_id)
             return Model.to_dict(model)
         except NotFound:
@@ -453,7 +453,7 @@ class UploadModelOperator(GoogleCloudBaseOperator):
         model_id = hook.extract_model_id(model_resp)
         self.log.info("Model was uploaded. Model ID: %s", model_id)
 
-        self.xcom_push(context, key="model_id", value=model_id)
+        context["ti"].xcom_push(key="model_id", value=model_id)
         VertexAIModelLink.persist(context=context, model_id=model_id)
         return model_resp
 
