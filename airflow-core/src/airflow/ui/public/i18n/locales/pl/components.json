@@ -1,5 +1,7 @@
 {
   "backfill": {
+    "affected_few": "{{count}} wykonania zostaną uruchomione.",
+    "affected_many": "{{count}} wykonań zostanie uruchomionych.",
     "affected_one": "Dotyczy 1 wykonania.",
     "affected_other": "Dotyczy {{count}} wykonań.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
@@ -43,15 +45,24 @@
     "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_one": "1 Błąd",
+    "error_few": "Błędy",
+    "error_many": "Błędów",
+    "error_one": "Błąd",
+    "error_other": "Błedy",
     "errorAndWarning": "1 Błąd i {{warningText}}",
+    "warning_few": "{{count}} Ostrzeżenia",
+    "warning_many": "{{count}} Ostrzeżeń",
     "warning_one": "1 Ostrzeżenie",
     "warning_other": "{{count}} Ostrzeżenia"
   },
   "durationChart": {
     "duration": "Czas trwania (sekundy)",
+    "lastDagRun_few": "Ostatnie {{count}} wykonania Daga",
+    "lastDagRun_many": "Ostatnich {{count}} wykonań Daga",
     "lastDagRun_one": "Ostatnie wykonanie Daga",
     "lastDagRun_other": "Ostatnie {{count}} wykonania Daga",
+    "lastTaskInstance_few": "Ostatnie {{count}} instancje zadania",
+    "lastTaskInstance_many": "Ostatnich {{count}} instancji zadania",
     "lastTaskInstance_one": "Ostatnia instancja zadania",
     "lastTaskInstance_other": "Ostatnie {{count}} instancje zadania",
     "queuedDuration": "Czas oczekiwania",
@@ -59,6 +70,9 @@
     "runDuration": "Czas trwania wykonania"
   },
   "fileUpload": {
+    "files_few": "{{count}} pliki",
+    "files_many": "{{count}} plików",
+    "files_one": "{{count}} plik",
     "files_other": "{{count}} plików"
   },
   "flexibleForm": {
@@ -80,6 +94,8 @@
     "downloadImageError": "Nie udało się pobrać obrazu grafu.",
     "downloadImageErrorTitle": "Pobieranie nieudane",
     "otherDagRuns": "+Inne wykonania Daga",
+    "taskCount_few": "{{count}} Zadania",
+    "taskCount_many": "{{count}} Zadań",
     "taskCount_one": "{{count}} Zadanie",
     "taskCount_other": "{{count}} Zadań",
     "taskGroup": "Grupa zadań"
