@@ -97,7 +97,20 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- if and .Values.workers.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer))) }}
+  {{- if or
+    (and .Values.workers.keda.enabled (
+        or
+        (eq .Values.data.metadataConnection.protocol "mysql")
+        (and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer))
+        (eq .Values.workers.keda.connectionEnv "KEDA_DB_CONN")
+    ))
+    (and .Values.triggerer.keda.enabled (
+        or
+        (eq .Values.data.metadataConnection.protocol "mysql")
+        (and .Values.pgbouncer.enabled (not .Values.triggerer.keda.usePgbouncer))
+        (eq .Values.triggerer.keda.connectionEnv "KEDA_DB_CONN")
+    ))
+  }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
