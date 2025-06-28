@@ -540,7 +540,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "logical_date" because it is already a mandatory positional argument
-        logical_date = context["logical_date"]
+        logical_date =     context.get("logical_date") \
+                        or context.get("execution_date") \
+                        or context["dag_run"].run_after
         kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)

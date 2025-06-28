@@ -24,6 +24,7 @@ from datetime import time, timedelta
 from unittest import mock
 
 import pytest
+import datetime
 
 from airflow import settings
 from airflow.exceptions import (
@@ -2168,3 +2169,19 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         )
         == 70
     )
+
+
+def test_handle_execution_date_fn_fallback_to_execution_date():
+    """
+    If context has only 'execution_date' (no 'logical_date' and no 'dag_run'),
+    _get_dttm_filter should use that execution_date.
+    """
+    exec_dt = datetime.datetime(2025, 6, 28, 12, 34)
+    ctx = {"execution_date": exec_dt, "ti": None}
+    sensor = ExternalTaskSensor(
+        task_id="test4",
+        external_dag_id="dummy4",
+        execution_date_fn=lambda dt, **kwargs: [dt],
+    )
+    dates = sensor._get_dttm_filter(ctx)
+    assert dates == [exec_dt]
