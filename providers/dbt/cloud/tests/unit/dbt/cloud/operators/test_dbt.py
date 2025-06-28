@@ -24,13 +24,18 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+)
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
+from airflow.providers.dbt.cloud.utils.exceptions import DbtCloudJobRunDetailsException
 from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 
@@ -163,8 +168,9 @@ class TestDbtCloudRunJobOperator:
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
+    @patch("airflow.providers.dbt.cloud.utils.exceptions.DbtCloudJobRunDetailsException")
     def test_execute_failed_before_getting_deferred(
-        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status
+        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status, mock_job_run
     ):
         dbt_op = DbtCloudRunJobOperator(
             dbt_cloud_conn_id=ACCOUNT_ID_CONN,
@@ -175,7 +181,7 @@ class TestDbtCloudRunJobOperator:
             dag=self.dag,
             deferrable=True,
         )
-        with pytest.raises(DbtCloudJobRunException):
+        with pytest.raises(DbtCloudJobRunDetailsException):
             dbt_op.execute(MagicMock())
         assert not mock_defer.called
 
@@ -363,8 +369,8 @@ class TestDbtCloudRunJobOperator:
                 assert mock_run_job.return_value.data["id"] == RUN_ID
             elif expected_output == "exception":
                 # The operator should fail if the job run fails or is cancelled.
-                error_message = r"has failed or has been cancelled\.$"
-                with pytest.raises(DbtCloudJobRunException, match=error_message):
+                error_message = r"has failed or has been cancelled\..*"
+                with pytest.raises(DbtCloudJobRunDetailsException, match=error_message):
                     operator.execute(context=self.mock_context)
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
@@ -382,9 +388,13 @@ class TestDbtCloudRunJobOperator:
                 retry_from_failure=False,
                 additional_run_config=self.config["additional_run_config"],
             )
-
-            if job_run_status in DbtCloudJobRunStatus.TERMINAL_STATUSES.value:
+            # if job_run_status in DbtCloudJobRunStatus.TERMINAL_STATUSES.value:
+            # When job status is SUCCESS, it will only run get_job_run() once
+            if job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
                 assert mock_get_job_run.call_count == 1
+            # When job status is ERROR or CANCELLED, the operator will gather all the logs of the job run, requiring exactly 2 get_job_run() calls
+            elif job_run_status in (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.CANCELLED.value):
+                assert mock_get_job_run.call_count == 2
             else:
                 # When the job run status is not in a terminal status or "Success", the operator will
                 # continue to call ``get_job_run()`` until a ``timeout`` number of seconds has passed
