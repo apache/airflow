@@ -1432,7 +1432,7 @@ apiServer:
 
   # Allow HPA
   hpa:
-    enabled: true
+    enabled: false
 
     # Minimum number of api-servers created by HPA
     minReplicaCount: 1
