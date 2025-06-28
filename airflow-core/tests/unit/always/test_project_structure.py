@@ -224,6 +224,7 @@ class TestProjectStructure:
             "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
+            "providers/oracle/tests/unit/oracle/test_version_compat.py",
             "providers/presto/tests/unit/presto/test_version_compat.py",
             "providers/redis/tests/unit/redis/test_version_compat.py",
             "providers/sftp/tests/unit/sftp/test_version_compat.py",
