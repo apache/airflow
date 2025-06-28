@@ -71,7 +71,7 @@ DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Deployment", "test-basic-airflow-dag-processor"),
         ("ServiceAccount", "test-basic-airflow-api-server"),
         ("ServiceAccount", "test-basic-airflow-dag-processor"),
-        ("Secret", "test-basic-airflow-jwt-secret"),
+        ("Secret", "test-basic-jwt-secret"),
     }
 )
 

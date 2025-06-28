@@ -317,7 +317,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    if: inputs.canary-run == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -363,4 +362,5 @@ jobs:
         run: git fetch --tags >/dev/null 2>&1 || true
       - name: "Test airflow core issue generation automatically"
         run: |
-          breeze release-management generate-issue-content-core --limit-pr-count 25 --latest --verbose
+          breeze release-management generate-issue-content-core \
+            --limit-pr-count 2 --previous-release 3.0.1 --current-release 3.0.2 --verbose

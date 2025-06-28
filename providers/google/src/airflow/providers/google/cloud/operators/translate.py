@@ -479,7 +479,7 @@ class TranslateCreateDatasetOperator(GoogleCloudBaseOperator):
         result = hook.wait_for_operation_result(result_operation)
         result = type(result).to_dict(result)
         dataset_id = hook.extract_object_id(result)
-        self.xcom_push(context, key="dataset_id", value=dataset_id)
+        context["ti"].xcom_push(key="dataset_id", value=dataset_id)
         self.log.info("Dataset creation complete. The dataset_id: %s.", dataset_id)
 
         project_id = self.project_id or hook.project_id
@@ -819,7 +819,7 @@ class TranslateCreateModelOperator(GoogleCloudBaseOperator):
         result = hook.wait_for_operation_result(operation=result_operation)
         result = type(result).to_dict(result)
         model_id = hook.extract_object_id(result)
-        self.xcom_push(context, key="model_id", value=model_id)
+        context["ti"].xcom_push(key="model_id", value=model_id)
         self.log.info("Model creation complete. The model_id: %s.", model_id)
 
         project_id = self.project_id or hook.project_id
@@ -1406,7 +1406,7 @@ class TranslateCreateGlossaryOperator(GoogleCloudBaseOperator):
         result = type(result).to_dict(result)
 
         glossary_id = hook.extract_object_id(result)
-        self.xcom_push(context, key="glossary_id", value=glossary_id)
+        context["ti"].xcom_push(key="glossary_id", value=glossary_id)
         self.log.info("Glossary creation complete. The glossary_id: %s.", glossary_id)
         return result
 
