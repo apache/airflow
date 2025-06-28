@@ -28,9 +28,9 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.databricks.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
