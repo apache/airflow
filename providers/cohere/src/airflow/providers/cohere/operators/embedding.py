@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.cohere.hooks.cohere import CohereHook
+from airflow.providers.cohere.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
