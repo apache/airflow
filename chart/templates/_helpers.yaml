@@ -50,6 +50,19 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{- define "keda_component_connection_env" -}}
+  {{- $context := . -}}
+  {{- $kedaValues := $context.kedaValues -}}
+  {{- $values := $context.Values -}}
+  {{- if $kedaValues.connectionEnv -}}
+    {{ $kedaValues.connectionEnv | quote -}}
+  {{- else if or (eq $values.data.metadataConnection.protocol "mysql") (and $values.pgbouncer.enabled (not $kedaValues.usePgbouncer)) -}}
+    "KEDA_DB_CONN"
+  {{- else -}}
+    "AIRFLOW_CONN_AIRFLOW_DB"
+  {{- end -}}
+{{- end }}
+
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
