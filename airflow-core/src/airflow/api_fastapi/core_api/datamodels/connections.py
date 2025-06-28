@@ -42,26 +42,6 @@ class ConnectionResponse(BaseModel):
     password: str | None
     extra: str | None
 
-    @field_validator("password", mode="after")
-    @classmethod
-    def redact_password(cls, v: str | None, field_info: ValidationInfo) -> str | None:
-        if v is None:
-            return None
-        return redact(v, field_info.field_name)
-
-    @field_validator("extra", mode="before")
-    @classmethod
-    def redact_extra(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        try:
-            extra_dict = json.loads(v)
-            redacted_dict = redact(extra_dict)
-            return json.dumps(redacted_dict)
-        except json.JSONDecodeError:
-            # we can't redact fields in an unstructured `extra`
-            return v
-
 
 class ConnectionCollectionResponse(BaseModel):
     """Connection Collection serializer for responses."""
