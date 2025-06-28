@@ -19,18 +19,18 @@
 import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
+import { useConfigServiceGetConfigs } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
 export const Iframe = () => {
   const { page } = useParams();
-  const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
+  const { data: config, isLoading } = useConfigServiceGetConfigs();
 
-  const iframeView = pluginData?.plugins
-    .flatMap((plugin) => plugin.external_views)
-    .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
+  const iframeView = config?.plugins_extra_menu_items.find(
+    (view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page
+  );
 
   if (!iframeView) {
     if (isLoading) {
