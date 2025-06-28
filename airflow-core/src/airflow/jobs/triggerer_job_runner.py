@@ -30,7 +30,7 @@ from contextlib import suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
 import attrs
 import structlog
@@ -216,18 +216,16 @@ class messages:
 
 
 ToTriggerRunner = Annotated[
-    Union[
-        messages.StartTriggerer,
-        messages.TriggerStateSync,
-        ConnectionResult,
-        VariableResult,
-        XComResult,
-        DagRunStateResult,
-        DRCount,
-        TICount,
-        TaskStatesResult,
-        ErrorResponse,
-    ],
+    messages.StartTriggerer
+    | messages.TriggerStateSync
+    | ConnectionResult
+    | VariableResult
+    | XComResult
+    | DagRunStateResult
+    | DRCount
+    | TICount
+    | TaskStatesResult
+    | ErrorResponse,
     Field(discriminator="type"),
 ]
 """
@@ -237,16 +235,14 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[
-        messages.TriggerStateChanges,
-        GetConnection,
-        GetVariable,
-        GetXCom,
-        GetTICount,
-        GetTaskStates,
-        GetDagRunState,
-        GetDRCount,
-    ],
+    messages.TriggerStateChanges
+    | GetConnection
+    | GetVariable
+    | GetXCom
+    | GetTICount
+    | GetTaskStates
+    | GetDagRunState
+    | GetDRCount,
     Field(discriminator="type"),
 ]
 """

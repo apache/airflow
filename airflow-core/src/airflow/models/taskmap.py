@@ -147,7 +147,6 @@ class TaskMap(TaskInstanceDependencies):
             if not isinstance(task, (BaseOperator, MappedOperator)):
                 raise RuntimeError(
                     f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
-                )
 
             try:
                 total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)

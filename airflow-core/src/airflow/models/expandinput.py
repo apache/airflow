@@ -21,7 +21,6 @@ import functools
 import operator
 from collections.abc import Generator, Iterable, Mapping, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
-
 import attrs
 
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -56,7 +55,7 @@ __all__ = [
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | SchedulerXComArg]:
     from airflow.models.xcom_arg import SchedulerXComArg
 
-    return isinstance(v, (MappedArgument, SchedulerXComArg))
+    return isinstance(v, MappedArgument | SchedulerXComArg)
 
 
 class SchedulerExpandInput(LoggingMixin):

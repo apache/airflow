@@ -25,9 +25,9 @@ from __future__ import annotations
 
 import datetime
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from inflection import camelize
 

@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -57,7 +57,7 @@ from airflow.providers.microsoft.azure.utils import (
 if TYPE_CHECKING:
     from azure.storage.blob._models import BlobProperties
 
-AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
+AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
 
 class WasbHook(BaseHook):

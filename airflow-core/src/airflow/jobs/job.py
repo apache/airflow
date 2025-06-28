@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import cached_property, lru_cache
 from multiprocessing import Process
 from time import sleep
