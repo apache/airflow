@@ -98,6 +98,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
+    PYTHON_TO_MIN_AIRFLOW_MAPPING,
     UV_VERSION,
 )
 from airflow_breeze.params.shell_params import ShellParams
@@ -2756,6 +2757,21 @@ def generate_issue_content_core(
     )
 
 
+def is_airflow_version_supported_for_python(airflow_version: str, python_version: str) -> bool:
+    from packaging.version import Version
+
+    min_airflow_version = PYTHON_TO_MIN_AIRFLOW_MAPPING.get(python_version)
+    if not min_airflow_version:
+        return False
+    return Version(airflow_version) >= Version(min_airflow_version)
+
+
+def get_airflow_versions_supported_by_python(
+    all_airflow_versions: list[str], python_version: str
+) -> list[str]:
+    return [v for v in all_airflow_versions if is_airflow_version_supported_for_python(v, python_version)]
+
+
 def get_all_constraint_files(
     refresh_constraints: bool,
     python_version: str,
@@ -2764,6 +2780,13 @@ def get_all_constraint_files(
     if refresh_constraints:
         shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
+
+    get_console().print(
+        f"[info]Filtering to only use airflow versions supported by current python version: {python_version}[/]"
+    )
+
+    all_airflow_versions = get_airflow_versions_supported_by_python(all_airflow_versions, python_version)
+
     if not CONSTRAINTS_CACHE_PATH.exists():
         with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
             CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
