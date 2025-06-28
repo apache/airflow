@@ -65,16 +65,17 @@ def delete_user(app, username):
 @pytest.fixture(scope="module")
 def admin_user(google_openid_app):
     appbuilder = google_openid_app.appbuilder
-    role_admin = appbuilder.sm.find_role("Admin")
-    delete_user(google_openid_app, "test")
-    appbuilder.sm.add_user(
-        username="test",
-        first_name="test",
-        last_name="test",
-        email="test@fab.org",
-        role=role_admin,
-        password="test",
-    )
+    with google_openid_app.app_context():
+        role_admin = appbuilder.sm.find_role("Admin")
+        delete_user(google_openid_app, "test")
+        appbuilder.sm.add_user(
+            username="test",
+            first_name="test",
+            last_name="test",
+            email="test@fab.org",
+            role=role_admin,
+            password="test",
+        )
     return role_admin
 
 
