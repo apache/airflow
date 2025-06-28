@@ -193,6 +193,9 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
+    def values(self) -> Iterable[Any]:
+        return self.value.values()
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -246,6 +249,9 @@ class ListOfDictsExpandInput(ResolveMixin):
             for x in self.value:
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
+
+    def values(self) -> Iterable[Any]:
+        return self.value
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
