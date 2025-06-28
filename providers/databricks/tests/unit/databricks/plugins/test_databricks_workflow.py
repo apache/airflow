@@ -37,9 +37,9 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_launch_task_id,
     store_databricks_job_run_link,
 )
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"

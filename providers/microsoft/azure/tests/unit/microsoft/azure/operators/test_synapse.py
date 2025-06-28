@@ -33,8 +33,9 @@ from airflow.providers.microsoft.azure.operators.synapse import (
     AzureSynapseRunPipelineOperator,
     AzureSynapseRunSparkBatchOperator,
 )
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult

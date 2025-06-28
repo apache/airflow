@@ -24,7 +24,7 @@ from attrs import Factory, define, field
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator

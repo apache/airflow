@@ -25,9 +25,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
 from airflow.providers.standard.operators.bash import BashOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DAG_ID = "gcp_translate"
 

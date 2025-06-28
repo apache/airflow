@@ -32,8 +32,9 @@ from airflow.providers.apache.beam.operators.beam import (
 )
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.version import version
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test-beam-operator"
 DEFAULT_RUNNER = "DirectRunner"

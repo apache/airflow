@@ -32,8 +32,8 @@ from airflow.providers.amazon.aws.links.emr import (
     get_log_uri,
     get_serverless_dashboard_url,
 )
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 pytestmark = pytest.mark.db_test
