@@ -41,7 +41,6 @@ body:
         - apache-pig
         - apache-pinot
         - apache-spark
-        - apache-tinkerpop
         - apprise
         - arangodb
         - asana
@@ -76,7 +75,6 @@ body:
         - influxdb
         - jdbc
         - jenkins
-        - keycloak
         - microsoft-azure
         - microsoft-mssql
         - microsoft-psrp
