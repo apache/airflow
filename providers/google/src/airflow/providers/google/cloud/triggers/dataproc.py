@@ -277,7 +277,28 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
             )
         return task_instance
 
-    def safe_to_cancel(self) -> bool:
+    async def get_task_state(self):
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+            map_index=self.task_instance.map_index,
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_state
+
+    async def safe_to_cancel(self) -> bool:
         """
         Whether it is safe to cancel the external job which is being executed by this trigger.
 
@@ -285,8 +306,13 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         Because in those cases, we should NOT cancel the external job.
         """
         # Database query is needed to get the latest state of the task instance.
-        task_instance = self.get_task_instance()  # type: ignore[call-arg]
-        return task_instance.state != TaskInstanceState.DEFERRED
+        if AIRFLOW_V_3_0_PLUS:
+            task_state = await self.get_task_state()
+        else:
+            # Database query is needed to get the latest state of the task instance.
+            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_state = task_instance.state
+        return task_state != TaskInstanceState.DEFERRED
 
     def submit_job(self):
         return self.get_sync_hook().submit_job(
