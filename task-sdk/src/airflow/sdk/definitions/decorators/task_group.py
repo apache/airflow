@@ -28,8 +28,8 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar, overload
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, overload
 
 import attr
 
@@ -144,7 +144,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> DAGNode:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
-                if not isinstance(item, (XComArg, Mapping)):
+                if not isinstance(item, XComArg | Mapping):
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")

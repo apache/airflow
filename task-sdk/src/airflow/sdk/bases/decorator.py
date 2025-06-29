@@ -21,9 +21,9 @@ import itertools
 import re
 import textwrap
 import warnings
-from collections.abc import Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar, cast, overload
 
 import attr
 import typing_extensions
@@ -424,7 +424,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             )
         if isinstance(kwargs, Sequence):
             for item in kwargs:
-                if not isinstance(item, (XComArg, Mapping)):
+                if not isinstance(item, XComArg | Mapping):
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
