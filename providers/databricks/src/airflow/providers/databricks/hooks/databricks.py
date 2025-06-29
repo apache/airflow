@@ -56,6 +56,9 @@ CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.1/jobs/runs/cancel-all")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
+UPDATE_REPO_ENDPOINT = ("PATCH", "2.0/repos/")
+DELETE_REPO_ENDPOINT = ("DELETE", "2.0/repos/")
+CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
 LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
 LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
@@ -718,7 +721,8 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        repos_endpoint = ("PATCH", f"api/2.0/repos/{repo_id}")
+        method, base_path = UPDATE_REPO_ENDPOINT
+        repos_endpoint = (method, f"{base_path}/{repo_id}")
         return self._do_api_call(repos_endpoint, json)
 
     def delete_repo(self, repo_id: str):
@@ -728,7 +732,8 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        repos_endpoint = ("DELETE", f"api/2.0/repos/{repo_id}")
+        method, base_path = DELETE_REPO_ENDPOINT
+        repos_endpoint = (method, f"{base_path}/{repo_id}")
         self._do_api_call(repos_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
@@ -738,8 +743,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return:
         """
-        repos_endpoint = ("POST", "api/2.0/repos")
-        return self._do_api_call(repos_endpoint, json)
+        return self._do_api_call(CREATE_REPO_ENDPOINT, json)
 
     def get_repo_by_path(self, path: str) -> str | None:
         """
