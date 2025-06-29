@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -59,8 +60,17 @@ SUBCOMMANDS = [
 # Get new hashes
 def get_airflowctl_command_hash_dict(commands):
     hash_dict = {}
+    env = os.environ.copy()
+    env["CI"] = "true"  # Set CI environment variable to ensure consistent behavior
+    env["COLUMNS"] = "80"
     for command in commands:
-        help_text = os.popen(f"python {AIRFLOW_CTL_SOURCES_PATH}/airflowctl/__main__.py {command} -h").read()
+        output = subprocess.check_output(
+            [f"python {AIRFLOW_CTL_SOURCES_PATH}/airflowctl/__main__.py {command} -h"],
+            shell=True,
+            text=True,
+            env=env,
+        )
+        help_text = output.strip()
         hash_dict[command if command != "" else "main"] = hashlib.md5(help_text.encode("utf-8")).hexdigest()
     return hash_dict
 
@@ -68,7 +78,7 @@ def get_airflowctl_command_hash_dict(commands):
 def regenerate_help_images_for_all_airflowctl_commands(commands: list[str]) -> int:
     hash_file = AIRFLOWCTL_IMAGES_PATH / "command_hashes.txt"
     os.makedirs(AIRFLOWCTL_IMAGES_PATH, exist_ok=True)
-    console = Console(color_system="standard", record=True)
+    console = Console(color_system="standard", record=True, width=80)
     env = os.environ.copy()
     env["TERM"] = "xterm-256color"
 
