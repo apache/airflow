@@ -23,7 +23,6 @@ import pendulum
 
 if typing.TYPE_CHECKING:
     import pandas as pd
-    from pyspark import SparkContext
     from pyspark.sql import SparkSession
 
 from airflow.decorators import dag, task
@@ -43,12 +42,12 @@ def example_pyspark():
 
     # [START task_pyspark]
     @task.pyspark(conn_id="spark-local")
-    def spark_task(spark: SparkSession, sc: SparkContext) -> pd.DataFrame:
+    def spark_task(spark: SparkSession) -> pd.DataFrame:
         df = spark.createDataFrame(
             [
                 (1, "John Doe", 21),
                 (2, "Jane Doe", 22),
-                (3, "Joe Bloggs", 23),
+                (3, "Joe Blogs", 23),
             ],
             ["id", "name", "age"],
         )
