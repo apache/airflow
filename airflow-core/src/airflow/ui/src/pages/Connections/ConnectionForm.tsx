@@ -56,7 +56,7 @@ const ConnectionForm = ({
   const { conf: extra, setConf } = useParamStore();
   const {
     control,
-    formState: { isValid },
+    formState: { isDirty, isValid },
     handleSubmit,
     reset,
     watch,
@@ -90,6 +90,14 @@ const ConnectionForm = ({
 
   const onSubmit = (data: ConnectionBody) => {
     mutateConnection(data);
+  };
+
+  const hasChanges = () => {
+    if (isDirty) {
+      return true;
+    }
+
+    return JSON.stringify(JSON.parse(extra)) !== JSON.stringify(JSON.parse(initialConnection.extra));
   };
 
   const validateAndPrettifyJson = (value: string) => {
@@ -232,7 +240,7 @@ const ConnectionForm = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
+            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !hasChanges()}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> Save
