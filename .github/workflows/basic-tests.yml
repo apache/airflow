@@ -223,7 +223,7 @@ jobs:
           VERBOSE: "false"
           SKIP_BREEZE_PRE_COMMITS: "true"
           SKIP: ${{ inputs.skip-pre-commits }}
-          COLUMNS: "250"
+          COLUMNS: "202"
 
   test-git-clone-on-windows:
     timeout-minutes: 5

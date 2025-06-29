@@ -65,6 +65,7 @@ from airflow_breeze.commands.common_options import (
     option_run_db_tests_only,
     option_skip_db_tests,
     option_standalone_dag_processor,
+    option_tty,
     option_upgrade_boto,
     option_use_airflow_version,
     option_use_uv,
@@ -89,7 +90,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
-    ALLOWED_TTY,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -255,15 +255,7 @@ option_load_default_connections = click.option(
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 @click.option("--quiet", is_flag=True, envvar="QUIET", help="Suppress initialization output when starting.")
-@click.option(
-    "--tty",
-    envvar="TTY",
-    type=BetterChoice(ALLOWED_TTY),
-    default=ALLOWED_TTY[0],
-    show_default=True,
-    help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
-)
+@option_tty
 @click.option(
     "--verbose-commands",
     help="Show details of commands executed.",
@@ -1222,6 +1214,7 @@ def doctor(ctx):
 @option_project_name
 @option_python
 @option_skip_image_upgrade_check
+@option_tty
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose
@@ -1240,6 +1233,7 @@ def run(
     project_name: str,
     python: str,
     skip_image_upgrade_check: bool,
+    tty: str,
     use_uv: bool,
     uv_http_timeout: int,
 ):
@@ -1307,7 +1301,7 @@ def run(
         # Optimizations for non-interactive execution
         quiet=True,
         skip_environment_initialization=True,
-        tty="disabled",
+        tty=tty,
         # Set extra_args to empty tuple since we'll pass the command directly
         extra_args=(),
     )
