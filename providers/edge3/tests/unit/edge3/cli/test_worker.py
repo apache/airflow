@@ -161,6 +161,52 @@ class TestEdgeWorker:
         assert len(EdgeWorker.jobs) == 1
         assert EdgeWorker.jobs[0].edge_job == edge_job
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @pytest.mark.parametrize(
+        "configs, expected_url",
+        [
+            (
+                {("edge", "api_url"): "https://api-endpoint"},
+                "https://api-endpoint/execution/",
+            ),
+            (
+                {("edge", "api_url"): "https://api:1234/endpoint"},
+                "https://api:1234/execution/",
+            ),
+            (
+                {
+                    ("edge", "api_url"): "https://api-endpoint",
+                    ("core", "execution_api_server_url"): "https://other-endpoint",
+                },
+                "https://other-endpoint",
+            ),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @patch("airflow.providers.edge3.cli.worker.Process")
+    @patch("airflow.providers.edge3.cli.worker.Popen")
+    def test_use_execution_api_server_url(
+        self,
+        mock_popen,
+        mock_process,
+        mock_supervise,
+        configs,
+        expected_url,
+        worker_with_job: EdgeWorker,
+    ):
+        mock_popen.side_effect = [MagicMock()]
+        mock_process_instance = MagicMock()
+        mock_process.side_effect = [mock_process_instance]
+
+        edge_job = EdgeWorker.jobs.pop().edge_job
+        with conf_vars(configs):
+            worker_with_job._launch_job(edge_job)
+
+            mock_process_callback = mock_process.call_args.kwargs["target"]
+            mock_process_callback(workload=MagicMock())
+
+            assert mock_supervise.call_args.kwargs["server"] == expected_url
+
     @pytest.mark.parametrize(
         "reserve_result, fetch_result, expected_calls",
         [

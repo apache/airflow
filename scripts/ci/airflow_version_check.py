@@ -17,7 +17,7 @@
 # under the License.
 
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "packaging>=23.2",
 #   "requests>=2.28.1",

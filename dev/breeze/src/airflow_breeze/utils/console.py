@@ -91,12 +91,15 @@ class Output(NamedTuple):
         return self.title.replace("[", "\\[")
 
 
+CONSOLE_WIDTH: int | None = int(os.environ.get("CI_WIDTH", "202")) if os.environ.get("CI") else None
+
+
 @clearable_cache
 def get_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,
         color_system="standard",
-        width=202 if not recording_width else int(recording_width),
+        width=CONSOLE_WIDTH if not recording_width else int(recording_width),
         file=output.file if output else None,
         theme=get_theme(),
         record=True if recording_file else False,
@@ -110,7 +113,7 @@ def get_stderr_console(output: Output | None = None) -> Console:
         color_system="standard",
         stderr=True,
         file=output.file if output else None,
-        width=202 if not recording_width else int(recording_width),
+        width=CONSOLE_WIDTH if not recording_width else int(recording_width),
         theme=get_theme(),
         record=True if recording_file else False,
     )

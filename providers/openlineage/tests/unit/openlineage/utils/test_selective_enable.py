@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pendulum import now
 
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import dag, task

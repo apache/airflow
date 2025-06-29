@@ -255,8 +255,8 @@ To avoid burden on our CI infrastructure and to save time, Pre-commit hooks can 
     We have recently started to recommend ``uv`` for our local development.
 
 .. note::
-    Remember to have global python set to Python >= 3.9 - Python 3.8 is end-of-life already and we've
-    started to use Python 3.9+ features in Airflow and accompanying scripts.
+    Remember to have global python set to Python >= 3.10 - Python 3.10 is end-of-life already and we've
+    started to use Python 3.10+ features in Airflow and accompanying scripts.
 
 Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
 
@@ -433,7 +433,7 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  breeze --python 3.9 --backend postgres
+  breeze --python 3.10 --backend postgres
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -490,7 +490,7 @@ Using Breeze
 ------------
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
-   In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
+   In this case Python version and backend are picked up from last execution ``breeze --python 3.10 --backend postgres``)
    It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
    Scheduler, API server (FastAPI api and UI), DAG processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
@@ -501,9 +501,9 @@ Using Breeze
       Use CI image.
 
    Branch name:            main
-   Docker image:           ghcr.io/apache/airflow/main/ci/python3.9:latest
+   Docker image:           ghcr.io/apache/airflow/main/ci/python3.10:latest
    Airflow source version: 2.4.0.dev0
-   Python version:         3.9
+   Python version:         3.10
    Backend:                mysql 5.7
 
    * Port forwarding:
@@ -540,7 +540,7 @@ Using Breeze
 
   .. code-block:: bash
 
-    breeze --python 3.9 --backend postgres
+    breeze --python 3.10 --backend postgres
 
   2. Open tmux
 
@@ -614,7 +614,7 @@ If ``breeze`` was started with ``breeze start-airflow``, this command will stop 
   root@f3619b74c59a:/opt/airflow# stop_airflow
   breeze down
 
-If ``breeze`` was started with ``breeze --python 3.9 --backend postgres`` (or similar):
+If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
 
 .. code-block:: bash
 
@@ -674,7 +674,7 @@ All Tests are inside ./tests directory.
 
    root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
-   platform linux -- Python 3.9.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/local/bin/python
+   platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/local/bin/python
    cachedir: .pytest_cache
    rootdir: /opt/airflow
    configfile: pyproject.toml
@@ -694,20 +694,20 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type All
+   breeze --backend postgres --postgres-version 15 --python 3.10 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
   .. code-block:: bash
 
-    breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type Core
+    breeze --backend postgres --postgres-version 15 --python 3.10 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
 
   .. code-block:: bash
 
-   breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type All --integration mongo
+   breeze --backend postgres --postgres-version 15 --python 3.10 --db-reset testing tests --test-type All --integration mongo
 
 - For more information on Testing visit |09_testing.rst|
 

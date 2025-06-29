@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Callable
+from collections.abc import Callable
 from unittest import mock
 
 import pytest
@@ -244,7 +244,7 @@ def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
     if isinstance(a1, Asset) and isinstance(a2, Asset):
         return a1.uri == a2.uri
 
-    if isinstance(a1, (AssetAny, AssetAll)) and isinstance(a2, (AssetAny, AssetAll)):
+    if isinstance(a1, AssetAny | AssetAll) and isinstance(a2, AssetAny | AssetAll):
         if len(a1.objects) != len(a2.objects):
             return False
 

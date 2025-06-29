@@ -675,6 +675,7 @@ def install_airflow_and_providers(
             # providers from the installed separate source packages
             console.print("[yellow]Uninstalling Airflow-3 only providers\n")
             providers_to_uninstall_for_airflow_2 = [
+                "apache-airflow-providers-keycloak",
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
             ]

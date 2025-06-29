@@ -570,7 +570,7 @@ as executor you use, similar to:
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
 
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
@@ -579,7 +579,7 @@ be created and Airflow deployed to it before running the tests):
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
     platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
@@ -598,7 +598,7 @@ be created and Airflow deployed to it before running the tests):
 
     -- Docs: https://docs.pytest.org/en/stable/warnings.html
     ============================================ 2 passed, 1 warning in 38.62s ============================================
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
 
 
 All parameters of the command are here:

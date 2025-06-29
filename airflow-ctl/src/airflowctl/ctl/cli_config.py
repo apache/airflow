@@ -27,10 +27,10 @@ import inspect
 import os
 import textwrap
 from argparse import Namespace
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, Union
+from typing import Any, NamedTuple
 
 import rich
 
@@ -330,7 +330,7 @@ class GroupCommandParser(NamedTuple):
         )
 
 
-CLICommand = Union[ActionCommand, GroupCommand, GroupCommandParser]
+CLICommand = ActionCommand | GroupCommand | GroupCommandParser
 
 
 class CommandFactory:
