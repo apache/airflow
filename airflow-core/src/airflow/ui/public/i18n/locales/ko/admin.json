@@ -40,10 +40,10 @@
       "standardFields": "기본 필드"
     },
     "nothingFound": {
-      "title": "커넥션을 찾을 수 없습니다.",
       "description": "환경 변수나 시크릿 매니저를 통해 정의된 커넥션은 여기에 표시되지 않습니다.",
       "documentationLink": "자세한 내용은 Airflow 문서를 참고하세요.",
       "learnMore": "이러한 커넥션은 런타임 시점에 해결되며 UI에는 표시되지 않습니다.",
+      "title": "커넥션을 찾을 수 없습니다."
     },
     "searchPlaceholder": "커넥션 검색",
     "test": "커넥션 테스트",
