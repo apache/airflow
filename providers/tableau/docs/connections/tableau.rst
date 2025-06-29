@@ -35,9 +35,12 @@ There are two ways to connect to Tableau using Airflow.
 2. Use a `Token Authentication
    <https://tableau.github.io/server-client-python/docs/api-ref#personalaccesstokenauth-class>`_
    i.e. add a ``token_name`` and ``personal_access_token`` to the Airflow connection (deprecated).
-3. Use `JSOn Web Token (JWT) Authentication
+3. Use `JSON Web Token (JWT) Authentication
    <https://tableau.github.io/server-client-python/docs/sign-in-out.html#sign-in-with-json-web-token-jwt>`_
    i.e add a ``jwt_file`` or a ``jwt_token`` to the Airflow connection extras.
+
+If both Password and Username authentication and JWT authentication are used simultaneously,
+Password and Username authentication is preferred.
 
 Authentication by personal token was deprecated as Tableau automatically invalidates opened
 personal token connection if one or more parallel connections with the same token are opened.
@@ -84,8 +87,6 @@ Extra (optional)
     * ``cert``: if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
     * ``jwt_token`` - If jwt authentication should be used, the value of token is given via this parameter.
     * ``jwt_file``  - If jwt authentication should be used, the location on disk for the file containing the jwt token.
-
-Note: If ``jwt_file`` and ``jwt_token`` are both given, ``jwt_file`` will take precedent.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
