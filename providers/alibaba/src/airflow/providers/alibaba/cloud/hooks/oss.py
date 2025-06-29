@@ -27,7 +27,11 @@ import oss2
 from oss2.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -93,7 +97,7 @@ class OSSHook(BaseHook):
 
     def get_conn(self) -> Connection:
         """Return connection for the hook."""
-        return self.oss_conn
+        return self.oss_conn  # type: ignore[return-value]
 
     @staticmethod
     def parse_oss_url(ossurl: str) -> tuple:

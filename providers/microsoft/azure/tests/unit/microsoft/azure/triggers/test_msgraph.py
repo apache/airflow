@@ -104,7 +104,7 @@ class TestMSGraphTrigger(Base):
 
     def test_serialize(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            "airflow.sdk.bases.hook.BaseHook.get_connection",
             side_effect=get_airflow_connection,
         ):
             url = "https://graph.microsoft.com/v1.0/me/drive/items"

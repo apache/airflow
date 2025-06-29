@@ -39,9 +39,13 @@ from airflow.exceptions import (
     AirflowOptionalProviderFeatureException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -236,8 +240,8 @@ class DbApiHook(BaseHook):
     @property
     def connection(self) -> Connection:
         if self._connection is None:
-            self._connection = self.get_connection(self.get_conn_id())
-        return self._connection
+            self._connection = self.get_connection(self.get_conn_id())  # type: ignore[assignment]
+        return self._connection  # type: ignore[return-value]
 
     @connection.setter
     def connection(self, value: Any) -> None:

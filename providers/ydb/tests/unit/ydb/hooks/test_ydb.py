@@ -56,7 +56,7 @@ class FakeYDBCursor:
         return 1
 
 
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch("airflow.sdk.bases.hook.BaseHook.get_connection")
 @patch("ydb.Driver")
 @patch("ydb.QuerySessionPool")
 @patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)

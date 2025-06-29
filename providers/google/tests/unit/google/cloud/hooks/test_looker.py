@@ -39,7 +39,7 @@ CONN_EXTRA = {"verify_ssl": "true", "timeout": "120"}
 
 class TestLookerHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = CONN_EXTRA
             self.hook = LookerHook(looker_conn_id="test")
 

@@ -37,7 +37,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -82,7 +86,7 @@ class SmtpHook(BaseHook):
         """
         if not self.smtp_client:
             try:
-                self.smtp_connection = self.get_connection(self.smtp_conn_id)
+                self.smtp_connection = self.get_connection(self.smtp_conn_id)  # type: ignore[assignment]
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 

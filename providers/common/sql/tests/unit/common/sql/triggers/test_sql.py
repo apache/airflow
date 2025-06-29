@@ -27,7 +27,7 @@ from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestSQLExecuteQueryTrigger:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_run(self, mock_get_connection):
         data = [(1, "Alice"), (2, "Bob")]
         mock_connection = mock.MagicMock(spec=Connection)
