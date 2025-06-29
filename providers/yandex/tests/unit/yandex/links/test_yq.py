@@ -22,14 +22,10 @@ import pytest
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.yandex.links.yq import YQLink
+from airflow.providers.yandex.version_compat import XCom
 
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom  # type: ignore[no-redef]
 
 yandexcloud = pytest.importorskip("yandexcloud")
 
@@ -46,7 +42,7 @@ def test_persist():
             value="g.com",
         )
     else:
-        ti.xcom_push.assert_called_once_with(key="web_link", value="g.com", execution_date=None)
+        ti.xcom_push.assert_called_once_with(key="web_link", value="g.com")
 
 
 def test_default_link():
