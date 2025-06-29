@@ -22,12 +22,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
+from airflow.providers.apache.druid.version_compat import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.apache.druid.version_compat import Context
 
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
