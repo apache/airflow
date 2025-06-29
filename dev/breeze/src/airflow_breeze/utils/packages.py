@@ -916,7 +916,7 @@ def regenerate_pyproject_toml(
     )
 
 
-AIRFLOW_PACKAGE_MATCHER = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)(\".*)$")
+AIRFLOW_PACKAGE_MATCHER = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)((\".*)$|;.*$)")
 
 
 def modify_dependency_with_suffix(dependency: str, version_suffix: str) -> str:
@@ -1059,7 +1059,12 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
                 get_console().print(
                     f"[info]Updating version suffix to {floored_version_suffix} for {base_line}."
                 )
-                base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
+                if ";" in base_line:
+                    split_on_semicolon = base_line.split(";")
+                    # If there is a semicolon, we need to remove it before adding the version suffix
+                    base_line = split_on_semicolon[0] + f"{floored_version_suffix};" + split_on_semicolon[1]
+                else:
+                    base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
             if base_line.strip().startswith('"apache-airflow-core') and "==" in base_line:
                 get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
                 base_line = base_line.rstrip('",') + f'{version_suffix}",'

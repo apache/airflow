@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from packaging import version
+
 from airflow.utils.module_loading import import_string, qualname
 
 # lazy loading for performance reasons
@@ -72,8 +74,25 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if isinstance(o, np.bool_):
         return bool(o), name, __version__, True
 
-    if isinstance(o, np.float16 | np.float32 | np.float64 | np.complex64 | np.complex128):
-        return float(o), name, __version__, True
+    from importlib import metadata
+
+    numpy_version = metadata.version("numpy")
+    is_numpy_2 = version.parse(numpy_version).major >= 2
+    if isinstance(
+        o,
+        np.float64
+        if is_numpy_2
+        else np.float_  # type: ignore[attr-defined]
+        | np.float16
+        | np.float32
+        | np.float64
+        | np.complex64
+        if is_numpy_2
+        else np.complex_  # type: ignore[attr-defined]
+        | np.complex64
+        | np.complex128,
+    ):
+        return float(o), name, __version__, True  # type: ignore [arg-type]
 
     return "", "", 0, False
 

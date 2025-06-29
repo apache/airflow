@@ -26,6 +26,8 @@
 Changelog
 ---------
 
+NOTE! Even if Amazon provider works for Python 3.13, saml authentication does not work for Python 3.13.
+
 9.9.0
 .....
 

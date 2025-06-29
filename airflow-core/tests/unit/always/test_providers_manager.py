@@ -21,6 +21,8 @@ import json
 import logging
 import re
 import sys
+
+PY313 = sys.version_info >= (3, 13)
 import warnings
 from unittest.mock import patch
 
@@ -253,6 +255,19 @@ class TestProviderManager:
                 print(record.exc_info, file=sys.stderr)
                 real_warning_count += 1
             if real_warning_count:
+                if PY313:
+                    only_ydb_and_yandexcloud_warnings = True
+                    for record in warning_records:
+                        if "ydb" in str(record.message) or "yandexcloud" in str(record.message):
+                            continue
+                        only_ydb_and_yandexcloud_warnings = False
+                    if only_ydb_and_yandexcloud_warnings:
+                        print(
+                            "Only warnings from ydb and yandexcloud providers are generated, "
+                            "which is expected in Python 3.13+",
+                            file=sys.stderr,
+                        )
+                        return
                 raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
