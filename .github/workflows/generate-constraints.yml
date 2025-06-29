@@ -57,7 +57,7 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 70
-    name: Generate constraints for ${{ inputs.python-versions-list-as-string }}
+    name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       matrix:
