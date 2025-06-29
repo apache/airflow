@@ -55,13 +55,6 @@ def upgrade() -> None:
         sa.Column(
             "ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=False
         ),
-        sa.ForeignKeyConstraint(
-            ["ti_id"],
-            ["task_instance.id"],
-            name="hitl_input_request_ti_fkey",
-            ondelete="CASCADE",
-            onupdate="CASCADE",
-        ),
     )
     op.create_table(
         "hitl_response",
