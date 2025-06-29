@@ -23,7 +23,7 @@ import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { Button, Dialog } from "src/components/ui";
+import { Button, Dialog, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
@@ -43,11 +43,12 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
     dagId,
     dagRunId,
-    requestBody: { only_failed: onlyFailed },
+    requestBody: { only_failed: onlyFailed, run_on_latest_version: runOnLatestVersion },
   });
 
   const { isPending, mutate } = useClearDagRun({
@@ -101,7 +102,13 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex justifyContent="end" mt={3}>
+          <Flex alignItems="center" justifyContent="space-between" mt={3}>
+            <Checkbox
+              checked={runOnLatestVersion}
+              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            </Checkbox>
             <Button
               colorPalette="blue"
               disabled={affectedTasks.total_entries === 0}
@@ -110,7 +117,11 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 mutate({
                   dagId,
                   dagRunId,
-                  requestBody: { dry_run: false, only_failed: onlyFailed },
+                  requestBody: {
+                    dry_run: false,
+                    only_failed: onlyFailed,
+                    run_on_latest_version: runOnLatestVersion,
+                  },
                 });
                 if (note !== dagRun.note) {
                   mutatePatchDagRun({

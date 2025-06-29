@@ -1290,6 +1290,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         only_running: bool = False,
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
+        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -1307,6 +1308,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
+        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -1325,6 +1327,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         only_running: bool = False,
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
+        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -1343,6 +1346,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
+        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -1362,6 +1366,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
+        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -1380,6 +1385,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
+        :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
         :param session: The sqlalchemy session to use
         :param dag_bag: The DagBag used to find the dags (Optional)
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
@@ -1425,6 +1431,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                 list(tis),
                 session,
                 dag_run_state=dag_run_state,
+                run_on_latest_version=run_on_latest_version,
             )
         else:
             count = 0
