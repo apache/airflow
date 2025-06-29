@@ -30,8 +30,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
-from airflow.providers.sftp.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
-from airflow.sensors.base import PokeReturnValue
+from airflow.providers.sftp.version_compat import BaseSensorOperator, PokeReturnValue
 from airflow.utils.timezone import convert_to_utc, parse
 
 if TYPE_CHECKING:
