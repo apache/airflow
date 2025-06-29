@@ -26,6 +26,7 @@ from pathlib import Path
 from subprocess import Popen
 from time import sleep
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from lockfile.pidlockfile import remove_existing_pidfile
 from requests import HTTPError
@@ -186,11 +187,13 @@ class EdgeWorker:
             setproctitle(f"airflow edge worker: {workload.ti.key}")
 
             try:
-                base_url = conf.get("api", "base_url", fallback="/")
-                # If it's a relative URL, use localhost:8080 as the default
-                if base_url.startswith("/"):
-                    base_url = f"http://localhost:8080{base_url}"
-                default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+                api_url = conf.get("edge", "api_url")
+                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback=...)
+                if execution_api_server_url is ...:
+                    parsed = urlparse(api_url)
+                    execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
+
+                logger.info("Worker starting up server=execution_api_server_url=%s", execution_api_server_url)
 
                 supervise(
                     # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
@@ -199,9 +202,7 @@ class EdgeWorker:
                     dag_rel_path=workload.dag_rel_path,
                     bundle_info=workload.bundle_info,
                     token=workload.token,
-                    server=conf.get(
-                        "core", "execution_api_server_url", fallback=default_execution_api_server
-                    ),
+                    server=execution_api_server_url,
                     log_path=workload.log_path,
                 )
                 return 0
