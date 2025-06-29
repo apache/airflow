@@ -119,9 +119,9 @@
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
-
+        
     <g transform="translate(9, 41)" clip-path="url(#terminal-101498644-clip-terminal)">
-
+    
     <g class="terminal-101498644-matrix">
     <text class="terminal-101498644-r1" x="0" y="20" textLength="524.6" clip-path="url(#terminal-101498644-line-0)">Usage:&#160;airflowctl&#160;[-h]&#160;GROUP_OR_COMMAND&#160;...</text><text class="terminal-101498644-r1" x="976" y="20" textLength="12.2" clip-path="url(#terminal-101498644-line-0)">
 </text><text class="terminal-101498644-r1" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-101498644-line-1)">
