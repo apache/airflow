@@ -233,7 +233,7 @@ jobs:
       - name: "Download constraints"
         uses: actions/download-artifact@v4
         with:
-          name: constraints
+          pattern: constraints-*
           path: ./docker-context-files
       - name: "Login to ghcr.io"
         env:

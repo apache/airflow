@@ -788,7 +788,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
+                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,kubeconform,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always CLI Core Operators Other "
                     "Serialization WWW",
@@ -972,7 +972,7 @@ def test_expected_output_pull_request_v2_7(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
+                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,kubeconform,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",

@@ -1161,7 +1161,7 @@
       "apache-airflow-providers-ssh>=2.1.0",
       "apache-airflow>=2.7.0",
       "asyncssh>=2.12.0",
-      "paramiko>=2.9.0"
+      "paramiko>=2.9.0,<4.0.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1245,7 +1245,7 @@
   "ssh": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "paramiko>=2.9.0",
+      "paramiko>=2.9.0,<4.0.0",
       "sshtunnel>=0.3.2"
     ],
     "devel-deps": [],

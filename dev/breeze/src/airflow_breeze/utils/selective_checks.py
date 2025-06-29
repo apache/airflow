@@ -1120,6 +1120,7 @@ class SelectiveChecks:
                     "check-provider-yaml-valid",
                     "lint-helm-chart",
                     "validate-operators-init",
+                    "kubeconform",
                 )
             )
 
