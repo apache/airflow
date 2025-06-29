@@ -32,6 +32,8 @@ from airflow.providers.google.cloud.operators.functions import (
 )
 from airflow.version import version
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 EMPTY_CONTENT = b""
 MOCK_RESP_404 = httplib2.Response({"status": 404})
 
@@ -716,6 +718,8 @@ class TestGcfFunctionInvokeOperator:
         )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = op
         op.execute(mock_context)
 
         mock_gcf_hook.assert_called_once_with(

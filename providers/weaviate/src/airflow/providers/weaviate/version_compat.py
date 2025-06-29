@@ -14,18 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-if not AIRFLOW_V_3_0_PLUS:
-    pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
+    from airflow import __version__
 
-from airflow.providers.amazon.aws.auth_manager.cli.definition import AWS_AUTH_MANAGER_COMMANDS
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class TestAwsCliDefinition:
-    def test_aws_auth_manager_cli_commands(self):
-        assert len(AWS_AUTH_MANAGER_COMMANDS) == 2
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+    from airflow.sdk.definitions.context import Context
+else:
+    from airflow.models import BaseOperator
+    from airflow.utils.context import Context
+
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "BaseOperator",
+    "Context",
+]

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module provides helper code to make type annotation within airflowctl codebase easier."""
 
 from __future__ import annotations
 
-__all__ = ["ParamSpec"]
 
-import sys
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
+    from airflow import __version__
+
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
+
+
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
 else:
-    from typing_extensions import ParamSpec
+    from airflow.models import BaseOperator
+
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "BaseOperator",
+]
