@@ -94,8 +94,11 @@ class TestProjectStructure:
             "providers/apache/hive/tests/unit/apache/hive/test_version_compat.py",
             "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",
             "providers/apache/livy/tests/unit/apache/livy/test_version_compat.py",
+            "providers/apache/pig/tests/unit/apache/pig/test_version_compat.py",
             "providers/apache/spark/tests/unit/apache/spark/test_version_compat.py",
+            "providers/apache/tinkerpop/tests/unit/apache/tinkerpop/test_version_compat.py",
             "providers/arangodb/tests/unit/arangodb/test_version_compat.py",
+            "providers/asana/tests/unit/asana/test_version_compat.py",
             "providers/atlassian/jira/tests/unit/atlassian/jira/test_version_compat.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
@@ -222,6 +225,7 @@ class TestProjectStructure:
             "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
+            "providers/oracle/tests/unit/oracle/test_version_compat.py",
             "providers/presto/tests/unit/presto/test_version_compat.py",
             "providers/redis/tests/unit/redis/test_version_compat.py",
             "providers/sftp/tests/unit/sftp/test_version_compat.py",
@@ -237,6 +241,7 @@ class TestProjectStructure:
             "providers/standard/tests/unit/standard/utils/test_sensor_helper.py",
             "providers/tableau/tests/unit/tableau/test_version_compat.py",
             "providers/trino/tests/unit/trino/test_version_compat.py",
+            "providers/weaviate/tests/unit/weaviate/test_version_compat.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")
@@ -304,7 +309,7 @@ def get_imports_from_file(filepath: str):
     doc_node = ast.parse(content, filepath)
     import_names: set[str] = set()
     for current_node in ast.walk(doc_node):
-        if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
+        if not isinstance(current_node, ast.Import | ast.ImportFrom):
             continue
         for alias in current_node.names:
             name = alias.name

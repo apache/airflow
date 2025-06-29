@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -37,12 +37,7 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobStatusTrigger,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+from airflow.providers.google.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

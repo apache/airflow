@@ -88,7 +88,7 @@ class TestKiotaRequestAdapterHook:
             actual = hook.get_conn()
 
             assert isinstance(actual, HttpxRequestAdapter)
-            assert actual.base_url == "https://graph.microsoft.com/v1.0"
+            assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
     def test_get_conn_with_custom_base_url(self):
         connection = lambda conn_id: get_airflow_connection(
@@ -105,7 +105,7 @@ class TestKiotaRequestAdapterHook:
             actual = hook.get_conn()
 
             assert isinstance(actual, HttpxRequestAdapter)
-            assert actual.base_url == "https://api.fabric.microsoft.com/v1"
+            assert actual.base_url == "https://api.fabric.microsoft.com/v1/"
 
     def test_get_conn_with_proxies_as_string(self):
         connection = lambda conn_id: get_airflow_connection(
