@@ -137,6 +137,8 @@ jobs:
     needs: [update-constraints]
     if: inputs.upgrade-to-newer-dependencies == 'true' && inputs.platform == 'linux/amd64'
     name: "Dependency upgrade summary"
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
         shell: bash
