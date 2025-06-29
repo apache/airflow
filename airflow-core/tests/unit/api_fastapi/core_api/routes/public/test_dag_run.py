@@ -463,6 +463,28 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN2_ID],
             ),
+            (DAG1_ID, {"run_id": DAG1_RUN1_ID}, [DAG1_RUN1_ID]),
+            (DAG1_ID, {"run_id": DAG1_RUN2_ID}, [DAG1_RUN2_ID]),
+            (DAG2_ID, {"run_id": DAG2_RUN1_ID}, [DAG2_RUN1_ID]),
+            (DAG2_ID, {"run_id": DAG2_RUN2_ID}, [DAG2_RUN2_ID]),
+            ("~", {"run_id": DAG1_RUN1_ID}, [DAG1_RUN1_ID]),
+            ("~", {"run_id": "non_existent_run_id"}, []),
+            (
+                DAG1_ID,
+                {
+                    "run_id": DAG1_RUN1_ID,
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_id": DAG1_RUN1_ID,
+                    "state": DagRunState.FAILED.value,
+                },
+                [],
+            ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1314,14 +1336,14 @@ class TestTriggerDagRun:
             "run_after": fixed_now.replace("+00:00", "Z"),
             "start_date": None,
             "duration": None,
+            "run_type": "manual",
             "state": "queued",
             "data_interval_end": expected_data_interval_end,
             "data_interval_start": expected_data_interval_start,
             "queued_at": fixed_now.replace("+00:00", "Z"),
             "last_scheduling_decision": None,
-            "run_type": "manual",
-            "note": note,
             "triggered_by": "rest_api",
+            "note": note,
         }
 
         assert response.json() == expected_response_json
