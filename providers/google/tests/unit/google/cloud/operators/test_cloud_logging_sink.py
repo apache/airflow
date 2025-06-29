@@ -293,8 +293,11 @@ class TestCloudLoggingCreateSinkOperator:
         assert isinstance(operator.sink_config, dict)
         assert operator.sink_config == sink_config
 
-    def test_create_with_empty_sink_name_raises(self):
+    @mock.patch(CLOUD_LOGGING_HOOK_PATH)
+    def test_create_with_empty_sink_name_raises(self, hook_mock):
         sink.name = None
+        hook_instance = hook_mock.return_value
+        hook_instance.create_sink.side_effect = InvalidArgument("Required parameter 'sink.name' is empty")
         with pytest.raises(
             InvalidArgument,
             match="400 Required parameter 'sink.name' is empty",
