@@ -53,12 +53,6 @@ class HITLInputRequestModel(Base):
 
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        ForeignKey(
-            TaskInstance.id,
-            ondelete="CASCADE",
-            onupdate="CASCADE",
-            name="hitl_input_request_ti_fkey",
-        ),
         nullable=False,
     )
     task_instance = relationship(
