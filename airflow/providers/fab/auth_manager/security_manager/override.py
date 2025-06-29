@@ -118,7 +118,7 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.security.permissions import RESOURCE_ASSET
+    from airflow.security.permissions import RESOURCE_ASSET  # type: ignore[attr-defined]
 else:
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
@@ -839,6 +839,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app = self.appbuilder.get_app
         # Base Security Config
         app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
+        app.config.setdefault("AUTH_ROLE_PUBLIC", "Public")
         app.config.setdefault("AUTH_TYPE", AUTH_DB)
         # Self Registration
         app.config.setdefault("AUTH_USER_REGISTRATION", False)
