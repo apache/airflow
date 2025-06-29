@@ -257,7 +257,6 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: Quer
 * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
 * @param data The data for the request.
 * @param data.dagId
-* @param data.runId
 * @param data.limit
 * @param data.offset
 * @param data.runAfterGte
@@ -273,6 +272,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: Quer
 * @param data.runType
 * @param data.state
 * @param data.orderBy
+* @param data.runId
 * @returns DAGRunCollectionResponse Successful Response
 * @throws ApiError
 */

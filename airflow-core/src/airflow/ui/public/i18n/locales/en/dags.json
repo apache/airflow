@@ -13,7 +13,8 @@
       "active": "Active",
       "all": "All",
       "paused": "Paused"
-    }
+    },
+    "runIdFilter": "Add run_id filter"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {

@@ -1912,14 +1912,6 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: run_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Run Id
       - name: limit
         in: query
         required: false
@@ -2049,6 +2041,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
       responses:
         '200':
           description: Successful Response

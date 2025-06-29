@@ -968,7 +968,6 @@ export class DagRunService {
      * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
      * @param data The data for the request.
      * @param data.dagId
-     * @param data.runId
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
@@ -984,6 +983,7 @@ export class DagRunService {
      * @param data.runType
      * @param data.state
      * @param data.orderBy
+     * @param data.runId
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -995,7 +995,6 @@ export class DagRunService {
                 dag_id: data.dagId
             },
             query: {
-                run_id: data.runId,
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,
@@ -1010,7 +1009,8 @@ export class DagRunService {
                 updated_at_lte: data.updatedAtLte,
                 run_type: data.runType,
                 state: data.state,
-                order_by: data.orderBy
+                order_by: data.orderBy,
+                run_id: data.runId
             },
             errors: {
                 401: 'Unauthorized',
