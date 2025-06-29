@@ -41,13 +41,7 @@ def test_persist():
     YQLink.persist(context=mock_context, web_link="g.com")
 
     ti = mock_context["ti"]
-    if AIRFLOW_V_3_0_PLUS:
-        ti.xcom_push.assert_called_once_with(
-            key="web_link",
-            value="g.com",
-        )
-    else:
-        ti.xcom_push.assert_called_once_with(key="web_link", value="g.com", execution_date=None)
+    ti.xcom_push.assert_called_once_with(key="web_link", value="g.com")
 
 
 def test_default_link():

@@ -28,8 +28,6 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
 yandexcloud = pytest.importorskip("yandexcloud")
 
 OAUTH_TOKEN = "my_oauth_token"
@@ -91,25 +89,14 @@ class TestYQExecuteQueryOperator:
         results = operator.execute(context)
         assert results == {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]}
 
-        if AIRFLOW_V_3_0_PLUS:
-            context["ti"].xcom_push.assert_has_calls(
-                [
-                    call(
-                        key="web_link",
-                        value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
-                    ),
-                ]
-            )
-        else:
-            context["ti"].xcom_push.assert_has_calls(
-                [
-                    call(
-                        key="web_link",
-                        value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
-                        execution_date=None,
-                    ),
-                ]
-            )
+        context["ti"].xcom_push.assert_has_calls(
+            [
+                call(
+                    key="web_link",
+                    value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
+                ),
+            ]
+        )
 
         responses.get(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/status",
