@@ -24,24 +24,27 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow import DAG
-from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
+from airflow.providers.google.cloud.operators.dataproc import (
+    DataprocCreateClusterOperator,
+    DataprocDeleteClusterOperator,
+    DataprocSubmitJobOperator,
+)
+from airflow.utils.trigger_rule import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "dataproc_spark"
+DAG_ID = "dataproc_start_from_trigger"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
-JOB_FILE = "dataproc-pyspark-job-pi.py"
-GCS_JOB_FILE = f"gs://{BUCKET_NAME}/dataproc/{JOB_FILE}"
-REGION = "us-central1"
+REGION = "europe-west1"
 
 # Cluster definition
 CLUSTER_CONFIG = {
@@ -58,11 +61,13 @@ CLUSTER_CONFIG = {
 }
 
 # Jobs definitions
-# Define a sample PySpark job
-PYSPARK_JOB = {
+SPARK_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
-    "pyspark_job": {"main_python_file_uri": GCS_JOB_FILE},
+    "spark_job": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
 }
 
 # Create DAG
@@ -73,17 +78,41 @@ with DAG(
     catchup=False,
     tags=["dataproc", "start_from_trigger"],
 ) as dag:
-    # Task to test start_from_trigger=True
-    submit_job_with_trigger = DataprocSubmitJobOperator(
-        task_id="submit_job_with_trigger",
-        job=PYSPARK_JOB,
+    create_cluster = DataprocCreateClusterOperator(
+        task_id="create_cluster",
+        project_id=PROJECT_ID,
+        cluster_config=CLUSTER_CONFIG,
+        region=REGION,
+        cluster_name=CLUSTER_NAME,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
+    )
+
+    spark_job_with_start_from_trigger = DataprocSubmitJobOperator(
+        task_id="spark_job_with_start_from_trigger",
+        job=SPARK_JOB,
         region=REGION,
         project_id=PROJECT_ID,
         start_from_trigger=True,
     )
 
+    delete_cluster = DataprocDeleteClusterOperator(
+        task_id="delete_cluster",
+        project_id=PROJECT_ID,
+        region=REGION,
+        cluster_name=CLUSTER_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     # Define task dependencies
-    submit_job_with_trigger
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> spark_job_with_start_from_trigger
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests_common.test_utils.watcher import watcher
 
