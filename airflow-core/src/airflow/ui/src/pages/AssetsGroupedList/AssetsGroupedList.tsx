@@ -18,9 +18,11 @@
  */
 import { Box, Link, IconButton, VStack, Flex, Heading, Text, Input } from "@chakra-ui/react";
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { FaChevronDown, FaChevronRight, FaChevronUp } from "react-icons/fa";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useAssetServiceGetAssets } from "openapi/queries";
+import { useAssetServiceGetAssetGroups } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -29,27 +31,6 @@ import Time from "src/components/Time";
 
 import { CreateAssetEvent } from "../Asset/CreateAssetEvent";
 import { DependencyPopover } from "../AssetsList/DependencyPopover";
-
-// Ícones SVG inline para expandir/colapsar
-const ChevronDownIcon = () => (
-  <svg fill="currentColor" height="1em" viewBox="0 0 20 20" width="1em">
-    <path
-      clipRule="evenodd"
-      d="M5.23 7.21a.75.75 0 011.06.02L10 11.085l3.71-3.855a.75.75 0 111.08 1.04l-4.24 4.4a.75.75 0 01-1.08 0l-4.24-4.4a.75.75 0 01.02-1.06z"
-      fillRule="evenodd"
-    />
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg fill="currentColor" height="1em" viewBox="0 0 20 20" width="1em">
-    <path
-      clipRule="evenodd"
-      d="M7.21 5.23a.75.75 0 011.06-.02l4.4 4.24a.75.75 0 010 1.08l-4.4 4.24a.75.75 0 11-1.04-1.08L11.085 10 7.23 6.29a.75.75 0 01-.02-1.06z"
-      fillRule="evenodd"
-    />
-  </svg>
-);
 
 const NameCell = ({ original }: { readonly original: AssetResponse }) => (
   <Link asChild color="fg.info" fontWeight="bold">
@@ -83,8 +64,8 @@ const GroupCell = ({ original }: { readonly original: AssetResponse }) => {
 };
 
 const ConsumingDagsCell = ({ original }: { readonly original: AssetResponse }) =>
-  original.consuming_dags.length ? (
-    <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
+  original.consuming_tasks.length ? (
+    <DependencyPopover dependencies={original.consuming_tasks} type="Dag" />
   ) : undefined;
 
 const ProducingTasksCell = ({ original }: { readonly original: AssetResponse }) =>
@@ -118,79 +99,69 @@ const triggerCellRenderer = ({ row: { original } }: { row: { original: AssetResp
 );
 
 export const AssetsGroupedList = () => {
+  const { t: translate } = useTranslation(["assets", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
-  const { sorting } = tableURLState;
+  const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const { data, error, isLoading } = useAssetServiceGetAssets({
-    limit: 1000,
-    offset: 0,
+  // Use o novo hook para buscar grupos paginados
+  const { data, error, isLoading } = useAssetServiceGetAssetGroups({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
 
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
 
-  // Group assets by group
   const grouped = useMemo(() => {
-    const filtered = (data?.assets ?? []).filter((asset) =>
-      asset.group.toLowerCase().includes(search.toLowerCase()),
+    if (!data?.groups) {
+      return [];
+    }
+    const filtered = data.groups.filter(({ group }: { group: string }) =>
+      group.toLowerCase().includes(search.toLowerCase()),
     );
-    const groupedObj = filtered.reduce<Record<string, Array<AssetResponse>>>((acc, asset) => {
-      const groupName = asset.group;
-
-      acc[groupName] ??= [];
-      acc[groupName].push(asset);
-
-      return acc;
-    }, {});
-
-    // Sort groups by name
-    const sortedGroups = Object.entries(groupedObj).sort(([groupA], [groupB]) =>
-      sortAsc ? groupA.localeCompare(groupB) : groupB.localeCompare(groupA),
+    const sortedGroups = filtered.sort((groupA: { group: string }, groupB: { group: string }) =>
+      sortAsc ? groupA.group.localeCompare(groupB.group) : groupB.group.localeCompare(groupA.group),
     );
 
-    return sortedGroups.map(([group, assets]) => ({
-      assets,
-      count: assets.length,
-      group,
-    }));
+    return sortedGroups;
   }, [data, search, sortAsc]);
 
   const columns = [
     {
       accessorKey: "name",
       cell: nameCellRenderer,
-      header: () => "Name",
+      header: () => translate("name"),
       size: 300,
     },
     {
       accessorKey: "last_asset_event",
       cell: lastAssetEventCellRenderer,
       enableSorting: false,
-      header: () => "Last Asset Event",
+      header: () => translate("lastAssetEvent"),
       size: 200,
     },
     {
       accessorKey: "group",
       cell: groupCellRenderer,
       enableSorting: false,
-      header: () => "Group",
+      header: () => translate("group"),
       size: 200,
     },
     {
       accessorKey: "consuming_dags",
       cell: consumingDagsCellRenderer,
       enableSorting: false,
-      header: () => "Consuming Dags",
+      header: () => translate("consumingDags"),
       size: 200,
     },
     {
       accessorKey: "producing_tasks",
       cell: producingTasksCellRenderer,
       enableSorting: false,
-      header: () => "Producing Tasks",
+      header: () => translate("producingTasks"),
       size: 200,
     },
     {
@@ -217,81 +188,95 @@ export const AssetsGroupedList = () => {
       <Box alignItems="center" display="flex" gap={2} mb={2}>
         <Input
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search group"
+          placeholder={translate("searchGroup", { defaultValue: "Search group" })}
           size="sm"
           value={search}
           width="250px"
         />
         <IconButton
-          aria-label="Sort groups"
+          aria-label={translate("sortGroups", { defaultValue: "Sort groups" })}
           onClick={() => setSortAsc((sortAscValue) => !sortAscValue)}
           size="sm"
           variant="outline"
         >
-          {sortAsc ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          {sortAsc ? <FaChevronUp /> : <FaChevronDown />}
         </IconButton>
       </Box>
-      {grouped.map(({ assets, count, group }) => (
-        <Box borderRadius="md" borderWidth={1} key={group} overflow="hidden" width="100%">
-          <Flex
-            _hover={{ bg: "chakra-subtle-bg-hover" }}
-            align="center"
-            bg="chakra-subtle-bg"
-            cursor="pointer"
-            onClick={() => handleToggleGroup(group)}
-            pb={2}
-            pt={4}
-            px={4}
-            userSelect="none"
-          >
-            <IconButton
-              aria-label={expandedGroups[group] ? "Collapse group" : "Expand group"}
-              mr={2}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleToggleGroup(group);
-              }}
-              size="sm"
-              variant="ghost"
+      {grouped.map(
+        ({
+          assets,
+          count,
+          group,
+        }: {
+          readonly assets: Array<AssetResponse>;
+          readonly count: number;
+          readonly group: string;
+        }) => (
+          <Box borderRadius="md" borderWidth={1} key={group} overflow="hidden" width="100%">
+            <Flex
+              _hover={{ bg: "chakra-subtle-bg-hover" }}
+              align="center"
+              bg="chakra-subtle-bg"
+              cursor="pointer"
+              onClick={() => handleToggleGroup(group)}
+              pb={2}
+              pt={4}
+              px={4}
+              userSelect="none"
             >
-              {expandedGroups[group] ? <ChevronDownIcon /> : <ChevronRightIcon />}
-            </IconButton>
-            <Heading
-              alignItems="center"
-              display="flex"
-              flex="1"
-              maxW="80%"
-              mb={0}
-              overflow="hidden"
-              size="sm"
-              textOverflow="ellipsis"
-              title={group}
-              whiteSpace="nowrap"
-            >
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={`/assets/group/${encodeURIComponent(group)}`}>{truncate(group)}</RouterLink>
-              </Link>
-              <Text color="gray.400" flexShrink={0} fontSize="sm" ml={2}>
-                ({count})
-              </Text>
-            </Heading>
-          </Flex>
-          {expandedGroups[group] ? (
-            <Box pb={4} px={4} width="100%">
-              <DataTable
-                columns={columns}
-                data={assets}
-                errorMessage={<ErrorAlert error={error} />}
-                initialState={tableURLState}
-                isLoading={isLoading}
-                modelName="Asset"
-                onStateChange={setTableURLState}
-                total={assets.length}
-              />
-            </Box>
-          ) : undefined}
-        </Box>
-      ))}
+              <IconButton
+                aria-label={
+                  expandedGroups[group]
+                    ? translate("collapseGroup", { defaultValue: "Collapse group" })
+                    : translate("expandGroup", { defaultValue: "Expand group" })
+                }
+                mr={2}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleToggleGroup(group);
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                {expandedGroups[group] ? <FaChevronDown /> : <FaChevronRight />}
+              </IconButton>
+              <Heading
+                alignItems="center"
+                display="flex"
+                flex="1"
+                maxW="80%"
+                mb={0}
+                overflow="hidden"
+                size="sm"
+                textOverflow="ellipsis"
+                title={group}
+                whiteSpace="nowrap"
+              >
+                <Link asChild color="fg.info" fontWeight="bold">
+                  <RouterLink to={`/assets/group/${encodeURIComponent(group)}`}>{truncate(group)}</RouterLink>
+                </Link>
+                <Text color="gray.400" flexShrink={0} fontSize="sm" ml={2}>
+                  ({count})
+                </Text>
+              </Heading>
+            </Flex>
+            {expandedGroups[group] ? (
+              <Box pb={4} px={4} width="100%">
+                <DataTable
+                  columns={columns}
+                  data={assets}
+                  errorMessage={<ErrorAlert error={error} />}
+                  initialState={tableURLState}
+                  isLoading={isLoading}
+                  modelName={translate("common:asset_one")}
+                  onStateChange={setTableURLState}
+                  total={assets.length}
+                />
+              </Box>
+            ) : undefined}
+          </Box>
+        ),
+      )}
     </VStack>
   );
 };

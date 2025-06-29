@@ -271,12 +271,18 @@ class TestGetDependencies:
 
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_dependencies_multiple_assets_no_direct_edge(self, test_client, asset1_id, asset2_id):
-        # Consulta múltiplos assets
-        node_ids = f"asset:{asset1_id},asset:{asset2_id}"
-        response = test_client.get("/dependencies", params={"node_ids": node_ids})
+        # Both assets exist: should return 200
+        params = [("node_ids", f"asset:{asset1_id}"), ("node_ids", f"asset:{asset2_id}")]
+        response = test_client.get("/dependencies", params=params)
         assert response.status_code == 200
 
         data = response.json()
         node_ids_returned = {n["id"] for n in data["nodes"]}
         assert f"asset:{asset1_id}" in node_ids_returned
         assert f"asset:{asset2_id}" in node_ids_returned
+
+        # One asset missing: should return 404
+        params_missing = [("node_ids", f"asset:{asset1_id}"), ("node_ids", "asset:999999")]
+        response_missing = test_client.get("/dependencies", params=params_missing)
+        assert response_missing.status_code == 404
+        assert "No connected component found for node(s)" in response_missing.json()["detail"]

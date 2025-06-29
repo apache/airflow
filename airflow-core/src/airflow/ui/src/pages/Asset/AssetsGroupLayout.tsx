@@ -17,10 +17,11 @@
  * under the License.
  */
 import { Box, HStack } from "@chakra-ui/react";
+import { useMemo } from "react";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 
-import { useAssetServiceGetAssets } from "openapi/queries";
+import { useAssetServiceGetAssetGroups } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { ProgressBar } from "src/components/ui";
@@ -31,14 +32,16 @@ import { AssetsGroupGraph } from "./AssetsGroupGraph";
 export const AssetGroupLayout = () => {
   const { groupName } = useParams<{ groupName: string }>();
 
-  const { data: assetsData, isLoading } = useAssetServiceGetAssets({
-    groupPattern: groupName,
-    limit: 1000,
-    offset: 0,
+  const orderBy = undefined;
+
+  const { data, isLoading } = useAssetServiceGetAssetGroups({
+    group: groupName,
+    orderBy,
   });
 
-  const assets: Array<AssetResponse> = assetsData?.assets ?? [];
-  const assetIds = assets.map((asset) => String(asset.id));
+  const assets: Array<AssetResponse> = useMemo(() => data?.groups[0]?.assets ?? [], [data]);
+
+  const assetIds: Array<string> = useMemo(() => assets.map((asset) => String(asset.id)), [assets]);
 
   const safeGroupName = groupName ?? "";
 

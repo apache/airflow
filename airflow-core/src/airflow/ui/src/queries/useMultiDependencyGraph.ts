@@ -25,8 +25,9 @@ import {
 import type { BaseGraphResponse } from "openapi/requests/types.gen";
 
 /**
- * Hook to fetch the dependency graph for multiple assets in a single query.
- * Expects the backend to accept nodeIds as a comma-separated string or array.
+ * Hook to fetch the dependency graph for a list of asset ids.
+ * Uses the backend endpoint that accepts node_ids as an exploded array (node_ids=foo&node_ids=bar).
+ * Caches the result by ids.
  */
 export const useMultiDependencyGraph = (
   assetIds: Array<string>,
@@ -34,18 +35,19 @@ export const useMultiDependencyGraph = (
 ) => {
   const queryClient = useQueryClient();
 
-  const nodeIdsParam = assetIds.map((id) => `asset:${id}`).join(",");
+  // Always send nodeIds as an array of asset:... strings
+  const nodeIdsParam = assetIds.map((id) => (id.startsWith("asset:") ? id : `asset:${id}`));
 
   const query = useDependenciesServiceGetDependencies({ nodeIds: nodeIdsParam }, undefined, options);
 
-  query.data?.nodes.forEach((node) => {
-    const key = UseDependenciesServiceGetDependenciesKeyFn({ nodeId: node.id });
+  if (query.data) {
+    const key = UseDependenciesServiceGetDependenciesKeyFn({ nodeIds: nodeIdsParam });
     const queryData = queryClient.getQueryData(key);
 
     if (!Boolean(queryData)) {
       queryClient.setQueryData(key, query.data);
     }
-  });
+  }
 
   return query;
 };

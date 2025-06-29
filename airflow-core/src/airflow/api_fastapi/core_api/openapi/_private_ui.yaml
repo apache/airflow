@@ -237,7 +237,7 @@ paths:
       - Dependencies
       summary: Get Dependencies
       description: Dependencies graph. Supports a single node_id or multiple node_ids
-        separated by commas.
+        as exploded query parameters (node_ids=foo&node_ids=bar).
       operationId: get_dependencies
       security:
       - OAuth2PasswordBearer: []
@@ -254,12 +254,12 @@ paths:
         in: query
         required: false
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: Comma-separated list of node ids
+          type: array
+          items:
+            type: string
+          description: List of node ids
           title: Node Ids
-        description: Comma-separated list of node ids
+        description: List of node ids
       responses:
         '200':
           description: Successful Response

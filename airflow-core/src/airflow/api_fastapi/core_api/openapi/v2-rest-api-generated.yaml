@@ -40,11 +40,27 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+      - name: group_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Pattern
+      - name: search_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          default: all
+          title: Search Match Mode
       - name: uri_pattern
         in: query
         required: false
@@ -65,18 +81,6 @@ paths:
           items:
             type: string
           title: Dag Ids
-      - name: group_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
-          title: Group Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
       - name: only_active
         in: query
         required: false
@@ -98,6 +102,87 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssetCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/groups:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Groups
+      description: Get asset groups.
+      operationId: get_asset_groups
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: group
+          title: Order By
+      - name: group
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by grupo
+          title: Group
+        description: Filter by grupo
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetGroupCollectionResponse'
         '401':
           content:
             application/json:
@@ -7212,6 +7297,42 @@ components:
       - timestamp
       title: AssetEventResponse
       description: Asset event serializer for responses.
+    AssetGroupCollectionResponse:
+      properties:
+        groups:
+          items:
+            $ref: '#/components/schemas/AssetGroupResponse'
+          type: array
+          title: Groups
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - groups
+      - total_entries
+      title: AssetGroupCollectionResponse
+      description: Asset group collection response.
+    AssetGroupResponse:
+      properties:
+        group:
+          type: string
+          title: Group
+        assets:
+          items:
+            $ref: '#/components/schemas/AssetResponse'
+          type: array
+          title: Assets
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - group
+      - assets
+      - count
+      title: AssetGroupResponse
+      description: Asset group serializer for responses.
     AssetResponse:
       properties:
         id:

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Heading, Text, HStack, VStack, Badge, Button } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
 
@@ -26,8 +27,10 @@ type AssetGroupSidebarProps = {
 };
 
 export const AssetGroupSidebar: React.FC<AssetGroupSidebarProps> = ({ assets, groupName }) => {
+  const { t: translate } = useTranslation(["assets", "common"]);
+
   const producingTasks = assets.reduce((acc, asset) => acc + asset.producing_tasks.length, 0);
-  const consumingDags = assets.reduce((acc, asset) => acc + asset.consuming_dags.length, 0);
+  const consumingDags = assets.reduce((acc, asset) => acc + asset.consuming_tasks.length, 0);
 
   // Collect all last asset events from all assets
   const events = assets
@@ -38,31 +41,31 @@ export const AssetGroupSidebar: React.FC<AssetGroupSidebarProps> = ({ assets, gr
     <VStack align="stretch" gap={4}>
       <Box bg="chakra-subtle-bg" borderColor="chakra-border-color" borderRadius="md" borderWidth={1} p={4}>
         <HStack gap={2} mb={2}>
-          <Badge aria-label="database icon" colorScheme="gray" fontSize="lg">
-            🗄️
+          <Badge aria-label={translate("group", { ns: "assets" })} colorScheme="gray" fontSize="lg">
+            {translate("databaseIcon", { ns: "assets" })}
           </Badge>
           <Heading size="md">{groupName}</Heading>
         </HStack>
         <Text color="chakra-fg" fontSize="sm" mb={2}>
-          <b>{/* i18n: Group label */}Group</b>
+          <b>{translate("group", { ns: "assets" })}</b>
           <br />
           {groupName}
         </Text>
         <HStack gap={4} mb={2}>
           <Box>
             <Text color="chakra-fg" fontSize="xs">
-              {/* i18n: Producing Tasks label */}Producing Tasks
+              {translate("producingTasks", { ns: "assets" })}
             </Text>
             <Button disabled size="sm" variant="outline">
-              {producingTasks} {/* i18n: Task label */}Task{producingTasks === 1 ? "" : "s"}
+              {producingTasks} {translate("task_one", { count: producingTasks, ns: "common" })}
             </Button>
           </Box>
           <Box>
             <Text color="chakra-fg" fontSize="xs">
-              {/* i18n: Consuming DAGs label */}Consuming DAGs
+              {translate("consumingDags", { ns: "assets" })}
             </Text>
             <Button disabled size="sm" variant="outline">
-              {consumingDags} {/* i18n: DAG label */}DAG{consumingDags === 1 ? "" : "s"}
+              {consumingDags} {translate("dag_one", { count: consumingDags, ns: "common" })}
             </Button>
           </Box>
         </HStack>
@@ -70,11 +73,11 @@ export const AssetGroupSidebar: React.FC<AssetGroupSidebarProps> = ({ assets, gr
       <Box bg="chakra-subtle-bg" borderColor="chakra-border-color" borderRadius="md" borderWidth={1} p={4}>
         <HStack mb={2}>
           <Badge colorScheme="blue" />
-          <Heading size="sm">{/* i18n: Asset Events label */}Asset Events</Heading>
+          <Heading size="sm">{translate("lastAssetEvent", { ns: "assets" })}</Heading>
         </HStack>
         {events.length === 0 ? (
           <Text color="chakra-fg-subtle" fontSize="sm">
-            {/* i18n: No events label */}No events
+            {translate("noAssetEvents", { ns: "dashboard" })}
           </Text>
         ) : (
           events.map((ev) => (

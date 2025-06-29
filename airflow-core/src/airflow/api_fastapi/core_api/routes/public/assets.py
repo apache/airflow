@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -32,8 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
     QueryAssetDagIdPatternSearch,
-    QueryAssetGroupPatternSearch,
-    QueryAssetNamePatternSearch,
+    QueryAssetPatternFilter,
     QueryLimit,
     QueryOffset,
     QueryUriPatternSearch,
@@ -49,6 +48,8 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetCollectionResponse,
     AssetEventCollectionResponse,
     AssetEventResponse,
+    AssetGroupCollectionResponse,
+    AssetGroupResponse,
     AssetResponse,
     CreateAssetEventsBody,
     QueuedEventCollectionResponse,
@@ -126,10 +127,9 @@ class OnlyActiveFilter(BaseParam[bool]):
 def get_assets(
     limit: QueryLimit,
     offset: QueryOffset,
-    name_pattern: QueryAssetNamePatternSearch,
+    asset_pattern_filter: QueryAssetPatternFilter,
     uri_pattern: QueryUriPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
-    groupPattern: QueryAssetGroupPatternSearch,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
         SortParam,
@@ -172,7 +172,7 @@ def get_assets(
 
     assets_select, total_entries = paginated_select(
         statement=assets_select_statement,
-        filters=[only_active, name_pattern, uri_pattern, dag_ids, groupPattern],
+        filters=[only_active, asset_pattern_filter, uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -205,6 +205,88 @@ def get_assets(
     return AssetCollectionResponse(
         assets=assets,
         total_entries=total_entries,
+    )
+
+
+@assets_router.get(
+    "/assets/groups",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+    ],
+)
+def get_asset_groups(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
+    session: SessionDep,
+    order_by: Annotated[str, Query(alias="order_by")] = "group",
+    group: str | None = Query(default=None, description="Filter by grupo"),
+) -> AssetGroupCollectionResponse:
+    """Get asset groups."""
+    offset_value = offset.value if offset.value is not None else 0
+
+    group_query = (
+        select(AssetModel.group, func.count(AssetModel.id))
+        .where(
+            AssetModel.active.has() if only_active.value else True,
+            *([AssetModel.group == group] if group else []),
+        )
+        .group_by(AssetModel.group)
+    )
+    group_rows = session.execute(group_query).all()
+    limit_value = limit.value if limit.value is not None else len(group_rows)
+    # Ordene em Python
+    if order_by == "count":
+        group_rows.sort(key=lambda x: (x[1], x[0]))
+    elif order_by == "-count":
+        group_rows.sort(key=lambda x: (-x[1], x[0]))
+    elif order_by == "-group":
+        group_rows.sort(key=lambda x: x[0], reverse=True)
+    else:
+        group_rows.sort(key=lambda x: x[0])
+    # Aplique paginação em Python
+    paginated_rows = group_rows[offset_value : offset_value + limit_value]
+    groups = [row[0] for row in paginated_rows]
+    group_counts = {row[0]: row[1] for row in paginated_rows}
+
+    # Query all assets for these groups
+    assets_query = (
+        select(AssetModel)
+        .where(AssetModel.group.in_(groups))
+        .options(
+            subqueryload(AssetModel.scheduled_dags),
+            subqueryload(AssetModel.producing_tasks),
+            subqueryload(AssetModel.consuming_tasks),
+        )
+    )
+    assets = session.scalars(assets_query).all()
+
+    # Organize assets by group
+    assets_by_group: dict[str, list[AssetResponse]] = {group: [] for group in groups}
+    for asset in assets:
+        assets_by_group[asset.group].append(
+            AssetResponse.model_validate(
+                {
+                    **asset.__dict__,
+                    "aliases": asset.aliases,
+                    "last_asset_event": None,
+                }
+            )
+        )
+
+    group_responses = [
+        AssetGroupResponse(
+            group=group,
+            assets=assets_by_group[group],
+            count=group_counts[group],
+        )
+        for group in groups
+    ]
+
+    return AssetGroupCollectionResponse(
+        groups=group_responses,
+        total_entries=len(group_counts),
     )
 
 

@@ -665,7 +665,53 @@ QueryTIDagVersionFilter = Annotated[
     ),
 ]
 
+
 # Assets
+class _AssetPatternFilterModel(BaseModel):
+    """Asset Pattern Filter Model with a match mode parameter."""
+
+    name_pattern: str | None = None
+    group_pattern: str | None = None
+    search_match_mode: Literal["any", "all"] | None = None
+
+
+class _AssetPatternFilter(BaseParam[_AssetPatternFilterModel]):
+    """Filter on asset name/group pattern with match mode."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value or (not self.value.name_pattern and not self.value.group_pattern):
+            return select
+
+        conditions = []
+        if self.value.name_pattern:
+            conditions.append(AssetModel.name.ilike(f"%{self.value.name_pattern}%"))
+        if self.value.group_pattern:
+            conditions.append(AssetModel.group.ilike(f"%{self.value.group_pattern}%"))
+
+        operator = or_ if not self.value.search_match_mode or self.value.search_match_mode == "any" else and_
+        return select.where(operator(*conditions))
+
+    @classmethod
+    def depends(
+        cls,
+        name_pattern: str | None = Query(default=None, alias="name_pattern"),
+        group_pattern: str | None = Query(default=None, alias="group_pattern"),
+        search_match_mode: Literal["any", "all"] | None = Query(default="all", alias="search_match_mode"),
+    ) -> _AssetPatternFilter:
+        return cls().set_value(
+            _AssetPatternFilterModel(
+                name_pattern=name_pattern,
+                group_pattern=group_pattern,
+                search_match_mode=search_match_mode,
+            )
+        )
+
+
+QueryAssetPatternFilter = Annotated[_AssetPatternFilter, Depends(_AssetPatternFilter.depends)]
+
 QueryAssetNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetModel.name, "name_pattern"))
 ]

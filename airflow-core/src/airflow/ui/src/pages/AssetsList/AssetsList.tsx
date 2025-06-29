@@ -120,55 +120,24 @@ export const AssetsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const {
-    data: dataByName,
-    error: errorByName,
-    isLoading: isLoadingByName,
-  } = useAssetServiceGetAssets({
+  const searchMatchMode = "any"; // "any" para OR, "all" para AND
+
+  const { data, error, isLoading } = useAssetServiceGetAssets({
+    groupPattern: searchValue ?? undefined,
     limit: pagination.pageSize,
     namePattern: searchValue ?? undefined,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
+    searchMatchMode,
   });
 
-  const {
-    data: dataByGroup,
-    error: errorByGroup,
-    isLoading: isLoadingByGroup,
-  } = useAssetServiceGetAssets({
-    groupPattern: searchValue ?? undefined,
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-  });
-
-  // Merge results, removing duplicates
-  const assetsByName = dataByName?.assets ?? [];
-  const assetsByGroup = dataByGroup?.assets ?? [];
-  const assetsMap = new Map<number, AssetResponse>();
-
-  assetsByName.forEach((asset) => assetsMap.set(asset.id, asset));
-  assetsByGroup.forEach((asset) => assetsMap.set(asset.id, asset));
-  const assets = [...assetsMap.values()];
+  const assets = data?.assets ?? [];
   const totalEntries = assets.length;
 
-  // Merge loading
-  const isLoading = Boolean(isLoadingByName) || Boolean(isLoadingByGroup);
-
-  // Merge errors
   let mergedError: React.ReactNode = undefined;
 
-  if (errorByName !== undefined && errorByGroup !== undefined) {
-    mergedError = (
-      <>
-        <ErrorAlert error={errorByName} />
-        <ErrorAlert error={errorByGroup} />
-      </>
-    );
-  } else if (errorByName !== undefined) {
-    mergedError = <ErrorAlert error={errorByName} />;
-  } else if (errorByGroup !== undefined) {
-    mergedError = <ErrorAlert error={errorByGroup} />;
+  if (error !== undefined) {
+    mergedError = <ErrorAlert error={error} />;
   }
 
   const handleSearchChange = (value: string) => {
