@@ -210,7 +210,6 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    if: needs.build-info.outputs.canary-run == 'true'
     with:
       runners: ${{ needs.build-info.outputs.arm-runners }}
       platform: "linux/arm64"
