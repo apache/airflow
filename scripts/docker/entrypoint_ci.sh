@@ -49,6 +49,10 @@ mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
+if [[ "${CI=}" == "true" ]]; then
+    export COLUMNS="202"
+fi
+
 # shellcheck disable=SC1091
 . "${IN_CONTAINER_DIR}/check_connectivity.sh"
 

@@ -848,6 +848,10 @@ mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
+if [[ "${CI=}" == "true" ]]; then
+    export COLUMNS="202"
+fi
+
 . "${IN_CONTAINER_DIR}/check_connectivity.sh"
 
 function wait_for_asset_compilation() {
