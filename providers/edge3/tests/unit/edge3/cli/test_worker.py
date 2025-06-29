@@ -161,6 +161,7 @@ class TestEdgeWorker:
         assert len(EdgeWorker.jobs) == 1
         assert EdgeWorker.jobs[0].edge_job == edge_job
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @pytest.mark.parametrize(
         "configs, expected_url",
         [
@@ -192,9 +193,6 @@ class TestEdgeWorker:
         mock_popen.side_effect = [MagicMock()]
         mock_process_instance = MagicMock()
         mock_process.side_effect = [mock_process_instance]
-
-        if not AIRFLOW_V_3_0_PLUS:
-            return
 
         edge_job = EdgeWorker.jobs.pop().edge_job
         with conf_vars(configs):
