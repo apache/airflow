@@ -343,7 +343,7 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
             try:
-                if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
+                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
                     self.log.info(
                         "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
                         " in deferred state."

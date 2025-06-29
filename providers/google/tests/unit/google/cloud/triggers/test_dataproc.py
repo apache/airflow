@@ -761,42 +761,11 @@ class TestDataprocSubmitJobTrigger:
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
-    async def test_submit_job_trigger_run_cancelled(
-        self, mock_get_sync_hook, mock_get_async_hook, submit_job_trigger
-    ):
-        """Test the trigger correctly handles a job cancellation."""
-        # Mock sync hook for job submission
-        mock_sync_hook = mock_get_sync_hook.return_value
-        mock_job = mock.MagicMock()
-        mock_job.reference.job_id = TEST_JOB_ID
-        mock_sync_hook.submit_job.return_value = mock_job
-
-        # Mock async hook for job polling
-        mock_async_hook = mock_get_async_hook.return_value
-        mock_async_hook.get_job = mock.AsyncMock(
-            return_value=mock.AsyncMock(status=mock.AsyncMock(state=JobStatus.State.CANCELLED))
-        )
-
-        async_gen = submit_job_trigger.run()
-        event = await async_gen.asend(None)
-
-        expected_event = TriggerEvent(
-            {
-                "job_id": TEST_JOB_ID,
-                "job_state": JobStatus.State.CANCELLED,
-                "job": mock_async_hook.get_job.return_value,
-            }
-        )
-        assert event.payload == expected_event.payload
-
-    @pytest.mark.asyncio
     @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger.safe_to_cancel")
-    async def test_submit_job_trigger_run_cancelled_with_exception(
+    async def test_submit_job_trigger_run_cancelled(
         self,
         mock_safe_to_cancel,
         mock_get_sync_hook,
@@ -804,26 +773,29 @@ class TestDataprocSubmitJobTrigger:
         submit_job_trigger,
         is_safe_to_cancel,
     ):
-        """Test the trigger correctly handles an asyncio.CancelledError during job polling."""
+        """Test the trigger correctly handles an asyncio.CancelledError."""
         mock_safe_to_cancel.return_value = is_safe_to_cancel
-
-        # Mock sync hook for job submission
-        mock_sync_hook = mock_get_sync_hook.return_value
-        mock_job = mock.MagicMock()
-        mock_job.reference.job_id = TEST_JOB_ID
-        mock_sync_hook.submit_job.return_value = mock_job
-        mock_sync_hook.cancel_job = mock.MagicMock()
-
-        # Mock async hook for job polling
         mock_async_hook = mock_get_async_hook.return_value
         mock_async_hook.get_job.side_effect = asyncio.CancelledError
 
+        mock_sync_hook = mock_get_sync_hook.return_value
+        mock_sync_hook.cancel_job = mock.MagicMock()
+
         async_gen = submit_job_trigger.run()
 
-        with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+        try:
             await async_gen.asend(None)
             # Should raise StopAsyncIteration if no more items to yield
             await async_gen.asend(None)
+        except asyncio.CancelledError:
+            # Handle the cancellation as expected
+            pass
+        except StopAsyncIteration:
+            # The generator should be properly closed after handling the cancellation
+            pass
+        except Exception as e:
+            # Catch any other exceptions that should not occur
+            pytest.fail(f"Unexpected exception raised: {e}")
 
         # Check if cancel_job was correctly called
         if submit_job_trigger.cancel_on_kill and is_safe_to_cancel:
