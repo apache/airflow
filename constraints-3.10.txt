@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-29T07:52:55.004179
+# This constraints file was automatically generated on 2025-06-29T19:43:26.849583
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -16,7 +16,7 @@
 # commands that might change the installed version of apache-airflow should include "apache-airflow==X.Y.Z"
 # in the list of install targets to prevent Airflow accidental upgrade or downgrade.
 #
-# Typical installation process of airflow for Python 3.9 is (with random selection of extras and custom
+# Typical installation process of airflow for Python 3.10 is (with random selection of extras and custom
 # dependencies added), usually consists of two steps:
 #
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):
@@ -648,7 +648,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.77.0
 python-slugify==8.0.4
-python-telegram-bot==22.1
+python-telegram-bot==22.2
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
@@ -797,7 +797,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.0
-uv==0.7.16
+uv==0.7.17
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.34.0
