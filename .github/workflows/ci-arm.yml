@@ -210,7 +210,6 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    if: needs.build-info.outputs.canary-run == 'true'
     with:
       runners: ${{ needs.build-info.outputs.arm-runners }}
       platform: "linux/arm64"
@@ -237,12 +236,13 @@ jobs:
       runners: ${{ needs.build-info.outputs.arm-runners }}
       platform: "linux/arm64"
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      generate-pypi-constraints: "true"
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-
 
   providers:
     name: "provider distributions tests"
