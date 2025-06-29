@@ -413,6 +413,13 @@ repos:
           ^airflow_breeze/templates/PROVIDER_README_TEMPLATE\.rst\.jinja2$
         additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
         require_serial: true
+      - id: check-airflow-v-imports-in-tests
+        name: Check AIRFLOW_V imports in tests
+        language: python
+        entry: ./scripts/ci/pre_commit/check_airflow_v_imports_in_tests.py
+        pass_filenames: true
+        files: ^providers/.*/tests/.+\.py$
+        additional_dependencies: ['rich>=12.4.4']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"

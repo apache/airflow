@@ -14,16 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "rich",
+#   "rich-click",
+#   "packaging",
+# ]
+# ///
 from __future__ import annotations
 
-import argparse
 import json
+import os
 import re
 import urllib.request
 from datetime import datetime
 from urllib.error import HTTPError, URLError
 
+import rich_click as click
 from packaging import version
+from rich.console import Console
+
+console = Console(width=400, color_system="standard")
 
 
 def parse_constraints_generation_date(lines):
@@ -33,7 +45,9 @@ def parse_constraints_generation_date(lines):
             try:
                 return datetime.fromisoformat(date_str).replace(tzinfo=None)
             except ValueError:
-                print(f"Warning: Could not parse constraints generation date from: {date_str}")
+                console.print(
+                    f"[yellow]Warning: Could not parse constraints generation date from: {date_str}[/]"
+                )
                 return None
     return None
 
@@ -45,17 +59,17 @@ def get_constraints_file(python_version):
         return response.read().decode("utf-8").splitlines()
     except HTTPError as e:
         if e.code == 404:
-            print(f"Error: Constraints file for Python {python_version} not found.")
-            print(f"URL: {url}")
-            print("Please check if the Python version is correct and the file exists.")
+            console.print(f"[bold red]Error: Constraints file for Python {python_version} not found.[/]")
+            console.print(f"[bold red]URL: {url}[/]")
+            console.print("[bold red]Please check if the Python version is correct and the file exists.[/]")
         else:
-            print(f"HTTP Error: {e.code} - {e.reason}")
+            console.print(f"[bold red]HTTP Error: {e.code} - {e.reason}[/]")
         exit(1)
     except URLError as e:
-        print(f"Error connecting to GitHub: {e.reason}")
+        console.print(f"[bold red]Error connecting to GitHub: {e.reason}[/]")
         exit(1)
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        console.print(f"[bold red]Unexpected error: {str(e)}[/]")
         exit(1)
 
 
@@ -143,51 +157,15 @@ def get_first_newer_release_date_str(releases, current_version):
     return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="""
-Python Package Version Checker for Airflow Constraints
-
-This script checks Python package versions against the Airflow constraints file and reports:
-- Current constrained version vs latest available version
-- Release dates for both versions
-- Status indicator showing how outdated the package is
-- Number of versions between constrained and latest version
-- Direct PyPI link to the package
-
-Status Indicators:
-✅ OK          - Package is up to date
-📢 <5d         - Less than 5 days behind latest version
-⚠ <30d         - Between 5-30 days behind latest version
-🚨 >Xd         - More than X days behind latest version (X = actual days)
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-
-    parser.add_argument(
-        "--python-version", required=True, help="Python version to check constraints for (e.g., 3.12)"
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["full", "diff-constraints", "diff-all"],
-        default="diff-constraints",
-        help="""
-Operation modes:
-  full            : Show all packages, including up-to-date ones
-  diff-constraints: (Default) Show only outdated packages with updates
-                   before constraints generation
-  diff-all       : Show all outdated packages regardless of update timing
-                       """,
-    )
-
-    args = parser.parse_args()
-
-    lines = get_constraints_file(args.python_version)
+def main(python_version, mode, selected_packages=None, explain_why=False):
+    lines = get_constraints_file(python_version)
 
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
-        print(f"Constraints file generation date: {constraints_date.strftime('%Y-%m-%d %H:%M:%S')}")
-        print()
+        console.print(
+            f"[bold cyan]Constraints file generation date:[/] [white]{constraints_date.strftime('%Y-%m-%d %H:%M:%S')}[/]"
+        )
+        console.print()
 
     packages = []
     for line in lines:
@@ -195,18 +173,20 @@ Operation modes:
         if line and not line.startswith("#") and "@" not in line:
             match = re.match(r"^([a-zA-Z0-9_.\-]+)==([\w.\-]+)$", line)
             if match:
-                packages.append((match.group(1), match.group(2)))
+                pkg_name = match.group(1)
+                if not selected_packages or (pkg_name in selected_packages):
+                    packages.append((pkg_name, match.group(2)))
 
     max_pkg_length = get_max_package_length(packages)
 
     col_widths = {
         "Library Name": max(35, max_pkg_length),
         "Constraint Version": 18,
-        "Constraint Date": 12,
+        "Constraint Date": 15,
         "Latest Version": 15,
         "Latest Date": 12,
-        "Status": 15,
-        "# Versions Behind": 16,
+        "📢 Status": 17,
+        "# Versions Behind": 19,
         "PyPI Link": 60,
     }
 
@@ -216,8 +196,8 @@ Operation modes:
         f"{{:<{col_widths['Constraint Date']}}} | "
         f"{{:<{col_widths['Latest Version']}}} | "
         f"{{:<{col_widths['Latest Date']}}} | "
-        f"{{:<{col_widths['Status']}}} | "
-        f"{{:>15}} | "
+        f"{{:<{col_widths['📢 Status']}}} | "
+        f"{{:<{col_widths['# Versions Behind']}}} | "
         f"{{:<{col_widths['PyPI Link']}}}"
     )
 
@@ -227,17 +207,88 @@ Operation modes:
         "Constraint Date",
         "Latest Version",
         "Latest Date",
-        "Status",
+        "📢 Status",
         "# Versions Behind",
         "PyPI Link",
     ]
 
-    print(format_str.format(*headers))
-    total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
-    print("=" * total_width)
+    if not explain_why:
+        console.print(f"[bold magenta]{format_str.format(*headers)}[/]")
+        total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
+        console.print(f"[magenta]{'=' * total_width}[/]")
+    else:
+        total_width = sum(col_widths.values()) + (len(col_widths) - 1) * 3
 
     outdated_count = 0
     skipped_count = 0
+
+    if explain_why and packages:
+        import shutil
+        import subprocess
+        from contextlib import contextmanager
+        from pathlib import Path
+
+        @contextmanager
+        def pyproject_backup_restore(pyproject_path):
+            backup_path = pyproject_path.with_suffix(pyproject_path.suffix + ".bak")
+            shutil.copyfile(pyproject_path, backup_path)
+            try:
+                yield
+            finally:
+                if backup_path.exists():
+                    shutil.copyfile(backup_path, pyproject_path)
+                    backup_path.unlink()
+
+        def run_uv_sync(cmd, cwd):
+            env = os.environ.copy()
+            env.pop("VIRTUAL_ENV", None)
+            result = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True)
+            return result.stdout + result.stderr
+
+        airflow_pyproject = Path(__file__).parent.parent / "pyproject.toml"
+        airflow_pyproject = airflow_pyproject.resolve()
+        repo_root = airflow_pyproject.parent
+        with pyproject_backup_restore(airflow_pyproject):
+            for pkg, _ in packages:
+                console.print(f"[bold blue]\n--- Explaining for {pkg} ---[/]")
+                # 1. Run uv sync --all-packages
+                before_output = run_uv_sync(
+                    ["uv", "sync", "--all-packages", "--resolution", "highest"], cwd=repo_root
+                )
+                with open("/tmp/uv_sync_before.txt", "w") as f:
+                    f.write(before_output)
+                # 2. Get latest version from PyPI
+                pypi_url = f"https://pypi.org/pypi/{pkg}/json"
+                with urllib.request.urlopen(pypi_url) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    latest_version = data["info"]["version"]
+                # 3. Update pyproject.toml (append dependency line)
+                lines = airflow_pyproject.read_text().splitlines()
+                new_lines = []
+                in_deps = False
+                dep_added = False
+                for line in lines:
+                    new_lines.append(line)
+                    if line.strip() == "dependencies = [":
+                        in_deps = True
+                    elif in_deps and line.strip().startswith("]") and not dep_added:
+                        # Add the new dependency just before closing bracket
+                        new_lines.insert(-1, f'    "{pkg}=={latest_version}",')
+                        dep_added = True
+                        in_deps = False
+                if not dep_added:
+                    # fallback: just append at the end
+                    new_lines.append(f'    "{pkg}=={latest_version}",')
+                airflow_pyproject.write_text("\n".join(new_lines) + "\n")
+                # 4. Run uv sync --all-packages and capture output
+                after_output = run_uv_sync(
+                    ["uv", "sync", "--all-packages", "--resolution", "highest"], cwd=repo_root
+                )
+                with open("/tmp/uv_sync_after.txt", "w") as f:
+                    f.write(after_output)
+                console.print(f"[yellow]uv sync output for {pkg}=={latest_version}:[/]")
+                console.print(after_output)
+        return
 
     for pkg, pinned_version in packages:
         try:
@@ -272,51 +323,89 @@ Operation modes:
                 versions_behind = count_versions_between(releases, pinned_version, latest_version)
                 versions_behind_str = str(versions_behind) if versions_behind > 0 else ""
 
-                if should_show_package(
-                    releases, latest_version, constraints_date, args.mode, is_latest_version
-                ):
+                if should_show_package(releases, latest_version, constraints_date, mode, is_latest_version):
                     # Use the first newer release date instead of latest version date
                     first_newer_date_str = get_first_newer_release_date_str(releases, pinned_version)
                     status = get_status_emoji(
                         first_newer_date_str or constraint_release_date,
-                        datetime.utcnow().strftime("%Y-%m-%d"),  # noqa: TID251
+                        datetime.now().strftime("%Y-%m-%d"),
                         is_latest_version,
                     )
                     pypi_link = f"https://pypi.org/project/{pkg}/{latest_version}"
 
-                    print(
-                        format_str.format(
-                            pkg,
-                            pinned_version[: col_widths["Constraint Version"]],
-                            constraint_release_date[: col_widths["Constraint Date"]],
-                            latest_version[: col_widths["Latest Version"]],
-                            latest_release_date[: col_widths["Latest Date"]],
-                            status[: col_widths["Status"]],
-                            versions_behind_str,
-                            pypi_link,
-                        )
+                    color = (
+                        "green"
+                        if is_latest_version
+                        else ("yellow" if status.startswith("📢") or status.startswith("⚠") else "red")
                     )
+                    string_to_print = format_str.format(
+                        pkg,
+                        pinned_version[: col_widths["Constraint Version"]],
+                        constraint_release_date[: col_widths["Constraint Date"]],
+                        latest_version[: col_widths["Latest Version"]],
+                        latest_release_date[: col_widths["Latest Date"]],
+                        # The utf character takes 2 bytes so we need to subtract 1
+                        status[: col_widths["📢 Status"]],
+                        versions_behind_str,
+                        pypi_link,
+                    )
+                    console.print(f"[{color}]{string_to_print}[/]")
                     if not is_latest_version:
                         outdated_count += 1
-                    else:
-                        skipped_count += 1
+                else:
+                    skipped_count += 1
 
         except HTTPError as e:
-            print(f"Error fetching {pkg} from PyPI: HTTP {e.code}")
+            console.print(f"[bold red]Error fetching {pkg} from PyPI: HTTP {e.code}[/]")
             continue
         except URLError as e:
-            print(f"Error fetching {pkg} from PyPI: {e.reason}")
+            console.print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
             continue
         except Exception as e:
-            print(f"Error processing {pkg}: {str(e)}")
+            console.print(f"[bold red]Error processing {pkg}: {str(e)}[/]")
             continue
 
-    print("=" * total_width)
-    print(f"\nTotal packages checked: {len(packages)}")
-    print(f"Outdated packages found: {outdated_count}")
-    if args.mode == "diff-constraints":
-        print(f"Skipped packages (updated after constraints generation): {skipped_count}")
+    console.print(f"[magenta]{'=' * total_width}[/]")
+    console.print(f"[bold cyan]\nTotal packages checked:[/] [white]{len(packages)}[/]")
+    console.print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
+    if mode == "diff-constraints":
+        console.print(
+            f"[bold blue]Skipped packages (updated after constraints generation):[/] [white]{skipped_count}[/]"
+        )
+
+
+@click.command()
+@click.option(
+    "--python-version",
+    required=False,
+    default="3.10",
+    help="Python version to check constraints for (e.g., 3.12)",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(["full", "diff-constraints", "diff-all"]),
+    default="diff-constraints",
+    show_default=True,
+    help="Operation mode: full, diff-constraints, or diff-all.",
+)
+@click.option(
+    "--selected-packages",
+    required=False,
+    default=None,
+    help="Comma-separated list of package names to check (e.g., 'requests,flask'). If not set, all packages are checked.",
+)
+@click.option(
+    "--explain-why",
+    is_flag=True,
+    default=False,
+    help="For each selected package, attempts to upgrade to the latest version and explains why it cannot be upgraded.",
+)
+def cli(python_version, mode, selected_packages, explain_why):
+    selected_packages_set = None
+    if selected_packages:
+        selected_packages_set = set(pkg.strip() for pkg in selected_packages.split(",") if pkg.strip())
+    main(python_version, mode, selected_packages_set, explain_why)
 
 
 if __name__ == "__main__":
-    main()
+    cli()
