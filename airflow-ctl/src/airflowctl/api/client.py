@@ -130,8 +130,7 @@ class Credentials:
     def save(self):
         """Save the credentials to keyring and URL to disk as a file."""
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
-        if not os.path.exists(default_config_dir):
-            os.makedirs(default_config_dir)
+        os.makedirs(default_config_dir, exist_ok=True)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
         try:

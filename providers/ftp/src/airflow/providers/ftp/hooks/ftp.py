@@ -20,7 +20,8 @@ from __future__ import annotations
 import datetime
 import ftplib  # nosec: B402
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from airflow.hooks.base import BaseHook
 

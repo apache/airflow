@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import base64
 import pickle
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import BasicAuth
 from requests import Response

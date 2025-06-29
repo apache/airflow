@@ -97,7 +97,7 @@ class TestAirbyteHook:
         mock_response = mock.AsyncMock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
-            job_id="1",
+            job_id=1,
             start_time="today",
             job_type=JobTypeEnum.SYNC,
             status=JobStatusEnum.RUNNING,
@@ -111,7 +111,7 @@ class TestAirbyteHook:
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
-            job_id="1",
+            job_id=1,
             start_time="today",
             job_type=JobTypeEnum.SYNC,
             status=JobStatusEnum.CANCELLED,

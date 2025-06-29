@@ -186,7 +186,7 @@ jobs:
       - name: Install pre-commit, uv, and pre-commit-uv
         shell: bash
         env:
-          UV_VERSION: "0.7.13"  # Keep this comment to allow automatic replacement of uv version
+          UV_VERSION: "0.7.16"  # Keep this comment to allow automatic replacement of uv version
           PRE_COMMIT_VERSION: "4.2.0"  # Keep this comment to allow automatic replacement of pre-commit version
           PRE_COMMIT_UV_VERSION: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
         run: |
@@ -784,6 +784,7 @@ jobs:
       distribution-cmd-format: "prepare-task-sdk-distributions"
       test-type: "task-sdk-tests"
       use-local-venv: 'false'
+      test-timeout: 20
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -844,6 +845,7 @@ jobs:
       distribution-cmd-format: "prepare-airflow-ctl-distributions"
       test-type: "airflow-ctl-tests"
       use-local-venv: 'true'
+      test-timeout: 20
     if: >
       ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&

@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.16.0
+  node: 22.17.0
   golang: 1.24.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
@@ -413,6 +413,13 @@ repos:
           ^airflow_breeze/templates/PROVIDER_README_TEMPLATE\.rst\.jinja2$
         additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
         require_serial: true
+      - id: check-airflow-v-imports-in-tests
+        name: Check AIRFLOW_V imports in tests
+        language: python
+        entry: ./scripts/ci/pre_commit/check_airflow_v_imports_in_tests.py
+        pass_filenames: true
+        files: ^providers/.*/tests/.+\.py$
+        additional_dependencies: ['rich>=12.4.4']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -754,6 +761,7 @@ repos:
           ^.*/conf_constants\.py$|
           ^.*/provider_conf\.py$|
           ^devel-common/src/sphinx_exts/removemarktransform\.py|
+          ^devel-common/src/tests_common/test_utils/db\.py|
           ^airflow-core/newsfragments/41761.significant\.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema\.py$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
@@ -867,12 +875,6 @@ repos:
         entry: "LoggingMixin\\(\\)"
         files: \.py$
         pass_filenames: true
-      - id: check-daysago-import-from-utils
-        language: pygrep
-        name: days_ago imported from airflow.utils.dates
-        entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
-        files: \.py$
-        pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
         name: start_date not in default_args
@@ -929,6 +931,13 @@ repos:
         files: ^chart
         require_serial: true
         additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
+      - id: validate-chart-annotations
+        name: Validate chart annotations
+        entry: ./scripts/ci/pre_commit/validate_chart_annotations.py
+        language: python
+        pass_filenames: false
+        files: ^chart/Chart\.yaml$
+        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4']
       - id: kubeconform
         name: Kubeconform check on our helm chart
         entry: ./scripts/ci/pre_commit/check_kubeconform.py

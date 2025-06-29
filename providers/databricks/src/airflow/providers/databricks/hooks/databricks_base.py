@@ -353,14 +353,15 @@ class BaseDatabricksHook(BaseHook):
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        token = await AsyncManagedIdentityCredential().get_token(f"{resource}/.default")
+                        async with AsyncManagedIdentityCredential() as credential:
+                            token = await credential.get_token(f"{resource}/.default")
                     else:
-                        credential = AsyncClientSecretCredential(
+                        async with AsyncClientSecretCredential(
                             client_id=self.databricks_conn.login,
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
-                        )
-                        token = await credential.get_token(f"{resource}/.default")
+                        ) as credential:
+                            token = await credential.get_token(f"{resource}/.default")
                     jsn = {
                         "access_token": token.token,
                         "token_type": "Bearer",
@@ -765,7 +766,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _retryable_error(exception: BaseException) -> bool:
         if isinstance(exception, requests_exceptions.RequestException):
-            if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
+            if isinstance(exception, requests_exceptions.ConnectionError | requests_exceptions.Timeout) or (
                 exception.response is not None
                 and (
                     exception.response.status_code >= 500
@@ -782,7 +783,7 @@ class BaseDatabricksHook(BaseHook):
             if exception.status >= 500 or exception.status == 429:
                 return True
 
-        if isinstance(exception, (ClientConnectorError, TimeoutError)):
+        if isinstance(exception, ClientConnectorError | TimeoutError):
             return True
 
         return False

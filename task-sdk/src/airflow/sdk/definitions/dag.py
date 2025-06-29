@@ -76,10 +76,9 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
+    from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
-    from airflow.utils.types import EdgeInfoType
-
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +91,7 @@ __all__ = [
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
 ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
 

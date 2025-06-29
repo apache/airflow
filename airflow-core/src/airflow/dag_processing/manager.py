@@ -151,7 +151,7 @@ class DagFileProcessorManager(LoggingMixin):
     over again, but no more often than the specified interval.
 
     :param max_runs: The number of times to parse each file. -1 for unlimited.
-    :param bundles_names_to_parse: List of bundle names to parse. If None, all bundles are parsed.
+    :param bundle_names_to_parse: List of bundle names to parse. If None, all bundles are parsed.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     """
 
