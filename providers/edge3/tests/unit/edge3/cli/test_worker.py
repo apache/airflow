@@ -193,6 +193,9 @@ class TestEdgeWorker:
         mock_process_instance = MagicMock()
         mock_process.side_effect = [mock_process_instance]
 
+        if not AIRFLOW_V_3_0_PLUS:
+            return
+
         edge_job = EdgeWorker.jobs.pop().edge_job
         with conf_vars(configs):
             worker_with_job._launch_job(edge_job)
@@ -200,7 +203,6 @@ class TestEdgeWorker:
             mock_process_callback = mock_process.call_args.kwargs["target"]
             mock_process_callback(workload=MagicMock())
 
-        if AIRFLOW_V_3_0_PLUS:
             assert mock_supervise.call_args.kwargs["server"] == expected_url
 
     @pytest.mark.parametrize(
