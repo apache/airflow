@@ -1103,6 +1103,58 @@ class TestWorkerKedaAutoScaler:
         assert jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0]) == "KEDA_DB_CONN"
         assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
 
+    def test_mysql_db_backend_keda_worker_with_custom_connection(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql"}},
+                "workers": {
+                    "keda": {"enabled": True, "connectionEnv": "CUSTOM_DB_CONN"},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.triggers[0].metadata.queryValue", docs[0]) == "1"
+        assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
+
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0]) == "CUSTOM_DB_CONN"
+        )
+        assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
+
+    def test_postgresql_db_backend_keda_worker(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "postgresql"}},
+                "workers": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) == "1"
+        assert jmespath.search("spec.triggers[0].metadata.queryValue", docs[0]) is None
+
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0])
+            == "AIRFLOW_CONN_AIRFLOW_DB"
+        )
+        assert jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0]) is None
+
+    def test_postgresql_db_backend_keda_worker_with_custom_connection(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "postgresql"}},
+                "workers": {
+                    "keda": {"enabled": True, "connectionEnv": "CUSTOM_DB_CONN"},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.triggers[0].metadata.queryValue", docs[0]) is None
+        assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) == "1"
+        assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) == "CUSTOM_DB_CONN"
+        assert jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0]) is None
+
 
 class TestWorkerHPAAutoScaler:
     """Tests worker HPA auto scaler."""

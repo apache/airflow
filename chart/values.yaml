@@ -720,6 +720,9 @@ workers:
     #           value: 100
     #           periodSeconds: 15
 
+    # Specify custom connection string EnvVar reference to use with KEDA (templated)
+    connectionEnv: ~
+
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
@@ -1970,6 +1973,9 @@ triggerer:
     #         - type: Percent
     #           value: 100
     #           periodSeconds: 15
+
+    # Specify custom connection string EnvVar reference to use with KEDA (templated)
+    connectionEnv: ~
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
