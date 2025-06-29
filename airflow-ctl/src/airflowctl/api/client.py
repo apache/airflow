@@ -22,8 +22,9 @@ import enum
 import json
 import os
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import keyring
@@ -53,7 +54,6 @@ from airflowctl.exceptions import (
     AirflowCtlException,
     AirflowCtlNotFoundException,
 )
-from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub
