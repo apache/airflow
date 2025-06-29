@@ -29,8 +29,6 @@ from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryDeleteDataTransferConfigOperator,
 )
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
 PROJECT_ID = "id"
 
 TRANSFER_CONFIG = {
@@ -63,7 +61,7 @@ class TestBigQueryCreateDataTransferOperator:
         )
         ti = mock.MagicMock()
 
-        return_value = op.execute({"ti": ti})
+        return_value = op.execute({"ti": ti, "task": ti.task})
 
         mock_hook.return_value.create_transfer_config.assert_called_once_with(
             authorization_code=None,
@@ -73,10 +71,7 @@ class TestBigQueryCreateDataTransferOperator:
             retry=DEFAULT,
             timeout=None,
         )
-        if AIRFLOW_V_3_0_PLUS:
-            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
-        else:
-            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", execution_date=None)
+        ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
 
         assert "secret_access_key" not in return_value.get("params", {})
         assert "access_key_id" not in return_value.get("params", {})
@@ -120,7 +115,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         )
         ti = mock.MagicMock()
 
-        op.execute({"ti": ti})
+        op.execute({"ti": ti, "task": ti.task})
 
         mock_hook.return_value.start_manual_transfer_runs.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
@@ -131,10 +126,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
             retry=DEFAULT,
             timeout=None,
         )
-        if AIRFLOW_V_3_0_PLUS:
-            ti.xcom_push.assert_called_with(key="run_id", value="123")
-        else:
-            ti.xcom_push.assert_called_with(key="run_id", value="123", execution_date=None)
+        ti.xcom_push.assert_called_with(key="run_id", value="123")
 
     @mock.patch(
         f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook",
@@ -154,7 +146,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         )
         ti = mock.MagicMock()
 
-        op.execute({"ti": ti})
+        op.execute({"ti": ti, "task": ti.task})
 
         defer_method.assert_called_once()
 
@@ -213,7 +205,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
-        op.execute({"ti": mock.MagicMock()})
+        op.execute({"ti": mock.MagicMock(), "task": mock.MagicMock()})
         result = op.get_openlineage_facets_on_complete(None)
         assert not result.run_facets
         assert not result.job_facets
@@ -289,7 +281,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
-        op.execute({"ti": mock.MagicMock()})
+        op.execute({"ti": mock.MagicMock(), "task": mock.MagicMock()})
         result = op.get_openlineage_facets_on_complete(None)
         assert not result.run_facets
         assert not result.job_facets
@@ -323,7 +315,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
-        op.execute({"ti": mock.MagicMock()})
+        op.execute({"ti": mock.MagicMock(), "task": mock.MagicMock()})
         result = op.get_openlineage_facets_on_complete(None)
         assert len(result.job_facets) == 1
         assert result.job_facets["sql"].query == "SELECT a,b,c from x.y.z"
@@ -361,7 +353,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
-        op.execute({"ti": mock.MagicMock()})
+        op.execute({"ti": mock.MagicMock(), "task": mock.MagicMock()})
         result = op.get_openlineage_facets_on_complete(None)
         assert not result.job_facets
         assert len(result.run_facets) == 1
@@ -398,7 +390,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID, deferrable=True
         )
-        op.execute({"ti": mock.MagicMock()})
+        op.execute({"ti": mock.MagicMock(), "task": mock.MagicMock()})
         # `defer` is mocked so it will not call the `execute_completed`, so we do it manually.
         op.execute_completed(
             mock.MagicMock(), {"status": "done", "run_id": 123, "config_id": 321, "message": "msg"}

@@ -26,8 +26,7 @@ import pytest
 from airflow.models import TaskInstance
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleStoredProcedureOperator
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.oracle.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestOracleStoredProcedureOperator:
@@ -55,7 +54,6 @@ class TestOracleStoredProcedureOperator:
             handler=mock.ANY,
         )
 
-    @pytest.mark.db_test
     @mock.patch.object(OracleHook, "callproc", autospec=OracleHook.callproc)
     def test_push_oracle_exit_to_xcom(self, mock_callproc, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same

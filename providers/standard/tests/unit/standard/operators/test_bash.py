@@ -93,7 +93,7 @@ class TestBashOperator:
             serialized=True,
         ):
             tmp_file = tmp_path / "testfile"
-            task = BashOperator(
+            BashOperator(
                 task_id="echo_env_vars",
                 bash_command=f"echo $AIRFLOW_HOME>> {tmp_file};"
                 f"echo $PYTHONPATH>> {tmp_file};"
@@ -106,7 +106,7 @@ class TestBashOperator:
             )
 
         logical_date = utc_now
-        dag_maker.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
             start_date=utc_now,
@@ -117,7 +117,7 @@ class TestBashOperator:
         with mock.patch.dict(
             "os.environ", {"AIRFLOW_HOME": "MY_PATH_TO_AIRFLOW_HOME", "PYTHONPATH": "AWESOME_PYTHONPATH"}
         ):
-            task.run(utc_now, utc_now, ignore_first_depends_on_past=True, ignore_ti_state=True)
+            dag_maker.run_ti("echo_env_vars", dr)
 
         assert expected == tmp_file.read_text()
 
@@ -249,14 +249,14 @@ class TestBashOperator:
 
         sleep_time = f"100{os.getpid()}"
         with dag_maker(serialized=True):
-            op = BashOperator(
+            BashOperator(
                 task_id="test_bash_operator_kill",
                 execution_timeout=timedelta(microseconds=25),
                 bash_command=f"/bin/bash -c 'sleep {sleep_time}'",
             )
-        dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun()
         with pytest.raises(AirflowTaskTimeout):
-            op.run()
+            dag_maker.run_ti("test_bash_operator_kill", dr)
         sleep(2)
         for proc in psutil.process_iter():
             if proc.cmdline() == ["sleep", sleep_time]:

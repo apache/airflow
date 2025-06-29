@@ -47,7 +47,7 @@ class ConnectionResponse(BaseModel):
     def redact_password(cls, v: str | None, field_info: ValidationInfo) -> str | None:
         if v is None:
             return None
-        return redact(v, field_info.field_name)
+        return str(redact(v, field_info.field_name))
 
     @field_validator("extra", mode="before")
     @classmethod

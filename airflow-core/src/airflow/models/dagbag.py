@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib
 import importlib.machinery
@@ -26,6 +27,7 @@ import signal
 import sys
 import textwrap
 import traceback
+import warnings
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -63,14 +65,34 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
-from airflow.utils.warnings import capture_with_reraise
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from sqlalchemy.orm import Session
 
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.utils.types import ArgNotSet
+
+
+@contextlib.contextmanager
+def _capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, None]:
+    """Capture warnings in context and re-raise it on exit from the context manager."""
+    captured_warnings = []
+    try:
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            yield captured_warnings
+    finally:
+        if captured_warnings:
+            for cw in captured_warnings:
+                warnings.warn_explicit(
+                    message=cw.message,
+                    category=cw.category,
+                    filename=cw.filename,
+                    lineno=cw.lineno,
+                    source=cw.source,
+                )
 
 
 class FileLoadStat(NamedTuple):
@@ -308,7 +330,7 @@ class DagBag(LoggingMixin):
         DagContext.autoregistered_dags.clear()
 
         self.captured_warnings.pop(filepath, None)
-        with capture_with_reraise() as captured_warnings:
+        with _capture_with_reraise() as captured_warnings:
             if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
                 mods = self._load_modules_from_file(filepath, safe_mode)
             else:
@@ -426,7 +448,7 @@ class DagBag(LoggingMixin):
 
         dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
 
-        if not isinstance(dagbag_import_timeout, (int, float)):
+        if not isinstance(dagbag_import_timeout, int | float):
             raise TypeError(
                 f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
             )
@@ -498,7 +520,7 @@ class DagBag(LoggingMixin):
         from airflow.sdk import DAG as SDKDAG
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, (DAG, SDKDAG))}
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG | SDKDAG)}
 
         top_level_dags.update(DagContext.autoregistered_dags)
 

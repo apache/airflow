@@ -222,8 +222,14 @@ class TestSerializers:
     def test_numpy_serializers(self):
         from airflow.serialization.serializers.numpy import serialize
 
-        assert serialize(np.bool_(False)) == (True, "numpy.bool_", 1, True)
-        assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
+        numpy_version = metadata.version("numpy")
+        is_numpy_2 = version.parse(numpy_version).major == 2
+
+        assert serialize(np.bool_(False)) == (False, "numpy.bool" if is_numpy_2 else "numpy.bool_", 1, True)
+        if is_numpy_2:
+            assert serialize(np.float64(3.14)) == (float(np.float64(3.14)), "numpy.float64", 1, True)
+        else:
+            assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
         assert serialize(np.array([1, 2, 3])) == ("", "", 0, False)
 
     @pytest.mark.parametrize(

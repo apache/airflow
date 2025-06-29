@@ -27,11 +27,11 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
 import tenacity
@@ -630,7 +630,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("xcom result file is empty.")
             return None
 
-        self.log.info("xcom result: \n%s", result)
+        self.log.debug("xcom result: \n%s", result)
         return json.loads(result)
 
     def execute(self, context: Context):

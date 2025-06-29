@@ -22,13 +22,12 @@ import functools
 import logging
 import re
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 from datetime import datetime, timedelta
 from functools import cache
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     TypeVar,
     Union,
     cast,
@@ -122,14 +121,9 @@ AssetT = TypeVar("AssetT", bound=BaseAsset)
 TAG_MAX_LEN = 100
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    BaseAsset,
-    Collection[Union["Asset", "AssetAlias"]],
-]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[Union["Asset", "AssetAlias"]]
 
 
 class InconsistentDataInterval(AirflowException):
@@ -225,13 +219,6 @@ def get_asset_triggered_next_run_info(
             .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()
     }
-
-
-def _triggerer_is_healthy(session: Session):
-    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-
-    job = TriggererJobRunner.most_recent_job(session=session)
-    return job and job.is_alive()
 
 
 @provide_session
@@ -476,7 +463,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         for role, perms in access_control.items():
             if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
                 updated_access_control[role] = updated_access_control.get(role, {})
-                if isinstance(perms, (set, list)):
+                if isinstance(perms, set | list):
                     # Support for old-style access_control where only the actions are specified
                     updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
                 else:
@@ -554,7 +541,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable, AssetTriggeredTimetable)):
+        if issubclass(timetable_type, NullTimetable | OnceTimetable | AssetTriggeredTimetable):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -714,15 +701,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-        )
-
-    @provide_session
-    def has_dag_runs(self, session=NEW_SESSION, include_manually_triggered=True) -> bool:
-        return (
-            get_last_dagrun(
-                self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-            )
-            is not None
         )
 
     @property
@@ -981,7 +959,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             tis = tis.where(DagRun.logical_date <= end_date)
 
         if state:
-            if isinstance(state, (str, TaskInstanceState)):
+            if isinstance(state, str | TaskInstanceState):
                 tis = tis.where(TaskInstance.state == state)
             elif len(state) == 1:
                 tis = tis.where(TaskInstance.state == state[0])
@@ -1589,9 +1567,6 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
-        if TYPE_CHECKING:
-            # TODO: Task-SDK: remove this assert
-            assert self.params
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         if conf:
@@ -1756,7 +1731,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         of_type: type[AssetT] = Asset,  # type: ignore[assignment]
     ) -> Generator[tuple[str, AssetT], None, None]:
         for task in self.task_dict.values():
-            directions = ("inlets",) if inlets else ()
+            directions: tuple[str, ...] = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
@@ -1966,6 +1941,10 @@ class DagModel(Base):
         cascade="all, delete, delete-orphan",
     )
     schedule_assets = association_proxy("schedule_asset_references", "asset")
+    task_inlet_asset_references = relationship(
+        "TaskInletAssetReference",
+        cascade="all, delete, delete-orphan",
+    )
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",

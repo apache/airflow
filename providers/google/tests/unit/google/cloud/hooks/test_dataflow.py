@@ -1695,7 +1695,6 @@ class TestDataflow:
         )
         assert found_job_id is None
 
-    @pytest.mark.db_test
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, caplog):

@@ -22,12 +22,14 @@ from airflow.providers.amazon.aws.links.step_function import (
     StateMachineDetailsLink,
     StateMachineExecutionsDetailsLink,
 )
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
+
+pytestmark = pytest.mark.db_test
 
 
 class TestStateMachineDetailsLink(BaseAwsLinksTestCase):
@@ -47,7 +49,7 @@ class TestStateMachineDetailsLink(BaseAwsLinksTestCase):
     )
     def test_extra_link(self, state_machine_arn, expected_url: str, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "eu-west-1",
@@ -82,7 +84,7 @@ class TestStateMachineExecutionsDetailsLink(BaseAwsLinksTestCase):
     )
     def test_extra_link(self, execution_arn, expected_url: str, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "eu-west-1",

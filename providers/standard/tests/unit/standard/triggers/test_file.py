@@ -21,7 +21,8 @@ import asyncio
 import pytest
 
 from airflow.providers.standard.triggers.file import FileDeleteTrigger, FileTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestFileTrigger:

@@ -559,6 +559,8 @@ webserverSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
 jwtSecret: ~
+# Add custom annotations to the JWT secret
+jwtSecretAnnotations: {}
 jwtSecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -817,6 +819,13 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+    # Detailed default security context for kerberos init container on container level
+    securityContexts:
+      container: {}
+
+    # Container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
   resources: {}
