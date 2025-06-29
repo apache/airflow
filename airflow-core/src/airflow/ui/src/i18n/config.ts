@@ -25,6 +25,7 @@ export const supportedLanguages = [
   { code: "ar", flag: "🇸🇦", name: "العربية" },
   { code: "de", flag: "🇩🇪", name: "Deutsch" },
   { code: "en", flag: "🇺🇸", name: "English" },
+  { code: "es", flag: "🇪🇸", name: "Español" },
   { code: "he", flag: "🇮🇱", name: "עברית" },
   { code: "ko", flag: "🇰🇷", name: "한국어" },
   { code: "nl", flag: "🇳🇱", name: "Nederlands" },
