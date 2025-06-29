@@ -222,6 +222,7 @@ class TestProjectStructure:
             "providers/mongo/tests/unit/mongo/test_version_compat.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
+            "providers/mysql/tests/unit/mysql/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
             "providers/oracle/tests/unit/oracle/test_version_compat.py",
