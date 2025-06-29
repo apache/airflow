@@ -255,7 +255,7 @@ def convert_test_type_to_pytest_args(
             *ALL_TEST_SUITES[test_type],
         ]
 
-        if integration:
+        if integration and test_group == GroupOfTests.INTEGRATION_PROVIDERS:
             filtered_paths = [
                 path
                 for path in all_paths
