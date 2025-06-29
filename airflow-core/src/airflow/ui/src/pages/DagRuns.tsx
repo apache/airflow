@@ -318,7 +318,7 @@ export const DagRuns = () => {
           <Input
             maxW="200px"
             onChange={handleRunIdChange}
-            placeholder="Add run_id filter"
+            placeholder={translate("common:runIdFilter.placeholder")}
             value={filteredRunId ?? ""}
           />
         </InputGroup>

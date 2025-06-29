@@ -123,6 +123,9 @@
     "scheduled": "Scheduled"
   },
   "runId": "Run ID",
+  "runIdFilter": {
+    "placeholder": "Add run_id filter"
+  },
   "runTypes": {
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
