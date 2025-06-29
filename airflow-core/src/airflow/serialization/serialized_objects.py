@@ -47,7 +47,6 @@ from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     create_expand_input,
 )
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
@@ -101,6 +100,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.expandinput import SchedulerExpandInput
+    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
@@ -520,20 +520,13 @@ class _XComRef(NamedTuple):
 # the type declarations in expandinput.py so we always remember to update
 # serialization logic when adding new ExpandInput variants. If you add things to
 # the unions, be sure to update _ExpandInputRef to match.
-_ExpandInputOriginalValue = Union[
-    # For .expand(**kwargs).
-    Mapping[str, Any],
-    # For expand_kwargs(arg).
-    XComArg,
-    Collection[Union[XComArg, Mapping[str, Any]]],
-]
-_ExpandInputSerializedValue = Union[
-    # For .expand(**kwargs).
-    Mapping[str, Any],
-    # For expand_kwargs(arg).
-    _XComRef,
-    Collection[Union[_XComRef, Mapping[str, Any]]],
-]
+# Mapping[str, Any], For .expand(**kwargs).
+# XComArg # For expand_kwargs(arg).
+_ExpandInputOriginalValue = Mapping[str, Any] | XComArg | Collection[XComArg | Mapping[str, Any]]
+
+# Mapping[str, Any], For .expand(**kwargs).
+# _XComRef For expand_kwargs(arg).
+_ExpandInputSerializedValue = Mapping[str, Any] | _XComRef | Collection[_XComRef | Mapping[str, Any]]
 
 
 class _ExpandInputRef(NamedTuple):
@@ -751,7 +744,7 @@ class BaseSerialization:
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-        elif isinstance(var, (Timezone, FixedTimezone)):
+        elif isinstance(var, Timezone | FixedTimezone):
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
@@ -760,7 +753,7 @@ class BaseSerialization:
                 var._asdict(),
                 type_=DAT.TASK_INSTANCE_KEY,
             )
-        elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
+        elif isinstance(var, AirflowException | TaskDeferred) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
                 cls.serialize(
@@ -769,7 +762,7 @@ class BaseSerialization:
                 ),
                 type_=DAT.AIRFLOW_EXC_SER,
             )
-        elif isinstance(var, (KeyError, AttributeError)):
+        elif isinstance(var, KeyError | AttributeError):
             return cls._encode(
                 cls.serialize(
                     {
@@ -822,11 +815,6 @@ class BaseSerialization:
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
         elif isinstance(var, AssetRef):
             return cls._encode(attrs.asdict(var), type_=DAT.ASSET_REF)
-        elif isinstance(var, SimpleTaskInstance):
-            return cls._encode(
-                cls.serialize(var.__dict__, strict=strict),
-                type_=DAT.SIMPLE_TASK_INSTANCE,
-            )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
         elif isinstance(var, TaskCallbackRequest):
@@ -939,8 +927,6 @@ class BaseSerialization:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_REF:
             return Asset.ref(**var)
-        elif type_ == DAT.SIMPLE_TASK_INSTANCE:
-            return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif type_ == DAT.TASK_CALLBACK_REQUEST:

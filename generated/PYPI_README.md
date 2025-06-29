@@ -50,7 +50,7 @@ PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTO
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 
-Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
+Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
 ## Requirements
 
@@ -58,7 +58,7 @@ Apache Airflow is tested with:
 
 |            | Main version (dev)     | Stable version (3.0.2) |
 |------------|------------------------|------------------------|
-| Python     | 3.9, 3.10, 3.11, 3.12  | 3.9, 3.10, 3.11, 3.12  |
+| Python     | 3.10, 3.11, 3.12       | 3.9, 3.10, 3.11, 3.12  |
 | Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
 | Kubernetes | 1.30, 1.31, 1.32, 1.33 | 1.30, 1.31, 1.32, 1.33 |
 | PostgreSQL | 13, 14, 15, 16, 17     | 13, 14, 15, 16, 17     |

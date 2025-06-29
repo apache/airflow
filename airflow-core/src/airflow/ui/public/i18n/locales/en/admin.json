@@ -39,7 +39,12 @@
       "selectConnectionType": "Select Connection Type",
       "standardFields": "Standard Fields"
     },
-    "noRowMessage": "No connections found",
+    "nothingFound": {
+        "description": "Connections defined via environment variables or secrets managers are not listed here.",
+        "documentationLink": "Learn more in the Airflow documentation.",
+        "learnMore": "These are resolved at runtime and are not visible in the UI.",
+        "title": "No connection found!"
+    },
     "searchPlaceholder": "Search Connections",
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",

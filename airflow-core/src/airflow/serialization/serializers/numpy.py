@@ -55,28 +55,24 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     name = qualname(o)
     if isinstance(
         o,
-        (
-            np.int_,
-            np.intc,
-            np.intp,
-            np.int8,
-            np.int16,
-            np.int32,
-            np.int64,
-            np.uint8,
-            np.uint16,
-            np.uint32,
-            np.uint64,
-        ),
+        np.int_
+        | np.intc
+        | np.intp
+        | np.int8
+        | np.int16
+        | np.int32
+        | np.int64
+        | np.uint8
+        | np.uint16
+        | np.uint32
+        | np.uint64,
     ):
         return int(o), name, __version__, True
 
     if isinstance(o, np.bool_):
-        return bool(np), name, __version__, True
+        return bool(o), name, __version__, True
 
-    if isinstance(
-        o, (np.float_, np.float16, np.float32, np.float64, np.complex_, np.complex64, np.complex128)
-    ):
+    if isinstance(o, np.float16 | np.float32 | np.float64 | np.complex64 | np.complex128):
         return float(o), name, __version__, True
 
     return "", "", 0, False

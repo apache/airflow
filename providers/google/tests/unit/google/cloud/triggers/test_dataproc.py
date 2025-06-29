@@ -173,7 +173,6 @@ def async_get_operation():
     return func
 
 
-@pytest.mark.db_test
 class TestDataprocClusterTrigger:
     def test_async_cluster_trigger_serialization_should_execute_successfully(self, cluster_trigger):
         classpath, kwargs = cluster_trigger.serialize()
@@ -188,6 +187,7 @@ class TestDataprocClusterTrigger:
             "delete_on_error": True,
         }
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
     async def test_async_cluster_triggers_on_success_should_execute_successfully(
@@ -212,6 +212,7 @@ class TestDataprocClusterTrigger:
         )
         assert expected_event == actual_event
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
     @mock.patch(
@@ -249,6 +250,7 @@ class TestDataprocClusterTrigger:
         assert trigger_event.payload["cluster_name"] == TEST_CLUSTER_NAME
         assert trigger_event.payload["cluster_state"] == ClusterStatus.State.DELETING
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
     @mock.patch.object(DataprocClusterTrigger, "log")
@@ -319,6 +321,7 @@ class TestDataprocClusterTrigger:
         except Exception as e:
             pytest.fail(f"Unexpected exception raised: {e}")
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
     async def test_fetch_cluster_status(self, mock_get_cluster, cluster_trigger, async_get_cluster):
@@ -329,6 +332,7 @@ class TestDataprocClusterTrigger:
 
         assert cluster.status.state == ClusterStatus.State.RUNNING, "The cluster state should be RUNNING"
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster")
     async def test_delete_when_error_occurred(self, mock_delete_cluster, cluster_trigger):
@@ -389,7 +393,6 @@ class TestDataprocClusterTrigger:
         mock_delete_cluster.assert_not_called()
 
 
-@pytest.mark.db_test
 class TestDataprocBatchTrigger:
     def test_async_create_batch_trigger_serialization_should_execute_successfully(self, batch_trigger):
         """
@@ -408,6 +411,7 @@ class TestDataprocBatchTrigger:
             "polling_interval_seconds": TEST_POLL_INTERVAL,
         }
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
     async def test_async_create_batch_trigger_triggers_on_success_should_execute_successfully(
@@ -433,6 +437,7 @@ class TestDataprocBatchTrigger:
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
     async def test_async_create_batch_trigger_run_returns_failed_event(
@@ -454,6 +459,7 @@ class TestDataprocBatchTrigger:
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
     async def test_create_batch_run_returns_cancelled_event(self, mock_hook, batch_trigger, async_get_batch):
@@ -473,6 +479,7 @@ class TestDataprocBatchTrigger:
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
     @mock.patch.object(DataprocBatchTrigger, "log")
@@ -566,7 +573,6 @@ class TestDataprocOperationTrigger:
         assert expected_event == actual_event
 
 
-@pytest.mark.db_test
 class TestDataprocSubmitTrigger:
     def test_submit_trigger_serialization(self, submit_trigger):
         """Test that the trigger serializes its configuration correctly."""

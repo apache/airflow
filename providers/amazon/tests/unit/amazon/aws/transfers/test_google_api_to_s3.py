@@ -26,7 +26,6 @@ from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 
 # This test mocks json.dumps so it won't work for database isolation mode
-pytestmark = pytest.mark.db_test
 
 
 class TestGoogleApiToS3:

@@ -75,3 +75,18 @@ class TestAPIServerDeployment:
             "subPath": "webserver_config.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+
+class TestAPIServerJWTSecret:
+    """Tests API Server JWT secret."""
+
+    def test_should_add_annotations_to_jwt_secret(self):
+        docs = render_chart(
+            values={
+                "jwtSecretAnnotations": {"test_annotation": "test_annotation_value"},
+            },
+            show_only=["templates/secrets/jwt-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"

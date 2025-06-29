@@ -494,6 +494,56 @@ Those are all available flags of ``shell`` command:
   :width: 100%
   :alt: Breeze shell
 
+Running commands without interactive shell
+------------------------------------------
+
+For automated testing, and one-off command execution, you can use the ``breeze run`` command
+to execute commands in the Breeze environment without entering the interactive shell. This command is
+particularly useful when you want to run a specific command and exit immediately, without the overhead
+of an interactive session.
+
+The ``breeze run`` command creates a fresh container that is automatically cleaned up after the command
+completes, and each run uses a unique project name to avoid conflicts with other instances.
+
+Here are some common examples:
+
+Running a specific test:
+
+.. code-block:: bash
+
+    breeze run pytest providers/google/tests/unit/google/cloud/operators/test_dataflow.py -v
+
+Running Python commands:
+
+.. code-block:: bash
+
+    breeze run python -c "from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS; print(AIRFLOW_V_3_0_PLUS)"
+
+Running bash commands:
+
+.. code-block:: bash
+
+    breeze run bash -c "cd /opt/airflow && python -m pytest providers/google/tests/"
+
+Running with different Python version:
+
+.. code-block:: bash
+
+    breeze run --python 3.11 pytest providers/standard/tests/unit/operators/test_bash.py
+
+Running with PostgreSQL backend:
+
+.. code-block:: bash
+
+    breeze run --backend postgres pytest providers/postgres/tests/
+
+Those are all available flags of ``run`` command:
+
+.. image:: ./images/output_run.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_run.svg
+  :width: 100%
+  :alt: Breeze run
+
 Running Breeze with Metrics
 ---------------------------
 

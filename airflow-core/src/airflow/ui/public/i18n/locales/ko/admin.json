@@ -39,7 +39,12 @@
       "selectConnectionType": "연결 유형 선택",
       "standardFields": "기본 필드"
     },
-    "noRowMessage": "연결을 찾을 수 없습니다.",
+    "nothingFound": {
+      "description": "환경 변수나 시크릿 매니저를 통해 정의된 연결은 여기에 표시되지 않습니다.",
+      "documentationLink": "자세한 내용은 Airflow 문서를 참고하세요.",
+      "learnMore": "이러한 커넥션은 런타임 시점에 해결되며 UI에는 표시되지 않습니다.",
+      "title": "연결을 찾을 수 없습니다."
+    },
     "searchPlaceholder": "연결 검색",
     "test": "연결 테스트",
     "testDisabled": "연결 테스트 기능이 비활성화되어 있습니다. 관리자에게 활성화를 요청하세요.",

@@ -17,6 +17,7 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -128,6 +129,13 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "bottom",
+      "top": "top"
+    },
+    "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
+  },
   "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
@@ -137,6 +145,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "showDetailsPanel": "Show Details Panel",
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",

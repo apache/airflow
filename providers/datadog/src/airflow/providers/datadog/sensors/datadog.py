@@ -17,13 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from datadog import api
 
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.datadog.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     try:

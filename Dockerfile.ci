@@ -16,7 +16,7 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
@@ -848,6 +848,10 @@ mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
+if [[ "${CI=}" == "true" ]]; then
+    export COLUMNS="202"
+fi
+
 . "${IN_CONTAINER_DIR}/check_connectivity.sh"
 
 function wait_for_asset_compilation() {
@@ -1388,8 +1392,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
-ARG AIRFLOW_UV_VERSION=0.7.8
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
+ARG AIRFLOW_UV_VERSION=0.7.16
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"

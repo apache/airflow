@@ -31,13 +31,12 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
-
-pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
@@ -647,6 +646,7 @@ class TestDbtCloudRunJobOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
+    @pytest.mark.db_test
     def test_run_job_operator_link(
         self, conn_id, account_id, create_task_instance_of_operator, request, mock_supervisor_comms
     ):
