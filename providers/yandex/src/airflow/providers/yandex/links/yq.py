@@ -37,4 +37,4 @@ class YQLink(BaseOperatorLink):
 
     @staticmethod
     def persist(context: Context, web_link: str) -> None:
-        context["task_instance"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)
+        context["ti"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)

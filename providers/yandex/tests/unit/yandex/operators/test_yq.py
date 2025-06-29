@@ -28,6 +28,8 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 yandexcloud = pytest.importorskip("yandexcloud")
 
 OAUTH_TOKEN = "my_oauth_token"
@@ -53,7 +55,9 @@ class TestYQExecuteQueryOperator:
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
         operator = YQExecuteQueryOperator(task_id="simple_sql", sql="select 987", folder_id="my_folder_id")
         mock_ti = MagicMock()
-        context = {"ti": mock_ti, "task_instance": mock_ti}
+        context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            context["task_instance"] = operator
 
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
