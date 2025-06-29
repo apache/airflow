@@ -10,7 +10,9 @@ import * as Common from "./common";
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.namePattern
+* @param data.groupPattern
+* @param data.searchMatchMode
 * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.dagIds
 * @param data.onlyActive
@@ -18,15 +20,36 @@ import * as Common from "./common";
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }: {
+export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, searchMatchMode, uriPattern }: {
   dagIds?: string[];
+  groupPattern?: string;
   limit?: number;
   namePattern?: string;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  searchMatchMode?: "any" | "all";
   uriPattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, searchMatchMode, uriPattern }), queryFn: () => AssetService.getAssets({ dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, searchMatchMode, uriPattern }) });
+/**
+* Get Asset Groups
+* Get asset groups.
+* @param data The data for the request.
+* @param data.orderBy
+* @param data.group Filter by grupo
+* @param data.limit
+* @param data.offset
+* @param data.onlyActive
+* @returns AssetGroupCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAssetServiceGetAssetGroupsData = (queryClient: QueryClient, { group, limit, offset, onlyActive, orderBy }: {
+  group?: string;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  orderBy?: string;
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetGroupsKeyFn({ group, limit, offset, onlyActive, orderBy }), queryFn: () => AssetService.getAssetGroups({ group, limit, offset, onlyActive, orderBy }) });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -1174,15 +1197,17 @@ export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient, { next
 export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(), queryFn: () => AuthLinksService.getAuthMenus() });
 /**
 * Get Dependencies
-* Dependencies graph.
+* Dependencies graph. Supports a single node_id or multiple node_ids as exploded query parameters (node_ids=foo&node_ids=bar).
 * @param data The data for the request.
 * @param data.nodeId
+* @param data.nodeIds List of node ids
 * @returns BaseGraphResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDependenciesServiceGetDependenciesData = (queryClient: QueryClient, { nodeId }: {
+export const ensureUseDependenciesServiceGetDependenciesData = (queryClient: QueryClient, { nodeId, nodeIds }: {
   nodeId?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }), queryFn: () => DependenciesService.getDependencies({ nodeId }) });
+  nodeIds?: string[];
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId, nodeIds }), queryFn: () => DependenciesService.getDependencies({ nodeId, nodeIds }) });
 /**
 * Historical Metrics
 * Return cluster activity historical metrics.

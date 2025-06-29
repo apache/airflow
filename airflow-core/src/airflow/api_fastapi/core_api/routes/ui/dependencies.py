@@ -17,16 +17,17 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, status
+from fastapi import Depends, Query, status
 from fastapi.exceptions import HTTPException
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.dependencies import extract_single_connected_component
+from airflow.api_fastapi.core_api.services.ui.dependencies import (
+    extract_single_connected_component,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 
 dependencies_router = AirflowRouter(tags=["Dependencies"])
@@ -41,12 +42,27 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
     ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES))],
 )
-def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
-    """Dependencies graph."""
+def get_dependencies(
+    node_id: str | None = None,
+    node_ids: list[str] = Query(None, description="List of node ids"),
+) -> BaseGraphResponse:
+    """Dependencies graph. Supports a single node_id or multiple node_ids as exploded query parameters (node_ids=foo&node_ids=bar)."""
+    # Parse node_ids (priority to node_ids, fallback to node_id)
+    ids_to_fetch: list[str] = []
+    if node_ids:
+        ids_to_fetch = [nid.strip() for nid in node_ids if nid and nid.strip()]
+    elif node_id:
+        if "," in node_id:
+            ids_to_fetch = [nid.strip() for nid in node_id.split(",") if nid.strip()]
+        else:
+            ids_to_fetch = [node_id]
+
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
 
-    for dag, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
+    dag_deps = SerializedDagModel.get_dag_dependencies()
+
+    for dag, dependencies in sorted(dag_deps.items()):
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
@@ -75,14 +91,12 @@ def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGra
     nodes = list(nodes_dict.values())
     edges = [{"source_id": source, "target_id": target} for source, target in sorted(edge_tuples)]
 
-    data = {
-        "nodes": nodes,
-        "edges": edges,
-    }
+    data = {"nodes": nodes, "edges": edges}
 
-    if node_id is not None:
+    # If ids_to_fetch is filled, filter for each connected component (optimized)
+    if ids_to_fetch:
         try:
-            data = extract_single_connected_component(node_id, data["nodes"], data["edges"])
+            data = extract_single_connected_component(ids_to_fetch, nodes, edges)
         except ValueError as e:
             raise HTTPException(404, str(e))
 
