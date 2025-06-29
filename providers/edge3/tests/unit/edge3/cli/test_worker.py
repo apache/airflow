@@ -170,6 +170,10 @@ class TestEdgeWorker:
                 "https://api-endpoint/execution/",
             ),
             (
+                {("edge", "api_url"): "https://api:1234/endpoint"},
+                "https://api:1234/execution/",
+            ),
+            (
                 {
                     ("edge", "api_url"): "https://api-endpoint",
                     ("core", "execution_api_server_url"): "https://other-endpoint",
