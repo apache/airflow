@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime as dt
 import itertools
 import logging
 import re
@@ -24,7 +25,6 @@ from datetime import time, timedelta
 from unittest import mock
 
 import pytest
-import datetime
 
 from airflow import settings
 from airflow.exceptions import (
@@ -2176,7 +2176,7 @@ def test_handle_execution_date_fn_fallback_to_execution_date():
     If context has only 'execution_date' (no 'logical_date' and no 'dag_run'),
     _get_dttm_filter should use that execution_date.
     """
-    exec_dt = datetime.datetime(2025, 6, 28, 12, 34)
+    exec_dt = dt.datetime(2025, 6, 28, 12, 34)
     ctx = {"execution_date": exec_dt, "ti": None}
     sensor = ExternalTaskSensor(
         task_id="test4",
