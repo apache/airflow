@@ -68,7 +68,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
-    "gremlin",
+    "tinkerpop",
     "kafka",
     "mongo",
     "mssql",

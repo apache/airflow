@@ -216,6 +216,7 @@ def _run_test(
         parallel_test_types_list=shell_params.parallel_test_types_list,
         keep_env_variables=shell_params.keep_env_variables,
         no_db_cleanup=shell_params.no_db_cleanup,
+        integration=shell_params.integration,
     )
     pytest_args.extend(extra_pytest_args)
     # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument

@@ -245,14 +245,26 @@ def convert_test_type_to_pytest_args(
     *,
     test_group: GroupOfTests,
     test_type: str,
+    integration: tuple | None = None,
 ) -> list[str]:
     if test_type == "None":
         return []
     if test_type in ALL_TEST_SUITES:
-        return [
+        all_paths = [
             *TEST_GROUP_TO_TEST_FOLDERS[test_group],
             *ALL_TEST_SUITES[test_type],
         ]
+
+        if integration and test_group == GroupOfTests.INTEGRATION_PROVIDERS:
+            filtered_paths = [
+                path
+                for path in all_paths
+                if any(path.endswith(f"{value}/tests/integration") for value in integration)
+            ]
+
+            return filtered_paths
+        return all_paths
+
     if test_group == GroupOfTests.SYSTEM and test_type != NONE_TEST_TYPE:
         get_console().print(f"[error]Only {NONE_TEST_TYPE} should be allowed as test type[/]")
         sys.exit(1)
@@ -336,6 +348,7 @@ def generate_args_for_pytest(
     python_version: str,
     keep_env_variables: bool,
     no_db_cleanup: bool,
+    integration: tuple | None = None,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend)
     if skip_db_tests and parallel_test_types_list:
@@ -347,6 +360,7 @@ def generate_args_for_pytest(
         args = convert_test_type_to_pytest_args(
             test_group=test_group,
             test_type=test_type,
+            integration=integration,
         )
     args.extend(
         [
