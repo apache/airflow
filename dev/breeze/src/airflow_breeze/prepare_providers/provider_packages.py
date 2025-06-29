@@ -35,7 +35,7 @@ from airflow_breeze.utils.packages import (
     render_template,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_DIR, AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
 
@@ -84,7 +84,7 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     source_provider_sources_path = Path(AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
         *provider_id.split(".")
     )
-    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_PROVIDERS_DIR)
+    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_SOURCES_ROOT)
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
         f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"

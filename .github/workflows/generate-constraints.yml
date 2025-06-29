@@ -28,12 +28,20 @@ on:  # yamllint disable-line rule:truthy
         description: "Stringified array of all Python versions to test - separated by spaces."
         required: true
         type: string
+      python-versions:
+        description: "JSON-formatted array of Python versions to generate constraints for"
+        required: true
+        type: string
       generate-no-providers-constraints:
         description: "Whether to generate constraints without providers (true/false)"
         required: true
         type: string
       chicken-egg-providers:
         description: "Space-separated list of providers that should be installed from context files"
+        required: true
+        type: string
+      generate-pypi-constraints:
+        description: "Whether to generate PyPI constraints (true/false)"
         required: true
         type: string
       debug-resources:
@@ -45,21 +53,23 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 jobs:
-  generate-constraints:
+  generate-constraints-matrix:
     permissions:
       contents: read
     timeout-minutes: 70
-    name: Generate constraints ${{ inputs.python-versions-list-as-string }}
+    name: Generate constraints for ${{ matrix.python-version }}
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(inputs.python-versions) }}
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: "true"
-      PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
+      PYTHON_VERSION: ${{ matrix.python-version }}
       VERBOSE: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -68,70 +78,56 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-        shell: bash
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
-        id: breeze
-      - name: "Prepare all CI images: ${{ inputs.python-versions-list-as-string}}"
-        uses: ./.github/actions/prepare_all_ci_images
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: "linux/amd64"
-          python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
-          docker-volume-location: ""  # TODO(jscheffl): Understand why it fails here and fix it
-      - name: "Verify all CI images ${{ inputs.python-versions-list-as-string }}"
-        run: breeze ci-image verify --run-in-parallel
+          python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Source constraints"
         shell: bash
         run: >
-          breeze release-management generate-constraints --run-in-parallel
+          breeze release-management generate-constraints
           --airflow-constraints-mode constraints-source-providers --answer yes
+          --python "${PYTHON_VERSION}"
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
         run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-no-providers --answer yes --parallelism 3
-        # The no providers constraints are only needed when we want to update constraints (in canary builds)
-        # They slow down the start of PROD image builds so we want to only run them when needed.
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-no-providers --answer yes
+          --python "${PYTHON_VERSION}"
         if: inputs.generate-no-providers-constraints == 'true'
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+      - name: "Prepare updated provider distributions"
         shell: bash
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel --version-suffix-for-pypi dev0
-          ${CHICKEN_EGG_PROVIDERS}
-        if: inputs.chicken-egg-providers != ''
+          breeze release-management prepare-provider-packages
+          --include-not-ready-providers --package-format wheel
+        if: inputs.generate-pypi-constraints == 'true'
+      - name: "Prepare airflow distributions"
+        shell: bash
+        run: >
+          breeze release-management prepare-airflow-package --package-format wheel
+        if: inputs.generate-pypi-constraints == 'true'
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" --parallelism 3
+        run: |
+          breeze release-management generate-constraints --airflow-constraints-mode constraints \
+            --answer yes --python "${PYTHON_VERSION}" --chicken-egg-providers fab
+        if: inputs.generate-pypi-constraints == 'true'
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: constraints-${{ matrix.python-version }}
+          path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt
+          retention-days: 7
+          if-no-files-found: error
       - name: "Dependency upgrade summary"
         shell: bash
         env:
-          PYTHON_VERSIONS: ${{ env.PYTHON_VERSIONS }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          for PYTHON_VERSION in $PYTHON_VERSIONS; do
-            echo "Summarizing Python $PYTHON_VERSION"
-            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
-          done
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints
-          path: ./files/constraints-*/constraints-*.txt
-          retention-days: 7
-          if-no-files-found: error
+          echo "Summarizing Python $PYTHON_VERSION"
+          cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
+          df -H
