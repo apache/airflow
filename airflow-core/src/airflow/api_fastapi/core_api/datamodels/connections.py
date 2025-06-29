@@ -17,15 +17,12 @@
 
 from __future__ import annotations
 
-import json
 from collections import abc
 from typing import Annotated
 
-from pydantic import Field, field_validator
-from pydantic_core.core_schema import ValidationInfo
+from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.sdk.execution_time.secrets_masker import redact
 
 
 # Response Models

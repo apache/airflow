@@ -318,7 +318,9 @@ class TestPostConnection(TestConnectionEndpoint):
             ),
         ],
     )
-    def test_post_should_response_201_password_not_masked(self, test_client, body, expected_response, session):
+    def test_post_should_response_201_password_not_masked(
+        self, test_client, body, expected_response, session
+    ):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
