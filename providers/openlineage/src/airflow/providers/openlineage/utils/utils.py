@@ -133,7 +133,7 @@ def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> st
     try:
         class_path = get_fully_qualified_class_name(operator)
 
-        if not class_path.startswith('airflow.providers.'):
+        if not class_path.startswith("airflow.providers."):
             return None
 
         from airflow.providers_manager import ProvidersManager
@@ -141,9 +141,11 @@ def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> st
         providers_manager = ProvidersManager()
 
         for package_name, provider_info in providers_manager.providers.items():
-            if package_name.startswith('apache-airflow-providers-'):
-                provider_module_path = package_name.replace('apache-airflow-providers-', 'airflow.providers.').replace('-', '.')
-                if class_path.startswith(provider_module_path + '.'):
+            if package_name.startswith("apache-airflow-providers-"):
+                provider_module_path = package_name.replace(
+                    "apache-airflow-providers-", "airflow.providers."
+                ).replace("-", ".")
+                if class_path.startswith(provider_module_path + "."):
                     return provider_info.version
 
         return None

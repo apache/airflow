@@ -1703,7 +1703,7 @@ def test_task_info_complete():
     assert "'bash_command': 'exit 0;'" in str(result)
 
 
-@patch('airflow.providers.openlineage.utils.utils.get_fully_qualified_class_name')
+@patch("airflow.providers.openlineage.utils.utils.get_fully_qualified_class_name")
 def test_get_operator_provider_version_exception_handling(mock_class_name):
     mock_class_name.side_effect = Exception("Test exception")
     operator = MagicMock()
@@ -1717,7 +1717,7 @@ def test_get_operator_provider_version_for_core_operator():
     assert result is None
 
 
-@patch('airflow.providers_manager.ProvidersManager')
+@patch("airflow.providers_manager.ProvidersManager")
 def test_get_operator_provider_version_for_provider_operator(mock_providers_manager):
     """Test that get_operator_provider_version returns version for provider operators."""
     # Mock ProvidersManager
@@ -1726,27 +1726,27 @@ def test_get_operator_provider_version_for_provider_operator(mock_providers_mana
 
     # Mock providers data
     mock_manager_instance.providers = {
-        'apache-airflow-providers-standard': MagicMock(version='1.2.0'),
-        'apache-airflow-providers-amazon': MagicMock(version='8.12.0'),
-        'apache-airflow-providers-google': MagicMock(version='10.5.0'),
+        "apache-airflow-providers-standard": MagicMock(version="1.2.0"),
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+        "apache-airflow-providers-google": MagicMock(version="10.5.0"),
     }
 
     # Test with BashOperator (standard provider)
     operator = BashOperator(task_id="test_task", bash_command="echo test")
     result = get_operator_provider_version(operator)
-    assert result == '1.2.0'
+    assert result == "1.2.0"
 
 
-@patch('airflow.providers_manager.ProvidersManager')
+@patch("airflow.providers_manager.ProvidersManager")
 def test_get_operator_provider_version_provider_not_found(mock_providers_manager):
     """Test that get_operator_provider_version returns None when provider is not found."""
     # Mock ProvidersManager with no matching provider
     mock_manager_instance = MagicMock()
     mock_providers_manager.return_value = mock_manager_instance
     mock_manager_instance.providers = {
-        'apache-airflow-providers-amazon': MagicMock(version='8.12.0'),
-        'apache-airflow-providers-google': MagicMock(version='10.5.0'),
-        }
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+        "apache-airflow-providers-google": MagicMock(version="10.5.0"),
+    }
 
     operator = BashOperator(task_id="test_task", bash_command="echo test")
     result = get_operator_provider_version(operator)
@@ -1755,6 +1755,7 @@ def test_get_operator_provider_version_provider_not_found(mock_providers_manager
 
 def test_get_operator_provider_version_for_custom_operator():
     """Test that get_operator_provider_version returns None for custom operators."""
+
     # Create a custom operator that doesn't belong to any provider
     class CustomOperator(BaseOperator):
         def execute(self, context):
@@ -1765,7 +1766,7 @@ def test_get_operator_provider_version_for_custom_operator():
     assert result is None
 
 
-@patch('airflow.providers_manager.ProvidersManager')
+@patch("airflow.providers_manager.ProvidersManager")
 def test_get_operator_provider_version_for_mapped_operator(mock_providers_manager):
     """Test that get_operator_provider_version works with mapped operators."""
     # Mock ProvidersManager
@@ -1774,14 +1775,11 @@ def test_get_operator_provider_version_for_mapped_operator(mock_providers_manage
 
     # Mock providers data
     mock_manager_instance.providers = {
-        'apache-airflow-providers-standard': MagicMock(version='1.2.0'),
-        'apache-airflow-providers-amazon': MagicMock(version='8.12.0'),
+        "apache-airflow-providers-standard": MagicMock(version="1.2.0"),
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
     }
 
     # Test with mapped BashOperator (standard provider)
     mapped_operator = BashOperator.partial(task_id="test_task").expand(bash_command=["echo 1", "echo 2"])
     result = get_operator_provider_version(mapped_operator)
-    assert result == '1.2.0'
-
-
-
+    assert result == "1.2.0"
