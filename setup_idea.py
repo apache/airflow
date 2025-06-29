@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -45,7 +45,7 @@ iml_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
         <excludeFolder url="file://$MODULE_DIR$/generated/" />
         <excludeFolder url="file://$MODULE_DIR$/dev/breeze/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.9 (airflow)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (airflow)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">
