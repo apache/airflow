@@ -156,7 +156,7 @@ jobs:
       - name: "Dependency upgrade summary"
         shell: bash
         run: >
-          breeze run --tty enabled uv run /opt/airflow/dev/constraints-updated-version-check.py --explain-why
+          breeze run uv run /opt/airflow/dev/constraints-updated-version-check.py --explain-why
         env:
           PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
 
