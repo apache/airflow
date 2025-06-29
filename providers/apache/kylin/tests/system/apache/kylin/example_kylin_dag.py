@@ -27,6 +27,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
+from airflow.sdk import chain
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kylin_operator"
@@ -99,15 +100,15 @@ with DAG(
         end_time="1328730000000",
     )
 
-    (
-        gen_build_time_task
-        >> build_task1
-        >> build_task2
-        >> refresh_task1
-        >> merge_task
-        >> disable_task
-        >> purge_task
-        >> build_task3
+    chain(
+        gen_build_time_task,
+        build_task1,
+        build_task2,
+        refresh_task1,
+        merge_task,
+        disable_task,
+        purge_task,
+        build_task3,
     )
 
     # Task dependency created via `XComArgs`:
