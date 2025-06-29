@@ -289,7 +289,8 @@ repos:
           (?x)
           ^airflow-core/docs/img/.*\.dot$|
           ^dev/breeze/doc/images/output.*$|
-          ^.*/openapi-gen/.*$
+          ^.*/openapi-gen/.*$|
+          ^airflow-ctl/docs/images/.*\.svg$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
         args:
@@ -1338,14 +1339,6 @@ repos:
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
           airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
-      - id: generate-airflowctl-help-images
-        name: Generate SVG from Airflow CTL Commands
-        entry: ./scripts/ci/pre_commit/capture_airflowctl_help.py
-        language: python
-        pass_filenames: false
-        files:
-          ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: go-mockery
         name: Generate mocks for go
         entry: -w /src/go-sdk vektra/mockery:3

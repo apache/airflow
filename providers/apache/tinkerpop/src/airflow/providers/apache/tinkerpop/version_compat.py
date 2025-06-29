@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,24 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
+from __future__ import annotations
 
-TEMP_DOCKER_DIR=$(mktemp -d)
-pushd "${TEMP_DOCKER_DIR}"
 
-cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-# [START build]
-export AIRFLOW_VERSION=2.3.4
-export DOCKER_BUILDKIT=1
+    from airflow import __version__
 
-docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
-    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-    --tag "my-pypi-selected-version:0.0.1"
-# [END build]
-docker rmi --force "my-pypi-selected-version:0.0.1"
-popd
-rm -rf "${TEMP_DOCKER_DIR}"
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
+
+
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
+
+__all__ = ["AIRFLOW_V_3_0_PLUS", "BaseOperator"]
