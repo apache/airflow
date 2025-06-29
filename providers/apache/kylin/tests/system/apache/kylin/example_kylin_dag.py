@@ -49,21 +49,19 @@ with DAG(
         return {"date_start": "1325347200000", "date_end": "1325433600000"}
 
     gen_build_time_task = gen_build_time()
-    gen_build_time_output_date_start = gen_build_time_task["date_start"]
-    gen_build_time_output_date_end = gen_build_time_task["date_end"]
 
     build_task1 = KylinCubeOperator(
         task_id="kylin_build_1",
         command="build",
-        start_time=gen_build_time_output_date_start,
-        end_time=gen_build_time_output_date_end,
+        start_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_start'] }}",
+        end_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_end'] }}",
         is_track_job=True,
     )
 
     build_task2 = KylinCubeOperator(
         task_id="kylin_build_2",
         command="build",
-        start_time=gen_build_time_output_date_end,
+        start_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_start'] }}",
         end_time="1325520000000",
         is_track_job=True,
     )
@@ -71,15 +69,15 @@ with DAG(
     refresh_task1 = KylinCubeOperator(
         task_id="kylin_refresh_1",
         command="refresh",
-        start_time=gen_build_time_output_date_start,
-        end_time=gen_build_time_output_date_end,
+        start_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_start'] }}",
+        end_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_end'] }}",
         is_track_job=True,
     )
 
     merge_task = KylinCubeOperator(
         task_id="kylin_merge",
         command="merge",
-        start_time=gen_build_time_output_date_start,
+        start_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_start'] }}",
         end_time="1325520000000",
         is_track_job=True,
     )
@@ -97,11 +95,20 @@ with DAG(
     build_task3 = KylinCubeOperator(
         task_id="kylin_build_3",
         command="build",
-        start_time=gen_build_time_output_date_end,
+        start_time="{{ task_instance.xcom_pull(task_ids='gen_build_time')['date_start'] }}",
         end_time="1328730000000",
     )
 
-    build_task1 >> build_task2 >> refresh_task1 >> merge_task >> disable_task >> purge_task >> build_task3
+    (
+        gen_build_time_task
+        >> build_task1
+        >> build_task2
+        >> refresh_task1
+        >> merge_task
+        >> disable_task
+        >> purge_task
+        >> build_task3
+    )
 
     # Task dependency created via `XComArgs`:
     #   gen_build_time >> build_task1
