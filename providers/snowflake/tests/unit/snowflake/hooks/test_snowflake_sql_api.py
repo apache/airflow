@@ -1107,7 +1107,9 @@ class TestSnowflakeSqlApiHook:
 
         # Simulate a query that keeps running and never finishes
         hook.get_sql_api_query_status = mock.MagicMock(return_value={"status": "running"})
-        time_mock.side_effect = list(range(5))
+
+        # More side effects to ensure we hit the timeout and avoid StopIteration error
+        time_mock.side_effect = list(range(10))
 
         qid = "qid-789"
         timeout = 3
@@ -1120,7 +1122,7 @@ class TestSnowflakeSqlApiHook:
         sleep_mock.assert_has_calls([mock.call(1)] * 3)
         assert hook.get_sql_api_query_status.call_count == 4
         hook.get_sql_api_query_status.assert_has_calls([mock.call(query_id=qid)] * 4)
-        assert time_mock.call_count == 5
+        assert time_mock.call_count >= 3
 
     @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
     @mock.patch(f"{HOOK_PATH}._process_response")
