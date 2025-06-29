@@ -47,7 +47,7 @@ def example_pyspark():
             [
                 (1, "John Doe", 21),
                 (2, "Jane Doe", 22),
-                (3, "Joe Blogs", 23),
+                (3, "Joe Bloggs", 23),
             ],
             ["id", "name", "age"],
         )
