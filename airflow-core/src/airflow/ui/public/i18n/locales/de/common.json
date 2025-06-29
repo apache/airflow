@@ -17,7 +17,7 @@
     "auditLog": "Prüf-Log",
     "xcoms": "Task Kommunikation (XComs)"
   },
-  "collapseDetailsPanel": "Detailansicht einklappen",
+  "collapseDetailsPanel": "Detailansicht ausblenden",
   "createdAssetEvent_one": "Erstelltes Ereignis zu Datenset (Asset)",
   "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
   "dag_one": "Dag",
