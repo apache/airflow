@@ -26,7 +26,8 @@ import pytest
 from airflow.models import TaskInstance
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleStoredProcedureOperator
-from airflow.providers.oracle.version_compat import AIRFLOW_V_3_0_PLUS
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestOracleStoredProcedureOperator:
