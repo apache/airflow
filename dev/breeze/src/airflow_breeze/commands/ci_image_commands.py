@@ -194,16 +194,7 @@ def kill_process_group(build_process_group_id: int):
 
 
 def get_exitcode(status: int) -> int:
-    # In Python 3.9+ we will be able to use
-    # os.waitstatus_to_exitcode(status) - see https://github.com/python/cpython/issues/84275
-    # but until then we need to do this ugly conversion
-    if os.WIFSIGNALED(status):
-        return -os.WTERMSIG(status)
-    if os.WIFEXITED(status):
-        return os.WEXITSTATUS(status)
-    if os.WIFSTOPPED(status):
-        return -os.WSTOPSIG(status)
-    return 1
+    return os.waitstatus_to_exitcode(status)
 
 
 option_upgrade_to_newer_dependencies = click.option(
@@ -1005,7 +996,7 @@ def import_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = """
     # syntax=docker/dockerfile:1.4
-    FROM python:3.9-slim-bookworm
+    FROM python:3.10-slim-bookworm
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     COPY cache.tar.gz /root/.cache.tar.gz
