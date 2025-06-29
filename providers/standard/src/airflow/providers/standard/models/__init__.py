@@ -19,12 +19,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, ForeignKey, ForeignKeyConstraint, Integer, MetaData, String, Text
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, MetaData, String, Text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import registry, relationship
 
-from airflow.models.base import Base, _get_schema, naming_convention
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.base import _get_schema, naming_convention
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
