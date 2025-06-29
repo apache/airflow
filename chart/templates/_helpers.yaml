@@ -216,6 +216,34 @@ If release name contains chart name it will be used as a full name.
     defaultMode: 288
 {{- end }}
 
+{{/* Helper to render git-sync credentials envs for v3/v4 */}}
+{{- define "git_sync.env_credentials" }}
+{{- $tag := .Values.images.gitSync.tag | default "v4" }}
+{{- if regexMatch "^v3" $tag }}
+- name: GIT_SYNC_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+      key: GIT_SYNC_USERNAME
+- name: GIT_SYNC_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+      key: GIT_SYNC_PASSWORD
+{{- else }}
+- name: GITSYNC_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+      key: GITSYNC_USERNAME
+- name: GITSYNC_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+      key: GITSYNC_PASSWORD
+{{- end }}
+{{- end }}
+
 {{/*  Git sync container */}}
 {{- define "git_sync_container" }}
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
@@ -249,26 +277,7 @@ If release name contains chart name it will be used as a full name.
       value: "false"
     {{- end }}
     {{ else if .Values.dags.gitSync.credentialsSecret }}
-    - name: GIT_SYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_USERNAME
-    - name: GITSYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_USERNAME
-    - name: GIT_SYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_PASSWORD
-    - name: GITSYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_PASSWORD
+    {{ include "git_sync.env_credentials" . | indent 4 }}
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
