@@ -24,14 +24,13 @@ from kubernetes.client import models as k8s
 from kubernetes import client
 
 
-
 class PodDefaults:
     """Static defaults for Pods."""
 
     XCOM_MOUNT_PATH = "/airflow/xcom"
     SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 1; done;'
-    VOLUME_MOUNT_NAME= "xcom"
+    VOLUME_MOUNT_NAME = "xcom"
     VOLUME_MOUNT = k8s.V1VolumeMount(name=VOLUME_MOUNT_NAME, mount_path=XCOM_MOUNT_PATH)
     XCOM_SIDECAR_COMMAND = ["sh", "-c", XCOM_CMD]
     VOLUME = k8s.V1Volume(name=VOLUME_MOUNT_NAME, empty_dir=k8s.V1EmptyDirVolumeSource())
@@ -50,7 +49,7 @@ class PodDefaults:
 
 
 def add_xcom_sidecar(
-    pod: k8s.V1Pod| dict,
+    pod: k8s.V1Pod | dict,
     *,
     sidecar_container_image: str | None = None,
     sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,
@@ -70,9 +69,9 @@ def add_xcom_sidecar(
     return pod_cp
 
 
-
-def add_sidecar_to_spark_operator_pod_spec(spec,sidecar_container_image: str | None = None, sidecar_container_resources= None):
-    #The Spark Operator expects a custom SparkApplication object, which is different from the standard Kubernetes Pod model.
+def add_sidecar_to_spark_operator_pod_spec(spec: dict, sidecar_container_image: str | None = None,
+                                           sidecar_container_resources: dict | None = None):
+    # The Spark Operator expects a custom SparkApplication object, which is different from the standard Kubernetes Pod model.
     driver_template = copy.deepcopy(spec)
     driver_template["volumes"] = [PodDefaults.VOLUME.to_dict()]
     driver_template["driver"]["volumeMounts"] = [
