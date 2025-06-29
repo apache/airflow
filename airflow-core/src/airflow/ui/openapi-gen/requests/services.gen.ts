@@ -968,6 +968,7 @@ export class DagRunService {
      * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.runId
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
@@ -994,6 +995,7 @@ export class DagRunService {
                 dag_id: data.dagId
             },
             query: {
+                run_id: data.runId,
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,

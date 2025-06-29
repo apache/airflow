@@ -334,6 +334,7 @@ def get_dag_runs(
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
     dag_bag: DagBagDep,
+    run_id: str | None = None,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -348,6 +349,9 @@ def get_dag_runs(
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
+
+    if run_id:
+        query = query.filter(DagRun.run_id == run_id)
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
