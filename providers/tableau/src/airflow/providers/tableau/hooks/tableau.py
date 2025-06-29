@@ -131,7 +131,6 @@ class TableauHook(BaseHook):
                 self.jwt_token = Path(extra["jwt_file"]).read_text()
             else:
                 self.jwt_token = extra["jwt_token"]
-
             return self._auth_via_jwt()
         raise NotImplementedError("No Authentication method found for given Credentials!")
 
@@ -142,7 +141,7 @@ class TableauHook(BaseHook):
         return self.server.auth.sign_in(tableau_auth)
 
     def _auth_via_jwt(self) -> Auth.contextmgr:
-        jwt_auth = JWTAuth(jwt_token=self.jwt_token, site_id=self.site_id)
+        jwt_auth = JWTAuth(jwt=self.jwt_token, site_id=self.site_id)
         return self.server.auth.sign_in(jwt_auth)
 
     def get_all(self, resource_name: str) -> Pager:
