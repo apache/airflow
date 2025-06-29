@@ -35,7 +35,8 @@ yandexcloud = pytest.importorskip("yandexcloud")
 
 
 def test_persist():
-    mock_context = mock.MagicMock()
+    mock_ti = mock.MagicMock()
+    mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
     YQLink.persist(context=mock_context, web_link="g.com")
 

@@ -54,7 +54,8 @@ class TestYQExecuteQueryOperator:
     def test_execute_query(self, mock_get_connection):
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
         operator = YQExecuteQueryOperator(task_id="simple_sql", sql="select 987", folder_id="my_folder_id")
-        context = MagicMock()
+        mock_ti = MagicMock()
+        context = {"ti": mock_ti, "task_instance": mock_ti}
 
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
