@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Flex, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import ParseDag from "src/components/DagActions/ParseDag";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
@@ -115,7 +116,10 @@ export const Header = ({
       stats={stats}
       subTitle={
         dag !== undefined && (
-          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+          <Flex align="center" gap={2}>
+            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+            <FavoriteDagButton dagId={dag.dag_id} withText={false} />
+          </Flex>
         )
       }
       title={dag?.dag_display_name ?? dagId}

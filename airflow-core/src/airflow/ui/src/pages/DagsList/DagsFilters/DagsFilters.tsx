@@ -26,12 +26,14 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
+import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { ResetButton } from "./ResetButton";
 import { StateFilters } from "./StateFilters";
 import { TagFilter } from "./TagFilter";
 
 const {
+  FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
@@ -39,7 +41,14 @@ const {
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const getFilterCount = (state: string | null, showPaused: string | null, selectedTags: Array<string>) => {
+type FilterOptions = {
+  selectedTags: Array<string>;
+  showFavorites: string | null;
+  showPaused: string | null;
+  state: string | null;
+};
+
+const getFilterCount = ({ selectedTags, showFavorites, showPaused, state }: FilterOptions) => {
   let count = 0;
 
   if (state !== null) {
@@ -51,6 +60,9 @@ const getFilterCount = (state: string | null, showPaused: string | null, selecte
   if (selectedTags.length > 0) {
     count += 1;
   }
+  if (showFavorites !== null) {
+    count += 1;
+  }
 
   return count;
 };
@@ -59,6 +71,7 @@ export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
+  const showFavorites = searchParams.get(FAVORITE_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
   const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
@@ -89,6 +102,25 @@ export const DagsFilters = () => {
         searchParams.delete(PAUSED_PARAM);
       } else {
         searchParams.set(PAUSED_PARAM, val);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      searchParams.delete(OFFSET_PARAM);
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleFavoriteChange = useCallback(
+    ({ value }: { value: Array<string> }) => {
+      const [val] = value;
+
+      if (val === undefined || val === "all") {
+        searchParams.delete(FAVORITE_PARAM);
+      } else {
+        searchParams.set(FAVORITE_PARAM, val);
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -139,6 +171,7 @@ export const DagsFilters = () => {
 
   const onClearFilters = () => {
     searchParams.delete(PAUSED_PARAM);
+    searchParams.delete(FAVORITE_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
     searchParams.delete(TAGS_MATCH_MODE_PARAM);
@@ -157,7 +190,12 @@ export const DagsFilters = () => {
     [searchParams, setSearchParams],
   );
 
-  const filterCount = getFilterCount(state, showPaused, selectedTags);
+  const filterCount = getFilterCount({
+    selectedTags,
+    showFavorites,
+    showPaused,
+    state,
+  });
 
   return (
     <HStack justifyContent="space-between">
@@ -188,6 +226,7 @@ export const DagsFilters = () => {
           tagFilterMode={tagFilterMode}
           tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
         />
+        <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
       </HStack>
       <Box>
         <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
