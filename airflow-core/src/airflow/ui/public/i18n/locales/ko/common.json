@@ -17,6 +17,7 @@
     "auditLog": "감사 로그",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "세부 정보 패널 접기",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
   "dag_one": "Dag",
@@ -128,6 +129,13 @@
     "manual": "수동",
     "scheduled": "예정됨"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "아래",
+      "top": "위"
+    },
+    "tooltip": "{{hotkey}}를 눌러 {{direction}}로 스크롤"
+  },
   "seconds": "{{count}}초",
   "security": {
     "actions": "작업",
@@ -137,6 +145,7 @@
     "users": "사용자"
   },
   "selectLanguage": "언어 선택",
+  "showDetailsPanel": "세부 정보 패널 펼치기",
   "sourceAssetEvent_one": "소스 에셋 이벤트",
   "sourceAssetEvent_other": "소스 에셋 이벤트",
   "startDate": "시작일",
