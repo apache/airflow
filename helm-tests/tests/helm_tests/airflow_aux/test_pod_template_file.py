@@ -254,39 +254,69 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
-    def test_should_set_username_and_pass_env_variables(self):
+    @pytest.mark.parametrize(
+        "tag,expected_env_vars",
+        [
+            (
+                "v3.6.9",
+                [
+                    {
+                        "name": "GIT_SYNC_USERNAME",
+                        "valueFrom": {
+                            "secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}
+                        },
+                    },
+                    {
+                        "name": "GIT_SYNC_PASSWORD",
+                        "valueFrom": {
+                            "secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}
+                        },
+                    },
+                ],
+            ),
+            (
+                "v4.3.0",
+                [
+                    {
+                        "name": "GITSYNC_USERNAME",
+                        "valueFrom": {
+                            "secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}
+                        },
+                    },
+                    {
+                        "name": "GITSYNC_PASSWORD",
+                        "valueFrom": {
+                            "secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}
+                        },
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_git_sync_credentials_env_vars(self, tag, expected_env_vars):
         docs = render_chart(
             values={
+                "images": {
+                    "gitSync": {
+                        "tag": tag,
+                    }
+                },
                 "dags": {
                     "gitSync": {
                         "enabled": True,
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
                     }
-                }
+                },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        env = jmespath.search("spec.initContainers[0].env", docs[0])
 
-        # Testing git-sync v4
-        assert {
-            "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        for env_var in expected_env_vars:
+            assert env_var in env
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
