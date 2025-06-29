@@ -41,8 +41,8 @@
     },
     "nothingFound": {
       "description": "환경 변수나 시크릿 매니저를 통해 정의된 연결은 여기에 표시되지 않습니다.",
-      "documentationLink": "자세한 내용은 Airflow 문서를 참조하세요.",
-      "learnMore": "이들은 런타임에 해결되며 UI에는 표시되지 않습니다.",
+      "documentationLink": "자세한 내용은 Airflow 문서를 참고하세요.",
+      "learnMore": "이러한 커넥션은 런타임 시점에 해결되며 UI에는 표시되지 않습니다.",
       "title": "연결을 찾을 수 없습니다."
     },
     "searchPlaceholder": "연결 검색",
