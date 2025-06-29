@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import types
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
