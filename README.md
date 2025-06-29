@@ -178,14 +178,14 @@ them to the appropriate format and workflow that your tool requires.
 
 ```bash
 pip install 'apache-airflow==3.0.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.9.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
 pip install 'apache-airflow[postgres,google]==3.0.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.9.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check
@@ -323,7 +323,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. Except for Kubernetes, a
    version stays supported by Airflow if two major cloud providers still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
-   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.9 it
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.10 it
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
    Airflow released after will not have it.
 
