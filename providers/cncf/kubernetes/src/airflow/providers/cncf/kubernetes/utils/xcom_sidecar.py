@@ -50,7 +50,7 @@ class PodDefaults:
 
 
 def add_xcom_sidecar(
-    pod: Union[k8s.V1Pod, dict],
+    pod: k8s.V1Pod| dict,
     *,
     sidecar_container_image: str | None = None,
     sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,

@@ -293,7 +293,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def custom_obj_api(self) -> CustomObjectsApi:
         return CustomObjectsApi()
 
-    def update_pod_spec_add_xcom_sidecar(self):
+    def update_pod_spec_add_xcom_sidecar(self)->None:
         if self.do_xcom_push:
             try:
                 self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
