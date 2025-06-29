@@ -58,23 +58,20 @@ SINGLE_STMT = "select i from user_test order by i;"
 
 @pytest.mark.db_test
 class TestSnowflakeOperator:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
-        self.dag = dag
-
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_snowflake_operator(self, mock_get_db_hook):
+    def test_snowflake_operator(self, mock_get_db_hook, dag_maker):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
         );
         """
-        operator = SQLExecuteQueryOperator(
-            task_id="basic_snowflake", sql=sql, dag=self.dag, do_xcom_push=False, conn_id="snowflake_default"
-        )
+
+        with dag_maker(TEST_DAG_ID):
+            operator = SQLExecuteQueryOperator(
+                task_id="basic_snowflake", sql=sql, do_xcom_push=False, conn_id="snowflake_default"
+            )
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_maker.run_ti(operator.task_id)
 
 
 class TestSnowflakeOperatorForParams:
