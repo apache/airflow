@@ -191,7 +191,7 @@ class PostgresHook(DbApiHook):
         """
         Execute the sql and returns a dataframe.
 
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param sqls: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         :param df_type: Type of dataframe to return, either "pandas" or "polars"
         :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
