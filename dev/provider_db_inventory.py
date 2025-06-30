@@ -18,7 +18,7 @@
 
 # PEP 723 compliant inline script metadata
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "rich",
 #   "pyyaml",
