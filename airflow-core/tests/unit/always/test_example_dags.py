@@ -112,7 +112,7 @@ def get_python_excluded_providers_folders() -> list[str]:
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = [
-        "airflow/**/example_dags/example_*.py",
+        "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
         "providers/**/example_*.py",
     ]
