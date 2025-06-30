@@ -28,6 +28,7 @@ from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 
 from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
     DagRunState,
@@ -873,6 +874,52 @@ class TestConnectionOperations:
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
+
+
+class TestAssetEventOperations:
+    @pytest.mark.parametrize(
+        "request_params",
+        [
+            ({"name": "this_asset", "uri": "s3://bucket/key"}),
+            ({"alias_name": "this_asset_alias"}),
+        ],
+    )
+    def test_by_name_get_success(self, request_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            if request.url.path == "/asset-events/by-asset":
+                assert params.get("name") == request_params.get("name")
+                assert params.get("uri") == request_params.get("uri")
+            elif request.url.path == "/asset-events/by-asset-alias":
+                assert params.get("name") == request_params.get("alias_name")
+            else:
+                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {
+                                "name": "this_asset",
+                                "uri": "s3://bucket/key",
+                                "group": "asset",
+                            },
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(**request_params)
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+        assert result.asset_events[0].asset.name == "this_asset"
+        assert result.asset_events[0].asset.uri == "s3://bucket/key"
 
 
 class TestAssetOperations:

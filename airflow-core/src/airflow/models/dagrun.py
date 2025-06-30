@@ -21,14 +21,12 @@ import itertools
 import os
 import re
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     NamedTuple,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -389,15 +387,13 @@ class DagRun(Base, LoggingMixin):
         dialect_name = session.bind.dialect.name
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
-        return case(
-            [
-                (
-                    (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
-                    func.extract("epoch", cls.end_date - cls.start_date),
-                )
-            ],
-            else_=None,
+
+        when_condition = (
+            (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
+            func.extract("epoch", cls.end_date - cls.start_date),
         )
+
+        return case(when_condition, else_=None)
 
     @provide_session
     def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
@@ -978,16 +974,9 @@ class DagRun(Base, LoggingMixin):
         if self._state == DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
-        attribute_value_type = Union[
-            str,
-            bool,
-            int,
-            float,
-            Sequence[str],
-            Sequence[bool],
-            Sequence[int],
-            Sequence[float],
-        ]
+        attribute_value_type = (
+            str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
+        )
 
         # Explicitly set the value type to Union[...] to avoid a mypy error.
         attributes: dict[str, attribute_value_type] = {

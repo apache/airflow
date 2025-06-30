@@ -33,8 +33,8 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
-    from airflow.models.taskinstance import (
-        SimpleTaskInstance,  # type: ignore[attr-defined]
+    from airflow.models.taskinstance import (  # type: ignore[attr-defined]
+        SimpleTaskInstance,
         TaskInstance,
         TaskInstanceKey,
     )

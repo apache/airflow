@@ -22,13 +22,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin
+    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context

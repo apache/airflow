@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import ServiceRequestError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from azure.synapse.artifacts.models import CreateRunResponse, PipelineRun
     from azure.synapse.spark.models import SparkBatchJobOptions
 
-Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
+Credentials = ClientSecretCredential | DefaultAzureCredential
 
 
 class AzureSynapseSparkBatchRunStatus:
