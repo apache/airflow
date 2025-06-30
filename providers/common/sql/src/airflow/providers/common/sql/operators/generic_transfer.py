@@ -57,6 +57,7 @@ class GenericTransfer(BaseOperator):
         executed prior to loading the data. (templated)
     :param insert_args: extra params for `insert_rows` method.
     :param page_size: number of records to be read in paginated mode (optional).
+    :param paginated_sql_statement_clause: SQL statement clause to be used for pagination (optional).
     """
 
     template_fields: Sequence[str] = (
@@ -66,6 +67,8 @@ class GenericTransfer(BaseOperator):
         "destination_table",
         "preoperator",
         "insert_args",
+        "page_size",
+        "paginated_sql_statement_clause",
     )
     template_ext: Sequence[str] = (
         ".sql",
@@ -86,6 +89,7 @@ class GenericTransfer(BaseOperator):
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         page_size: int | None = None,
+        paginated_sql_statement_clause: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -98,9 +102,7 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
         self.page_size = page_size
-        self._paginated_sql_statement_format = kwargs.get(
-            "paginated_sql_statement_format", "{} LIMIT {} OFFSET {}"
-        )
+        self.paginated_sql_statement_clause = paginated_sql_statement_clause or "{} LIMIT {} OFFSET {}"
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> DbApiHook:
@@ -127,7 +129,7 @@ class GenericTransfer(BaseOperator):
 
     def get_paginated_sql(self, offset: int) -> str:
         """Format the paginated SQL statement using the current format."""
-        return self._paginated_sql_statement_format.format(self.sql, self.page_size, offset)
+        return self.paginated_sql_statement_clause.format(self.sql, self.page_size, offset)
 
     def render_template_fields(
         self,
