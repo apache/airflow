@@ -44,10 +44,14 @@ export const Iframe = () => {
     return <ErrorPage />;
   }
 
+  // The following iframe sandbox setting is intentionally less restrictive.
+  // ONLY trusted contents can be framed within Iframe.
+  const sandbox = "allow-same-origin allow-forms";
+
   return (
     <Box flexGrow={1} m={-3}>
       <iframe
-        sandbox="allow-same-origin allow-forms"
+        sandbox={sandbox}
         src={iframeView.href}
         style={{ height: "100%", width: "100%" }}
         title={iframeView.name}
