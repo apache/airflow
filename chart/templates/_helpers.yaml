@@ -418,6 +418,10 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
 {{- end }}
 
+{{- define "api_secret_key_secret" -}}
+  {{- default (printf "%s-api-secret-key" (include "airflow.fullname" .)) .Values.apiSecretKeySecretName }}
+{{- end }}
+
 {{- define "redis_password_secret" -}}
   {{- default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
 {{- end }}
