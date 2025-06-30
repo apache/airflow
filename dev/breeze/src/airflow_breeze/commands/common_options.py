@@ -396,6 +396,12 @@ option_upgrade_boto = click.option(
     is_flag=True,
     envvar="UPGRADE_BOTO",
 )
+option_upgrade_sqlalchemy = click.option(
+    "--upgrade-sqlalchemy",
+    help="Upgrade SQLAlchemy to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_SQLALCHEMY",
+)
 option_use_uv = click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,

@@ -67,6 +67,7 @@ from airflow_breeze.commands.common_options import (
     option_standalone_dag_processor,
     option_tty,
     option_upgrade_boto,
+    option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_use_uv,
     option_uv_http_timeout,
@@ -314,6 +315,7 @@ option_load_default_connections = click.option(
 @option_warn_image_upgrade_needed
 @option_standalone_dag_processor
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -373,6 +375,7 @@ def shell(
     test_type: str | None,
     tty: str,
     upgrade_boto: bool,
+    upgrade_sqlalchemy: bool,
     use_airflow_version: str | None,
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
@@ -445,6 +448,7 @@ def shell(
         test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
+        upgrade_sqlalchemy=upgrade_sqlalchemy,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,

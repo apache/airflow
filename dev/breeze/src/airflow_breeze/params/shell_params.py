@@ -211,6 +211,7 @@ class ShellParams:
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
+    upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
     use_distributions_from_dist: bool = False
     use_uv: bool = False
@@ -642,6 +643,7 @@ class ShellParams:
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
+        _set_var(_env, "UPGRADE_SQLALCHEMY", self.upgrade_sqlalchemy)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_DISTRIBUTIONS_FROM_DIST", self.use_distributions_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
