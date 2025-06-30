@@ -23,6 +23,7 @@
 import { coreRules } from "./rules/core.js";
 import { i18nRules } from "./rules/i18n.js";
 import { i18nextRules } from "./rules/i18next.js";
+import { jsoncRules } from "./rules/jsonc.js";
 import { perfectionistRules } from "./rules/perfectionist.js";
 import { prettierRules } from "./rules/prettier.js";
 import { reactRules } from "./rules/react.js";
@@ -36,7 +37,7 @@ import { unicornRules } from "./rules/unicorn.js";
  */
 export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
   // Global ignore of dist directory
-  { ignores: ["**/dist/", "**coverage/"] },
+  { ignores: ["**/dist/", "**coverage/", "**/openapi-gen/"] },
   // Base rules
   coreRules,
   typescriptRules,
@@ -48,4 +49,5 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   unicornRules,
   i18nextRules,
   i18nRules,
+  jsoncRules,
 ]);

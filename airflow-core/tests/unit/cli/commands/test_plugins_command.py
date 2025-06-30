@@ -90,14 +90,25 @@ class TestPluginsCommand:
                         "name": "Name of the Middleware",
                     }
                 ],
-                "iframe_views": [
+                "external_views": [
                     {
                         "destination": "nav",
-                        "icon": "https://example.com/icon.svg",
-                        "name": "Test IFrame Plugin",
-                        "src": "https://www.google.com",
-                        "url_route": "/test_iframe_plugin",
+                        "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                        "name": "Test IFrame Airflow Docs",
+                        "href": "https://airflow.apache.org/",
+                        "url_route": "test_iframe_plugin",
+                        "category": "browse",
                     },
+                ],
+                "react_apps": [
+                    {
+                        "name": "Test React App",
+                        "bundle_url": "https://example.com/test-plugin-bundle.js",
+                        "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                        "url_route": "test_react_app",
+                        "destination": "nav",
+                        "category": "browse",
+                    }
                 ],
                 "appbuilder_views": [
                     {

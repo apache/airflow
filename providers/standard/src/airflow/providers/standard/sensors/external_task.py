@@ -19,8 +19,8 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
@@ -46,7 +46,7 @@ from airflow.utils.state import State, TaskInstanceState
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.sensor import BaseSensorOperator
 else:
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sensors.base import BaseSensorOperator  # type:ignore[no-redef]
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -54,13 +54,12 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    try:
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.utils.context import Context
+    else:
+        from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+        from airflow.utils.context import Context  # type: ignore[no-redef]
 
 
 if AIRFLOW_V_3_0_PLUS:
@@ -80,7 +79,7 @@ class ExternalDagLink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
+            assert isinstance(operator, ExternalTaskMarker | ExternalTaskSensor)
 
         external_dag_id = operator.external_dag_id
 
@@ -260,12 +259,13 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def _get_dttm_filter(self, context):
         logical_date = context.get("logical_date")
-        if logical_date is None:
-            dag_run = context.get("dag_run")
-            if TYPE_CHECKING:
-                assert dag_run
+        if AIRFLOW_V_3_0_PLUS:
+            if logical_date is None:
+                dag_run = context.get("dag_run")
+                if TYPE_CHECKING:
+                    assert dag_run
 
-            logical_date = dag_run.run_after
+                logical_date = dag_run.run_after
         if self.execution_delta:
             dttm = logical_date - self.execution_delta
         elif self.execution_date_fn:
@@ -428,7 +428,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             dttm_filter = self._get_dttm_filter(context)
             logical_or_execution_dates = (
-                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_date": dttm_filter}
+                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_dates": dttm_filter}
             )
             self.defer(
                 timeout=self.execution_timeout,

@@ -31,13 +31,12 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils import db, timezone
+from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
-
-pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
@@ -97,12 +96,14 @@ def mock_response_json(response: dict):
     return run_response
 
 
-def setup_module():
+# TODO: Potential performance issue, converted setup_module to a setup_connections function level fixture
+@pytest.fixture(autouse=True)
+def setup_connections(create_connection_without_db):
     # Connection with ``account_id`` specified
     conn_account_id = Connection(
         conn_id=ACCOUNT_ID_CONN,
         conn_type=DbtCloudHook.conn_type,
-        login=DEFAULT_ACCOUNT_ID,
+        login=str(DEFAULT_ACCOUNT_ID),
         password=TOKEN,
     )
 
@@ -113,8 +114,8 @@ def setup_module():
         password=TOKEN,
     )
 
-    db.merge_conn(conn_account_id)
-    db.merge_conn(conn_no_account_id)
+    create_connection_without_db(conn_account_id)
+    create_connection_without_db(conn_no_account_id)
 
 
 class TestDbtCloudRunJobOperator:
@@ -645,6 +646,7 @@ class TestDbtCloudRunJobOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
+    @pytest.mark.db_test
     def test_run_job_operator_link(
         self, conn_id, account_id, create_task_instance_of_operator, request, mock_supervisor_comms
     ):
@@ -665,7 +667,7 @@ class TestDbtCloudRunJobOperator:
         ti.xcom_push(key="job_run_url", value=_run_response["data"]["href"])
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="job_run_url",
                 value=EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
                     account_id=account_id or DEFAULT_ACCOUNT_ID,

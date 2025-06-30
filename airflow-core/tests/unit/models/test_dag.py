@@ -129,7 +129,7 @@ def clear_assets():
     clear_db_assets()
 
 
-TEST_DAGS_FOLDER = Path(__file__).parent.parent / "dags"
+TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 
 
 @pytest.fixture
@@ -853,7 +853,7 @@ class TestDag:
         asset2_orm = stored_assets[a2.uri]
         asset3_orm = stored_assets[a3.uri]
         assert stored_assets[uri1].extra == {"should": "be used"}
-        assert [x.dag_id for x in asset1_orm.consuming_dags] == [dag_id1]
+        assert [x.dag_id for x in asset1_orm.scheduled_dags] == [dag_id1]
         assert [(x.task_id, x.dag_id) for x in asset1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
             session.query(
@@ -883,7 +883,7 @@ class TestDag:
         stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
         asset1_orm = stored_assets[a1.uri]
         asset2_orm = stored_assets[a2.uri]
-        assert [x.dag_id for x in asset1_orm.consuming_dags] == []
+        assert [x.dag_id for x in asset1_orm.scheduled_dags] == []
         assert set(
             session.query(
                 TaskOutletAssetReference.task_id,

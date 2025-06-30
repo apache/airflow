@@ -24,19 +24,19 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.sensors.livy import LivySensor
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
-
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestLivySensor:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
-        db.merge_conn(Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"))
+        create_connection_without_db(
+            Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998")
+        )
 
     @pytest.mark.parametrize(
         "batch_state", [pytest.param(bs, id=bs.name) for bs in BatchState if bs in LivyHook.TERMINAL_STATES]

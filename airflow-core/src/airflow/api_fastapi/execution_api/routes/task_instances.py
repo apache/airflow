@@ -434,7 +434,7 @@ def _create_ti_state_update_query_and_update_state(
     dag_bag: DagBagDep,
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
-    if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
+    if isinstance(ti_patch_payload, TITerminalStatePayload | TIRetryStatePayload | TISuccessStatePayload):
         ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -899,7 +899,7 @@ def validate_inlets_and_outlets(
     bind_contextvars(ti_id=ti_id_str)
 
     ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti or not ti.logical_date:
+    if not ti:
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

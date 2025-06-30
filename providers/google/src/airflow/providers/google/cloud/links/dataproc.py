@@ -26,19 +26,20 @@ import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+)
 
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 def __getattr__(name: str) -> Any:
@@ -94,16 +95,16 @@ class DataprocLink(BaseOperatorLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance,
         url: str,
         resource: str,
+        region: str,
+        project_id: str,
     ):
-        task_instance.xcom_push(
-            context=context,
+        context["task_instance"].xcom_push(
             key=DataprocLink.key,
             value={
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
+                "region": region,
+                "project_id": project_id,
                 "url": url,
                 "resource": resource,
             },
@@ -147,14 +148,13 @@ class DataprocListLink(BaseOperatorLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance,
         url: str,
+        project_id: str,
     ):
-        task_instance.xcom_push(
-            context=context,
+        context["task_instance"].xcom_push(
             key=DataprocListLink.key,
             value={
-                "project_id": task_instance.project_id,
+                "project_id": project_id,
                 "url": url,
             },
         )
@@ -189,20 +189,6 @@ class DataprocClusterLink(BaseGoogleLink):
     key = "dataproc_cluster"
     format_str = DATAPROC_CLUSTER_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        operator: BaseOperator,
-        cluster_id: str,
-        region: str,
-        project_id: str,
-    ):
-        operator.xcom_push(
-            context,
-            key=DataprocClusterLink.key,
-            value={"cluster_id": cluster_id, "region": region, "project_id": project_id},
-        )
-
 
 class DataprocJobLink(BaseGoogleLink):
     """Helper class for constructing Dataproc Job Link."""
@@ -210,20 +196,6 @@ class DataprocJobLink(BaseGoogleLink):
     name = "Dataproc Job"
     key = "dataproc_job"
     format_str = DATAPROC_JOB_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        operator: BaseOperator,
-        job_id: str,
-        region: str,
-        project_id: str,
-    ):
-        operator.xcom_push(
-            context,
-            key=DataprocJobLink.key,
-            value={"job_id": job_id, "region": region, "project_id": project_id},
-        )
 
 
 class DataprocWorkflowLink(BaseGoogleLink):
@@ -233,14 +205,6 @@ class DataprocWorkflowLink(BaseGoogleLink):
     key = "dataproc_workflow"
     format_str = DATAPROC_WORKFLOW_LINK
 
-    @staticmethod
-    def persist(context: Context, operator: BaseOperator, workflow_id: str, project_id: str, region: str):
-        operator.xcom_push(
-            context,
-            key=DataprocWorkflowLink.key,
-            value={"workflow_id": workflow_id, "region": region, "project_id": project_id},
-        )
-
 
 class DataprocWorkflowTemplateLink(BaseGoogleLink):
     """Helper class for constructing Dataproc Workflow Template Link."""
@@ -248,20 +212,6 @@ class DataprocWorkflowTemplateLink(BaseGoogleLink):
     name = "Dataproc Workflow Template"
     key = "dataproc_workflow_template"
     format_str = DATAPROC_WORKFLOW_TEMPLATE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        operator: BaseOperator,
-        workflow_template_id: str,
-        project_id: str,
-        region: str,
-    ):
-        operator.xcom_push(
-            context,
-            key=DataprocWorkflowTemplateLink.key,
-            value={"workflow_template_id": workflow_template_id, "region": region, "project_id": project_id},
-        )
 
 
 class DataprocBatchLink(BaseGoogleLink):
@@ -271,20 +221,6 @@ class DataprocBatchLink(BaseGoogleLink):
     key = "dataproc_batch"
     format_str = DATAPROC_BATCH_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        operator: BaseOperator,
-        batch_id: str,
-        project_id: str,
-        region: str,
-    ):
-        operator.xcom_push(
-            context,
-            key=DataprocBatchLink.key,
-            value={"batch_id": batch_id, "region": region, "project_id": project_id},
-        )
-
 
 class DataprocBatchesListLink(BaseGoogleLink):
     """Helper class for constructing Dataproc Batches List Link."""
@@ -292,15 +228,3 @@ class DataprocBatchesListLink(BaseGoogleLink):
     name = "Dataproc Batches List"
     key = "dataproc_batches_list"
     format_str = DATAPROC_BATCHES_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        operator: BaseOperator,
-        project_id: str,
-    ):
-        operator.xcom_push(
-            context,
-            key=DataprocBatchesListLink.key,
-            value={"project_id": project_id},
-        )

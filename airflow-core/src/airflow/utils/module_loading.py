@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import pkgutil
 import re
+from collections.abc import Callable
 from importlib import import_module
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from types import ModuleType

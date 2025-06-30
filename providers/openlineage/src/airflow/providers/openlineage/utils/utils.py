@@ -20,10 +20,11 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+from collections.abc import Callable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import attrs
 from openlineage.client.facet_v2 import parent_run
@@ -32,7 +33,7 @@ from openlineage.client.utils import RedactMixin
 from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import BaseOperator, DagRun, TaskReschedule
+from airflow.models import DagRun, TaskReschedule
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -52,17 +53,16 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
-
-try:
-    from airflow.sdk import BaseOperator as SdkBaseOperator
-except ImportError:
-    SdkBaseOperator = BaseOperator  # type: ignore[misc]
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
@@ -70,19 +70,24 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, MappedOperator
+    from airflow.sdk import DAG
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
         SecretsMasker,
         should_hide_value_for_key,
     )
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG, MappedOperator
+        from airflow.sdk import DAG
+        from airflow.sdk.bases.operator import BaseOperator
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
-        from airflow.models import DAG, MappedOperator
+        from airflow.models import DAG, BaseOperator, MappedOperator
 
     try:
         from airflow.providers.common.compat.assets import Asset
@@ -117,13 +122,39 @@ def try_import_from_string(string: str) -> Any:
         return import_string(string)
 
 
-def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
+def get_operator_class(task: BaseOperator) -> type:
     if task.__class__.__name__ in ("DecoratedMappedOperator", "MappedOperator"):
         return task.operator_class
     return task.__class__
 
 
-def get_job_name(task: TaskInstance) -> str:
+def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> str | None:
+    """Get the provider package version for the given operator."""
+    try:
+        class_path = get_fully_qualified_class_name(operator)
+
+        if not class_path.startswith("airflow.providers."):
+            return None
+
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+
+        for package_name, provider_info in providers_manager.providers.items():
+            if package_name.startswith("apache-airflow-providers-"):
+                provider_module_path = package_name.replace(
+                    "apache-airflow-providers-", "airflow.providers."
+                ).replace("-", ".")
+                if class_path.startswith(provider_module_path + "."):
+                    return provider_info.version
+
+        return None
+
+    except Exception:
+        return None
+
+
+def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
@@ -201,25 +232,25 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
     return custom_facets
 
 
-def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> str:
-    if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
+def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
+    if isinstance(operator, MappedOperator | SerializedBaseOperator):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
 
-def is_operator_disabled(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
+def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
     return get_fully_qualified_class_name(operator) in conf.disabled_operators()
 
 
-def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
+def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
     """If selective enable is active check if DAG or Task is enabled to emit events."""
     if not conf.selective_enable():
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    if isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
+    if isinstance(obj, BaseOperator | MappedOperator):
         return is_task_lineage_enabled(obj)
     raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
@@ -297,7 +328,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, list, tuple)):
+        if isinstance(value, set | list | tuple):
             return str(list(value))
         return value
 
@@ -372,7 +403,7 @@ class DagInfo(InfoJsonEncodable):
                 return serialized
 
             def _serialize_ds(ds: BaseDatasetEventInput) -> dict[str, Any]:
-                if isinstance(ds, (DatasetAny, DatasetAll)):
+                if isinstance(ds, DatasetAny | DatasetAll):
                     return {
                         "__type": "dataset_all" if isinstance(ds, DatasetAll) else "dataset_any",
                         "objects": [_serialize_ds(child) for child in ds.objects],
@@ -506,6 +537,7 @@ class TaskInfo(InfoJsonEncodable):
         ),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "operator_provider_version": lambda task: get_operator_provider_version(task),
     }
 
 

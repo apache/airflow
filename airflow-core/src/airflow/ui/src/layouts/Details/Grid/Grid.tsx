@@ -19,18 +19,22 @@
 import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
+import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
-import { useGrid } from "src/queries/useGrid";
+import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
-import { flattenNodes, type RunWithDuration } from "./utils";
+import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
@@ -39,36 +43,48 @@ type Props = {
 };
 
 export const Grid = ({ limit }: Props) => {
+  const { t: translate } = useTranslation("dag");
+
+  const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
+  const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds } = useOpenGroups();
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId = "" } = useParams();
 
-  const { data: gridData, isLoading, runAfter } = useGrid(limit);
+  const { data: gridRuns, isLoading } = useGridRuns({ limit });
 
-  const runs: Array<RunWithDuration> = useMemo(
-    () =>
-      (gridData?.dag_runs ?? []).map((run) => {
-        const duration = dayjs
-          .duration(dayjs(run.end_date ?? undefined).diff(run.start_date ?? undefined))
-          .asSeconds();
+  // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
+  // Eventually we should redo the api endpoint to make this work better
+  useEffect(() => {
+    if (gridRuns && runId) {
+      const run = gridRuns.find((dr: GridRunsResponse) => dr.run_id === runId);
 
-        return {
-          ...run,
-          duration,
-        };
-      }),
-    [gridData?.dag_runs],
-  );
+      if (!run) {
+        setSelectedIsVisible(false);
+      }
+    }
+  }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
+  useEffect(() => {
+    if (gridRuns) {
+      const run = gridRuns.some((dr: GridRunsResponse) => isStatePending(dr.state));
+
+      if (!run) {
+        setHasActiveRun(false);
+      }
+    }
+  }, [gridRuns, setHasActiveRun]);
+
+  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
-    runs.map((dr) => dr.duration),
+    gridRuns === undefined
+      ? []
+      : gridRuns
+          .map((dr: GridRunsResponse) => dr.duration)
+          .filter((duration: number | null): duration is number => duration !== null),
   );
-
-  const { flatNodes } = useMemo(
-    () => flattenNodes(gridData === undefined ? [] : gridData.structure.nodes, openGroupIds),
-    [gridData, openGroupIds],
-  );
+  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   return (
     <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
@@ -81,28 +97,28 @@ export const Grid = ({ limit }: Props) => {
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
           <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
-            {Boolean(runs.length) && (
+            {Boolean(gridRuns?.length) && (
               <>
-                <DurationTick bottom="92px">{Math.floor(max)}s</DurationTick>
-                <DurationTick bottom="46px">{Math.floor(max / 2)}s</DurationTick>
-                <DurationTick bottom="-4px">0s</DurationTick>
+                <DurationTick bottom="92px" duration={max} />
+                <DurationTick bottom="46px" duration={max / 2} />
+                <DurationTick bottom="-4px" duration={0} />
               </>
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {runs.map((dr) => (
-              <Bar key={dr.dag_run_id} max={max} nodes={flatNodes} run={dr} />
+            {gridRuns?.map((dr: GridRunsResponse) => (
+              <Bar key={dr.run_id} max={max} nodes={flatNodes} run={dr} />
             ))}
           </Flex>
-          {runAfter === undefined ? undefined : (
+          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
             <Link to={`/dags/${dagId}`}>
               <IconButton
-                aria-label="Reset to latest"
+                aria-label={translate("grid.buttons.resetToLatest")}
                 height="98px"
                 loading={isLoading}
                 minW={0}
                 ml={1}
-                title="Reset to latest"
+                title={translate("grid.buttons.resetToLatest")}
                 variant="surface"
                 zIndex={1}
               >

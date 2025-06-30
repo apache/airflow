@@ -147,7 +147,7 @@ class OpenLineageListener:
                 "Skipping OpenLineage event emission for task `%s` "
                 "due to lack of explicit lineage enablement for task or DAG while "
                 "[openlineage] selective_enable is on.",
-                task.task_id,
+                task_instance.task_id,
             )
             return
 
@@ -170,14 +170,14 @@ class OpenLineageListener:
                 clear_number = dagrun.clear_number
 
             parent_run_id = self.adapter.build_dag_run_id(
-                dag_id=dag.dag_id,
+                dag_id=task_instance.dag_id,
                 logical_date=date,
                 clear_number=clear_number,
             )
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=dag.dag_id,
-                task_id=task.task_id,
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
@@ -199,7 +199,7 @@ class OpenLineageListener:
 
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
-                job_name=get_job_name(task),
+                job_name=get_job_name(task_instance),
                 job_description=dag.description,
                 event_time=start_date.isoformat(),
                 nominal_start_time=data_interval_start,
@@ -278,7 +278,7 @@ class OpenLineageListener:
                 "Skipping OpenLineage event emission for task `%s` "
                 "due to lack of explicit lineage enablement for task or DAG while "
                 "[openlineage] selective_enable is on.",
-                task.task_id,
+                task_instance.task_id,
             )
             return
 
@@ -289,14 +289,14 @@ class OpenLineageListener:
                 date = dagrun.run_after
 
             parent_run_id = self.adapter.build_dag_run_id(
-                dag_id=dag.dag_id,
+                dag_id=task_instance.dag_id,
                 logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=dag.dag_id,
-                task_id=task.task_id,
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
@@ -321,7 +321,7 @@ class OpenLineageListener:
 
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
-                job_name=get_job_name(task),
+                job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 # If task owner is default ("airflow"), use DAG owner instead that may have more details
@@ -409,7 +409,7 @@ class OpenLineageListener:
                 "Skipping OpenLineage event emission for task `%s` "
                 "due to lack of explicit lineage enablement for task or DAG while "
                 "[openlineage] selective_enable is on.",
-                task.task_id,
+                task_instance.task_id,
             )
             return
 
@@ -420,14 +420,14 @@ class OpenLineageListener:
                 date = dagrun.run_after
 
             parent_run_id = self.adapter.build_dag_run_id(
-                dag_id=dag.dag_id,
+                dag_id=task_instance.dag_id,
                 logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=dag.dag_id,
-                task_id=task.task_id,
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
@@ -452,7 +452,7 @@ class OpenLineageListener:
 
             redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
-                job_name=get_job_name(task),
+                job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 error=error,
@@ -489,13 +489,13 @@ class OpenLineageListener:
         def on_state_change():
             date = dagrun.logical_date or dagrun.run_after
             parent_run_id = self.adapter.build_dag_run_id(
-                dag_id=dagrun.dag_id,
+                dag_id=ti.dag_id,
                 logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=dagrun.dag_id,
+                dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 try_number=ti.try_number,
                 logical_date=date,
@@ -507,6 +507,10 @@ class OpenLineageListener:
                 "job_name": get_job_name(ti),
                 "end_time": end_date.isoformat(),
                 "task": OperatorLineage(),
+                "nominal_start_time": None,
+                "nominal_end_time": None,
+                "tags": None,
+                "owners": None,
                 "run_facets": {
                     **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=ti.dag_id),
                     **get_airflow_debug_facet(),

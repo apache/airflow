@@ -29,7 +29,7 @@ def _get_message_attribute(o):
         return {"DataType": "Binary", "BinaryValue": o}
     if isinstance(o, str):
         return {"DataType": "String", "StringValue": o}
-    if isinstance(o, (int, float)):
+    if isinstance(o, int | float):
         return {"DataType": "Number", "StringValue": str(o)}
     if hasattr(o, "__iter__"):
         return {"DataType": "String.Array", "StringValue": json.dumps(o)}
@@ -60,6 +60,8 @@ class SnsHook(AwsBaseHook):
         message: str,
         subject: str | None = None,
         message_attributes: dict | None = None,
+        message_deduplication_id: str | None = None,
+        message_group_id: str | None = None,
     ):
         """
         Publish a message to a SNS topic or an endpoint.
@@ -77,7 +79,10 @@ class SnsHook(AwsBaseHook):
             - str = String
             - int, float = Number
             - iterable = String.Array
-
+        :param message_deduplication_id: Every message must have a unique message_deduplication_id.
+            This parameter applies only to FIFO (first-in-first-out) topics.
+        :param message_group_id: Tag that specifies that a message belongs to a specific message group.
+            This parameter applies only to FIFO (first-in-first-out) topics.
         """
         publish_kwargs: dict[str, str | dict] = {
             "TargetArn": target_arn,
@@ -88,6 +93,10 @@ class SnsHook(AwsBaseHook):
         # Construct args this way because boto3 distinguishes from missing args and those set to None
         if subject:
             publish_kwargs["Subject"] = subject
+        if message_deduplication_id:
+            publish_kwargs["MessageDeduplicationId"] = message_deduplication_id
+        if message_group_id:
+            publish_kwargs["MessageGroupId"] = message_group_id
         if message_attributes:
             publish_kwargs["MessageAttributes"] = {
                 key: _get_message_attribute(val) for key, val in message_attributes.items()

@@ -215,6 +215,7 @@ botocore
 BounceX
 Bq
 bq
+bteq
 bugfix
 bugfixes
 buildType
@@ -561,6 +562,7 @@ ds
 dsl
 Dsn
 dsn
+dst
 dts
 dttm
 dtypes
@@ -642,6 +644,7 @@ exc
 executables
 execvp
 exitcode
+expanduser
 explicit
 exportingmultiple
 ext
@@ -737,6 +740,7 @@ Gentner
 geq
 getattr
 getboolean
+getcwd
 getfqdn
 getframe
 getint
@@ -827,6 +831,7 @@ hotfix
 Hou
 howto
 hql
+href
 html
 htmlcontent
 Http
@@ -1047,6 +1052,7 @@ ListGenerator
 ListInfoTypesResponse
 ListModelsPager
 ListSecretsPager
+LiteralValue
 Liveness
 liveness
 livy
@@ -1150,6 +1156,7 @@ mssql
 mTLS
 mtls
 muldelete
+multimodal
 Multinamespace
 mutex
 mv
@@ -1792,6 +1799,7 @@ templatable
 templateable
 Templated
 templated
+templater
 Templating
 templating
 templatize
@@ -1968,6 +1976,7 @@ VideoIntelligenceServiceClient
 views
 virtualenv
 virtualenvs
+virtualized
 vm
 VolumeKmsKeyId
 VolumeMount

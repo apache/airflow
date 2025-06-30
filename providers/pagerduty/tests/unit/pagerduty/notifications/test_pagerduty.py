@@ -19,26 +19,20 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
+from airflow import DAG
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.providers.pagerduty.notifications.pagerduty import (
     PagerdutyNotifier,
     send_pagerduty_notification,
 )
-from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
-
 
 PAGERDUTY_API_DEFAULT_CONN_ID = PagerdutyEventsHook.default_conn_name
 
 
 class TestPagerdutyNotifier:
     @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
-    def test_notifier(self, mock_pagerduty_event_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier(self, mock_pagerduty_event_hook):
+        dag = DAG("test_notifier")
         notifier = send_pagerduty_notification(summary="DISK at 99%", severity="critical", action="trigger")
         notifier({"dag": dag})
         mock_pagerduty_event_hook.return_value.send_event.assert_called_once_with(
@@ -56,9 +50,8 @@ class TestPagerdutyNotifier:
         )
 
     @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
-    def test_notifier_with_notifier_class(self, mock_pagerduty_event_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier_with_notifier_class(self, mock_pagerduty_event_hook):
+        dag = DAG("test_notifier")
         notifier = PagerdutyNotifier(summary="DISK at 99%", severity="critical", action="trigger")
         notifier({"dag": dag})
         mock_pagerduty_event_hook.return_value.send_event.assert_called_once_with(
@@ -76,9 +69,8 @@ class TestPagerdutyNotifier:
         )
 
     @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
-    def test_notifier_templated(self, mock_pagerduty_event_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier_templated(self, mock_pagerduty_event_hook):
+        dag = DAG("test_notifier")
 
         notifier = PagerdutyNotifier(
             summary="DISK at 99% {{dag.dag_id}}",
