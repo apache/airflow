@@ -4725,7 +4725,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
-            triggering_user="test_user",
+            triggering_user_name="test_user",
             dag_run_conf={},
         )
         dag1_running_count = (
@@ -4830,7 +4830,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
-            triggering_user="test_user",
+            triggering_user_name="test_user",
             dag_run_conf={},
         )
 
@@ -4906,7 +4906,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
-            triggering_user="test_user",
+            triggering_user_name="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5022,7 +5022,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
-            triggering_user="test_user",
+            triggering_user_name="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5129,7 +5129,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
-            triggering_user="test_user",
+            triggering_user_name="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5278,7 +5278,7 @@ class TestSchedulerJob:
             to_date=to_date,
             max_active_runs=3,
             reverse=False,
-            triggering_user="test_user",
+            triggering_user_name="test_user",
             dag_run_conf={},
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -6752,7 +6752,7 @@ def test_mark_backfills_completed(dag_maker, session):
         to_date=pendulum.parse("2021-01-03"),
         max_active_runs=10,
         reverse=False,
-        triggering_user="test_user",
+        triggering_user_name="test_user",
         dag_run_conf={},
     )
     session.expunge_all()

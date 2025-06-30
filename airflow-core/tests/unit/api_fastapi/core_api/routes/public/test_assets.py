@@ -1210,7 +1210,7 @@ class TestPostAssetMaterialize(TestAssets):
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
-            "triggering_user": "test",
+            "triggering_user_name": "test",
             "conf": {},
             "note": None,
         }

@@ -8666,11 +8666,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
-        triggering_user:
+        triggering_user_name:
           anyOf:
           - type: string
           - type: 'null'
-          title: Triggering User
+          title: Triggering User Name
         conf:
           anyOf:
           - additionalProperties: true
@@ -8711,7 +8711,7 @@ components:
       - run_type
       - state
       - triggered_by
-      - triggering_user
+      - triggering_user_name
       - conf
       - note
       - dag_versions

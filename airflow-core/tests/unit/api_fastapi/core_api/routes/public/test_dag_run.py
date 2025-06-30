@@ -181,7 +181,7 @@ def get_dag_run_dict(run: DagRun):
         "run_type": run.run_type,
         "state": run.state,
         "triggered_by": run.triggered_by.value,
-        "triggering_user": run.triggering_user,
+        "triggering_user_name": run.triggering_user_name,
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
@@ -1323,7 +1323,7 @@ class TestTriggerDagRun:
             "run_type": "manual",
             "note": note,
             "triggered_by": "rest_api",
-            "triggering_user": "test",
+            "triggering_user_name": "test",
         }
 
         assert response.json() == expected_response_json
@@ -1514,7 +1514,7 @@ class TestTriggerDagRun:
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
-            "triggering_user": "test",
+            "triggering_user_name": "test",
             "conf": {},
             "note": note,
         }
@@ -1602,7 +1602,7 @@ class TestTriggerDagRun:
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
-            "triggering_user": "test",
+            "triggering_user_name": "test",
             "conf": {},
             "note": None,
         }

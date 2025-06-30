@@ -88,7 +88,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
             to_date=pendulum.parse("2021-01-05"),
             max_active_runs=2,
             reverse=True,
-            triggering_user="pytest",
+            triggering_user_name="pytest",
             dag_run_conf={},
         )
     if dep_on_past:
@@ -125,7 +125,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=2,
         reverse=reverse,
-        triggering_user="pytest",
+        triggering_user_name="pytest",
         dag_run_conf=expected_run_conf,
     )
     query = (
@@ -191,7 +191,7 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
         max_active_runs=10,
         reverse=False,
         dag_run_conf=None,
-        triggering_user="pytest",
+        triggering_user_name="pytest",
         reprocess_behavior=ReprocessBehavior.FAILED,
     )
     session.commit()
@@ -280,7 +280,7 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
         max_active_runs=2,
         reprocess_behavior=reprocess_behavior,
         reverse=False,
-        triggering_user="pytest",
+        triggering_user_name="pytest",
         dag_run_conf=None,
     )
 
@@ -322,7 +322,7 @@ def test_params_stored_correctly(dag_maker, session):
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=263,
         reverse=False,
-        triggering_user="pytest",
+        triggering_user_name="pytest",
         dag_run_conf={"this": "param"},
     )
     session.expunge_all()
@@ -348,7 +348,7 @@ def test_active_dag_run(dag_maker, session):
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=10,
         reverse=False,
-        triggering_user="pytest",
+        triggering_user_name="pytest",
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
@@ -359,7 +359,7 @@ def test_active_dag_run(dag_maker, session):
             to_date=pendulum.parse("2021-02-05"),
             max_active_runs=10,
             reverse=False,
-            triggering_user="pytest",
+            triggering_user_name="pytest",
             dag_run_conf={"this": "param"},
         )
 
@@ -376,7 +376,7 @@ def create_next_run(
             max_active_runs=2,
             reverse=False,
             dag_run_conf=None,
-            triggering_user="pytest",
+            triggering_user_name="pytest",
             reprocess_behavior=reprocess,
         )
         assert b
@@ -490,6 +490,6 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             max_active_runs=5,
             reverse=False,
             dag_run_conf={},
-            triggering_user="pytest",
+            triggering_user_name="pytest",
             reprocess_behavior=behavior,
         )

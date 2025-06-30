@@ -135,7 +135,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
-            triggering_user=user,
+            triggering_user_name=user,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
@@ -148,7 +148,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
-            triggering_user=user,
+            triggering_user_name=user,
             session=session,
             start_date=logical_date or run_after,
             conf=None,

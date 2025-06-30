@@ -1114,7 +1114,7 @@ class DAG:
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
-                triggering_user="dag_test",
+                triggering_user_name="dag_test",
             )
             # Start a mock span so that one is present and not started downstream. We
             # don't care about otel in dag.test and starting the span during dagrun update

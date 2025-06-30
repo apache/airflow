@@ -56,7 +56,7 @@
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
     "triggeredBy": "Triggered By",
-    "triggeringUser": "Triggering User"
+    "triggeringUser": "Triggering User Name"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",

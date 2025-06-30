@@ -383,7 +383,7 @@ def materialize_asset(
         run_after=run_after,
         run_type=DagRunType.MANUAL,
         triggered_by=DagRunTriggeredByType.REST_API,
-        triggering_user=user.get_name(),
+        triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
         session=session,
     )

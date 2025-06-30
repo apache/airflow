@@ -41,16 +41,16 @@ airflow_version = "3.1.0"
 def upgrade():
     """Add triggering user to dag_run."""
     with op.batch_alter_table("backfill", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("triggering_user", sa.String(length=512), nullable=True))
+        batch_op.add_column(sa.Column("triggering_user_name", sa.String(length=512), nullable=True))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("triggering_user", sa.String(length=512), nullable=True))
+        batch_op.add_column(sa.Column("triggering_user_name", sa.String(length=512), nullable=True))
 
 
 def downgrade():
     """Unapply triggering user to dag_run."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.drop_column("triggering_user")
+        batch_op.drop_column("triggering_user_name")
 
     with op.batch_alter_table("backfill", schema=None) as batch_op:
-        batch_op.drop_column("triggering_user")
+        batch_op.drop_column("triggering_user_name")

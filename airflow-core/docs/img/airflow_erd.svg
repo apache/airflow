@@ -1900,9 +1900,9 @@
 <text text-anchor="start" x="1456" y="-2699.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1461" y="-2699.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(50)]</text>
 <polygon fill="none" stroke="black" points="1363,-2664.5 1363,-2689.5 1659,-2689.5 1659,-2664.5 1363,-2664.5"/>
-<text text-anchor="start" x="1368" y="-2674.3" font-family="Helvetica,sans-Serif" font-size="14.00">triggering_user</text>
-<text text-anchor="start" x="1475" y="-2674.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1480" y="-2674.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(512)]</text>
+<text text-anchor="start" x="1368" y="-2674.3" font-family="Helvetica,sans-Serif" font-size="14.00">triggering_user_name</text>
+<text text-anchor="start" x="1521" y="-2674.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1526" y="-2674.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(512)]</text>
 <polygon fill="none" stroke="black" points="1363,-2639.5 1363,-2664.5 1659,-2664.5 1659,-2639.5 1363,-2639.5"/>
 <text text-anchor="start" x="1368" y="-2649.3" font-family="Helvetica,sans-Serif" font-size="14.00">updated_at</text>
 <text text-anchor="start" x="1447" y="-2649.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
@@ -2211,9 +2211,9 @@
 <text text-anchor="start" x="972.5" y="-3385.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
 <text text-anchor="start" x="1068.5" y="-3385.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="910.5,-3350.5 910.5,-3375.5 1257.5,-3375.5 1257.5,-3350.5 910.5,-3350.5"/>
-<text text-anchor="start" x="915.5" y="-3360.3" font-family="Helvetica,sans-Serif" font-size="14.00">triggering_user</text>
-<text text-anchor="start" x="1022.5" y="-3360.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1027.5" y="-3360.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(512)]</text>
+<text text-anchor="start" x="915.5" y="-3360.3" font-family="Helvetica,sans-Serif" font-size="14.00">triggering_user_name</text>
+<text text-anchor="start" x="1068.5" y="-3360.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1073.5" y="-3360.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(512)]</text>
 <polygon fill="none" stroke="black" points="910.5,-3325.5 910.5,-3350.5 1257.5,-3350.5 1257.5,-3325.5 910.5,-3325.5"/>
 <text text-anchor="start" x="915.5" y="-3335.3" font-family="Helvetica,sans-Serif" font-size="14.00">updated_at</text>
 <text text-anchor="start" x="994.5" y="-3335.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>

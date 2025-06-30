@@ -86,6 +86,6 @@ def create_backfill(args) -> None:
         max_active_runs=args.max_active_runs,
         reverse=args.run_backwards,
         dag_run_conf=args.dag_run_conf,
-        triggering_user=user,
+        triggering_user_name=user,
         reprocess_behavior=reprocess_behavior,
     )

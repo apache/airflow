@@ -159,7 +159,7 @@ class DagRun(Base, LoggingMixin):
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
-    triggering_user = Column(
+    triggering_user_name = Column(
         String(512),
         nullable=True,
     )  # The user that triggered the DagRun, if applicable
@@ -304,7 +304,7 @@ class DagRun(Base, LoggingMixin):
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
-        triggering_user: str | None = None,
+        triggering_user_name: str | None = None,
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
     ):
@@ -335,7 +335,7 @@ class DagRun(Base, LoggingMixin):
         self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
-        self.triggering_user = triggering_user
+        self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier = {}
         super().__init__()
