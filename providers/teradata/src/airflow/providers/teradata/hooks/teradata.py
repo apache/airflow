@@ -160,7 +160,8 @@ class TeradataHook(DbApiHook):
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
-        conn: Connection = self.get_connection(self.get_conn_id())
+        # TODO: @amoghrajesh: Handle type better
+        conn = self.get_connection(self.get_conn_id())
         conn_config = {
             "host": conn.host or "localhost",
             "dbs_port": conn.port or "1025",

@@ -228,7 +228,8 @@ class YDBHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn: Connection = self.get_connection(self.get_conn_id())
+        # TODO: @amoghrajesh: Handle type better
+        conn: Connection = self.get_connection(self.get_conn_id())  # type: ignore[assignment]
         return URL.create(
             drivername="ydb",
             username=conn.login,

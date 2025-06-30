@@ -232,16 +232,16 @@ class OracleHook(DbApiHook):
 
         conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
         if mod is not None:
-            conn.module = mod
+            conn.module = mod  # type: ignore[attr-defined]
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
         # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
         if schema and service_name:
-            conn.current_schema = schema
+            conn.current_schema = schema  # type: ignore[attr-defined]
 
-        return conn
+        return conn  # type: ignore[return-value]
 
     def insert_rows(
         self,
