@@ -3008,6 +3008,29 @@ dags:
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
 
+    # GitHub App authentication (requires git-sync v4.3.0+)
+    #   ---
+    #   apiVersion: v1
+    #   kind: Secret
+    #   metadata:
+    #     name: github-app-secret
+    #   type: Opaque
+    #   data:
+    #     githubAppPrivateKey: <base64_encoded_private_key>
+    #
+    # Configure the values below
+    # githubAppSecret: github-app-secret
+    # githubAppId: 123456 
+    # githubAppInstallationId: 789012
+    # githubAppBaseUrl: https://api.github.com/  # Optional
+    #
+    # githubAppClientId: 654321 # Either use this or githubAppId (not both)
+    githubAppSecret: ~
+    githubAppId: ~
+    githubAppClientId: ~
+    githubAppInstallationId: ~
+    githubAppBaseUrl: ~
+
     # interval between git sync attempts in seconds
     # high values are more likely to cause DAGs to become out of sync between different components
     # low values cause more traffic to the remote git repository
