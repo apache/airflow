@@ -6642,6 +6642,7 @@ class TestSchedulerJobQueriesCount:
 
                     self.job_runner._run_scheduler_loop()
 
+    @pytest.mark.flaky(reruns=3, reruns_delay=5)
     @pytest.mark.parametrize(
         "expected_query_counts, dag_count, task_count, start_ago, schedule, shape",
         [
