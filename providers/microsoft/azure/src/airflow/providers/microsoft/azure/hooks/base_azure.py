@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
@@ -24,12 +24,14 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
     get_sync_default_azure_credential,
 )
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class AzureBaseHook(BaseHook):
@@ -102,7 +104,6 @@ class AzureBaseHook(BaseHook):
         if not self.sdk_client:
             raise ValueError("`sdk_client` must be provided to AzureBaseHook to use `get_conn` method.")
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get("tenantId")
         subscription_id = conn.extra_dejson.get("subscriptionId")
         key_path = conn.extra_dejson.get("key_path")
         if key_path:
@@ -124,7 +125,7 @@ class AzureBaseHook(BaseHook):
         )
 
     def get_credential(
-        self, *, conn: Optional[Connection] = None
+        self, *, conn: Connection | None = None
     ) -> (
         ServicePrincipalCredentials
         | AzureIdentityCredentialAdapter
@@ -142,14 +143,6 @@ class AzureBaseHook(BaseHook):
         if not conn:
             conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get("tenantId")
-        if not tenant and conn.extra_dejson.get("extra__azure__tenantId"):
-            warnings.warn(
-                "`extra__azure__tenantId` is deprecated in azure connection extra, "
-                "please use `tenantId` instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            tenant = conn.extra_dejson.get("extra__azure__tenantId")
         use_azure_identity_object = conn.extra_dejson.get("use_azure_identity_object", False)
         credential: (
             ServicePrincipalCredentials
