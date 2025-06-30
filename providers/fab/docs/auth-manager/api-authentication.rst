@@ -139,7 +139,7 @@ Example using Keycloak authentication
 
 The following example add also ``PKCE`` authentication flow.
 
-You must configure Keycloak accordingly, create clientID in Keycloak:
+You must configure Keycloak accordingly, create ``clientID`` in Keycloak:
 
 .. code-block:: text
 
