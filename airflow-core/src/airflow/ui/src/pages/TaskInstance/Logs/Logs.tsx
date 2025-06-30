@@ -67,12 +67,15 @@ export const Logs = () => {
 
   const [wrap, setWrap] = useState(defaultWrap);
   const [fullscreen, setFullscreen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
+  const toggleExpanded = () => setExpanded((act) => !act);
 
   useHotkeys("w", toggleWrap);
   useHotkeys("f", toggleFullscreen);
+  useHotkeys("e", toggleExpanded);
 
   const onOpenChange = () => {
     setFullscreen(false);
@@ -84,6 +87,7 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
+    expanded,
     logLevelFilters,
     sourceFilters,
     taskInstance,
@@ -96,9 +100,11 @@ export const Logs = () => {
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
+        expanded={expanded}
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
         taskInstance={taskInstance}
+        toggleExpanded={toggleExpanded}
         toggleFullscreen={toggleFullscreen}
         toggleWrap={toggleWrap}
         tryNumber={tryNumber}
@@ -128,9 +134,11 @@ export const Logs = () => {
             <VStack gap={2}>
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
+                expanded={expanded}
                 isFullscreen
                 onSelectTryNumber={onSelectTryNumber}
                 taskInstance={taskInstance}
+                toggleExpanded={toggleExpanded}
                 toggleFullscreen={toggleFullscreen}
                 toggleWrap={toggleWrap}
                 tryNumber={tryNumber}
