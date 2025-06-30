@@ -286,11 +286,6 @@ class FakeSession:
 
 
 class TestHttpOpSensor:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE_ISO}
-        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
-        self.dag = dag
-
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get(self):
         op = HttpOperator(
@@ -299,9 +294,8 @@ class TestHttpOpSensor:
             endpoint="/search",
             data={"client": "ubuntu", "q": "airflow"},
             headers={},
-            dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({})
 
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get_response_check(self):
@@ -312,9 +306,8 @@ class TestHttpOpSensor:
             data={"client": "ubuntu", "q": "airflow"},
             response_check=lambda response: ("apache/airflow" in response.text),
             headers={},
-            dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({})
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
@@ -328,13 +321,13 @@ class TestHttpOpSensor:
             response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}" in response.text,
             poke_interval=5,
             timeout=15,
-            dag=self.dag,
         )
         run_task(sensor)
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_sensor_af2(self):
+        dag = DAG(TEST_DAG_ID, schedule=None)
         sensor = HttpSensor(
             task_id="http_sensor_check",
             http_conn_id="http_default",
@@ -344,7 +337,7 @@ class TestHttpOpSensor:
             response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}" in response.text,
             poke_interval=5,
             timeout=15,
-            dag=self.dag,
+            dag=dag,
         )
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
