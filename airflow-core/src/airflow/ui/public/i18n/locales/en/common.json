@@ -103,6 +103,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Home",
+    "legacyFabViews": "Legacy FAB Views",
     "plugins": "Plugins",
     "security": "Security"
   },
