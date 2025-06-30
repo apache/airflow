@@ -30,11 +30,14 @@ from airflow.providers.common.compat.openlineage.facet import (
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.utils.openlineage import (
     _create_ol_event_pair,
     _get_ol_run_id,
     _get_parent_run_facet,
     _get_queries_details_from_databricks,
+    _process_data_from_api,
     _run_api_call,
     emit_openlineage_events_for_databricks_queries,
 )
@@ -96,7 +99,7 @@ def test_get_parent_run_facet():
 
 def test_run_api_call_success():
     mock_hook = mock.MagicMock()
-    mock_hook._token = "mock_token"
+    mock_hook._get_token.return_value = "mock_token"
     mock_hook.host = "mock_host"
 
     mock_response = mock.MagicMock()
@@ -109,19 +112,81 @@ def test_run_api_call_success():
     assert result == [{"query_id": "123", "status": "success"}]
 
 
-def test_run_api_call_error():
+def test_run_api_call_request_error():
     mock_hook = mock.MagicMock()
-    mock_hook._token = "mock_token"
+    mock_hook._get_token.return_value = "mock_token"
     mock_hook.host = "mock_host"
 
     mock_response = mock.MagicMock()
-    mock_response.status_code = 500
-    mock_response.text = "Internal Server Error"
+    mock_response.status_code = 200
+
+    with mock.patch("requests.get", side_effect=RuntimeError("request error")):
+        result = _run_api_call(mock_hook, ["123"])
+
+    assert result == []
+
+
+def test_run_api_call_token_error():
+    mock_hook = mock.MagicMock()
+    mock_hook._get_token.side_effect = RuntimeError("Token error")
+    mock_hook.host = "mock_host"
+
+    mock_response = mock.MagicMock()
+    mock_response.status_code = 200
 
     with mock.patch("requests.get", return_value=mock_response):
         result = _run_api_call(mock_hook, ["123"])
 
     assert result == []
+
+
+def test_process_data_from_api():
+    data = [
+        {
+            "query_id": "ABC",
+            "status": "FINISHED",
+            "query_start_time_ms": 1595357086200,
+            "query_end_time_ms": 1595357087200,
+            "query_text": "SELECT * FROM table1;",
+            "error_message": "Error occurred",
+        },
+        {
+            "query_id": "DEF",
+            "query_start_time_ms": 1595357086200,
+            "query_end_time_ms": 1595357087200,
+        },
+    ]
+    expected_details = [
+        {
+            "query_id": "ABC",
+            "status": "FINISHED",
+            "query_start_time_ms": datetime.datetime(
+                2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.timezone.utc
+            ),
+            "query_end_time_ms": datetime.datetime(
+                2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.timezone.utc
+            ),
+            "query_text": "SELECT * FROM table1;",
+            "error_message": "Error occurred",
+        },
+        {
+            "query_id": "DEF",
+            "query_start_time_ms": datetime.datetime(
+                2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.timezone.utc
+            ),
+            "query_end_time_ms": datetime.datetime(
+                2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.timezone.utc
+            ),
+        },
+    ]
+    result = _process_data_from_api(data=data)
+    assert len(result) == 2
+    assert result == expected_details
+
+
+def test_process_data_from_api_error():
+    with pytest.raises(KeyError):
+        _process_data_from_api(data=[{"query_start_time_ms": 1595357086200}])
 
 
 def test_get_queries_details_from_databricks_empty_query_ids():
@@ -131,7 +196,7 @@ def test_get_queries_details_from_databricks_empty_query_ids():
 
 @mock.patch("airflow.providers.databricks.utils.openlineage._run_api_call")
 def test_get_queries_details_from_databricks(mock_api_call):
-    hook = mock.MagicMock()
+    hook = DatabricksSqlHook()
     query_ids = ["ABC"]
     fake_result = [
         {
@@ -160,7 +225,7 @@ def test_get_queries_details_from_databricks(mock_api_call):
 
 @mock.patch("airflow.providers.databricks.utils.openlineage._run_api_call")
 def test_get_queries_details_from_databricks_no_data_found(mock_api_call):
-    hook = mock.MagicMock()
+    hook = DatabricksSqlHook()
     query_ids = ["ABC", "DEF"]
     mock_api_call.return_value = []
 
@@ -274,6 +339,7 @@ def test_emit_openlineage_events_for_databricks_queries(mock_now, mock_generate_
             query_source_namespace="databricks_ns",
             task_instance=mock_ti,
             hook=mock.MagicMock(),
+            query_for_extra_metadata=True,
             additional_run_facets=additional_run_facets,
             additional_job_facets=additional_job_facets,
         )
@@ -448,7 +514,7 @@ def test_emit_openlineage_events_for_databricks_queries(mock_now, mock_generate_
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
 @mock.patch("airflow.utils.timezone.utcnow")
-def test_emit_openlineage_events_for_databricks_queries_without_metadata_found(
+def test_emit_openlineage_events_for_databricks_queries_without_metadata(
     mock_now, mock_generate_uuid, mock_version
 ):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
@@ -489,7 +555,8 @@ def test_emit_openlineage_events_for_databricks_queries_without_metadata_found(
             query_ids=query_ids,
             query_source_namespace="databricks_ns",
             task_instance=mock_ti,
-            hook=None,  # None so metadata retrieval is not triggered
+            hook=mock.MagicMock(),
+            # query_for_extra_metadata=False,  # False by default
             additional_run_facets=additional_run_facets,
             additional_job_facets=additional_job_facets,
         )
@@ -564,9 +631,399 @@ def test_emit_openlineage_events_for_databricks_queries_without_metadata_found(
 
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
-def test_emit_openlineage_events_for_databricks_queries_without_query_ids(mock_version):
-    query_ids = []
+@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.utils.timezone.utcnow")
+def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_ids(
+    mock_now, mock_generate_uuid, mock_version
+):
+    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
+    mock_generate_uuid.return_value = fake_uuid
+
+    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
+    mock_now.return_value = default_event_time
+
+    query_ids = ["query1"]
+    hook = mock.MagicMock()
+    hook.query_ids = query_ids
     original_query_ids = copy.deepcopy(query_ids)
+    logical_date = timezone.datetime(2025, 1, 1)
+    mock_ti = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        map_index=1,
+        try_number=1,
+        logical_date=logical_date,
+        state=TaskInstanceState.RUNNING,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
+    )
+    mock_ti.get_template_context.return_value = {
+        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
+    }
+
+    additional_run_facets = {"custom_run": "value_run"}
+    additional_job_facets = {"custom_job": "value_job"}
+
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
+    fake_listener = mock.MagicMock()
+    fake_listener.adapter = fake_adapter
+
+    with mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
+        return_value=fake_listener,
+    ):
+        emit_openlineage_events_for_databricks_queries(
+            query_source_namespace="databricks_ns",
+            task_instance=mock_ti,
+            hook=hook,
+            # query_for_extra_metadata=False,  # False by default
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=additional_job_facets,
+        )
+
+        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
+
+        expected_common_job_facets = {
+            "jobType": job_type_job.JobTypeJobFacet(
+                jobType="QUERY",
+                processingType="BATCH",
+                integration="DATABRICKS",
+            ),
+            "custom_job": "value_job",
+        }
+        expected_common_run_facets = {
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
+                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
+            ),
+            "custom_run": "value_run",
+        }
+
+        expected_calls = [
+            mock.call(  # Query1: START event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.START,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks_ns"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+            mock.call(  # Query1: COMPLETE event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.COMPLETE,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks_ns"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+        ]
+
+        assert fake_adapter.emit.call_args_list == expected_calls
+
+
+@mock.patch(
+    "airflow.providers.openlineage.sqlparser.SQLParser.create_namespace", return_value="databricks_ns"
+)
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.utils.timezone.utcnow")
+def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_ids_and_namespace(
+    mock_now, mock_generate_uuid, mock_version, mock_parser
+):
+    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
+    mock_generate_uuid.return_value = fake_uuid
+
+    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
+    mock_now.return_value = default_event_time
+
+    query_ids = ["query1"]
+    hook = mock.MagicMock()
+    hook.query_ids = query_ids
+    original_query_ids = copy.deepcopy(query_ids)
+    logical_date = timezone.datetime(2025, 1, 1)
+    mock_ti = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        map_index=1,
+        try_number=1,
+        logical_date=logical_date,
+        state=TaskInstanceState.RUNNING,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
+    )
+    mock_ti.get_template_context.return_value = {
+        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
+    }
+
+    additional_run_facets = {"custom_run": "value_run"}
+    additional_job_facets = {"custom_job": "value_job"}
+
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
+    fake_listener = mock.MagicMock()
+    fake_listener.adapter = fake_adapter
+
+    with mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
+        return_value=fake_listener,
+    ):
+        emit_openlineage_events_for_databricks_queries(
+            task_instance=mock_ti,
+            hook=hook,
+            # query_for_extra_metadata=False,  # False by default
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=additional_job_facets,
+        )
+
+        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
+
+        expected_common_job_facets = {
+            "jobType": job_type_job.JobTypeJobFacet(
+                jobType="QUERY",
+                processingType="BATCH",
+                integration="DATABRICKS",
+            ),
+            "custom_job": "value_job",
+        }
+        expected_common_run_facets = {
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
+                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
+            ),
+            "custom_run": "value_run",
+        }
+
+        expected_calls = [
+            mock.call(  # Query1: START event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.START,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks_ns"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+            mock.call(  # Query1: COMPLETE event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.COMPLETE,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks_ns"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+        ]
+
+        assert fake_adapter.emit.call_args_list == expected_calls
+
+
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.utils.timezone.utcnow")
+def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_ids_and_namespace_raw_ns(
+    mock_now, mock_generate_uuid, mock_version
+):
+    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
+    mock_generate_uuid.return_value = fake_uuid
+
+    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
+    mock_now.return_value = default_event_time
+
+    query_ids = ["query1"]
+    hook = DatabricksHook()
+    hook.query_ids = query_ids
+    hook.host = "some_host"
+    original_query_ids = copy.deepcopy(query_ids)
+    logical_date = timezone.datetime(2025, 1, 1)
+    mock_ti = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        map_index=1,
+        try_number=1,
+        logical_date=logical_date,
+        state=TaskInstanceState.RUNNING,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
+    )
+    mock_ti.get_template_context.return_value = {
+        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
+    }
+
+    additional_run_facets = {"custom_run": "value_run"}
+    additional_job_facets = {"custom_job": "value_job"}
+
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
+    fake_listener = mock.MagicMock()
+    fake_listener.adapter = fake_adapter
+
+    with mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
+        return_value=fake_listener,
+    ):
+        emit_openlineage_events_for_databricks_queries(
+            task_instance=mock_ti,
+            hook=hook,
+            # query_for_extra_metadata=False,  # False by default
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=additional_job_facets,
+        )
+
+        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
+
+        expected_common_job_facets = {
+            "jobType": job_type_job.JobTypeJobFacet(
+                jobType="QUERY",
+                processingType="BATCH",
+                integration="DATABRICKS",
+            ),
+            "custom_job": "value_job",
+        }
+        expected_common_run_facets = {
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
+                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
+            ),
+            "custom_run": "value_run",
+        }
+
+        expected_calls = [
+            mock.call(  # Query1: START event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.START,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks://some_host"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+            mock.call(  # Query1: COMPLETE event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.COMPLETE,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks://some_host"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+        ]
+
+        assert fake_adapter.emit.call_args_list == expected_calls
+
+
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+@mock.patch("openlineage.client.uuid.generate_new_uuid")
+@mock.patch("airflow.utils.timezone.utcnow")
+def test_emit_openlineage_events_for_databricks_queries_ith_query_ids_and_hook_query_ids(
+    mock_now, mock_generate_uuid, mock_version
+):
+    fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
+    mock_generate_uuid.return_value = fake_uuid
+
+    default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
+    mock_now.return_value = default_event_time
+
+    hook = DatabricksSqlHook()
+    hook.query_ids = ["query2", "query3"]
+    query_ids = ["query1"]
+    original_query_ids = copy.deepcopy(query_ids)
+    logical_date = timezone.datetime(2025, 1, 1)
+    mock_ti = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        map_index=1,
+        try_number=1,
+        logical_date=logical_date,
+        state=TaskInstanceState.SUCCESS,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
+    )
+    mock_ti.get_template_context.return_value = {
+        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
+    }
+
+    additional_run_facets = {"custom_run": "value_run"}
+    additional_job_facets = {"custom_job": "value_job"}
 
     fake_adapter = mock.MagicMock()
     fake_adapter.emit = mock.MagicMock()
@@ -580,14 +1037,163 @@ def test_emit_openlineage_events_for_databricks_queries_without_query_ids(mock_v
         emit_openlineage_events_for_databricks_queries(
             query_ids=query_ids,
             query_source_namespace="databricks_ns",
-            task_instance=None,
+            task_instance=mock_ti,
+            hook=hook,
+            # query_for_extra_metadata=False,  # False by default
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=additional_job_facets,
         )
+
+        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
+
+        expected_common_job_facets = {
+            "jobType": job_type_job.JobTypeJobFacet(
+                jobType="QUERY",
+                processingType="BATCH",
+                integration="DATABRICKS",
+            ),
+            "custom_job": "value_job",
+        }
+        expected_common_run_facets = {
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
+                job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
+            ),
+            "custom_run": "value_run",
+        }
+
+        expected_calls = [
+            mock.call(  # Query1: START event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.START,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks_ns"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+            mock.call(  # Query1: COMPLETE event (no metadata)
+                RunEvent(
+                    eventTime=default_event_time.isoformat(),
+                    eventType=RunState.COMPLETE,
+                    run=Run(
+                        runId=fake_uuid,
+                        facets={
+                            "externalQuery": ExternalQueryRunFacet(
+                                externalQueryId="query1", source="databricks_ns"
+                            ),
+                            **expected_common_run_facets,
+                        },
+                    ),
+                    job=Job(
+                        namespace=namespace(),
+                        name="dag_id.task_id.query.1",
+                        facets=expected_common_job_facets,
+                    ),
+                )
+            ),
+        ]
+
+        assert fake_adapter.emit.call_args_list == expected_calls
+
+
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+def test_emit_openlineage_events_for_databricks_queries_missing_query_ids_and_hook(mock_version):
+    query_ids = []
+    original_query_ids = copy.deepcopy(query_ids)
+
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
+    fake_listener = mock.MagicMock()
+    fake_listener.adapter = fake_adapter
+
+    with mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
+        return_value=fake_listener,
+    ):
+        with pytest.raises(ValueError, match="If 'hook' is not provided, 'query_ids' must be set."):
+            emit_openlineage_events_for_databricks_queries(
+                query_ids=query_ids,
+                query_source_namespace="databricks_ns",
+                task_instance=None,
+            )
 
         assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
         fake_adapter.emit.assert_not_called()  # No events should be emitted
 
 
-# emit_openlineage_events_for_databricks_queries requires OL provider 2.3.0
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+def test_emit_openlineage_events_for_databricks_queries_missing_query_namespace_and_hook(mock_version):
+    query_ids = ["1", "2"]
+    original_query_ids = copy.deepcopy(query_ids)
+
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
+    fake_listener = mock.MagicMock()
+    fake_listener.adapter = fake_adapter
+
+    with mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
+        return_value=fake_listener,
+    ):
+        with pytest.raises(
+            ValueError, match="If 'hook' is not provided, 'query_source_namespace' must be set."
+        ):
+            emit_openlineage_events_for_databricks_queries(
+                query_ids=query_ids,
+                task_instance=None,
+            )
+
+        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+        fake_adapter.emit.assert_not_called()  # No events should be emitted
+
+
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+def test_emit_openlineage_events_for_databricks_queries_missing_hook_and_query_for_extra_metadata_true(
+    mock_version,
+):
+    query_ids = ["1", "2"]
+    original_query_ids = copy.deepcopy(query_ids)
+
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
+    fake_listener = mock.MagicMock()
+    fake_listener.adapter = fake_adapter
+
+    with mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
+        return_value=fake_listener,
+    ):
+        with pytest.raises(
+            ValueError, match="If 'hook' is not provided, 'query_for_extra_metadata' must be False."
+        ):
+            emit_openlineage_events_for_databricks_queries(
+                query_ids=query_ids,
+                query_source_namespace="databricks_ns",
+                task_instance=None,
+                query_for_extra_metadata=True,
+            )
+
+        assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
+        fake_adapter.emit.assert_not_called()  # No events should be emitted
+
+
 @mock.patch("importlib.metadata.version", return_value="1.99.0")
 def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
     query_ids = ["q1", "q2"]
