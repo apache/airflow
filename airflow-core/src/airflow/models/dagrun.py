@@ -387,15 +387,13 @@ class DagRun(Base, LoggingMixin):
         dialect_name = session.bind.dialect.name
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
-        return case(
-            [
-                (
-                    (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
-                    func.extract("epoch", cls.end_date - cls.start_date),
-                )
-            ],
-            else_=None,
+
+        when_condition = (
+            (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
+            func.extract("epoch", cls.end_date - cls.start_date),
         )
+
+        return case(when_condition, else_=None)
 
     @provide_session
     def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):

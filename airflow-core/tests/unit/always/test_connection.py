@@ -32,6 +32,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection, crypto
 from airflow.sdk import BaseHook
 
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+
 sqlite = pytest.importorskip("airflow.providers.sqlite.hooks.sqlite")
 
 from tests_common.test_utils.config import conf_vars
@@ -693,8 +695,12 @@ class TestConnection:
         conn = BaseHook.get_connection(conn_id="test_uri")
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
+        expected = "postgresql://username:password@ec2.compute.com:5432/the_database"
         assert isinstance(engine, sqlalchemy.engine.Engine)
-        assert str(engine.url) == "postgresql://username:password@ec2.compute.com:5432/the_database"
+        if SQLALCHEMY_V_1_4:
+            assert str(engine.url) == expected
+        else:
+            assert engine.url.render_as_string(hide_password=False) == expected
 
     @mock.patch.dict(
         "os.environ",

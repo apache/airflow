@@ -14,12 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
-# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
-# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
-# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
-#
+
 from __future__ import annotations
 
 
@@ -32,18 +27,14 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
     return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-AIRFLOW_V_3_0_1 = get_base_airflow_version_tuple() == (3, 0, 1)
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 
-def get_sqlalchemy_version_tuple() -> tuple[int, int, int]:
-    import sqlalchemy
-    from packaging.version import Version
-
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    return sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro
-
-
-SQLALCHEMY_V_1_4 = (1, 4, 0) <= get_sqlalchemy_version_tuple() < (2, 0, 0)
-SQLALCHEMY_V_2_0 = (2, 0, 0) <= get_sqlalchemy_version_tuple() < (2, 1, 0)
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "BaseOperator",
+]
