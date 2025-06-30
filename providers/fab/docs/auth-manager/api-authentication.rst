@@ -194,37 +194,37 @@ or create a Secret with these values for your Helm chart:
 .. code-block:: bash
 
     kubectl -n airflow create secret generic airflow-api-keycloak \
-    --from-literal=CLIENT_ID=<airflow-client-id> \
-    --from-literal=CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
-    --from-literal=OIDC_ISSUER=https://<your-keycloak-url.fr>/auth/realms/<REALM> \
-    --from-literal=AIRFLOW__API__BASE_URL=https://<your-airflow-url.fr>
+      --from-literal=CLIENT_ID=<airflow-client-id> \
+      --from-literal=CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+      --from-literal=OIDC_ISSUER=https://<your-keycloak-url.fr>/auth/realms/<REALM> \
+      --from-literal=AIRFLOW__API__BASE_URL=https://<your-airflow-url.fr>
 
 and configure your Helm chart to use this Secret:
 
 .. code-block::yaml
 
     apiServer:
-    env:
+      env:
         - name: CLIENT_ID
-        valueFrom:
+          valueFrom:
             secretKeyRef:
-            name: airflow-api-keycloak
-            key: CLIENT_ID
+              name: airflow-api-keycloak
+              key: CLIENT_ID
         - name: CLIENT_SECRET
-        valueFrom:
+          valueFrom:
             secretKeyRef:
-            name: airflow-api-keycloak
-            key: CLIENT_SECRET
+              name: airflow-api-keycloak
+              key: CLIENT_SECRET
         - name: OIDC_ISSUER
-        valueFrom:
+          valueFrom:
             secretKeyRef:
-            name: airflow-api-keycloak
-            key: OIDC_ISSUER
+              name: airflow-api-keycloak
+              key: OIDC_ISSUER
         - name: AIRFLOW__API__BASE_URL
-        valueFrom:
+          valueFrom:
             secretKeyRef:
-            name: airflow-api-keycloak
-            key: AIRFLOW__API__BASE_URL
+              name: airflow-api-keycloak
+              key: AIRFLOW__API__BASE_URL
 
 Here is an example of what you might have in your `webserver_config.py` or `apiServerConfig` value in Helm chart:
 
