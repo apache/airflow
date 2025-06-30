@@ -222,6 +222,7 @@ buildType
 burstable
 bytestring
 cacert
+Cadwyn
 callables
 camelCase
 Cancelled
@@ -1550,6 +1551,7 @@ sagemaker
 salesforce
 samesite
 saml
+sandboxed
 sanitization
 sas
 Sasl
