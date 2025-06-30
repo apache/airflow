@@ -30,6 +30,7 @@ from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 pytestmark = pytest.mark.db_test
 
@@ -182,11 +183,16 @@ class TestUniqueConstraintErrorHandler:
         expected_exception,
     ) -> None:
         # Take Pool and Variable tables as test cases
+        # Note: SQLA2 uses a more optimized bulk insert strategy when multiple objects are added to the
+        #   session. Instead of individual INSERT statements, a single INSERT with the SELECT FROM VALUES
+        #   pattern is used.
         if table == "Pool":
             session.add(Pool(pool=TEST_POOL, slots=1, description="test pool", include_deferred=False))
+            session.flush()  # Avoid SQLA2.0 bulk insert optimization
             session.add(Pool(pool=TEST_POOL, slots=1, description="test pool", include_deferred=False))
         elif table == "Variable":
             session.add(Variable(key=TEST_VARIABLE_KEY, val="test_val"))
+            session.flush()
             session.add(Variable(key=TEST_VARIABLE_KEY, val="test_val"))
 
         with pytest.raises(IntegrityError) as exeinfo_integrity_error:
@@ -264,4 +270,15 @@ class TestUniqueConstraintErrorHandler:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        assert exeinfo_response_error.value.detail == expected_exception.detail
+        if SQLALCHEMY_V_1_4:
+            assert exeinfo_response_error.value.detail == expected_exception.detail
+        else:
+            # The SQL statement is an implementation detail, so we match on the statement pattern (contains
+            # the table name and is an INSERT) instead of insisting on an exact match.
+            response_detail = exeinfo_response_error.value.detail
+            expected_detail = expected_exception.detail
+            actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
+            expected_detail.pop("statement", None)
+
+            assert response_detail == expected_detail
+            assert "INSERT INTO dag_run" in actual_statement
