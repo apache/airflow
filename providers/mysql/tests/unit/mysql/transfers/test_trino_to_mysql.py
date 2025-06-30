@@ -65,16 +65,21 @@ class TestTrinoToMySqlTransfer:
     @pytest.mark.skipif(
         "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
-    def test_trino_to_mysql(self):
-        op = TrinoToMySqlOperator(
-            task_id="trino_to_mysql_check",
-            sql="""
-                SELECT name, count(*) as ccount
-                FROM airflow.static_babynames
-                GROUP BY name
-                """,
-            mysql_table="test_static_babynames",
-            mysql_preoperator="TRUNCATE TABLE test_static_babynames;",
-            dag=self.dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    def test_trino_to_mysql(self, dag_maker):
+        with dag_maker(
+            dag_id="test_trino_to_mysql_transfer",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+        ):
+            TrinoToMySqlOperator(
+                task_id="trino_to_mysql_check",
+                sql="""
+                    SELECT name, count(*) as ccount
+                    FROM airflow.static_babynames
+                    GROUP BY name
+                    """,
+                mysql_table="test_static_babynames",
+                mysql_preoperator="TRUNCATE TABLE test_static_babynames;",
+            )
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("trino_to_mysql_check", dr)
