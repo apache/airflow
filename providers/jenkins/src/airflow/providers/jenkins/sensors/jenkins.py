@@ -25,11 +25,7 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.jenkins.version_compat import Context
 
 
 class JenkinsBuildSensor(BaseSensorOperator):
