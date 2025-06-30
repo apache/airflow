@@ -22,6 +22,16 @@ import pytest
 
 pytest_plugins = "tests_common.pytest_plugin"
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 @pytest.fixture
 def hook_conn(request):
@@ -40,7 +50,7 @@ def hook_conn(request):
     except AttributeError:
         conn = None
 
-    with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as m:
+    with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as m:
         if not conn:
             pass  # Don't do anything if param not specified or empty
         elif isinstance(conn, dict):
