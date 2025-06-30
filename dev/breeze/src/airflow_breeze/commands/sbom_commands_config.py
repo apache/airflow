@@ -29,9 +29,15 @@ SBOM_COMMANDS: dict[str, str | list[str]] = {
 SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze sbom update-sbom-information": [
         {
+            "name": "Update SBOM destination flags",
+            "options": [
+                "--airflow-root-path",
+                "--airflow-site-archive-path",
+            ],
+        },
+        {
             "name": "Update SBOM information flags",
             "options": [
-                "--airflow-site-directory",
                 "--airflow-version",
                 "--python",
                 "--include-provider-dependencies",
@@ -40,6 +46,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--all-combinations",
                 "--package-filter",
                 "--force",
+                "--github-token",
             ],
         },
         {

@@ -137,7 +137,7 @@ def get_all_airflow_versions_image_name(python_version: str) -> str:
 
 
 def list_providers_from_providers_requirements(
-    airflow_site_archive_directory: Path,
+    airflow_site_archive_path: Path,
 ) -> Generator[tuple[str, str, str, Path], None, None]:
     for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
         if not node_name.startswith("provider"):
@@ -146,7 +146,7 @@ def list_providers_from_providers_requirements(
         provider_id, provider_version = node_name.rsplit("-", 1)
 
         provider_documentation_directory = (
-            airflow_site_archive_directory
+            airflow_site_archive_path
             / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
         )
         provider_version_documentation_directory = provider_documentation_directory / provider_version
@@ -325,10 +325,10 @@ constraints-{airflow_version}/constraints-{python_version}.txt
 @dataclass
 class SbomApplicationJob:
     python_version: str | None
-    target_path: Path
+    target_paths: list[Path]
 
     @abstractmethod
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -368,7 +368,7 @@ class SbomCoreJob(SbomApplicationJob):
             source_dir = source_dir / f"python{self.python_version}"
         return source_dir
 
-    def download_dependency_files(self, output: Output | None) -> bool:
+    def download_dependency_files(self, output: Output | None, github_token: str | None) -> bool:
         source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
         lock_file_relative_path = "airflow/www/yarn.lock"
@@ -384,6 +384,7 @@ class SbomCoreJob(SbomApplicationJob):
                 python_version=self.python_version,
                 include_provider_dependencies=self.include_provider_dependencies,
                 output_file=source_dir / "requirements.txt",
+                github_token=github_token,
             ):
                 get_console(output=output).print(
                     f"[warning]Failed to download constraints file for "
@@ -395,7 +396,7 @@ class SbomCoreJob(SbomApplicationJob):
             (source_dir / "requirements.txt").unlink(missing_ok=True)
         return True
 
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
@@ -403,7 +404,7 @@ class SbomCoreJob(SbomApplicationJob):
             f"include_provider_dependencies={self.include_provider_dependencies}, "
             f"python={self.include_python}, npm={self.include_npm}"
         )
-        if not self.download_dependency_files(output):
+        if not self.download_dependency_files(output, github_token=github_token):
             return 0, f"SBOM Generate {self.airflow_version}:{self.python_version}"
 
         get_console(output=output).print(
@@ -437,7 +438,8 @@ class SbomCoreJob(SbomApplicationJob):
                     response.status_code,
                     f"SBOM Generate {self.airflow_version}:python{self.python_version}",
                 )
-            self.target_path.write_bytes(response.content)
+            for target_path in self.target_paths:
+                target_path.write_bytes(response.content)
             suffix = ""
             if self.python_version:
                 suffix += f":python{self.python_version}"
@@ -462,7 +464,7 @@ class SbomProviderJob(SbomApplicationJob):
     def get_job_name(self) -> str:
         return f"{self.provider_id}:{self.provider_version}:python{self.python_version}"
 
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
@@ -491,7 +493,8 @@ class SbomProviderJob(SbomApplicationJob):
                     response.status_code,
                     f"SBOM Generate {self.provider_id}:{self.provider_version}:{self.python_version}",
                 )
-            self.target_path.write_bytes(response.content)
+            for target_path in self.target_paths:
+                target_path.write_bytes(response.content)
             get_console(output=output).print(
                 f"[success]Generated SBOM for {self.provider_id}:{self.provider_version}:"
                 f"{self.python_version}"
@@ -501,12 +504,16 @@ class SbomProviderJob(SbomApplicationJob):
 
 
 def produce_sbom_for_application_via_cdxgen_server(
-    job: SbomApplicationJob, output: Output | None, port_map: dict[str, int] | None = None
+    job: SbomApplicationJob,
+    output: Output | None,
+    github_token: str | None,
+    port_map: dict[str, int] | None = None,
 ) -> tuple[int, str]:
     """
     Produces SBOM for application using cdxgen server.
     :param job: Job to run
     :param output: Output to use
+    :param github_token: GitHub token to use for downloading files`
     :param port_map map of process name to port - making sure that one process talks to one server
          in case parallel processing is used
     :return: tuple with exit code and output
@@ -517,7 +524,7 @@ def produce_sbom_for_application_via_cdxgen_server(
     else:
         port = port_map[multiprocessing.current_process().name]
         get_console(output=output).print(f"[info]Using port {port}")
-    return job.produce(output, port)
+    return job.produce(output, port, github_token)
 
 
 def convert_licenses(licenses: list[dict[str, Any]]) -> str:

@@ -121,13 +121,24 @@ SBOM_INDEX_TEMPLATE = """
 """
 
 
-@sbom.command(name="update-sbom-information", help="Update SBOM information in airflow-site project.")
+@sbom.command(name="update-sbom-information", help="Update SBOM information in airflow-site-archive project.")
 @click.option(
-    "--airflow-site-directory",
+    "--airflow-site-archive-path",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
-    required=True,
-    envvar="AIRFLOW_SITE_DIRECTORY",
-    help="Directory where airflow-site directory is located.",
+    required=False,
+    envvar="AIRFLOW_SITE_ARCHIVE_PATH",
+    help="Directory where airflow-site-archive directory is located. Mutually exclusive with "
+    "--airflow-root-path option. When specified SBOM generated files are placed in "
+    "airflow-site-archive/docs-archive/directory.",
+)
+@click.option(
+    "--airflow-root-path",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
+    required=False,
+    help="Path to the root of the airflow repository. Mutually exclusive with "
+    "--airflow-site-archive-path option. When specified SBOM generated files are placed where "
+    "airflow docs are build (generated/_build/docs/apache-airflow/stable directory).",
+    envvar="AIRFLOW_ROOT_PATH",
 )
 @click.option(
     "--airflow-version",
@@ -169,6 +180,7 @@ SBOM_INDEX_TEMPLATE = """
     is_flag=True,
     help="Produces all combinations of airflow sbom npm/python(airflow/full). Ignores --include flags",
 )
+@option_github_token
 @option_verbose
 @option_dry_run
 @option_answer
@@ -182,7 +194,8 @@ SBOM_INDEX_TEMPLATE = """
     default="apache-airflow",
 )
 def update_sbom_information(
-    airflow_site_directory: Path,
+    airflow_site_archive_path: Path | None,
+    airflow_root_path: Path | None,
     airflow_version: str | None,
     python: str | None,
     include_provider_dependencies: bool,
@@ -195,6 +208,7 @@ def update_sbom_information(
     skip_cleanup: bool,
     force: bool,
     all_combinations: bool,
+    github_token: str | None,
     package_filter: tuple[str, ...],
 ):
     import jinja2
@@ -208,8 +222,10 @@ def update_sbom_information(
 
     if airflow_version is None:
         airflow_versions, _ = get_active_airflow_versions()
+        all_airflow_versions = airflow_versions.copy()
     else:
         airflow_versions = [airflow_version]
+        all_airflow_versions = get_active_airflow_versions(confirm=False)
     if python is None:
         python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
     else:
@@ -219,7 +235,19 @@ def update_sbom_information(
 
     jobs_to_run: list[SbomApplicationJob] = []
 
-    airflow_site_archive_directory = airflow_site_directory / "docs-archive"
+    if airflow_root_path and airflow_site_archive_path:
+        get_console().print(
+            "[error]You cannot specify both --airflow-site-archive-path and --airflow-root-path. "
+            "Please specify only one of them."
+        )
+        sys.exit(1)
+
+    if not airflow_root_path and not airflow_site_archive_path:
+        get_console().print(
+            "[error]You must specify either --airflow-site-archive-path or --airflow-root-path. "
+            "Please specify one of them."
+        )
+        sys.exit(1)
 
     def _dir_exists_warn_and_should_skip(dir: Path, force: bool) -> bool:
         if dir.exists():
@@ -230,7 +258,6 @@ def update_sbom_information(
             return False
         return False
 
-    apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
     if package_filter == "apache-airflow":
         if all_combinations:
             for include_npm, include_python, include_provider_dependencies in [
@@ -244,8 +271,10 @@ def update_sbom_information(
                 if not include_python:
                     use_python_versions = [None]
                 core_jobs(
+                    all_airflow_versions,
                     _dir_exists_warn_and_should_skip,
-                    apache_airflow_documentation_directory,
+                    airflow_site_archive_path,
+                    airflow_root_path,
                     airflow_versions,
                     application_root_path,
                     force,
@@ -260,8 +289,10 @@ def update_sbom_information(
             if not include_python:
                 use_python_versions = [None]
             core_jobs(
+                all_airflow_versions,
                 _dir_exists_warn_and_should_skip,
-                apache_airflow_documentation_directory,
+                airflow_site_archive_path,
+                airflow_root_path,
                 airflow_versions,
                 application_root_path,
                 force,
@@ -284,7 +315,7 @@ def update_sbom_information(
             provider_id,
             provider_version,
             provider_version_documentation_directory,
-        ) in list_providers_from_providers_requirements(airflow_site_archive_directory):
+        ) in list_providers_from_providers_requirements(airflow_site_archive_path):
             destination_dir = provider_version_documentation_directory / "sbom"
 
             destination_dir.mkdir(parents=True, exist_ok=True)
@@ -340,6 +371,7 @@ def update_sbom_information(
                             "job": job,
                             "output": outputs[index],
                             "port_map": port_map,
+                            "github_token": github_token,
                         },
                     )
                     for index, job in enumerate(jobs_to_run)
@@ -353,7 +385,7 @@ def update_sbom_information(
         )
     else:
         for job in jobs_to_run:
-            produce_sbom_for_application_via_cdxgen_server(job, output=None)
+            produce_sbom_for_application_via_cdxgen_server(job, output=None, github_token=github_token)
 
     html_template = SBOM_INDEX_TEMPLATE
 
@@ -372,6 +404,20 @@ def update_sbom_information(
 
     if package_filter == "apache-airflow":
         for airflow_v in airflow_versions:
+            if airflow_site_archive_path:
+                apache_airflow_documentation_directory = (
+                    airflow_site_archive_path / "docs-archive" / "apache-airflow"
+                )
+            elif airflow_root_path:
+                apache_airflow_documentation_directory = (
+                    airflow_root_path / "generated" / "_build" / "docs" / "apache-airflow"
+                )
+            else:
+                get_console().print(
+                    "[error]You must specify either --airflow-site-archive-path or --airflow-root-path. "
+                    "Please specify one of them."
+                )
+                sys.exit(1)
             airflow_version_dir = apache_airflow_documentation_directory / airflow_v
             destination_dir = airflow_version_dir / "sbom"
             _generate_index(destination_dir, None, airflow_v)
@@ -381,14 +427,16 @@ def update_sbom_information(
             provider_id,
             provider_version,
             provider_version_documentation_directory,
-        ) in list_providers_from_providers_requirements(airflow_site_archive_directory):
+        ) in list_providers_from_providers_requirements(airflow_site_archive_path):
             destination_dir = provider_version_documentation_directory / "sbom"
             _generate_index(destination_dir, provider_id, provider_version)
 
 
 def core_jobs(
+    all_airflow_versions: list[str],
     _dir_exists_warn_and_should_skip,
-    apache_airflow_documentation_directory: Path,
+    airflow_site_archive_path: Path | None,
+    airflow_root_path: Path | None,
     airflow_versions: list[str],
     application_root_path: Path,
     force: bool,
@@ -398,18 +446,48 @@ def core_jobs(
     jobs_to_run: list[SbomApplicationJob],
     python_versions: list[str | None],
 ):
+    latest_airflow_version = all_airflow_versions[-1]
     # Create core jobs
     for airflow_v in airflow_versions:
-        airflow_version_dir = apache_airflow_documentation_directory / airflow_v
-        if not airflow_version_dir.exists():
-            get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
+        if airflow_site_archive_path:
+            airflow_version_dirs = [
+                airflow_site_archive_path / "docs-archive" / "apache-airflow" / airflow_v,
+            ]
+            if latest_airflow_version == airflow_v:
+                airflow_version_dirs.append(airflow_site_archive_path / "apache-airflow" / "stable")
+        elif airflow_root_path:
+            airflow_version_dirs = [
+                airflow_root_path / "generated" / "_build" / "docs" / "apache-airflow" / "stable"
+            ]
+        else:
+            get_console().print(
+                "[error]You must specify either --airflow-site-archive-path or --airflow-root-path. "
+                "Please specify one of them."
+            )
+            sys.exit(1)
+        exists = True
+        for airflow_version_dir in airflow_version_dirs:
+            if not airflow_version_dir.exists():
+                get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
+                exists = False
+                break
+        if not exists:
             continue
-        destination_dir = airflow_version_dir / "sbom"
-
-        if _dir_exists_warn_and_should_skip(destination_dir, force):
+        destination_dirs: list[Path] = []
+        for airflow_version_dir in airflow_version_dirs:
+            destination_dir = airflow_version_dir / "sbom"
+            if not _dir_exists_warn_and_should_skip(destination_dir, force):
+                destination_dirs.append(destination_dir)
+            else:
+                get_console().print(
+                    f"[warning]The {destination_dir} already exists and generation is not forced. "
+                    f"Skipping for airflow version {airflow_v}"
+                )
+        if not destination_dirs:
+            get_console().print(
+                f"[warning]All directories already exist and generation is not forced. Skipping {airflow_v}"
+            )
             continue
-
-        destination_dir.mkdir(parents=True, exist_ok=True)
         get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
         for python_version in python_versions:
             if include_python and include_npm:
@@ -425,10 +503,12 @@ def core_jobs(
                 suffix += "-full"
 
             target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}{suffix}.json"
-            target_sbom_path = destination_dir / target_sbom_file_name
-
-            if _dir_exists_warn_and_should_skip(target_sbom_path, force):
-                continue
+            target_sbom_paths: list[Path] = []
+            for destination_dir in destination_dirs:
+                target_sbom_path = destination_dir / target_sbom_file_name
+                if _dir_exists_warn_and_should_skip(target_sbom_path, force):
+                    continue
+                target_sbom_paths.append(target_sbom_path)
 
             jobs_to_run.append(
                 SbomCoreJob(
@@ -436,7 +516,7 @@ def core_jobs(
                     python_version=python_version,
                     application_root_path=application_root_path,
                     include_provider_dependencies=include_provider_dependencies,
-                    target_path=target_sbom_path,
+                    target_paths=target_sbom_paths,
                     include_python=include_python,
                     include_npm=include_npm,
                 )
@@ -745,7 +825,7 @@ def export_dependency_information(
 
     import requests
 
-    base_url = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}/sbom"
+    base_url = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}"
     sbom_file_base = f"apache-airflow-sbom-{airflow_version}-python{python}-python-only"
 
     sbom_core_url = f"{base_url}/{sbom_file_base}.json"
