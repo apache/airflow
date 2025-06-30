@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-29T19:40:19.862440
+# This constraints file was automatically generated on 2025-06-30T13:50:35.631429
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -113,7 +113,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==24.0.0
-azure-mgmt-storage==23.0.0
+azure-mgmt-storage==23.0.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
 azure-storage-blob==12.25.1
