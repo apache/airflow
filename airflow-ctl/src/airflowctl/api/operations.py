@@ -33,7 +33,6 @@ from airflowctl.api.datamodels.generated import (
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
-    BulkActionResponse,
     BulkBodyConnectionBody,
     BulkBodyPoolBody,
     BulkBodyVariableBody,
@@ -382,11 +381,11 @@ class ConnectionsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, connections: BulkBodyConnectionBody) -> BulkActionResponse | ServerResponseError:
+    def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
         try:
             self.response = self.client.patch("connections", json=connections.model_dump())
-            return BulkActionResponse.model_validate_json(self.response.content)
+            return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
@@ -609,11 +608,11 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, pools: BulkBodyPoolBody) -> BulkActionResponse | ServerResponseError:
+    def bulk(self, pools: BulkBodyPoolBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple pools."""
         try:
             self.response = self.client.patch("pools", json=pools.model_dump())
-            return BulkActionResponse.model_validate_json(self.response.content)
+            return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
