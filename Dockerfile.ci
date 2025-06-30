@@ -41,8 +41,8 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
-GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:=1.24.4}
+AIRFLOW_PYTHON_VERSION=v3.10.10
+GOLANG_MAJOR_MINOR_VERSION=1.24.4
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
@@ -152,7 +152,7 @@ function install_debian_runtime_dependencies() {
 }
 
 function install_python() {
-    git clone --branch ${PYTHON_MAJOR_MINOR_VERSION} --depth 1 https://github.com/python/cpython.git
+    git clone --branch ${AIRFLOW_PYTHON_VERSION} --depth 1 https://github.com/python/cpython.git
     cd cpython
     ./configure --enable-optimizations
     make -s -j "$(nproc)" install

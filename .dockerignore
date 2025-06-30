@@ -38,6 +38,7 @@
 !providers/
 !task-sdk/
 !airflow-ctl/
+!go-sdk/
 
 # Add all "test" distributions
 !tests
