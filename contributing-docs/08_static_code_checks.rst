@@ -419,6 +419,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| verify-signatures                                         | Verify decorators of missing operator params           | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | zizmor                                                    | Run zizmor to check for github workflow syntax errors  |         |

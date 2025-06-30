@@ -22,11 +22,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Container, Iterable, Mapping
 from datetime import timedelta
-from typing import Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from docker.types import Mount
 from kubernetes.client import models as k8s
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.sdk.bases.decorator import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.sdk.definitions.dag import dag
@@ -34,6 +35,8 @@ from airflow.sdk.definitions.decorators.condition import AnyConditionFunc
 from airflow.sdk.definitions.decorators.task_group import task_group
 from airflow.typing_compat import Literal
 
+if TYPE_CHECKING:
+    from airflow.utils.types import ArgNotSet
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
     "TaskDecorator",
@@ -56,6 +59,7 @@ class TaskDecoratorCollection:
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonDecoratedOperator.
         templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -67,6 +71,8 @@ class TaskDecoratorCollection:
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
+        :param templates_exts: a list of file extensions to resolve while
+            processing templated fields, for examples ``['.sql', '.hql']``
         :param show_return_value_in_logs: a bool value whether to show return_value
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
@@ -101,11 +107,15 @@ class TaskDecoratorCollection:
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         pip_install_options: list[str] | None = None,
+        expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
+        string_args: Iterable[str] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         **kwargs,
@@ -135,6 +145,8 @@ class TaskDecoratorCollection:
             exit code will be treated as a failure.
         :param index_urls: an optional list of index urls to load Python packages from.
             If not provided the system pip conf will be used to source packages from.
+        :param index_urls_from_connection_ids: An optional list of ``PackageIndex`` connection IDs.
+            Will be appended to ``index_urls``.
         :param venv_cache_path: Optional path to the virtual environment parent folder in which the
             virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be
             replaced with a checksum of requirements. If not provided the virtual environment will be
@@ -143,6 +155,8 @@ class TaskDecoratorCollection:
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
+        :param templates_exts: a list of file extensions to resolve while
+            processing templated fields, for examples ``['.sql', '.hql']``
         :param show_return_value_in_logs: a bool value whether to show return_value
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
@@ -163,11 +177,16 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
+        string_args: Iterable[str] | None = None,
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
+        expect_airflow: bool = True,
+        expect_pendulum: bool = False,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -188,16 +207,26 @@ class TaskDecoratorCollection:
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
+        :param templates_exts: a list of file extensions to resolve while
+            processing templated fields, for examples ``['.sql', '.hql']``
         :param show_return_value_in_logs: a bool value whether to show return_value
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param string_args: Strings that are present in the global var virtualenv_string_args,
+            available to python_callable at runtime as a list[str]. Note that args are split
+            by newline.
         :param env_vars: A dictionary containing additional environment variables to set for the virtual
             environment when it is executed.
         :param inherit_env: Whether to inherit the current environment variables when executing the virtual
             environment. If set to ``True``, the virtual environment will inherit the environment variables
             of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
             executed with a clean environment.
+        :param expect_airflow: expect Airflow to be installed in the target environment. If true,   the operator will raise warning if Airflow is not installed, and it will attempt to load    Airflow macros when starting.
+        :param expect_pendulum: If set true, it checks if pendulum is properly installed in virtual environment.
+        :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+            in ``skipped`` state (default: None). If set to ``None``, any non-zero
+            exit code will be treated as a failure.
         """
     @overload
     def branch(  # type: ignore[misc]
@@ -221,15 +250,21 @@ class TaskDecoratorCollection:
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
         requirements: None | Iterable[str] | str = None,
+        string_args: Iterable[str] | None = None,
         python_version: None | str | int | float = None,
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         pip_install_options: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
+        expect_airflow: bool = True,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -253,13 +288,24 @@ class TaskDecoratorCollection:
         :param system_site_packages: Whether to include
             system_site_packages in your virtual environment.
             See virtualenv documentation for more information.
+        :param templates_dict: a dictionary where the values are templates that
+            will get templated by the Airflow engine sometime between
+            ``__init__`` and ``execute`` takes place and are made available
+            in your callable's context after the template has been applied.
+        :param templates_exts: a list of file extensions to resolve while
+            processing templated fields, for examples ``['.sql', '.hql']``
         :param pip_install_options: a list of pip install options when installing requirements
             See 'pip install -h' for available options
         :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
             in ``skipped`` state (default: None). If set to ``None``, any non-zero
             exit code will be treated as a failure.
+        :param string_args: Strings that are present in the global var virtualenv_string_args,
+            available to python_callable at runtime as a list[str]. Note that args are split
+            by newline.
         :param index_urls: an optional list of index urls to load Python packages from.
             If not provided the system pip conf will be used to source packages from.
+        :param index_urls_from_connection_ids: An optional list of ``PackageIndex`` connection IDs.
+            Will be appended to ``index_urls``.
         :param venv_cache_path: Optional path to the virtual environment parent folder in which the
             virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
             with a checksum of requirements. If not provided the virtual environment will be created and
@@ -320,6 +366,9 @@ class TaskDecoratorCollection:
         *,
         multiple_outputs: bool | None = None,
         ignore_downstream_trigger_rules: bool = True,
+        show_return_value_in_logs: bool = True,
+        templates_dict: Mapping[str, Any] | None = None,
+        templates_exts: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a ShortCircuitOperator.
@@ -330,6 +379,16 @@ class TaskDecoratorCollection:
             will be skipped. This is the default behavior. If set to False, the direct, downstream task(s)
             will be skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
             Defaults to True.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        :param templates_dict: a dictionary where the values are templates that
+            will get templated by the Airflow engine sometime between
+            ``__init__`` and ``execute`` takes place and are made available
+            in your callable's context after the template has been applied.
+        :param templates_exts: a list of file extensions to resolve while
+            processing templated fields, for examples ``['.sql', '.hql']``
         """
     @overload
     def short_circuit(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -507,6 +566,7 @@ class TaskDecoratorCollection:
         image: str | None = None,
         name: str | None = None,
         random_name_suffix: bool = ...,
+        cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
         volume_mounts: list[k8s.V1VolumeMount] | None = None,
@@ -520,6 +580,7 @@ class TaskDecoratorCollection:
         reattach_on_restart: bool = ...,
         startup_timeout_seconds: int = ...,
         startup_check_interval_seconds: int = ...,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
         container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
@@ -530,6 +591,7 @@ class TaskDecoratorCollection:
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -553,13 +615,20 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
         base_container_status_polling_interval: float = ...,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         deferrable: bool = ...,
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
         on_finish_action: str = ...,
+        is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = ...,
         active_deadline_seconds: int | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
@@ -666,6 +735,7 @@ class TaskDecoratorCollection:
         :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
             in V1PodSpec.
         :param progress_callback: Callback function for receiving k8s container logs.
+        :param trigger_kwargs: additional keyword parameters passed to the trigger
         """
     @overload
     def kubernetes(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -849,6 +919,8 @@ class TaskDecoratorCollection:
         mode: str = ...,
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
+        silent_fail: bool = False,
+        never_fail: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """
@@ -873,6 +945,13 @@ class TaskDecoratorCollection:
         :param exponential_backoff: allow progressive longer waits between
             pokes by using exponential backoff algorithm
         :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
+        :param silent_fail: If true, and poke method raises an exception different from
+            AirflowSensorTimeout, AirflowTaskTimeout, AirflowSkipException
+            and AirflowFailException, the sensor will log the error and continue
+            its execution. Otherwise, the sensor task fails, and it can be retried
+            based on the provided `retries` parameter.
+        :param never_fail: If true, and poke method raises an exception, sensor will be skipped.
+           Mutually exclusive with soft_fail.
         """
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
@@ -902,11 +981,13 @@ class TaskDecoratorCollection:
     def bash(  # type: ignore[misc]
         self,
         *,
+        bash_command: str | ArgNotSet,
         env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = "utf-8",
         skip_on_exit_code: int = 99,
         cwd: str | None = None,
+        output_processor: Callable[[str], Any] = lambda result: result,
         **kwargs,
     ) -> TaskDecorator:
         """Decorator to wrap a callable into a BashOperator task.
@@ -925,6 +1006,8 @@ class TaskDecoratorCollection:
             (default: 99). If set to ``None``, any non-zero exit code will be treated as a failure.
         :param cwd: Working directory to execute the command in. If None (default), the command is run in a
             temporary directory.
+        :param output_processor: Function to further process the output of the bash script
+        (default is lambda output: output).
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...

@@ -1600,4 +1600,12 @@ repos:
         types: [python]
         files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
+      - id: verify-signatures
+        name: Verify decorators of missing operator params
+        language: python
+        entry: ./scripts/ci/pre_commit/verify_signature_consistency.py
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
+        always_run: true
+        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
