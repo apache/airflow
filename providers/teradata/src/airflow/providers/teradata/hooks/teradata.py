@@ -176,7 +176,7 @@ class TeradataHook(DbApiHook):
         # Handling SSL connection parameters
 
         if conn.extra_dejson.get("sslmode", False):
-            conn_config["sslmode"] = conn.extra_dejson["sslmode"]
+            conn_config["sslmode"] = conn.extra_dejson["sslmode"] or ""
             if "verify" in conn_config["sslmode"]:
                 if conn.extra_dejson.get("sslca", False):
                     conn_config["sslca"] = conn.extra_dejson["sslca"]

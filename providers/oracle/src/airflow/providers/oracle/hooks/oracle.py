@@ -20,6 +20,7 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
+from typing import Any
 
 import oracledb
 
@@ -144,7 +145,7 @@ class OracleHook(DbApiHook):
 
         """
         conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
-        conn_config = {"user": conn.login, "password": conn.password}
+        conn_config: dict[str, Any] = {"user": conn.login, "password": conn.password}
         sid = conn.extra_dejson.get("sid")
         mod = conn.extra_dejson.get("module")
         schema = conn.schema
@@ -192,7 +193,7 @@ class OracleHook(DbApiHook):
         else:
             dsn = conn.extra_dejson.get("dsn")
             if dsn is None:
-                dsn = conn.host
+                dsn = conn.host or ""
                 if conn.port is not None:
                     dsn += f":{conn.port}"
                 if service_name:
