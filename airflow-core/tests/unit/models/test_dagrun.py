@@ -1963,6 +1963,7 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+@pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.
@@ -1985,12 +1986,13 @@ def test_schedule_tis_start_trigger(dag_maker, session):
             pass
 
     with dag_maker(session=session):
-        task = TestOperator(task_id="test_task")
+        TestOperator(task_id="test_task")
 
     dr: DagRun = dag_maker.create_dagrun()
-
-    ti = TI(task=task, run_id=dr.run_id, state=None)
+    ti = dr.get_task_instance("test_task")
     assert ti.state is None
+
+    ti.task = dr.dag.get_task("test_task")
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
 
