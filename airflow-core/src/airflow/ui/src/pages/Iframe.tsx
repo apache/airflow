@@ -24,7 +24,7 @@ import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
-export const Iframe = () => {
+export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
@@ -43,10 +43,6 @@ export const Iframe = () => {
 
     return <ErrorPage />;
   }
-
-  // The following iframe sandbox setting is intentionally less restrictive.
-  // ONLY trusted contents can be framed within Iframe.
-  const sandbox = "allow-same-origin allow-forms";
 
   return (
     <Box flexGrow={1} m={-3}>
