@@ -22,7 +22,7 @@ import os
 import shutil
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath
@@ -33,6 +33,8 @@ from airflow.sdk.io.store import attach
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
+
+    from airflow.models.connection import Connection
 
 
 class _TrackingFileWrapper:
@@ -83,6 +85,33 @@ class ObjectStoragePath(CloudPath):
     root_marker: ClassVar[str] = "/"
 
     __slots__ = ("_hash_cached",)
+
+    @classmethod
+    def from_conn(cls, conn: Connection, path: str) -> ObjectStoragePath:
+        """
+        Construct an ObjectStoragePath from an Airflow Connection and a relative path.
+
+        This method assumes the Connection is of type `objectstore` and requires the following
+        keys to be present in its 'extra' JSON configuration:
+
+        - "provider": the scheme or protocol (e.g., "s3", "gs", "file")
+        - "base_path": the base bucket, container, or directory (e.g., "my-bucket", "tmp/export")
+
+        The final URI is assembled as: <provider>://<base_path>/<path>, and passed to ObjectStoragePath.
+
+        :param conn: Airflow Connection object of type `objectstore`
+        :param path: Relative path to append to the base path
+        :return: ObjectStoragePath instance
+        :raises ValueError: if the connection type is not `objectstore`
+        """
+        if conn.conn_type == "objectstore":
+            provider = conn.extra_dejson.get("provider")
+            base_path = conn.extra_dejson.get("base_path")
+        else:
+            raise ValueError(f"Unsupported connection type for object storage: {conn.conn_type}")
+
+        uri = urlunsplit((provider, base_path, path, "", ""))
+        return ObjectStoragePath(uri, conn_id=conn.conn_id)
 
     @classmethod
     def _transform_init_args(
