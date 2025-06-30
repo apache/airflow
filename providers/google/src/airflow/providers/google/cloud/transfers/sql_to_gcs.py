@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import OutputDataset

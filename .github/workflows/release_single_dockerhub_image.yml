@@ -29,7 +29,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
         required: true
       pythonVersion:
-        description: 'Python version (e.g. 3.8, 3.9, 3.10, 3.11)'
+        description: 'Python version (e.g. 3.10, 3.11)'
         type: string
         required: true
       skipLatest:
