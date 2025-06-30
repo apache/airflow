@@ -336,10 +336,9 @@ class TestCloudLoggingDeleteSinkOperator:
         )
 
         context = mock.MagicMock()
-        result = operator.execute(context=context)
+        operator.execute(context=context)
 
         hook_instance.delete_sink.assert_called_once()
-
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
     def test_delete_sink_raises_error(self, hook_mock):
@@ -408,7 +407,7 @@ class TestCloudLoggingDeleteSinkOperator:
 
         operator.render_template_fields(context)
 
-        result = operator.execute(context)
+        operator.execute(context)
 
         assert operator.project_id == PROJECT_ID
         assert operator.sink_name == SINK_NAME
