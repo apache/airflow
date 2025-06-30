@@ -31,7 +31,7 @@ A command-line tool for interacting with Apache Airflow instances through the Ai
 
 ## Requirements
 
-- Python 3.9 or later (compatible with Python >= 3.9 and < 3.13)
+- Python 3.10 or later (compatible with Python >= 3.10 and < 3.13)
 - Network access to an Apache Airflow instance with REST API enabled
 - Keyring backend installed in operating system for secure token storage
 

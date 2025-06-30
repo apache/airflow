@@ -23,7 +23,8 @@ import operator
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Union, overload
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import attrs
 
@@ -117,7 +118,7 @@ class AssetAliasUniqueKey:
         return AssetAlias(name=self.name)
 
 
-BaseAssetUniqueKey = Union[AssetUniqueKey, AssetAliasUniqueKey]
+BaseAssetUniqueKey = AssetUniqueKey | AssetAliasUniqueKey
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
