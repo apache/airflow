@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { useParams, Link as RouterLink } from "react-router-dom";
@@ -107,6 +107,7 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
+            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
           </>
         )
@@ -116,10 +117,7 @@ export const Header = ({
       stats={stats}
       subTitle={
         dag !== undefined && (
-          <Flex align="center" gap={2}>
-            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
-            <FavoriteDagButton dagId={dag.dag_id} withText={false} />
-          </Flex>
+          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
         )
       }
       title={dag?.dag_display_name ?? dagId}

@@ -138,7 +138,7 @@ class _FavoriteFilter(BaseParam[bool]):
     @classmethod
     def depends(cls, user: GetUserDep, is_favorite: bool | None = Query(None)) -> _FavoriteFilter:
         instance = cls().set_value(is_favorite)
-        instance.user_id = user.get_id()
+        instance.user_id = str(user.get_id())
         return instance
 
 
