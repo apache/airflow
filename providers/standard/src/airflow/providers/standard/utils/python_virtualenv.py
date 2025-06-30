@@ -76,12 +76,9 @@ def _generate_venv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool
 
 
 def _generate_uv_install_cmd_from_file(
-    tmp_dir: str,
-    requirements_file_path: str,
-    pip_install_options: list[str],
-    index_urls: list[str] | None = None,
+    tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
 ) -> list[str]:
-    uv_cmd = [
+    return [
         "uv",
         "pip",
         "install",
@@ -91,10 +88,6 @@ def _generate_uv_install_cmd_from_file(
         "-r",
         requirements_file_path,
     ]
-    if index_urls:
-        for url in index_urls:
-            uv_cmd += ["--extra-index-url", url]
-    return uv_cmd
 
 
 def _generate_pip_install_cmd_from_file(
@@ -104,21 +97,9 @@ def _generate_pip_install_cmd_from_file(
 
 
 def _generate_uv_install_cmd_from_list(
-    tmp_dir: str, requirements: list[str], pip_install_options: list[str], index_urls: list[str] | None = None
+    tmp_dir: str, requirements: list[str], pip_install_options: list[str]
 ) -> list[str]:
-    uv_cmd = [
-        "uv",
-        "pip",
-        "install",
-        "--python",
-        f"{tmp_dir}/bin/python",
-        *pip_install_options,
-        *requirements,
-    ]
-    if index_urls:
-        for url in index_urls:
-            uv_cmd += ["--extra-index-url", url]
-    return uv_cmd
+    return ["uv", "pip", "install", "--python", f"{tmp_dir}/bin/python", *pip_install_options, *requirements]
 
 
 def _generate_pip_install_cmd_from_list(
@@ -135,6 +116,15 @@ def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
     else:
         pip_conf_options = "no-index = true"
     conf_file.write_text(f"[global]\n{pip_conf_options}")
+
+
+def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str, str]:
+    uv_index_env_vars = {}
+    if index_urls:
+        uv_index_env_vars = {"UV_DEFAULT_INDEX": index_urls[0]}
+        if len(index_urls) > 1:
+            uv_index_env_vars["UV_INDEX"] = " ".join(x for x in index_urls[1:])
+    return uv_index_env_vars
 
 
 def prepare_virtualenv(
@@ -179,15 +169,13 @@ def prepare_virtualenv(
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
         if _use_uv():
-            pip_cmd = _generate_uv_install_cmd_from_list(
-                venv_directory, requirements, pip_install_options, index_urls
-            )
+            pip_cmd = _generate_uv_install_cmd_from_list(venv_directory, requirements, pip_install_options)
         else:
             pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements, pip_install_options)
     if requirements_file_path is not None and requirements_file_path:
         if _use_uv():
             pip_cmd = _generate_uv_install_cmd_from_file(
-                venv_directory, requirements_file_path, pip_install_options, index_urls
+                venv_directory, requirements_file_path, pip_install_options
             )
         else:
             pip_cmd = _generate_pip_install_cmd_from_file(
@@ -195,7 +183,7 @@ def prepare_virtualenv(
             )
 
     if pip_cmd:
-        execute_in_subprocess(pip_cmd)
+        execute_in_subprocess(pip_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
 
     return f"{venv_directory}/bin/python"
 
