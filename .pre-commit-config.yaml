@@ -237,8 +237,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
-        # libcst 1.8.1 doesn't include typing-extensions which is needed for Python 3.9
-        additional_dependencies: ['libcst>=1.1.0,!=1.8.0,!=1.8.1']
+        additional_dependencies: ['libcst>=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
@@ -247,7 +246,6 @@ repos:
         name: Run black on docs
         args:
           - --line-length=110
-          - --target-version=py39
           - --target-version=py310
           - --target-version=py311
           - --target-version=py312
