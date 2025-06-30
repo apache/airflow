@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Text, VStack } from "@chakra-ui/react";
-import { Link as RouterLink } from "react-router-dom";
+import { Box, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { RecentRuns } from "src/pages/DagsList/RecentRuns";
@@ -28,29 +29,41 @@ type FavoriteDagProps = {
   readonly latestRuns: Array<DAGRunResponse>;
 };
 
-export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps) => (
-  <Box width="100%">
-    <RouterLink to={`/dags/${dagId}`}>
-      <Button
-        borderRadius="md"
-        display="flex"
-        flexDirection="column"
-        gap={2}
-        height="auto"
-        px={4}
-        py={3}
-        variant="outline"
-        width="100%"
-      >
-        <Box mt={1}>
-          <VStack>
-            <RecentRuns latestRuns={latestRuns} />
-            <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
-              {dagName}
-            </Text>
-          </VStack>
-        </Box>
-      </Button>
-    </RouterLink>
-  </Box>
-);
+export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps) => {
+  const { t: translate } = useTranslation("dashboard");
+
+  return (
+    <Box
+      borderRadius="md"
+      borderWidth="1px"
+      display="flex"
+      flexDirection="column"
+      height="100%"
+      justifyContent="center"
+      overflow="hidden"
+      px={4}
+      py={3}
+      width="100%"
+    >
+      <VStack>
+        {latestRuns.length > 0 ? (
+          <RecentRuns latestRuns={latestRuns} />
+        ) : (
+          <Text color="gray.500" fontSize="sm" overflowWrap="anywhere" textAlign="center">
+            {translate("favorite.noDagRuns")}
+          </Text>
+        )}
+        <Link to={`/dags/${dagId}`}>
+          <Text
+            _hover={{ textDecoration: "underline" }}
+            fontSize="sm"
+            overflowWrap="anywhere"
+            textAlign="center"
+          >
+            {dagName}
+          </Text>
+        </Link>
+      </VStack>
+    </Box>
+  );
+};

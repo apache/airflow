@@ -334,7 +334,7 @@ def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
 
-    user_id = user.get_id()
+    user_id = str(user.get_id())
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
 
 
@@ -350,7 +350,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
 
-    user_id = user.get_id()
+    user_id = str(user.get_id())
 
     favorite_exists = session.execute(
         select(DagFavorite).where(
