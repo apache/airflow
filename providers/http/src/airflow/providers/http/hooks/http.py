@@ -462,7 +462,7 @@ class HttpAsyncHook(BaseHook):
                 self.base_url = conn.host
             else:
                 # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
+                schema = conn.schema if conn.schema else ("https" if conn.port == 443 else "http")
                 host = conn.host if conn.host else ""
                 self.base_url = schema + "://" + host
 
