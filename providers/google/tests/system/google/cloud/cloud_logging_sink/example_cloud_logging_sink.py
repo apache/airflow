@@ -20,6 +20,11 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+# [START howto_operator_import_protobuf_obj]
+from google.cloud.logging_v2.types import LogSink
+from google.protobuf.field_mask_pb2 import FieldMask
+# [END howto_operator_import_protobuf_obj]
+
 from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_logging_sink import (
     CloudLoggingCreateSinkOperator,
@@ -71,21 +76,21 @@ with DAG(
     )
     # [END howto_operator_cloud_logging_create_sink_native_obj]
 
-    # [START howto_operator_cloud_logging_update_sink_sink_native_obj]
+    # [START howto_operator_cloud_logging_update_sink_protobuf_obj]
     update_sink_config = CloudLoggingUpdateSinkOperator(
         task_id="update_sink_config",
         sink_name=SINK_NAME,
         project_id=PROJECT_ID,
-        sink_config={
+        sink_config=LogSink({
             "description": "Update #1: GCE logs only",
             "filter": 'resource.type="gce_instance"',
             "disabled": False,
-        },
-        update_mask={"paths": ["description", "filter", "disabled"]},
+        }),
+        update_mask=FieldMask(paths=["description", "filter", "disabled"]),
         unique_writer_identity=True,
         gcp_conn_id=CONN_ID,
     )
-    # [END howto_operator_cloud_logging_update_sink_sink_native_obj]
+    # [END howto_operator_cloud_logging_update_sink_protobuf_obj]
 
     # [START howto_operator_cloud_logging_list_sinks]
     list_sinks_after = CloudLoggingListSinksOperator(

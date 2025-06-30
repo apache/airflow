@@ -175,19 +175,15 @@ class CloudLoggingDeleteSinkOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context) -> dict[str, Any]:
+    def execute(self, context: Context) -> None:
         """Execute the operator."""
         _validate_inputs(self, ["sink_name", "project_id"])
         hook = CloudLoggingHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         try:
-            sink_to_delete = hook.get_sink(sink_name=self.sink_name, project_id=self.project_id)
-
             self.log.info("Deleting log sink '%s' from project '%s'", self.sink_name, self.project_id)
             hook.delete_sink(sink_name=self.sink_name, project_id=self.project_id)
             self.log.info("Log sink '%s' deleted successfully", self.sink_name)
-
-            return LogSink.to_dict(sink_to_delete)
 
         except google.cloud.exceptions.NotFound as e:
             self.log.error("An error occurred. Not Found.")

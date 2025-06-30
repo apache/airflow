@@ -27,6 +27,7 @@ Prerequisite Tasks
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
+
 Create a log sink (Dict-based)
 ------------------------------
 
@@ -40,25 +41,35 @@ You can create a Cloud Logging sink using a Python dictionary:
    :start-after: [START howto_operator_cloud_logging_create_sink_native_obj]
    :end-before: [END howto_operator_cloud_logging_create_sink_native_obj]
 
-**Required fields in ``sink_config`` (dict):**
+***Required fields in ``sink_config`` (dict):***
 
 - ``name``: The name of the sink.
 - ``destination``: The export destination (e.g., ``storage.googleapis.com/...``, ``bigquery.googleapis.com/...``).
 
 Other fields such as ``description``, ``filter``, ``disabled``, and ``exclusions`` are optional.
 
-Update a log sink (Dict-based)
-------------------------------
+Update a log Sink (Protobuf)
+----------------------------
 
-To update an existing sink's configuration (description, filter, exclusions, etc.):
+You can also provide the ``sink_config`` as a ``google.cloud.logging_v2.types.LogSink`` Protobuf object,
+and the ``update_mask`` as a ``google.protobuf.field_mask_pb2.FieldMask``.
+
+The following import is required when using a Protobuf object:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_logging_sink/example_cloud_logging_sink.py
+   :language: python
+   :start-after: [START howto_operator_import_protobuf_obj]
+   :end-before: [END howto_operator_import_protobuf_obj]
+
+
 
 :class:`~airflow.providers.google.cloud.operators.cloud_logging_sink.CloudLoggingUpdateSinkOperator`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_logging_sink/example_cloud_logging_sink.py
    :language: python
    :dedent: 4
-   :start-after: [START howto_operator_cloud_logging_update_sink_sink_native_obj]
-   :end-before: [END howto_operator_cloud_logging_update_sink_sink_native_obj]
+   :start-after: [START howto_operator_cloud_logging_update_sink_protobuf_obj]
+   :end-before: [END howto_operator_cloud_logging_update_sink_protobuf_obj]
 
 **When updating a sink**, only include the fields you want to change in ``sink_config``, and list those fields in the ``update_mask["paths"]``.
 
@@ -89,45 +100,3 @@ To delete a sink from a Google Cloud project:
    :dedent: 4
    :start-after: [START howto_operator_cloud_logging_delete_sink]
    :end-before: [END howto_operator_cloud_logging_delete_sink]
-
-Protobuf Object Support
------------------------
-
-You can also provide the ``sink_config`` as a native ``google.cloud.logging_v2.types.LogSink`` Protobuf object,
-and the ``update_mask`` as a ``google.protobuf.field_mask_pb2.FieldMask``.
-
-**Imports:**
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_logging_sink/example_cloud_logging_protobuf_obj.py
-   :language: python
-   :start-after: [START howto_operator_import_protobuf_obj]
-   :end-before: [END howto_operator_import_protobuf_obj]
-
-**Create Sink (Protobuf):**
-
-:class:`~airflow.providers.google.cloud.operators.cloud_logging_sink.CloudLoggingCreateSinkOperator`
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_logging_sink/example_cloud_logging_protobuf_obj.py
-   :language: python
-   :dedent: 4
-   :start-after: [START howto_operator_cloud_logging_create_sink_protobuf_obj]
-   :end-before: [END howto_operator_cloud_logging_create_sink_protobuf_obj]
-
-**Update Sink (Protobuf):**
-
-:class:`~airflow.providers.google.cloud.operators.cloud_logging_sink.CloudLoggingUpdateSinkOperator`
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_logging_sink/example_cloud_logging_protobuf_obj.py
-   :language: python
-   :dedent: 4
-   :start-after: [START howto_operator_cloud_logging_update_sink_protobuf_obj]
-   :end-before: [END howto_operator_cloud_logging_update_sink_protobuf_obj]
-
-**Required fields in ``sink_config`` (Protobuf):**
-
-- ``name``: Required only when creating a sink.
-- ``destination``: The export destination (e.g., ``storage.googleapis.com/...``).
-
-Optional fields include ``description``, ``filter``, ``disabled``, and ``exclusions``.
-
-When using Protobuf-based update, the ``update_mask`` must include a ``FieldMask`` listing the fields to be updated.

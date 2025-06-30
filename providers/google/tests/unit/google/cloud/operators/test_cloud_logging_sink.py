@@ -156,7 +156,6 @@ class TestCloudLoggingCreateSinkOperator:
     @pytest.mark.parametrize("sink_config", create_test_cases, ids=create_test_ids)
     def test_create_with_pubsub_sink(self, hook_mock, sink_config):
         hook_instance = hook_mock.return_value
-        # expected_op =  LogSink(**sink_config)
         hook_instance.create_sink.return_value = LogSink(**sink_config)
 
         operator = CloudLoggingCreateSinkOperator(
@@ -327,11 +326,8 @@ class TestCloudLoggingDeleteSinkOperator:
         assert "Required parameters are missing" in str(excinfo.value)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config", create_test_cases, ids=create_test_ids)
-    def test_delete_sink_success(self, hook_mock, sink_config):
+    def test_delete_sink_success(self, hook_mock):
         hook_instance = hook_mock.return_value
-        log_sink = LogSink(**sink_config)
-        hook_instance.get_sink.return_value = LogSink(**sink_config)
         hook_instance.delete_sink.return_value = None
         operator = CloudLoggingDeleteSinkOperator(
             task_id=TASK_ID,
@@ -342,17 +338,13 @@ class TestCloudLoggingDeleteSinkOperator:
         context = mock.MagicMock()
         result = operator.execute(context=context)
 
-        hook_instance.get_sink.assert_called_once()
         hook_instance.delete_sink.assert_called_once()
 
-        assert result == LogSink.to_dict(log_sink)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config", create_test_cases, ids=create_test_ids)
-    def test_delete_sink_raises_error(self, hook_mock, sink_config):
+    def test_delete_sink_raises_error(self, hook_mock):
         hook_instance = hook_mock.return_value
         hook_instance.delete_sink.side_effect = GoogleCloudError("Internal Error")
-        hook_instance.get_sink.return_value = LogSink(**sink_config)
 
         operator = CloudLoggingDeleteSinkOperator(
             task_id=TASK_ID,
@@ -363,7 +355,6 @@ class TestCloudLoggingDeleteSinkOperator:
         with pytest.raises(GoogleCloudError):
             operator.execute(context=mock.MagicMock())
 
-        hook_instance.get_sink.assert_called_once()
         hook_instance.delete_sink.assert_called_once()
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
@@ -414,8 +405,6 @@ class TestCloudLoggingDeleteSinkOperator:
 
         hook_instance = hook_mock.return_value
         hook_instance.delete_sink.return_value = None
-        log_sink = LogSink(**sink_config)
-        hook_instance.get_sink.return_value = log_sink
 
         operator.render_template_fields(context)
 
@@ -423,7 +412,6 @@ class TestCloudLoggingDeleteSinkOperator:
 
         assert operator.project_id == PROJECT_ID
         assert operator.sink_name == SINK_NAME
-        assert result == LogSink.to_dict(log_sink)
 
 
 class TestCloudLoggingListSinksOperator:
