@@ -256,7 +256,7 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
         "airflow_op": ["Op"],
         "airflow_public": ["Public"],
         "airflow_user": ["User"],
-        "airflow_viewer": ["Viewer"], 
+        "airflow_viewer": ["Viewer"],
     }
     PROVIDER_NAME = "keycloak"
     CLIENT_ID = os.getenv("CLIENT_ID")
@@ -267,25 +267,27 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
     OIDC_TOKEN_URL = f"{OIDC_BASE_URL}/token"
     OIDC_AUTH_URL = f"{OIDC_BASE_URL}/auth"
     OIDC_METADATA_URL = f"{OIDC_ISSUER}/.well-known/openid-configuration"
-    OAUTH_PROVIDERS = [{
-        "name": PROVIDER_NAME,
-        "token_key": "access_token",
-        "icon": "fa-key",
-        "remote_app": {
-            "api_base_url": OIDC_BASE_URL,
-            "access_token_url": OIDC_TOKEN_URL,
-            "authorize_url": OIDC_AUTH_URL,
-            "server_metadata_url": OIDC_METADATA_URL,
-            "request_token_url": None,
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
-            "client_kwargs": {
-                "scope": "email profile",
-                "code_challenge_method": "S256",    # Needed for PKCE flow
-                "response_type": "code",            # Needed for PKCE flow
+    OAUTH_PROVIDERS = [
+        {
+            "name": PROVIDER_NAME,
+            "token_key": "access_token",
+            "icon": "fa-key",
+            "remote_app": {
+                "api_base_url": OIDC_BASE_URL,
+                "access_token_url": OIDC_TOKEN_URL,
+                "authorize_url": OIDC_AUTH_URL,
+                "server_metadata_url": OIDC_METADATA_URL,
+                "request_token_url": None,
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "client_kwargs": {
+                    "scope": "email profile",
+                    "code_challenge_method": "S256",    # Needed for PKCE flow
+                    "response_type": "code",            # Needed for PKCE flow
+                },
             },
         }
-    }]
+    ]
 
     # Fetch public key
     req = requests.get(OIDC_ISSUER)
@@ -297,7 +299,9 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
         @expose("/logout/", methods=["GET", "POST"])
         def logout(self):
             session.clear()
-            return redirect(f"{OIDC_ISSUER}/protocol/openid-connect/logout?post_logout_redirect_uri={AIRFLOW__API__BASE_URL}&client_id={CLIENT_ID}")
+            return redirect(
+                f"{OIDC_ISSUER}/protocol/openid-connect/logout?post_logout_redirect_uri={AIRFLOW__API__BASE_URL}&client_id={CLIENT_ID}"
+            )
 
     class CustomSecurityManager(FabAirflowSecurityManagerOverride):
         authoauthview = CustomOAuthView
