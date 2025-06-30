@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -27,12 +28,18 @@ import psycopg2.extensions
 import psycopg2.extras
 from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
+from typing_extensions import Literal
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 if TYPE_CHECKING:
+    from pandas import DataFrame as PandasDataFrame
+    from polars import DataFrame as PolarsDataFrame
     from psycopg2.extensions import connection
 
     from airflow.models.connection import Connection
@@ -172,6 +179,42 @@ class PostgresHook(DbApiHook):
 
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
+
+    def get_df(
+        self,
+        sqls: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> PandasDataFrame | PolarsDataFrame:
+        """
+        Execute the sql and returns a dataframe.
+
+        :param sqls: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param df_type: Type of dataframe to return, either "pandas" or "polars"
+        :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        """
+
+        if df_type == "pandas":
+            try:
+                from pandas.io import sql as psql
+            except ImportError:
+                raise AirflowOptionalProviderFeatureException(
+                    "pandas library not installed, run: pip install "
+                    "'apache-airflow-providers-common-sql[pandas]'."
+                )
+
+            engine = self.get_sqlalchemy_engine()
+            with engine.connect() as conn:
+                return psql.read_sql(sqls, con=conn, params=parameters, **kwargs)
+
+        elif df_type == "polars":
+            return self._get_polars_df(sqls, parameters, **kwargs)
+
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
 
     def copy_expert(self, sql: str, filename: str) -> None:
         """
