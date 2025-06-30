@@ -23,9 +23,11 @@ import os
 import socket
 import sys
 from collections import namedtuple
+from typing import cast
 
 import gunicorn.app.base
-from flask import Flask, abort, request, send_from_directory
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.staticfiles import StaticFiles
 from jwt.exceptions import (
     ExpiredSignatureError,
     ImmatureSignatureError,
@@ -33,7 +35,6 @@ from jwt.exceptions import (
     InvalidIssuedAtError,
     InvalidSignatureError,
 )
-from werkzeug.exceptions import HTTPException
 
 from airflow.api_fastapi.auth.tokens import JWTValidator, get_signing_key
 from airflow.configuration import conf
@@ -43,8 +44,79 @@ from airflow.utils.module_loading import import_string
 logger = logging.getLogger(__name__)
 
 
+class JWTAuthStaticFiles(StaticFiles):
+    """StaticFiles with JWT authentication."""
+
+    # reference from https://github.com/fastapi/fastapi/issues/858#issuecomment-876564020
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    async def __call__(self, scope, receive, send) -> None:
+        request = Request(scope, receive)
+        await self.validate_jwt_token(request)
+        await super().__call__(scope, receive, send)
+
+    async def validate_jwt_token(self, request: Request):
+        # we get the signer from the app state instead of creating a new instance for each request
+        signer = cast("JWTValidator", request.app.state.signer)
+        try:
+            auth = request.headers.get("Authorization")
+            if auth is None:
+                logger.warning("The Authorization header is missing: %s.", request.headers)
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Authorization header missing"
+                )
+            payload = await signer.avalidated_claims(auth)
+            token_filename = payload.get("filename")
+            # Extract filename from url path
+            request_filename = request.url.path.lstrip("/log/")
+            if token_filename is None:
+                logger.warning("The payload does not contain 'filename' key: %s.", payload)
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token payload")
+            if token_filename != request_filename:
+                logger.warning(
+                    "The payload log_relative_path key is different than the one in token:"
+                    "Request path: %s. Token path: %s.",
+                    request_filename,
+                    token_filename,
+                )
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token filename mismatch")
+        except HTTPException:
+            raise
+        except InvalidAudienceError:
+            logger.warning("Invalid audience for the request", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid audience")
+        except InvalidSignatureError:
+            logger.warning("The signature of the request was wrong", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+        except ImmatureSignatureError:
+            logger.warning("The signature of the request was sent from the future", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signature from future")
+        except ExpiredSignatureError:
+            logger.warning(
+                "The signature of the request has expired. Make sure that all components "
+                "in your system have synchronized clocks. "
+                "See more at %s",
+                get_docs_url("configurations-ref.html#secret-key"),
+                exc_info=True,
+            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Expired signature")
+        except InvalidIssuedAtError:
+            logger.warning(
+                "The request was issued in the future. Make sure that all components "
+                "in your system have synchronized clocks. "
+                "See more at %s",
+                get_docs_url("configurations-ref.html#secret-key"),
+                exc_info=True,
+            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token issued in future")
+        except Exception:
+            logger.warning("Unknown error", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Authentication failed")
+
+
 def create_app():
-    flask_app = Flask(__name__, static_folder=None)
     leeway = conf.getint("webserver", "log_request_clock_grace", fallback=30)
     log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
     log_config_class = conf.get("logging", "logging_config_class")
@@ -59,18 +131,20 @@ def create_app():
             if base_log_folder is not None:
                 log_directory = base_log_folder
                 logger.info(
-                    "Successfully imported user-defined logging config. Flask App will serve log from %s",
+                    "Successfully imported user-defined logging config. FastAPI App will serve log from %s",
                     log_directory,
                 )
             else:
                 logger.warning(
                     "User-defined logging config does not specify 'base_log_folder'. "
-                    "Flask App will use default log directory %s",
+                    "FastAPI App will use default log directory %s",
                     base_log_folder,
                 )
         except Exception as e:
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
-    signer = JWTValidator(
+
+    fastapi_app = FastAPI()
+    fastapi_app.state.signer = JWTValidator(
         issuer=None,
         secret_key=get_signing_key("api", "secret_key"),
         algorithm="HS512",
@@ -78,66 +152,13 @@ def create_app():
         audience="task-instance-logs",
     )
 
-    # Prevent direct access to the logs port
-    @flask_app.before_request
-    def validate_pre_signed_url():
-        try:
-            auth = request.headers.get("Authorization")
-            if auth is None:
-                logger.warning("The Authorization header is missing: %s.", request.headers)
-                abort(403)
-            payload = signer.validated_claims(auth)
-            token_filename = payload.get("filename")
-            request_filename = request.view_args["filename"]
-            if token_filename is None:
-                logger.warning("The payload does not contain 'filename' key: %s.", payload)
-                abort(403)
-            if token_filename != request_filename:
-                logger.warning(
-                    "The payload log_relative_path key is different than the one in token:"
-                    "Request path: %s. Token path: %s.",
-                    request_filename,
-                    token_filename,
-                )
-                abort(403)
-        except HTTPException:
-            raise
-        except InvalidAudienceError:
-            logger.warning("Invalid audience for the request", exc_info=True)
-            abort(403)
-        except InvalidSignatureError:
-            logger.warning("The signature of the request was wrong", exc_info=True)
-            abort(403)
-        except ImmatureSignatureError:
-            logger.warning("The signature of the request was sent from the future", exc_info=True)
-            abort(403)
-        except ExpiredSignatureError:
-            logger.warning(
-                "The signature of the request has expired. Make sure that all components "
-                "in your system have synchronized clocks. "
-                "See more at %s",
-                get_docs_url("configurations-ref.html#secret-key"),
-                exc_info=True,
-            )
-            abort(403)
-        except InvalidIssuedAtError:
-            logger.warning(
-                "The request was issues in the future. Make sure that all components "
-                "in your system have synchronized clocks. "
-                "See more at %s",
-                get_docs_url("configurations-ref.html#secret-key"),
-                exc_info=True,
-            )
-            abort(403)
-        except Exception:
-            logger.warning("Unknown error", exc_info=True)
-            abort(403)
+    fastapi_app.mount(
+        "/log",
+        JWTAuthStaticFiles(directory=log_directory, html=False),
+        name="serve_logs",
+    )
 
-    @flask_app.route("/log/<path:filename>")
-    def serve_logs_view(filename):
-        return send_from_directory(log_directory, filename, mimetype="application/json", as_attachment=False)
-
-    return flask_app
+    return fastapi_app
 
 
 GunicornOption = namedtuple("GunicornOption", ["key", "value"])
@@ -177,7 +198,7 @@ def serve_logs(port=None):
         from setproctitle import setproctitle
 
         setproctitle("airflow serve-logs")
-    wsgi_app = create_app()
+    asgi_app = create_app()
 
     port = port or conf.getint("logging", "WORKER_LOG_SERVER_PORT")
 
@@ -188,8 +209,13 @@ def serve_logs(port=None):
     else:
         bind_option = GunicornOption("bind", f"0.0.0.0:{port}")
 
-    options = [bind_option, GunicornOption("workers", 2)]
-    StandaloneGunicornApplication(wsgi_app, options).run()
+    # Use Uvicorn worker class for ASGI applications
+    options = [
+        bind_option,
+        GunicornOption("workers", 2),
+        GunicornOption("worker_class", "uvicorn.workers.UvicornWorker"),
+    ]
+    StandaloneGunicornApplication(asgi_app, options).run()
 
 
 if __name__ == "__main__":
