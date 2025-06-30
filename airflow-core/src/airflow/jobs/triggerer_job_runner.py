@@ -72,6 +72,17 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 
+# TODO: Remove this block once we can make the execution API pluggable.
+try:
+    from airflow.providers.standard.execution_time.comms import (
+        FetchHITLResponse,
+        HITLResponseResult,
+    )
+except ModuleNotFoundError:
+    FetchHITLResponse = object  # type: ignore[misc, assignment]
+    HITLResponseResult = object  # type: ignore[misc, assignment]
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -219,6 +230,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
+    | HITLResponseResult
     | ErrorResponse,
     Field(discriminator="type"),
 ]
@@ -236,7 +248,8 @@ ToTriggerSupervisor = Annotated[
     | GetTICount
     | GetTaskStates
     | GetDagRunState
-    | GetDRCount,
+    | GetDRCount
+    | FetchHITLResponse,
     Field(discriminator="type"),
 ]
 """
@@ -447,6 +460,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        # TODO: Remove this block once we can make the execution API pluggable.
+        elif issubclass(FetchHITLResponse, BaseModel) and isinstance(msg, FetchHITLResponse):
+            if TYPE_CHECKING:
+                assert HITLResponseResult is not None
+            api_resp = self.client.hitl.get_response(ti_id=msg.ti_id)
+            resp = HITLResponseResult.from_api_response(hitl_response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

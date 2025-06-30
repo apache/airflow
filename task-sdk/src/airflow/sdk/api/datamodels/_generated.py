@@ -102,6 +102,23 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class CreateHITLInputRequestPayload(BaseModel):
+    """
+    Test.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    default: Annotated[str | None, Field(title="Default")] = None
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    type: Annotated[Literal["CreateHITLInputRequestPayload"] | None, Field(title="Type")] = (
+        "CreateHITLInputRequestPayload"
+    )
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -152,6 +169,28 @@ class DagRunType(str, Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+
+
+class HITLInputRequestResponse(BaseModel):
+    """
+    Schema for an Human-in-the-loop input request for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    default: Annotated[str | None, Field(title="Default")] = None
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+
+
+class HITLResponse(BaseModel):
+    """
+    Schema for Human-in-the-loop Response for a specific task instance.
+    """
+
+    content: Annotated[str | None, Field(title="Content")] = None
 
 
 class InactiveAssetsResponse(BaseModel):

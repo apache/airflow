@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from collections.abc import MutableMapping
+from uuid import UUID
+
+from airflow.api_fastapi.core_api.base import BaseModel
+
+
+class FetchHITLResponsePayload(BaseModel):
+    """Schema for fetching an  Human-in-the-loop Response  for a specific task instance."""
+
+    ti_id: UUID
+
+
+class HITLResponse(BaseModel):
+    """Schema for Human-in-the-loop Response for a specific task instance."""
+
+    content: str | None
+
+
+class HITLInputRequestResponse(BaseModel):
+    """Schema for an Human-in-the-loop input request for a specific task instance."""
+
+    ti_id: UUID
+    options: list[str]
+    subject: str
+    body: str | None = None
+    default: str | None = None
+    params: MutableMapping | None = None
+    multiple: bool = False
