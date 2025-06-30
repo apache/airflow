@@ -29,12 +29,12 @@ import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import lazy_object_proxy
 from packaging.requirements import InvalidRequirement, Requirement
@@ -48,21 +48,25 @@ from airflow.exceptions import (
     AirflowSkipException,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin
+    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
     from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 

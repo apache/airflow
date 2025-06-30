@@ -3268,10 +3268,6 @@ export const $ExternalViewResponse = {
             type: 'string',
             title: 'Name'
         },
-        href: {
-            type: 'string',
-            title: 'Href'
-        },
         icon: {
             anyOf: [
                 {
@@ -3321,13 +3317,17 @@ export const $ExternalViewResponse = {
             enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
             title: 'Destination',
             default: 'nav'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
         }
     },
     additionalProperties: true,
     type: 'object',
     required: ['name', 'href'],
     title: 'ExternalViewResponse',
-    description: 'Serializer for IFrame Plugin responses.'
+    description: 'Serializer for External View Plugin responses.'
 } as const;
 
 export const $ExtraLinkCollectionResponse = {
@@ -3847,6 +3847,13 @@ export const $PluginResponse = {
             title: 'External Views',
             description: "Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here."
         },
+        react_apps: {
+            items: {
+                '$ref': '#/components/schemas/ReactAppResponse'
+            },
+            type: 'array',
+            title: 'React Apps'
+        },
         appbuilder_views: {
             items: {
                 '$ref': '#/components/schemas/AppBuilderViewResponse'
@@ -3896,7 +3903,7 @@ export const $PluginResponse = {
         }
     },
     type: 'object',
-    required: ['name', 'macros', 'flask_blueprints', 'fastapi_apps', 'fastapi_root_middlewares', 'external_views', 'appbuilder_views', 'appbuilder_menu_items', 'global_operator_extra_links', 'operator_extra_links', 'source', 'listeners', 'timetables'],
+    required: ['name', 'macros', 'flask_blueprints', 'fastapi_apps', 'fastapi_root_middlewares', 'external_views', 'react_apps', 'appbuilder_views', 'appbuilder_menu_items', 'global_operator_extra_links', 'operator_extra_links', 'source', 'listeners', 'timetables'],
     title: 'PluginResponse',
     description: 'Plugin serializer.'
 } as const;
@@ -4150,6 +4157,74 @@ export const $QueuedEventResponse = {
     required: ['dag_id', 'asset_id', 'created_at', 'dag_display_name'],
     title: 'QueuedEventResponse',
     description: 'Queued Event serializer for responses..'
+} as const;
+
+export const $ReactAppResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        url_route: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Url Route'
+        },
+        category: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Category'
+        },
+        destination: {
+            type: 'string',
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
+            title: 'Destination',
+            default: 'nav'
+        },
+        bundle_url: {
+            type: 'string',
+            title: 'Bundle Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'bundle_url'],
+    title: 'ReactAppResponse',
+    description: 'Serializer for React App Plugin responses.'
 } as const;
 
 export const $ReprocessBehavior = {

@@ -237,8 +237,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
-        # libcst 1.8.1 doesn't include typing-extensions which is needed for Python 3.9
-        additional_dependencies: ['libcst>=1.1.0,!=1.8.0,!=1.8.1']
+        additional_dependencies: ['libcst>=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
@@ -247,7 +246,6 @@ repos:
         name: Run black on docs
         args:
           - --line-length=110
-          - --target-version=py39
           - --target-version=py310
           - --target-version=py311
           - --target-version=py312
@@ -289,7 +287,8 @@ repos:
           (?x)
           ^airflow-core/docs/img/.*\.dot$|
           ^dev/breeze/doc/images/output.*$|
-          ^.*/openapi-gen/.*$
+          ^.*/openapi-gen/.*$|
+          ^airflow-ctl/docs/images/.*\.svg$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
         args:
@@ -413,6 +412,13 @@ repos:
           ^airflow_breeze/templates/PROVIDER_README_TEMPLATE\.rst\.jinja2$
         additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
         require_serial: true
+      - id: check-airflow-v-imports-in-tests
+        name: Check AIRFLOW_V imports in tests
+        language: python
+        entry: ./scripts/ci/pre_commit/check_airflow_v_imports_in_tests.py
+        pass_filenames: true
+        files: ^providers/.*/tests/.+\.py$
+        additional_dependencies: ['rich>=12.4.4']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -868,12 +874,6 @@ repos:
         entry: "LoggingMixin\\(\\)"
         files: \.py$
         pass_filenames: true
-      - id: check-daysago-import-from-utils
-        language: pygrep
-        name: days_ago imported from airflow.utils.dates
-        entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
-        files: \.py$
-        pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
         name: start_date not in default_args
@@ -930,6 +930,13 @@ repos:
         files: ^chart
         require_serial: true
         additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
+      - id: validate-chart-annotations
+        name: Validate chart annotations
+        entry: ./scripts/ci/pre_commit/validate_chart_annotations.py
+        language: python
+        pass_filenames: false
+        files: ^chart/Chart\.yaml$
+        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4']
       - id: kubeconform
         name: Kubeconform check on our helm chart
         entry: ./scripts/ci/pre_commit/check_kubeconform.py
@@ -1330,14 +1337,6 @@ repos:
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
           airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
-      - id: generate-airflowctl-help-images
-        name: Generate SVG from Airflow CTL Commands
-        entry: ./scripts/ci/pre_commit/capture_airflowctl_help.py
-        language: python
-        pass_filenames: false
-        files:
-          ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: go-mockery
         name: Generate mocks for go
         entry: -w /src/go-sdk vektra/mockery:3

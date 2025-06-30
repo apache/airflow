@@ -229,15 +229,15 @@ to avoid "works-for-me" syndrome, where you use different versions of dependenci
 that are used in main CI tests and by other contributors.
 
 There are different constraint files for different Python versions. For example, this command will install
-all basic devel requirements and requirements of Google provider as last successfully tested for Python 3.9:
+all basic devel requirements and requirements of Google provider as last successfully tested for Python 3.10:
 
    uv pip install -e ".[devel,google]"" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.10.txt"
 
 Using the 'constraints-no-providers' constraint files, you can upgrade Airflow without paying attention to the provider's dependencies. This allows you to keep installed provider dependencies and install the latest supported ones using pure Airflow core.
 
   uv pip install -e ".[devel]" \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.9.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.10.txt"
 
 Note that you can also use `pip install` if you do not use `uv`.
 

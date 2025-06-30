@@ -96,6 +96,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4, SQLALCHEMY_V_2_0
 from unit.listeners import dag_listener
 from unit.listeners.test_listeners import get_listener_manager
 from unit.models import TEST_DAGS_FOLDER
@@ -3453,7 +3454,7 @@ class TestSchedulerJob:
 
         # Now let's say the DAG got updated (new task got added)
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", session=session)
 
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
@@ -3467,15 +3468,24 @@ class TestSchedulerJob:
         assert dr.dag_versions[-1].id == dag_version_2.id
         assert len(self.job_runner.scheduler_dag_bag.get_dag(dr, session).tasks) == 2
 
-        tis_count = (
-            session.query(func.count(TaskInstance.task_id))
-            .filter(
-                TaskInstance.dag_id == dr.dag_id,
-                TaskInstance.logical_date == dr.logical_date,
-                TaskInstance.state == State.SCHEDULED,
+        if SQLALCHEMY_V_1_4:
+            tis_count = (
+                session.query(func.count(TaskInstance.task_id))
+                .filter(
+                    TaskInstance.dag_id == dr.dag_id,
+                    TaskInstance.logical_date == dr.logical_date,
+                    TaskInstance.state == State.SCHEDULED,
+                )
+                .scalar()
             )
-            .scalar()
-        )
+        if SQLALCHEMY_V_2_0:
+            tis_count = session.scalar(
+                select(func.count(TaskInstance.task_id)).where(
+                    TaskInstance.dag_id == dr.dag_id,
+                    TaskInstance.logical_date == dr.logical_date,
+                    TaskInstance.state == State.SCHEDULED,
+                )
+            )
         assert tis_count == 2
 
         latest_dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
