@@ -77,18 +77,7 @@ class TestDiscordWebhookHook:
         with pytest.raises(AirflowException, match=expected_message):
             DiscordWebhookHook(webhook_endpoint=provided_endpoint)
 
-    def test_get_webhook_endpoint_conn_id(self, mock_supervisor_comms):
-        from airflow.sdk.execution_time.comms import ConnectionResult
-
-        conn_result = ConnectionResult(
-            conn_id="default-discord-webhook",
-            conn_type="discord",
-            host="https://discordapp.com/api/",
-            extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}',
-        )
-
-        mock_supervisor_comms.send.return_value = conn_result
-
+    def test_get_webhook_endpoint_conn_id(self):
         # Given
         conn_id = "default-discord-webhook"
         hook = DiscordWebhookHook(http_conn_id=conn_id)

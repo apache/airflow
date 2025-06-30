@@ -38,18 +38,7 @@ def setup_connections(create_connection_without_db):
 
 
 @patch("airflow.providers.discord.notifications.discord.DiscordWebhookHook.execute")
-def test_discord_notifier_notify(mock_execute, mock_supervisor_comms):
-    from airflow.sdk.execution_time.comms import ConnectionResult
-
-    conn_result = ConnectionResult(
-        conn_id="default-discord-webhook",
-        conn_type="discord",
-        host="https://discordapp.com/api/",
-        extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}',
-    )
-
-    mock_supervisor_comms.send.return_value = conn_result
-
+def test_discord_notifier_notify(mock_execute):
     notifier = DiscordNotifier(
         discord_conn_id="my_discord_conn_id",
         text="This is a test message",
