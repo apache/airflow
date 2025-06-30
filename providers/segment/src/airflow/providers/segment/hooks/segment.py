@@ -24,7 +24,7 @@ NOTE:   this hook also relies on the Segment analytics package:
 
 from __future__ import annotations
 
-import analytics
+import segment.analytics as analytics
 
 from airflow.exceptions import AirflowException
 

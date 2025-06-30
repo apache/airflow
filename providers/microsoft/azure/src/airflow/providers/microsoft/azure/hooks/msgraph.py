@@ -303,6 +303,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
+                    base_url=base_url,
                 ),
                 host=host,  # type: ignore
             )
@@ -450,9 +451,9 @@ class KiotaRequestAdapterHook(BaseHook):
             request_information.url = url
         elif request_information.query_parameters.keys():
             query = ",".join(request_information.query_parameters.keys())
-            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}{{?{query}}}"
+            request_information.url_template = f"{{+baseurl}}{self.normalize_url(url)}{{?{query}}}"
         else:
-            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}"
+            request_information.url_template = f"{{+baseurl}}{self.normalize_url(url)}"
         if not response_type:
             request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
                 response_handler=DefaultResponseHandler()
@@ -471,6 +472,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
             )
             request_information.content = json.dumps(data).encode("utf-8")
+        print("Request Information:", request_information.url)
         return request_information
 
     @staticmethod
