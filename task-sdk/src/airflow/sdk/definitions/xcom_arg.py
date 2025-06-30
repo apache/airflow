@@ -20,9 +20,9 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Sized
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
@@ -109,7 +109,7 @@ class XComArg(LoggingMixin, ResolveMixin, DependencyMixin):
         """
         if isinstance(arg, ResolveMixin):
             yield from arg.iter_references()
-        elif isinstance(arg, (tuple, set, list)):
+        elif isinstance(arg, tuple | set | list):
             for elem in arg:
                 yield from XComArg.iter_xcom_references(elem)
         elif isinstance(arg, dict):
@@ -513,6 +513,7 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
+
         if isinstance(value, (Sequence, dict)):
             return _MapResult(value, self.callables)
         if isinstance(value, Iterable):
@@ -580,7 +581,7 @@ class ZipXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         values = [arg.resolve(context) for arg in self.args]
         for value in values:
-            if not isinstance(value, (Sequence, dict)):
+            if not isinstance(value, Sequence | dict):
                 raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
         return _ZipResult(values, fillvalue=self.fillvalue)
 
@@ -643,7 +644,7 @@ class ConcatXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         values = [arg.resolve(context) for arg in self.args]
         for value in values:
-            if not isinstance(value, (Sequence, dict)):
+            if not isinstance(value, Sequence | dict):
                 raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
         return _ConcatResult(values)
 
