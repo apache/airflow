@@ -18,24 +18,20 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { MdOutlineTask } from "react-icons/md";
-import { useLocation, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import type { LightGridTaskInstanceSummary } from "openapi/requests";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-type LocationState = {
-  taskInstance: LightGridTaskInstanceSummary;
-};
-
 export const GroupTaskInstance = () => {
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId = "", taskId = "" } = useParams();
 
-  const location = useLocation();
-  const state = location.state as LocationState;
-  const taskInstance: LightGridTaskInstanceSummary = state.taskInstance;
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+
   const refetchInterval = useAutoRefresh({ dagId });
 
   const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
@@ -43,10 +39,12 @@ export const GroupTaskInstance = () => {
   return (
     <ReactFlowProvider>
       <DetailsLayout tabs={tabs}>
-        <Header
-          isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-          taskInstance={taskInstance}
-        />
+        {taskInstance === undefined ? undefined : (
+          <Header
+            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
+            taskInstance={taskInstance}
+          />
+        )}
       </DetailsLayout>
     </ReactFlowProvider>
   );

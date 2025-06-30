@@ -21,7 +21,7 @@ import type { MouseEvent } from "react";
 import React from "react";
 import { Link, useParams } from "react-router-dom";
 
-import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 
 type Props = {
@@ -33,7 +33,6 @@ type Props = {
   readonly search: string;
   readonly state?: TaskInstanceState | null;
   readonly taskId: string;
-  readonly taskInstance: LightGridTaskInstanceSummary;
 };
 
 const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
@@ -52,7 +51,7 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId, taskInstance }: Props) => {
+const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
 
   return (
@@ -72,7 +71,6 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId, task
     >
       <Link
         replace
-        state={{ taskInstance }}
         to={{
           pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
           search,

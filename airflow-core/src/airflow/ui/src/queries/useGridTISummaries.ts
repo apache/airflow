@@ -27,7 +27,7 @@ export const useGridTiSummaries = ({
 }: {
   dagId: string;
   runId: string;
-  state: TaskInstanceState | null | undefined;
+  state?: TaskInstanceState | null | undefined;
 }) => {
   const refetchInterval = useAutoRefresh({ dagId });
 

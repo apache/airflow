@@ -55,7 +55,6 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
         search={search}
         state={taskInstance.state}
         taskId={node.id}
-        taskInstance={taskInstance}
       />
     );
   });
