@@ -65,6 +65,7 @@ TEST_UPGRADING_PACKAGES: dict[str, str | list[str]] = {
     "name": "Upgrading/downgrading/removing selected packages",
     "options": [
         "--upgrade-boto",
+        "--upgrade-sqlalchemy",
         "--downgrade-sqlalchemy",
         "--downgrade-pendulum",
     ],
