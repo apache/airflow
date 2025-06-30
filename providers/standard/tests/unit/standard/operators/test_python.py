@@ -47,13 +47,6 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
     DeserializingResultError,
 )
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
@@ -77,6 +70,11 @@ from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
