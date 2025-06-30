@@ -55,7 +55,7 @@ def _resolve_dagrun_model():
     from airflow.models.dagrun import DagRun
 
     return DagRun
-
+Stats.incr("ti_failures")
 
 @lru_cache
 def health_check_threshold(job_type: str, heartrate: int) -> int | float:
