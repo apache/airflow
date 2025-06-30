@@ -54,7 +54,10 @@ class TestYQExecuteQueryOperator:
     def test_execute_query(self, mock_get_connection):
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
         operator = YQExecuteQueryOperator(task_id="simple_sql", sql="select 987", folder_id="my_folder_id")
-        context = {"ti": MagicMock()}
+        mock_ti = MagicMock()
+        context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            context["task_instance"] = operator
 
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
@@ -90,25 +93,14 @@ class TestYQExecuteQueryOperator:
         results = operator.execute(context)
         assert results == {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]}
 
-        if AIRFLOW_V_3_0_PLUS:
-            context["ti"].xcom_push.assert_has_calls(
-                [
-                    call(
-                        key="web_link",
-                        value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
-                    ),
-                ]
-            )
-        else:
-            context["ti"].xcom_push.assert_has_calls(
-                [
-                    call(
-                        key="web_link",
-                        value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
-                        execution_date=None,
-                    ),
-                ]
-            )
+        context["ti"].xcom_push.assert_has_calls(
+            [
+                call(
+                    key="web_link",
+                    value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
+                ),
+            ]
+        )
 
         responses.get(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/status",
