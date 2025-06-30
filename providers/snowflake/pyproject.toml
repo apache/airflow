@@ -65,6 +65,7 @@ dependencies = [
     "snowflake-connector-python>=3.7.1",
     "snowflake-sqlalchemy>=1.4.0",
     "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
+    "snowflake-snowpark-python>=1.27.0;python_version>='3.12'",
 ]
 
 # The optional dependencies should be modified in place in the generated file

@@ -26,19 +26,20 @@ import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+)
 
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 def __getattr__(name: str) -> Any:
@@ -94,16 +95,16 @@ class DataprocLink(BaseOperatorLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance,
         url: str,
         resource: str,
+        region: str,
+        project_id: str,
     ):
-        task_instance.xcom_push(
-            context=context,
+        context["task_instance"].xcom_push(
             key=DataprocLink.key,
             value={
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
+                "region": region,
+                "project_id": project_id,
                 "url": url,
                 "resource": resource,
             },
@@ -147,14 +148,13 @@ class DataprocListLink(BaseOperatorLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance,
         url: str,
+        project_id: str,
     ):
-        task_instance.xcom_push(
-            context=context,
+        context["task_instance"].xcom_push(
             key=DataprocListLink.key,
             value={
-                "project_id": task_instance.project_id,
+                "project_id": project_id,
                 "url": url,
             },
         )

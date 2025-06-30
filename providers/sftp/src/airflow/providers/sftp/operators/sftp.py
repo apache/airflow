@@ -28,8 +28,8 @@ from typing import Any
 import paramiko
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.providers.sftp.version_compat import BaseOperator
 
 
 class SFTPOperation:

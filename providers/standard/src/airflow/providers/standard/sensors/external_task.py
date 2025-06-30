@@ -58,8 +58,8 @@ if TYPE_CHECKING:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.context import Context
     else:
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.utils.context import Context
+        from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+        from airflow.utils.context import Context  # type: ignore[no-redef]
 
 
 if AIRFLOW_V_3_0_PLUS:

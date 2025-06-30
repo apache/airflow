@@ -64,7 +64,7 @@ EDGE_WORKER_HEADER = "\n".join(
 @providers_configuration_loaded
 def force_use_internal_api_on_edge_worker():
     """
-    Ensure that the environment is configured for the internal API without needing to declare it outside.
+    Ensure the environment is configured for the internal API without explicit declaration.
 
     This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
     That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
