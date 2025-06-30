@@ -125,7 +125,8 @@ def _get_connection(conn_id: str) -> Connection:
     # enabled only if SecretCache.init() has been called first
 
     # iterate over configured backends if not in cache (or expired)
-    for secrets_backend in ensure_secrets_backend_loaded():
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
@@ -137,10 +138,11 @@ def _get_connection(conn_id: str) -> Connection:
                 type(secrets_backend).__name__,
             )
 
-    log.debug(
-        "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-        conn_id=conn_id,
-    )
+    if backends:
+        log.debug(
+            "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+            conn_id=conn_id,
+        )
 
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.connection`
@@ -166,8 +168,9 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     var_val = None
+    backends = ensure_secrets_backend_loaded()
     # iterate over backends if not in cache (or expired)
-    for secrets_backend in ensure_secrets_backend_loaded():
+    for secrets_backend in backends:
         try:
             var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
             if var_val is not None:
@@ -184,10 +187,11 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    log.debug(
-        "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-        key=key,
-    )
+    if backends:
+        log.debug(
+            "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+            key=key,
+        )
 
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
