@@ -576,7 +576,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
-                observed_filelocs={str(x.rel_path) for x in found_files},  # todo: make relative
+                observed_filelocs=self._normalize_relative_paths(found_files),
             )
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
@@ -1094,6 +1094,15 @@ class DagFileProcessorManager(LoggingMixin):
                     "import_errors": sum(stat.import_errors for stat in self._file_stats.values()),
                 }
             )
+
+    def _normalize_relative_paths(self, found_files: set[DagFileInfo]) -> set[str]:
+        """
+        Convert DagFileInfo objects to normalized relative path strings.
+
+        Ensures consistent path format across platforms and database storage.
+        Uses POSIX-style separators for consistency with bundle system.
+        """
+        return {file_info.rel_path.as_posix() for file_info in found_files}
 
 
 def reload_configuration_for_dag_processing():
