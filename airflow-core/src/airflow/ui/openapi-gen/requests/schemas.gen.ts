@@ -6169,9 +6169,16 @@ export const $ConfigResponse = {
             ],
             title: 'External Log Name'
         }
+        },
+        plugins_extra_menu_items: {
+            items: {
+                '$ref': '#/components/schemas/ExternalViewResponse'
+            },
+            type: 'array',
+            title: 'Plugins Extra Menu Items'
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect'],
+    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect','plugins_extra_menu_items'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

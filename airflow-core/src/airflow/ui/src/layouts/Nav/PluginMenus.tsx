@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
+import { useConfig } from "src/queries/useConfig";
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 
@@ -30,32 +30,27 @@ import { PluginMenuItem } from "./PluginMenuItem";
 
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
-  const { data } = usePluginServiceGetPlugins();
+  const menuPlugins = (useConfig("plugins_extra_menu_items") as Array<ExternalViewResponse>) ?? [];
 
-  const menuPlugins =
-    data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
-    [];
+  const directExternalViews = menuPlugins.filter((p: ExternalViewResponse) => !p.is_menu_item);
+  const menuExternalViews = menuPlugins.filter((p: ExternalViewResponse) => p.is_menu_item);
 
-  // Only show external plugins in menu if there are more than 2
-  const menuExternalViews = menuPlugins.length > 2 ? menuPlugins : [];
-  const directExternalViews = menuPlugins.length <= 2 ? menuPlugins : [];
-
-  if (data === undefined || menuPlugins.length === 0) {
+  if (menuPlugins.length === 0) {
     return undefined;
   }
 
   const categories: Record<string, Array<ExternalViewResponse>> = {};
   const buttons: Array<ExternalViewResponse> = [];
 
-  menuPlugins.forEach((externalView) => {
-    if (externalView.category !== null && externalView.category !== undefined) {
+  menuExternalViews.forEach((externalView) => {
+    if (externalView.category) {
       categories[externalView.category] = [...(categories[externalView.category] ?? []), externalView];
     } else {
       buttons.push(externalView);
     }
   });
 
-  if (!buttons.length && !Object.keys(categories).length && menuPlugins.length === 0) {
+  if (!buttons.length && !Object.keys(categories).length && !directExternalViews.length) {
     return undefined;
   }
 

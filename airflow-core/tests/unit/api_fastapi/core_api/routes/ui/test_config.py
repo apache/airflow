@@ -20,7 +20,7 @@ import pytest
 
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.mock_plugin_manager(plugins=[])]
 
 mock_config_response = {
     "page_size": 100,
@@ -34,6 +34,7 @@ mock_config_response = {
     "dashboard_alert": [],
     "show_external_log_redirect": False,
     "external_log_name": None,
+    "plugins_extra_menu_items": [],
 }
 
 
