@@ -137,7 +137,7 @@ Additional options to your auth backend can be configured in ``airflow.cfg``, as
 Example using Keycloak authentication
 '''''''''''''''''''''''''''''''''''''
 
-The following example add also `PKCE` authentication flow.
+The following example add also ``PKCE`` authentication flow.
 
 You must configure Keycloak accordingly, create clientID in Keycloak:
 
@@ -201,7 +201,7 @@ or create a Secret with these values for your Helm chart:
 
 and configure your Helm chart to use this Secret:
 
-.. code-block::yaml
+.. code-block:: yaml
 
     apiServer:
       env:
@@ -226,9 +226,9 @@ and configure your Helm chart to use this Secret:
               name: airflow-api-keycloak
               key: AIRFLOW__API__BASE_URL
 
-Here is an example of what you might have in your `webserver_config.py` or `apiServerConfig` value in Helm chart:
+Here is an example of what you might have in your ``webserver_config.py`` or ``apiServerConfig`` value in Helm chart:
 
-.. code-block::python
+.. code-block:: python
 
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from base64 import b64decode
