@@ -35,11 +35,15 @@ class TestDagWarning:
     def setup_method(self):
         clear_db_dags()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_purge_inactive_dag_warnings(self, session):
         """
         Test that the purge_inactive_dag_warnings method deletes inactive dag warnings
         """
-        dags = [DagModel(dag_id="dag_1", is_stale=True), DagModel(dag_id="dag_2", is_stale=False)]
+        dags = [
+            DagModel(dag_id="dag_1", bundle_name="testing", is_stale=True),
+            DagModel(dag_id="dag_2", bundle_name="testing", is_stale=False),
+        ]
         session.add_all(dags)
         session.commit()
 

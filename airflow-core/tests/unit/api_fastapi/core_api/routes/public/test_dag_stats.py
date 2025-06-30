@@ -21,12 +21,18 @@ from datetime import datetime, timedelta
 import pytest
 
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -44,11 +50,18 @@ class TestDagStatsEndpoint:
     def _clear_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_serialized_dags()
 
     def _create_dag_and_runs(self, session=None):
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.add(orm_dag_bundle)
+        session.flush()
+
         dag_1 = DagModel(
             dag_id=DAG1_ID,
+            bundle_name=bundle_name,
             fileloc="/tmp/dag_stats_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -74,6 +87,7 @@ class TestDagStatsEndpoint:
         )
         dag_2 = DagModel(
             dag_id=DAG2_ID,
+            bundle_name=bundle_name,
             fileloc="/tmp/dag_stats_2.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -91,6 +105,7 @@ class TestDagStatsEndpoint:
         )
         dag_3 = DagModel(
             dag_id=DAG3_ID,
+            bundle_name=bundle_name,
             fileloc="/tmp/dag_stats_3.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
