@@ -1956,8 +1956,14 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(
-                XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
+            first = session.execute(
+                query.with_only_columns(
+                    XComModel.run_id,
+                    XComModel.task_id,
+                    XComModel.dag_id,
+                    XComModel.map_index,
+                    XComModel.value,
+                )
             ).first()
 
             if first is None:  # No matching XCom at all.
