@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``583e80dfcef4`` (head) | ``3ac9e5732b1f`` | ``3.1.0``         | Add task_inlet_asset_reference table.                        |
+| ``66a7743fe20e`` (head) | ``583e80dfcef4`` | ``3.1.0``         | Add triggering user to dag_run.                              |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``583e80dfcef4``        | ``3ac9e5732b1f`` | ``3.1.0``         | Add task_inlet_asset_reference table.                        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``3ac9e5732b1f``        | ``0242ac120002`` | ``3.1.0``         | Change the on-delete behaviour of                            |
 |                         |                  |                   | task_instance.dag_version_id foreign key constraint to       |
