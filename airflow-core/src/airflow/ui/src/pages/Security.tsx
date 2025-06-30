@@ -43,14 +43,15 @@ export const Security = () => {
     return <ErrorPage />;
   }
 
+  // The following iframe sandbox setting is intentionally less restrictive.
+  // This is considered safe because the framed content originates from the Auth manager,
+  // which is part of the deployment of Airflow and trusted as per our security policy.
+  // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+  const sandbox = "allow-scripts allow-same-origin allow-forms";
+
   return (
     <Box flexGrow={1} m={-3}>
-      <iframe
-        sandbox="allow-same-origin allow-forms"
-        src={link.href}
-        style={{ height: "100%", width: "100%" }}
-        title={link.text}
-      />
+      <iframe sandbox={sandbox} src={link.href} style={{ height: "100%", width: "100%" }} title={link.text} />
     </Box>
   );
 };
