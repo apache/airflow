@@ -51,9 +51,11 @@ from airflow.providers.openlineage.utils.utils import (
     _get_tasks_details,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_dag_documentation,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
+    get_task_documentation,
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -284,6 +286,70 @@ def test_get_fully_qualified_class_name_bash_operator():
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="echo 0;"))
     expected_result = f"{BASH_OPERATOR_PATH}.BashOperator"
     assert result == expected_result
+
+
+@pytest.mark.parametrize(
+    "operator, expected_doc, expected_mime_type",
+    [
+        (None, None, None),
+        (MagicMock(doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None), None, None),
+        (MagicMock(doc="Test doc"), "Test doc", "text/plain"),
+        (MagicMock(doc_md="test.md", doc=None), "test.md", "text/markdown"),
+        (
+            MagicMock(doc_json='{"key": "value"}', doc=None, doc_md=None),
+            '{"key": "value"}',
+            "application/json",
+        ),
+        (
+            MagicMock(doc_yaml="key: value", doc_json=None, doc=None, doc_md=None),
+            "key: value",
+            "application/x-yaml",
+        ),
+        (
+            MagicMock(doc_rst="Test RST", doc_yaml=None, doc_json=None, doc=None, doc_md=None),
+            "Test RST",
+            "text/x-rst",
+        ),
+    ],
+)
+def test_get_task_documentation(operator, expected_doc, expected_mime_type):
+    result_doc, result_mime_type = get_task_documentation(operator)
+    assert result_doc == expected_doc
+    assert result_mime_type == expected_mime_type
+
+
+def test_get_task_documentation_serialized_operator():
+    op = BashOperator(task_id="test", bash_command="echo 1", doc="some_doc")
+    op_doc_before_serialization = get_task_documentation(op)
+    assert op_doc_before_serialization == ("some_doc", "text/plain")
+
+    serialized = SerializedBaseOperator.serialize_operator(op)
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+
+    op_doc_after_deserialization = get_task_documentation(deserialized)
+    assert op_doc_after_deserialization == ("some_doc", "text/plain")
+
+
+def test_get_task_documentation_mapped_operator():
+    mapped = MockOperator.partial(task_id="task_2", doc_md="some_doc").expand(arg2=["a", "b", "c"])
+    mapped_op_doc = get_task_documentation(mapped)
+    assert mapped_op_doc == ("some_doc", "text/markdown")
+
+
+@pytest.mark.parametrize(
+    "dag, expected_doc, expected_mime_type",
+    [
+        (None, None, None),
+        (MagicMock(doc_md=None, description=None), None, None),
+        (MagicMock(doc_md="test.md", description=None), "test.md", "text/markdown"),
+        (MagicMock(doc_md="test.md", description="Description text"), "test.md", "text/markdown"),
+        (MagicMock(description="Description text", doc_md=None), "Description text", "text/plain"),
+    ],
+)
+def test_get_dag_documentation(dag, expected_doc, expected_mime_type):
+    result_doc, result_mime_type = get_dag_documentation(dag)
+    assert result_doc == expected_doc
+    assert result_mime_type == expected_mime_type
 
 
 def test_get_job_name():
