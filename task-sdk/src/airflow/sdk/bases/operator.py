@@ -1772,6 +1772,54 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 session=session,
             )
 
+    # TODO (GH-52141): Either port this, or somehow fix the tests to remove this from the sdk.
+    def clear(
+        self,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        upstream: bool = False,
+        downstream: bool = False,
+        session=None,
+    ):
+        """Clear the state of task instances associated with the task, following the parameters specified."""
+        from sqlalchemy import select
+
+        from airflow.models.taskinstance import TaskInstance, clear_task_instances
+        from airflow.settings import Session
+
+        if session is None:
+            session = Session()
+
+        qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
+
+        if start_date:
+            qry = qry.where(TaskInstance.logical_date >= start_date)
+        if end_date:
+            qry = qry.where(TaskInstance.logical_date <= end_date)
+
+        tasks = [self.task_id]
+
+        if upstream:
+            tasks += [t.task_id for t in self.get_flat_relatives(upstream=True)]
+
+        if downstream:
+            tasks += [t.task_id for t in self.get_flat_relatives(upstream=False)]
+
+        qry = qry.where(TaskInstance.task_id.in_(tasks))
+        results = session.scalars(qry).all()
+        count = len(results)
+
+        if TYPE_CHECKING:
+            from airflow.models.dag import DAG as SchedulerDAG
+
+            # TODO: Task-SDK: We need to set this to the scheduler DAG until we
+            # fully separate scheduling and definition code.
+            assert isinstance(self.dag, SchedulerDAG)
+
+        clear_task_instances(results, session)
+        session.commit()
+        return count
+
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
     r"""
