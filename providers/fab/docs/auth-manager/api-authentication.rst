@@ -178,9 +178,9 @@ Proof Key for Code Exchange Code Challenge Method: S256
 
 You must create the following environment variables in your Airflow deployment:
 ```bash
-export CLIENT_ID=<airflow-client-id> \
-export CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
-export OIDC_ISSUER=https://<your-keycloak-url.fr>/auth/realms/<REALM> \
+export CLIENT_ID=<airflow-client-id>
+export CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+export OIDC_ISSUER=https://<your-keycloak-url.fr>/auth/realms/<REALM>
 export AIRFLOW__API__BASE_URL=https://<your-airflow-url.fr>
 ```
 
