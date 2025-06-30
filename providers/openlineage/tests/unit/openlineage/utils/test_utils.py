@@ -26,14 +26,16 @@ import pytest
 from uuid6 import uuid7
 
 from airflow import DAG
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import task
+    from airflow.sdk import BaseOperator, task
 else:
     from airflow.decorators import task
-from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperator import BaseOperator
+
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset

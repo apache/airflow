@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from google.auth.exceptions import GoogleAuthError
 
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip(

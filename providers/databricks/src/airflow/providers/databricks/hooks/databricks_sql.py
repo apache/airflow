@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import threading
 from collections import namedtuple
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import closing
 from copy import copy
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     TypeVar,
     cast,
     overload,
