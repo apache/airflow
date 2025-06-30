@@ -39,18 +39,21 @@ class BaseTestAuth:
         self.app = minimal_app_for_auth_api
 
         sm = self.app.appbuilder.sm
-        delete_user(self.app, "test")
-        role_admin = sm.find_role("Admin")
-        sm.add_user(
-            username="test",
-            first_name="test",
-            last_name="test",
-            email="test@fab.org",
-            role=role_admin,
-            password="test",
-        )
+
+        with self.app.app_context():
+            delete_user(self.app, "test")
+            role_admin = sm.find_role("Admin")
+            sm.add_user(
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
 
+@pytest.mark.db_test
 class TestBasicAuth(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):

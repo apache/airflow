@@ -21,7 +21,6 @@ from datetime import timedelta
 from os.path import isabs
 
 from flask import Flask
-from flask_appbuilder import SQLA
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
@@ -78,10 +77,6 @@ def create_app(enable_plugins: bool):
 
     csrf.init_app(flask_app)
 
-    db = SQLA()
-    db.session = settings.Session
-    db.init_app(flask_app)
-
     configure_logging()
     configure_manifest_files(flask_app)
     init_api_auth(flask_app)
@@ -101,9 +96,12 @@ def create_app(enable_plugins: bool):
         elif isinstance(get_auth_manager(), FabAuthManager):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
+            init_airflow_session_interface(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
-        init_airflow_session_interface(flask_app)
         init_wsgi_middleware(flask_app)
+        from flask_appbuilder.extensions import db
+
+        db.engine.dispose(close=True)
     return flask_app
 
 

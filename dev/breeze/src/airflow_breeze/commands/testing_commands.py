@@ -57,6 +57,7 @@ from airflow_breeze.commands.common_options import (
     option_skip_cleanup,
     option_skip_db_tests,
     option_upgrade_boto,
+    option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_verbose,
 )
@@ -620,6 +621,7 @@ option_total_test_timeout = click.option(
 @option_test_type_core_group
 @option_total_test_timeout
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -685,6 +687,7 @@ def core_tests(**kwargs):
 @option_test_type_providers_group
 @option_total_test_timeout
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -748,6 +751,7 @@ def task_sdk_tests(**kwargs):
         test_type=ALL_TEST_TYPE,
         total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
         upgrade_boto=False,
+        upgrade_sqlalchemy=False,
         use_airflow_version=None,
         use_distributions_from_dist=False,
         **kwargs,
@@ -1291,6 +1295,7 @@ def _run_test_command(
     test_type: str,
     total_test_timeout: int,
     upgrade_boto: bool,
+    upgrade_sqlalchemy: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_xdist: bool,
@@ -1337,6 +1342,7 @@ def _run_test_command(
         test_type=test_type,
         test_group=test_group,
         upgrade_boto=upgrade_boto,
+        upgrade_sqlalchemy=upgrade_sqlalchemy,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_xdist=use_xdist,
