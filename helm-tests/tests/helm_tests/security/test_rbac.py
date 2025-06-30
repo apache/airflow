@@ -121,6 +121,7 @@ class TestRBAC:
                     ("Service", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-dag-processor"),
+                    ("Secret", "test-rbac-api-secret-key"),
                     ("Secret", "test-rbac-jwt-secret"),
                 )
             )
