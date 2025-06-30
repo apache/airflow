@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import configuration, models
+from airflow.exceptions import AirflowException
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 
 
@@ -101,7 +102,7 @@ class TestTableauHook:
         )
         create_connection_without_db(
             models.Connection(
-                conn_id="tableau_test_password_auth_preferred",
+                conn_id="tableau_test_both_auth",
                 conn_type="tableau",
                 host="tableau",
                 login="user",
@@ -164,8 +165,7 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_jwt_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
-    def test_jwt_auth_with_no_token_provided(self, mock_tableau_jwt_auth):
+    def test_jwt_auth_with_no_token_provided(self):
         """
         Test get conn using JWT authentication without providing a token
         """
@@ -176,10 +176,7 @@ class TestTableauHook:
             TableauHook(tableau_conn_id="tableau_test_jwt_auth_no_token").get_conn()
 
     @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_jwt_auth_with_two_tokens_provided(
-        self, mock_server, mock_tableau_jwt_auth, create_connection_without_db
-    ):
+    def test_jwt_auth_with_two_tokens_provided(self, mock_tableau_jwt_auth, create_connection_without_db):
         """
         Test get conn using JWT authentication while providing both a string token and a path
 
@@ -239,20 +236,16 @@ class TestTableauHook:
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_password_auth_preferred_over_jwt(self, mock_server, mock_tableau_auth):
+    def test_both_auth(self, mock_tableau_auth):
         """
-        Test whether password authentication is preferred over jwt if both are set
+        Test whether an error is thrown if both auth types are set
         """
-        with TableauHook(tableau_conn_id="tableau_test_password_auth_preferred") as tableau_hook:
-            mock_server.assert_called_once_with(tableau_hook.conn.host)
-            mock_tableau_auth.assert_called_once_with(
-                username=tableau_hook.conn.login,
-                password=tableau_hook.conn.password,
-                site_id="",
-            )
-            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
-        mock_server.return_value.auth.sign_out.assert_called_once_with()
+        with pytest.raises(
+            AirflowException,
+            match=r"Username/password authentication and JWT authentication cannot be used simultaneously. Please specify only one authentication method.",
+        ):
+            TableauHook(tableau_conn_id="tableau_test_both_auth").get_conn()
+        mock_tableau_auth.assert_not_called()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")

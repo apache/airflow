@@ -112,10 +112,16 @@ class TableauHook(BaseHook):
         :return: an authorized Tableau Server Context Manager object.
         """
         extra = self.conn.extra_dejson
-        if self.conn.login and self.conn.password:
-            return self._auth_via_password()
+        password_auth_set = self.conn.login and self.conn.password
+        jwt_auth_set = extra.get("auth") == "jwt"
 
-        if extra.get("auth") == "jwt":
+        if password_auth_set and jwt_auth_set:
+            raise AirflowException(
+                "Username/password authentication and JWT authentication cannot be used simultaneously. Please specify only one authentication method."
+            )
+        if password_auth_set:
+            return self._auth_via_password()
+        if jwt_auth_set:
             if not exactly_one(jwt_file := "jwt_file" in extra, jwt_token := "jwt_token" in extra):
                 msg = (
                     "When auth set to 'jwt' then expected exactly one parameter 'jwt_file' or 'jwt_token'"
