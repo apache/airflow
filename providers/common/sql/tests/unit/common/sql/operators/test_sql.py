@@ -1164,7 +1164,7 @@ class TestSqlBranch:
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_follow_task_true(self, mock_supervisor_comms):
+    def test_invalid_follow_task_true(self):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
@@ -1177,7 +1177,7 @@ class TestSqlBranch:
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_follow_task_false(self, mock_supervisor_comms):
+    def test_invalid_follow_task_false(self):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
