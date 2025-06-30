@@ -19,19 +19,15 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
-from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+from airflow.providers.salesforce.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from typing import Literal
 
     from simple_salesforce.bulk import SFBulkHandler
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.salesforce.version_compat import Context
 
 
 class SalesforceBulkOperator(BaseOperator):
