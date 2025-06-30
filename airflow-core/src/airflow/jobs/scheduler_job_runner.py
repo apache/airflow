@@ -25,12 +25,12 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator
 from contextlib import ExitStack
 from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, delete, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError

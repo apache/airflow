@@ -19,8 +19,8 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
@@ -54,13 +54,12 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    try:
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.utils.context import Context
+    else:
+        from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+        from airflow.utils.context import Context  # type: ignore[no-redef]
 
 
 if AIRFLOW_V_3_0_PLUS:
@@ -80,7 +79,7 @@ class ExternalDagLink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
+            assert isinstance(operator, ExternalTaskMarker | ExternalTaskSensor)
 
         external_dag_id = operator.external_dag_id
 

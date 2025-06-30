@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Callable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicyViolation

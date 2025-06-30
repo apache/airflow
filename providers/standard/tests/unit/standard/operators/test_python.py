@@ -28,7 +28,7 @@ import tempfile
 import warnings
 from collections import namedtuple
 from collections.abc import Generator
-from datetime import date, datetime, timedelta, timezone as _timezone
+from datetime import date, datetime, timezone as _timezone
 from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
@@ -47,8 +47,6 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
@@ -73,7 +71,13 @@ from airflow.utils.types import NOTSET, DagRunType
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+
 if TYPE_CHECKING:
+    from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.utils.context import Context
 
@@ -174,8 +178,8 @@ class BasePythonTest:
         clear_db_runs()
         with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
             task = self.opcls(task_id=self.task_id, python_callable=fn, **self.default_kwargs(**kwargs))
-        self.dag_maker.create_dagrun()
-        task.run(start_date=self.default_date, end_date=self.default_date)
+        dr = self.dag_maker.create_dagrun()
+        self.dag_maker.run_ti(self.task_id, dr)
         clear_db_runs()
         return task
 
@@ -405,13 +409,13 @@ class TestBranchOperator(BasePythonTest):
             branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branch_op >> [self.branch_1, self.branch_2]
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
-                branch_op.run(start_date=self.default_date, end_date=self.default_date)
+                self.dag_maker.run_ti(self.task_id, dr)
             assert dts.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti(self.task_id, dr)
             self.assert_expected_task_states(
                 dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
             )
@@ -427,8 +431,8 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
-        dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        dr = self.dag_maker.create_dagrun()
+        self.dag_maker.run_ti(self.task_id, dr)
         self.assert_expected_task_states(
             dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE}
         )
@@ -444,13 +448,13 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 branch_op.run(start_date=self.default_date, end_date=self.default_date)
             assert dts.value.tasks == [("branch_1", -1)]
         else:
-            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti(branch_op.task_id, dr)
             self.assert_expected_task_states(
                 dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
             )
@@ -487,9 +491,9 @@ class TestBranchOperator(BasePythonTest):
                 branch_2_ti.run()
                 assert branch_2_ti.state == TaskInstanceState.SKIPPED
         else:
-            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            dag_maker.run_ti(branch_op.task_id, dr)
             for task in branches:
-                task.run(start_date=self.default_date, end_date=self.default_date)
+                dag_maker.run_ti(task.task_id, dr)
 
             expected_states = {
                 self.task_id: State.SUCCESS,
@@ -510,7 +514,7 @@ class TestBranchOperator(BasePythonTest):
 
             # Run the cleared tasks again.
             for task in branches:
-                task.run(start_date=self.default_date, end_date=self.default_date)
+                dag_maker.run_ti(task.task_id, dr)
 
             # Check if the states are correct after children tasks are cleared.
             self.assert_expected_task_states(dr, expected_states)
@@ -714,7 +718,7 @@ class TestShortCircuitOperator(BasePythonTest):
         Checking the behavior of the ShortCircuitOperator in several scenarios enabling/disabling the skipping
         of downstream tasks, both short-circuiting modes, and various trigger rules of downstream tasks.
         """
-        with self.dag_non_serialized:
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
             short_circuit = ShortCircuitOperator(
                 task_id="short_circuit",
                 python_callable=lambda: callable_return,
@@ -723,21 +727,21 @@ class TestShortCircuitOperator(BasePythonTest):
             short_circuit >> self.op1 >> self.op2
             self.op2.trigger_rule = test_trigger_rule
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             if expected_skipped_tasks:
                 with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                    short_circuit.run(start_date=self.default_date, end_date=self.default_date)
+                    self.dag_maker.run_ti("short_circuit", dr)
                 assert set(exc_info.value.tasks) == set(expected_skipped_tasks)
             else:
-                assert short_circuit.run(start_date=self.default_date, end_date=self.default_date) is None
+                assert self.dag_maker.run_ti("short_circuit", dr) is None
 
         else:
-            short_circuit.run(start_date=self.default_date, end_date=self.default_date)
-            self.op1.run(start_date=self.default_date, end_date=self.default_date)
-            self.op2.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti("short_circuit", dr)
+            self.dag_maker.run_ti("op1", dr)
+            self.dag_maker.run_ti("op2", dr)
 
             assert short_circuit.ignore_downstream_trigger_rules == test_ignore_downstream_trigger_rules
             assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
@@ -772,9 +776,9 @@ class TestShortCircuitOperator(BasePythonTest):
                 op1_ti.run()
                 assert op1_ti.state == TaskInstanceState.SKIPPED
         else:
-            short_circuit.run(start_date=self.default_date, end_date=self.default_date)
-            self.op1.run(start_date=self.default_date, end_date=self.default_date)
-            self.op2.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti(self.task_id, dr)
+            self.dag_maker.run_ti(self.op1.task_id, dr)
+            self.dag_maker.run_ti(self.op2.task_id, dr)
             assert short_circuit.ignore_downstream_trigger_rules
             assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
             assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
@@ -796,7 +800,7 @@ class TestShortCircuitOperator(BasePythonTest):
                     clear_task_instances(
                         [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
                     )
-            self.op1.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti("op1", dr)
             self.assert_expected_task_states(dr, expected_states)
 
     def test_xcom_push(self):
@@ -809,29 +813,29 @@ class TestShortCircuitOperator(BasePythonTest):
                 task_id="do_not_push_xcom_from_shortcircuit", python_callable=lambda: False
             )
 
-        dr = self.create_dag_run()
-        short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
-        short_op_no_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
+        dr = self.dag_maker.create_dagrun()
+        self.dag_maker.run_ti("push_xcom_from_shortcircuit", dr)
+        self.dag_maker.run_ti("do_not_push_xcom_from_shortcircuit", dr)
 
         tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
         assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
     def test_xcom_push_skipped_tasks(self):
-        with self.dag_non_serialized:
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
             short_op_push_xcom = ShortCircuitOperator(
                 task_id="push_xcom_from_shortcircuit", python_callable=lambda: False
             )
             empty_task = EmptyOperator(task_id="empty_task")
             short_op_push_xcom >> empty_task
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped):
                 short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
         else:
-            short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti("push_xcom_from_shortcircuit", dr)
         tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="skipmixin_key") == {
             "skipped": ["empty_task"]
@@ -1739,14 +1743,13 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branch_op >> [self.branch_1, self.branch_2]
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
-                branch_op.run(start_date=self.default_date, end_date=self.default_date)
-
+                self.dag_maker.run_ti(self.task_id, dr)
             assert dts.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti(self.task_id, dr)
             self.assert_expected_task_states(
                 dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
             )
@@ -1762,8 +1765,8 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
-        dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        dr = self.dag_maker.create_dagrun()
+        self.dag_maker.run_ti(branch_op.task_id, dr)
         self.assert_expected_task_states(
             dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE}
         )
@@ -1779,15 +1782,15 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
-                branch_op.run(start_date=self.default_date, end_date=self.default_date)
+                self.dag_maker.run_ti(branch_op.task_id, dr)
 
             assert dts.value.tasks == [("branch_1", -1)]
         else:
-            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti(branch_op.task_id, dr)
             self.assert_expected_task_states(
                 dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
             )
@@ -1806,7 +1809,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branches = [self.branch_1, self.branch_2]
             branch_op >> branches
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
@@ -1827,9 +1830,9 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                     branch_2_ti.run()
                     assert branch_2_ti.state == TaskInstanceState.SKIPPED
         else:
-            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.dag_maker.run_ti(branch_op.task_id, dr)
             for task in branches:
-                task.run(start_date=self.default_date, end_date=self.default_date)
+                self.dag_maker.run_ti(task.task_id, dr)
 
             expected_states = {
                 self.task_id: State.SUCCESS,
@@ -1850,7 +1853,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
             # Run the cleared tasks again.
             for task in branches:
-                task.run(start_date=self.default_date, end_date=self.default_date)
+                self.dag_maker.run_ti(task.task_id, dr)
 
             # Check if the states are correct after children tasks are cleared.
             self.assert_expected_task_states(dr, expected_states)
@@ -2000,35 +2003,27 @@ def clear_db():
     clear_db_runs()
 
 
-DEFAULT_ARGS = {
-    "owner": "test",
-    "depends_on_past": True,
-    "start_date": datetime(2022, 1, 1),
-    "end_date": datetime.today(),
-    "retries": 1,
-    "retry_delay": timedelta(minutes=1),
-}
-
-
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
-    def test_context_in_task(self):
-        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
+    def test_context_in_task(self, dag_maker):
+        with dag_maker(dag_id="assert_context_dag", serialized=True):
             op = MyContextAssertOperator(task_id="assert_context")
-            if AIRFLOW_V_3_0_1:
-                with pytest.warns(AirflowProviderDeprecationWarning):
-                    op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
-            else:
-                op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+        dr = dag_maker.create_dagrun()
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                dag_maker.run_ti(op.task_id, dr)
+        else:
+            dag_maker.run_ti(op.task_id, dr)
 
-    def test_get_context_in_old_style_context_task(self):
-        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
+    def test_get_context_in_old_style_context_task(self, dag_maker):
+        with dag_maker(dag_id="assert_context_dag", serialized=True):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
-            if AIRFLOW_V_3_0_1:
-                with pytest.warns(AirflowProviderDeprecationWarning):
-                    op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
-            else:
-                op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+        dr = dag_maker.create_dagrun()
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                dag_maker.run_ti(op.task_id, dr)
+        else:
+            dag_maker.run_ti(op.task_id, dr)
 
 
 @pytest.mark.need_serialized_dag(False)
