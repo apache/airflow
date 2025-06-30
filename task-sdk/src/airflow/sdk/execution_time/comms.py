@@ -100,11 +100,11 @@ except ImportError:
 try:
     from airflow.providers.standard.execution_time.comms import (
         CreateHITLInputRequestPayload,
-        FetchHITLResponse,
+        GetHITLResponseContentDetail,
         HITLInputRequestResponseResult,
     )
 except ModuleNotFoundError:
-    FetchHITLResponse = object  # type: ignore[misc, assignment]
+    GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
     CreateHITLInputRequestPayload = object  # type: ignore[misc, assignment]
     HITLInputRequestResponseResult = object  # type: ignore[misc, assignment]
 
@@ -886,6 +886,6 @@ ToSupervisor = Annotated[
     | ResendLoggingFD
     # HITL response from standard provider
     | CreateHITLInputRequestPayload
-    | FetchHITLResponse,
+    | GetHITLResponseContentDetail,
     Field(discriminator="type"),
 ]

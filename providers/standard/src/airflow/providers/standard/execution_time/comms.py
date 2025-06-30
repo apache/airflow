@@ -19,25 +19,37 @@ from __future__ import annotations
 from typing import Literal
 
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
-    FetchHITLResponsePayload,
+    GetHITLResponseContentDetailPayload,
     HITLInputRequestResponse,
-    HITLResponse,
+    HITLResponseContentDetail,
 )
 
 
-class FetchHITLResponse(FetchHITLResponsePayload):
-    """Test."""
+class CreateHITLInputRequestPayload(HITLInputRequestResponse):
+    """Used in adding the input request part of a Human-in-the-loop response."""
 
-    type: Literal["FetchHITLResponsePayload"] = "FetchHITLResponsePayload"
+    type: Literal["CreateHITLInputRequestPayload"] = "CreateHITLInputRequestPayload"
 
 
-class HITLResponseResult(HITLResponse):
-    """Test."""
+class HITLInputRequestResponseResult(HITLInputRequestResponse):
+    """Response to CreateHITLInputRequestPayload request."""
 
-    type: Literal["HITLResponseResult"] = "HITLResponseResult"
+    type: Literal["HITLInputRequestResponseResult"] = "HITLInputRequestResponseResult"
+
+
+class GetHITLResponseContentDetail(GetHITLResponseContentDetailPayload):
+    """Used in fetching the content part of a Human-in-the-loop response."""
+
+    type: Literal["GetHITLResponseContentDetailPayload"] = "GetHITLResponseContentDetailPayload"
+
+
+class HITLResponseContentDetailResult(HITLResponseContentDetail):
+    """Response to GetHITLResponseContentDetail request."""
+
+    type: Literal["HITLResponseContentDetailResult"] = "HITLResponseContentDetailResult"
 
     @classmethod
-    def from_api_response(cls, hitl_response: HITLResponse) -> HITLResponseResult:
+    def from_api_response(cls, response: HITLResponseContentDetail) -> HITLResponseContentDetailResult:
         """
         Create result class from API Response.
 
@@ -45,16 +57,4 @@ class HITLResponseResult(HITLResponse):
         for communication between the Supervisor and the task process since it needs a
         discriminator field.
         """
-        return cls(**hitl_response.model_dump(exclude_defaults=True), type="HITLResponseResult")
-
-
-class CreateHITLInputRequestPayload(HITLInputRequestResponse):
-    """Test."""
-
-    type: Literal["CreateHITLInputRequestPayload"] = "CreateHITLInputRequestPayload"
-
-
-class HITLInputRequestResponseResult(HITLInputRequestResponse):
-    """Test."""
-
-    type: Literal["HITLInputRequestResponseResult"] = "HITLInputRequestResponseResult"
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLResponseContentDetailResult")

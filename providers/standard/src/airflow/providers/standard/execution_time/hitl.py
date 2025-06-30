@@ -22,9 +22,11 @@ from uuid import UUID
 
 from airflow.providers.standard.execution_time.comms import (
     CreateHITLInputRequestPayload,
-    FetchHITLResponse,
-    HITLResponseResult,
+    GetHITLResponseContentDetail,
 )
+
+if TYPE_CHECKING:
+    from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import HITLResponseContentDetail
 
 
 def add_hitl_input_request(
@@ -32,9 +34,10 @@ def add_hitl_input_request(
     options: list[str],
     subject: str,
     body: str | None = None,
-    default: str | None = None,
-    params: MutableMapping | None = None,
+    default: list[str] | None = None,
     multiple: bool = False,
+    params: MutableMapping | None = None,
+    form_content: MutableMapping | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -47,15 +50,16 @@ def add_hitl_input_request(
             default=default,
             params=params,
             multiple=multiple,
+            form_content=form_content,
         )
     )
 
 
-def get_hitl_response_content(ti_id: UUID) -> str | None:
+def get_hitl_response_content_detail(ti_id: UUID) -> HITLResponseContentDetail:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    response = SUPERVISOR_COMMS.send(msg=FetchHITLResponse(ti_id=ti_id))
+    response = SUPERVISOR_COMMS.send(msg=GetHITLResponseContentDetail(ti_id=ti_id))
 
     if TYPE_CHECKING:
-        assert isinstance(response, HITLResponseResult)
-    return response.content
+        assert isinstance(response, HITLResponseContentDetail)
+    return response

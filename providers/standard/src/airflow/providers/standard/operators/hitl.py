@@ -53,7 +53,7 @@ class HITLOperator(BaseOperator):
         subject: str,
         options: list[str],
         body: str | None = None,
-        default: str | None = None,
+        default: str | list[str] | None = None,
         params: ParamsDict | None = None,
         **kwargs,
     ) -> None:
@@ -62,9 +62,9 @@ class HITLOperator(BaseOperator):
         self.subject = subject
         self.body = body
         self.params = params or {}
-        self.default = default
-
         self.multiple = False
+
+        self.default = [default] if isinstance(default, str) else default
 
     def execute(self, context: Context):
         ti_id = context["task_instance"].id
@@ -74,8 +74,11 @@ class HITLOperator(BaseOperator):
             options=self.options,
             subject=self.subject,
             body=self.body,
-            params=self.params,
             default=self.default,
+            multiple=self.multiple,
+            params=self.params,
+            # TODO: add form_content
+            form_content=None,
         )
         self.log.info("Waiting for response")
         if self.execution_timeout:
@@ -88,8 +91,8 @@ class HITLOperator(BaseOperator):
                 ti_id=ti_id,
                 options=self.options,
                 default=self.default,
-                timeout_datetime=timeout_datetime,
                 multiple=self.multiple,
+                timeout_datetime=timeout_datetime,
             ),
             method_name="execute_complete",
         )

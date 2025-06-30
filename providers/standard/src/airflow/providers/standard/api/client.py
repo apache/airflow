@@ -21,7 +21,7 @@ from collections.abc import MutableMapping
 from typing import TYPE_CHECKING
 
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
-    HITLResponse,
+    HITLResponseContentDetail,
 )
 from airflow.providers.standard.execution_time.comms import (
     CreateHITLInputRequestPayload,
@@ -42,28 +42,31 @@ class HITLOperations:
 
     def add_input_request(
         self,
+        *,
         ti_id: uuid.UUID,
         options: list[str],
         subject: str,
         body: str | None = None,
-        default: str | None = None,
-        params: MutableMapping | None = None,
+        default: list[str] | None = None,
         multiple: bool = False,
+        params: MutableMapping | None = None,
+        form_content: MutableMapping | None = None,
     ) -> HITLInputRequestResponseResult:
-        """Add the Human-in-the-loop input request of a specific Task Instance."""
+        """Add the Human-in-the-loop input request detail of a specific Task Instance."""
         payload = CreateHITLInputRequestPayload(
             ti_id=ti_id,
             options=options,
             subject=subject,
             body=body,
             default=default,
-            params=params,
             multiple=multiple,
+            params=params,
+            form_content=form_content,
         )
         resp = self.client.post(f"/hitl/{ti_id}/input-requests", content=payload.model_dump_json())
         return HITLInputRequestResponseResult.model_validate_json(resp.read())
 
-    def get_response(self, ti_id: uuid.UUID) -> HITLResponse:
+    def get_response(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
         """Get the Human-in-the-loop response of a specific Task Instance."""
         resp = self.client.get(f"/hitl/{ti_id}/responses")
-        return HITLResponse.model_validate_json(resp.read())
+        return HITLResponseContentDetail.model_validate_json(resp.read())

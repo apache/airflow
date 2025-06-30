@@ -75,12 +75,12 @@ from airflow.utils.session import provide_session
 # TODO: Remove this block once we can make the execution API pluggable.
 try:
     from airflow.providers.standard.execution_time.comms import (
-        FetchHITLResponse,
-        HITLResponseResult,
+        GetHITLResponseContentDetail,
+        HITLResponseContentDetailResult,
     )
 except ModuleNotFoundError:
-    FetchHITLResponse = object  # type: ignore[misc, assignment]
-    HITLResponseResult = object  # type: ignore[misc, assignment]
+    GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
+    HITLResponseContentDetailResult = object  # type: ignore[misc, assignment]
 
 
 if TYPE_CHECKING:
@@ -230,7 +230,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
-    | HITLResponseResult
+    | HITLResponseContentDetailResult
     | ErrorResponse,
     Field(discriminator="type"),
 ]
@@ -249,7 +249,7 @@ ToTriggerSupervisor = Annotated[
     | GetTaskStates
     | GetDagRunState
     | GetDRCount
-    | FetchHITLResponse,
+    | GetHITLResponseContentDetail,
     Field(discriminator="type"),
 ]
 """
@@ -462,11 +462,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = run_id_task_state_map
         # TODO: Remove this block once we can make the execution API pluggable.
-        elif issubclass(FetchHITLResponse, BaseModel) and isinstance(msg, FetchHITLResponse):
+        elif issubclass(GetHITLResponseContentDetail, BaseModel) and isinstance(
+            msg, GetHITLResponseContentDetail
+        ):
             if TYPE_CHECKING:
-                assert HITLResponseResult is not None
+                assert HITLResponseContentDetailResult is not None
             api_resp = self.client.hitl.get_response(ti_id=msg.ti_id)
-            resp = HITLResponseResult.from_api_response(hitl_response=api_resp)
+            resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 import structlog
@@ -29,11 +30,11 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
 from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     AddHITLResponsePayload,
-    HITLInputRequest,
-    HITLInputRequestCollection,
-    HITLResponse,
+    HITLResponseContentDetail,
+    HITLResponseDetail,
+    HITLResponseDetailCollection,
 )
-from airflow.providers.standard.models import HITLInputRequestModel, HITLResponseModel
+from airflow.providers.standard.models import HITLResponseModel
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 
@@ -51,40 +52,35 @@ log = structlog.get_logger(__name__)
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
-def write_hitl_response_by_ti_id(
+def write_hitl_response(
     task_instance_id: UUID,
     add_response_payload: AddHITLResponsePayload,
     user: GetUserDep,
     session: SessionDep,
-) -> HITLResponse:
+) -> HITLResponseContentDetail:
     """Write an HITLResponse."""
     ti_id_str = str(task_instance_id)
-    input_request_id = session.scalar(
-        select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
+    hitl_response_model = session.scalar(
+        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
     )
-    if not input_request_id:
+    if not hitl_response_model:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"Human-in-the-loop Input Request does not exist for Task Instance with id {ti_id_str}",
         )
 
-    existing_response = session.scalar(
-        select(HITLResponseModel).where(HITLResponseModel.input_request_id == input_request_id)
-    )
-    if existing_response:
+    if hitl_response_model.response_received:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"Human-in-the-loop Response exists for Task Instance with id {ti_id_str}",
         )
 
-    hitl_response_model = HITLResponseModel(
-        input_request_id=input_request_id,
-        content=add_response_payload.content,
-        user_id=user.get_id(),
-    )
+    hitl_response_model.response_content = add_response_payload.content
+    hitl_response_model.user_id = user.get_id()
+    hitl_response_model.response_at = datetime.now(timezone.utc)
     session.add(hitl_response_model)
     session.commit()
-    return HITLResponse.model_validate(hitl_response_model)
+    return HITLResponseContentDetail.model_validate(hitl_response_model)
 
 
 @hitl_router.get(
@@ -98,25 +94,25 @@ def write_hitl_response_by_ti_id(
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
-def get_hitl_input_request_by_ti_id(
+def get_hitl_response(
     task_instance_id: UUID,
     session: SessionDep,
-) -> HITLInputRequest:
+) -> HITLResponseDetail:
     """Get a Human-in-the-loop input request of a specific task instance."""
     ti_id_str = str(task_instance_id)
-    input_request_model = session.scalar(
-        select(HITLInputRequestModel).where(HITLInputRequestModel.ti_id == ti_id_str)
+    hitl_response_model = session.scalar(
+        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
     )
-    if not input_request_model:
-        log.error("Human-in-the-loop input request not found")
+    if not hitl_response_model:
+        log.error("Human-in-the-loop response not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": "Human-in-the-loop input request not found",
+                "message": "Human-in-the-loop response not found",
             },
         )
-    return HITLInputRequest.model_validate(input_request_model)
+    return HITLResponseDetail.model_validate(hitl_response_model)
 
 
 @hitl_router.get(
@@ -126,12 +122,12 @@ def get_hitl_input_request_by_ti_id(
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
 )
-def get_hitl_input_requests(
+def get_hitl_responses(
     session: SessionDep,
-) -> HITLInputRequestCollection:
+) -> HITLResponseDetailCollection:
     """Get Human-in-the-loop input requests."""
-    input_requests = session.scalars(select(HITLInputRequestModel)).all()
-    return HITLInputRequestCollection(
-        hitl_input_requests=input_requests,
-        total_entries=len(input_requests),
+    hitl_responses = session.scalars(select(HITLResponseModel)).all()
+    return HITLResponseDetailCollection(
+        hitl_responses=hitl_responses,
+        total_entries=len(hitl_responses),
     )

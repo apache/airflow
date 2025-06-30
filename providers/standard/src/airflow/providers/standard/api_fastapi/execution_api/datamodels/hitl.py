@@ -17,30 +17,36 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
+from datetime import datetime
 from uuid import UUID
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class FetchHITLResponsePayload(BaseModel):
-    """Schema for fetching an  Human-in-the-loop Response  for a specific task instance."""
-
-    ti_id: UUID
-
-
-class HITLResponse(BaseModel):
-    """Schema for Human-in-the-loop Response for a specific task instance."""
-
-    content: str | None
-
-
 class HITLInputRequestResponse(BaseModel):
-    """Schema for an Human-in-the-loop input request for a specific task instance."""
+    """Schema for a Human-in-the-loop input request for a specific task instance."""
 
     ti_id: UUID
     options: list[str]
     subject: str
     body: str | None = None
-    default: str | None = None
-    params: MutableMapping | None = None
+    default: list[str] | None = None
     multiple: bool = False
+
+    params: MutableMapping | None = None
+    form_content: MutableMapping | None = None
+
+
+class GetHITLResponseContentDetailPayload(BaseModel):
+    """Schema for fetching a Human-in-the-loop response content detail for a specific task instance."""
+
+    ti_id: UUID
+
+
+class HITLResponseContentDetail(BaseModel):
+    """Schema for Human-in-the-loop response content detail for a specific task instance."""
+
+    response_received: bool
+    response_at: datetime | None
+    user_id: str | None
+    response_content: str | None

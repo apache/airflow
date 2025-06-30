@@ -23,13 +23,13 @@ from logging.config import fileConfig
 from alembic import context
 
 from airflow import settings
-from airflow.providers.standard.models.db import HITLProviderDBManager
+from airflow.providers.standard.models.db import HITLDBManager
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-version_table = HITLProviderDBManager.version_table_name
+version_table = HITLDBManager.version_table_name
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -40,7 +40,7 @@ if not getLogger().handlers and config.config_file_name:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = HITLProviderDBManager.metadata
+target_metadata = HITLDBManager.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

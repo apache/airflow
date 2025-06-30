@@ -1067,14 +1067,12 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
                 log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
                 return
             try:
-                from airflow.providers.standard.models.db import HITLProviderDBManager
+                from airflow.providers.standard.models.db import HITLDBManager
 
-                hitl_dbm = HITLProviderDBManager(session)
+                hitl_dbm = HITLDBManager(session)
                 hitl_dbm.initdb()
             except ImportError:
-                log.warning(
-                    "Import error occurred while importing HITLProviderDBManager. Skipping the check."
-                )
+                log.warning("Import error occurred while importing HITLDBManager. Skipping the check.")
                 return
         if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
             raise AirflowException(

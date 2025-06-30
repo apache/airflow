@@ -25,30 +25,37 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class AddHITLResponsePayload(BaseModel):
-    """Schema for adding an Human-in-the-loop Response for a specific Task Instance."""
+    """Schema for adding a Human-in-the-loop Response for a specific Task Instance."""
 
     content: str
 
 
-class HITLResponse(BaseModel):
+class HITLResponseContentDetail(BaseModel):
     """Schema for added HITLResponse."""
 
-    input_request_id: str
-    content: str
-    created_at: datetime
+    response_content: str
+    response_at: datetime
     user_id: str
 
 
-class HITLInputRequest(BaseModel):
-    """Schema for details for that awaiting Human-in-the-loop input request."""
+class HITLResponseDetail(BaseModel):
+    """Schema for details the Human-in-the-loop response."""
 
     ti_id: str
 
     options: list[str]
     subject: str
     body: str | None = None
-    default: str | None = None
+    default: list[str] | None = None
+    multiple: bool = False
     params: MutableMapping | None = None
+    form_content: MutableMapping | None = None
+
+    response_at: datetime | None = None
+    user_id: str | None = None
+    response_content: str | None = None
+
+    response_received: bool = False
 
     @field_validator("params", mode="before")
     @classmethod
@@ -59,8 +66,8 @@ class HITLInputRequest(BaseModel):
         return {k: v.dump() for k, v in params.items()}
 
 
-class HITLInputRequestCollection(BaseModel):
+class HITLResponseDetailCollection(BaseModel):
     """Schema for a collection details for that awaiting Human-in-the-loop input request."""
 
-    hitl_input_requests: list[HITLInputRequest]
+    hitl_responses: list[HITLResponseDetail]
     total_entries: int

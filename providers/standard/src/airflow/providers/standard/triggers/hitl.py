@@ -24,7 +24,7 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.standard.execution_time.hitl import get_hitl_response_content
+from airflow.providers.standard.execution_time.hitl import get_hitl_response_content_detail
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -36,9 +36,9 @@ class HITLTrigger(BaseTrigger):
         *,
         ti_id: UUID,
         options: list[str],
-        timeout_datetime: datetime | None,
-        default: str | None = None,
+        default: list[str] | None = None,
         multiple: bool = False,
+        timeout_datetime: datetime | None,
         poke_interval: float = 5.0,
         **kwargs,
     ):
@@ -57,9 +57,9 @@ class HITLTrigger(BaseTrigger):
             {
                 "ti_id": self.ti_id,
                 "options": self.options,
-                "timeout_datetime": self.timeout_datetime,
                 "default": self.default,
                 "multiple": self.multiple,
+                "timeout_datetime": self.timeout_datetime,
                 "poke_interval": self.poke_interval,
             },
         )
@@ -68,11 +68,13 @@ class HITLTrigger(BaseTrigger):
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
             if self.timeout_datetime and self.timeout_datetime < datetime.now(timezone.utc):
-                yield TriggerEvent({"content": self.default})
+                # TODO: write default into the db and return it as content
+                yield TriggerEvent({"content": self.default if self.default is None else self.default[0]})
                 return
 
-            content = await sync_to_async(get_hitl_response_content)(ti_id=self.ti_id)
-            if content:
-                yield TriggerEvent({"content": content})
+            resp = await sync_to_async(get_hitl_response_content_detail)(ti_id=self.ti_id)
+            if resp.response_received:
+                self.log.info("Responsed by %s at %s", resp.user_id, resp.response_at)
+                yield TriggerEvent({"content": resp.response_content})
                 return
             await asyncio.sleep(self.poke_interval)

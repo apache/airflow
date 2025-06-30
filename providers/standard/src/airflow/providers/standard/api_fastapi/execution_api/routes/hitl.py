@@ -25,10 +25,12 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
     HITLInputRequestResponse,
-    HITLResponse,
 )
-from airflow.providers.standard.execution_time.comms import CreateHITLInputRequestPayload
-from airflow.providers.standard.models import HITLInputRequestModel, HITLResponseModel
+from airflow.providers.standard.execution_time.comms import (
+    CreateHITLInputRequestPayload,
+    HITLResponseContentDetail,
+)
+from airflow.providers.standard.models import HITLResponseModel
 
 router = APIRouter()
 
@@ -46,23 +48,24 @@ def add_hitl_input_request(
 ) -> HITLInputRequestResponse:
     """Get Human-in-the-loop Response for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    input_request_id = session.scalar(
-        select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
+    hitl_response_model = session.scalar(
+        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
     )
-    if input_request_id:
+    if hitl_response_model:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"Human-in-the-loop Input Request for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_input_request = HITLInputRequestModel(
+    hitl_input_request = HITLResponseModel(
         ti_id=ti_id_str,
         options=payload.options,
         subject=payload.subject,
         body=payload.body,
         default=payload.default,
-        params=payload.params,
         multiple=payload.multiple,
+        params=payload.params,
+        form_content=payload.form_content,
     )
     session.add(hitl_input_request)
     session.commit()
@@ -76,23 +79,22 @@ def add_hitl_input_request(
 def get_hitl_response_by_ti_id(
     task_instance_id: UUID,
     session: SessionDep,
-) -> HITLResponse:
+) -> HITLResponseContentDetail:
     """Get Human-in-the-loop Response for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    input_request_id = session.scalar(
-        select(HITLInputRequestModel.id).where(HITLInputRequestModel.ti_id == ti_id_str)
+    hitl_response_content_detail = session.execute(
+        select(
+            # HITLResponseModel.response_received,
+            # HITLResponseModel.response_at,
+            # HITLResponseModel.user_id,
+            HITLResponseModel
+        ).where(HITLResponseModel.ti_id == ti_id_str)
+    ).scalar()
+    return HITLResponseContentDetail(
+        **{
+            "response_received": hitl_response_content_detail.response_received,
+            "response_at": hitl_response_content_detail.response_at,
+            "user_id": hitl_response_content_detail.user_id,
+            "response_content": hitl_response_content_detail.response_content,
+        }
     )
-    if not input_request_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Human-in-the-loop Input Request not found.",
-            },
-        )
-
-    hitl_response = session.scalar(
-        select(HITLResponseModel).where(HITLResponseModel.input_request_id == input_request_id),
-    )
-    # Return content as None is not yet created
-    return HITLResponse(content=hitl_response.content if hitl_response else None)
