@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, TypeAlias
 
 import attr
 
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.sdk import ObjectStoragePath
 
     # Store context what sent lineage.
-    LineageContext = Union[BaseHook, ObjectStoragePath]
+    LineageContext: TypeAlias = BaseHook | ObjectStoragePath
 
 _hook_lineage_collector: HookLineageCollector | None = None
 
