@@ -143,7 +143,12 @@ export const routerConfig = [
         path: "connections",
       },
       {
-        element: <Iframe />,
+        // The following iframe sandbox setting is intentionally less restrictive.
+        // This is considered safe because the framed content originates from the Plugins,
+        // which is part of the deployment of Airflow and trusted as per our security policy.
+        // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+        // They are not user provided plugins.
+        element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
         path: "plugin/:page",
       },
       {
