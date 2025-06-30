@@ -1230,6 +1230,7 @@ class SelectiveChecks:
                 (
                     "compile-fab-assets",
                     "generate-openapi-spec-fab",
+                    "check-airflow-providers-bug-report-template",
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
@@ -1457,7 +1458,7 @@ class SelectiveChecks:
             if all(keyword in added_lines[line_counter] for keyword in ["def", "caplog", "(", ")"]):
                 return True
             if "def" in added_lines[line_counter] and ")" not in added_lines[line_counter]:
-                while ")" not in added_lines[line_counter]:
+                while line_counter < len(added_lines) and ")" not in added_lines[line_counter]:
                     if "caplog" in added_lines[line_counter]:
                         return True
                     line_counter += 1

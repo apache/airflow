@@ -29,7 +29,7 @@ import sys
 import time
 import weakref
 from collections import deque
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -37,7 +37,6 @@ from socket import socket, socketpair
 from typing import (
     TYPE_CHECKING,
     BinaryIO,
-    Callable,
     ClassVar,
     NoReturn,
     TextIO,
