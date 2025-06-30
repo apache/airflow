@@ -110,7 +110,8 @@ class PinotAdminHook(BaseHook):
             cmd += ["-user", self.username]
         if self.password:
             cmd += ["-password", self.password]
-        cmd += ["-controllerHost", self.host]
+        if self.host is not None:
+            cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-schemaFile", schema_file]
         if with_exec:
@@ -129,7 +130,8 @@ class PinotAdminHook(BaseHook):
             cmd += ["-user", self.username]
         if self.password:
             cmd += ["-password", self.password]
-        cmd += ["-controllerHost", self.host]
+        if self.host is not None:
+            cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-filePath", file_path]
         if with_exec:
@@ -234,7 +236,8 @@ class PinotAdminHook(BaseHook):
             cmd += ["-user", self.username]
         if self.password:
             cmd += ["-password", self.password]
-        cmd += ["-controllerHost", self.host]
+        if self.host is not None:
+            cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-segmentDir", segment_dir]
         if table_name:

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 from azure.mgmt.storage import StorageManagementClient
@@ -125,7 +125,7 @@ class AzureContainerVolumeHook(BaseHook):
             )
             return storage_account_list_keys_result.as_dict()["keys"][0]["value"]
 
-        return conn.password
+        return cast("str", conn.password)
 
     def get_file_volume(
         self, mount_name: str, share_name: str, storage_account_name: str, read_only: bool = False

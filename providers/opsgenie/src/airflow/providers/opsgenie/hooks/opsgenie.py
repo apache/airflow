@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from opsgenie_sdk import (
     AlertApi,
@@ -71,7 +71,7 @@ class OpsgenieAlertHook(BaseHook):
         :return: API key
         """
         conn = self.get_connection(self.conn_id)
-        return conn.password
+        return cast("str", conn.password)
 
     def get_conn(self) -> AlertApi:
         """

@@ -76,9 +76,9 @@ class VerticaHook(DbApiHook):
         }
 
         if not conn.port:
-            conn_config["port"] = 5433
+            conn_config["port"] = str(5433)
         else:
-            conn_config["port"] = int(conn.port)
+            conn_config["port"] = str(conn.port)
 
         bool_options = [
             "connection_load_balance",
@@ -107,7 +107,7 @@ class VerticaHook(DbApiHook):
                 conn_config[so] = conn_extra[so]
 
         if "connection_timeout" in conn_extra:
-            conn_config["connection_timeout"] = float(conn_extra["connection_timeout"])
+            conn_config["connection_timeout"] = str(conn_extra["connection_timeout"])
 
         if "log_level" in conn_extra:
             import logging
@@ -117,19 +117,19 @@ class VerticaHook(DbApiHook):
             if isinstance(log_lvl, str):
                 log_lvl = log_lvl.lower()
                 if log_lvl == "critical":
-                    conn_config["log_level"] = logging.CRITICAL
+                    conn_config["log_level"] = str(logging.CRITICAL)
                 elif log_lvl == "error":
-                    conn_config["log_level"] = logging.ERROR
+                    conn_config["log_level"] = str(logging.ERROR)
                 elif log_lvl == "warning":
-                    conn_config["log_level"] = logging.WARNING
+                    conn_config["log_level"] = str(logging.WARNING)
                 elif log_lvl == "info":
-                    conn_config["log_level"] = logging.INFO
+                    conn_config["log_level"] = str(logging.INFO)
                 elif log_lvl == "debug":
-                    conn_config["log_level"] = logging.DEBUG
+                    conn_config["log_level"] = str(logging.DEBUG)
                 elif log_lvl == "notset":
-                    conn_config["log_level"] = logging.NOTSET
+                    conn_config["log_level"] = str(logging.NOTSET)
             else:
-                conn_config["log_level"] = int(conn_extra["log_level"])
+                conn_config["log_level"] = str(conn_extra["log_level"])
 
         conn = connect(**conn_config)
         return conn

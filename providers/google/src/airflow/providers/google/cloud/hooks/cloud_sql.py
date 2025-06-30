@@ -38,7 +38,7 @@ from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
 import httpx
@@ -851,8 +851,8 @@ class CloudSQLDatabaseHook(BaseHook):
             self.user = self._get_iam_db_login()
             self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
         else:
-            self.user = self.cloudsql_connection.login
-            self.password = self.cloudsql_connection.password
+            self.user = cast("str", self.cloudsql_connection.login)
+            self.password = cast("str", self.cloudsql_connection.password)
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
         self.ssl_cert = ssl_cert

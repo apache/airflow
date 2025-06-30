@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from tableauserverclient import Pager, Server, TableauAuth
 
@@ -119,7 +119,9 @@ class TableauHook(BaseHook):
 
     def _auth_via_password(self) -> Auth.contextmgr:
         tableau_auth = TableauAuth(
-            username=self.conn.login, password=self.conn.password, site_id=self.site_id
+            username=cast("str", self.conn.login),
+            password=cast("str", self.conn.password),
+            site_id=self.site_id,
         )
         return self.server.auth.sign_in(tableau_auth)
 

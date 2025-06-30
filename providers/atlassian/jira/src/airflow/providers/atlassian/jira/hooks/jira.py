@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from atlassian import Jira
 
@@ -66,7 +66,7 @@ class JiraHook(BaseHook):
                 # more can be added ex: timeout, cloud, session
 
             self.client = Jira(
-                url=conn.host,
+                url=cast("str", conn.host),
                 username=conn.login,
                 password=conn.password,
                 verify_ssl=verify,

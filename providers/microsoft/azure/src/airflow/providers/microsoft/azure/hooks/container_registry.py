@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
@@ -125,4 +125,6 @@ class AzureContainerRegistryHook(BaseHook):
             credentials = client.registries.list_credentials(resource_group, conn.login).as_dict()
             password = credentials["passwords"][0]["value"]
 
-        return ImageRegistryCredential(server=conn.host, username=conn.login, password=password)
+        return ImageRegistryCredential(
+            server=cast("str", conn.host), username=cast("str", conn.login), password=password
+        )

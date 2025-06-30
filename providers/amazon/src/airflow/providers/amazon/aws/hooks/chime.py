@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import re
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -69,7 +69,7 @@ class ChimeWebhookHook(HttpHook):
         token = conn.password
         if token is None:
             raise AirflowException("Webhook token field is missing and is required.")
-        url = conn.schema + "://" + conn.host
+        url = cast("str", conn.schema) + "://" + cast("str", conn.host)
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
         if not re.fullmatch(r"[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+", token):

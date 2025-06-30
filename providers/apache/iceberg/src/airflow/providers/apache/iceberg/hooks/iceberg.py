@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import requests
 from requests import HTTPError
@@ -78,7 +78,7 @@ class IcebergHook(BaseHook):
     def get_conn(self) -> str:
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
-        base_url = conn.host
+        base_url = cast("str", conn.host)
         base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password

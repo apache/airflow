@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import typing
+from typing import cast
 
 from jupyter_client import AsyncKernelManager
 from papermill.clientwrap import PapermillNotebookClient
@@ -71,7 +72,7 @@ class KernelHook(BaseHook):
 
     def get_conn(self) -> KernelConnection:
         kernel_connection = KernelConnection()
-        kernel_connection.ip = self.kernel_conn.host
+        kernel_connection.ip = cast("str", self.kernel_conn.host)
         kernel_connection.shell_port = self.kernel_conn.extra_dejson.get(
             "shell_port", JUPYTER_KERNEL_SHELL_PORT
         )

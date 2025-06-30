@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote, urlparse, urlunparse
 
 try:
@@ -67,11 +67,11 @@ class SparkConnectHook(BaseHook, LoggingMixin):
     def get_connection_url(self) -> str:
         conn = self.get_connection(self._conn_id)
 
-        host = conn.host
-        if conn.host.find("://") == -1:
-            host = f"sc://{conn.host}"
+        host = cast("str", conn.host)
+        if cast("str", conn.host).find("://") == -1:
+            host = f"sc://{cast('str', conn.host)}"
         if conn.port:
-            host = f"{conn.host}:{conn.port}"
+            host = f"{cast('str', conn.host)}:{conn.port}"
 
         url = urlparse(host)
 
@@ -90,13 +90,15 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         if use_ssl is not None:
             params.append(f"{SparkConnectHook.PARAM_USE_SSL}={quote(str(use_ssl))}")
 
-        return urlunparse(
-            (
-                "sc",
-                url.netloc,
-                "/",
-                ";".join(params),  # params
-                "",
-                url.fragment,
+        return str(
+            urlunparse(
+                (
+                    "sc",
+                    url.netloc,
+                    "/",
+                    ";".join(params),  # params
+                    "",
+                    url.fragment,
+                )
             )
         )
