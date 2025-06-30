@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 import logging
 from contextlib import closing
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urlparse, urlunparse
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet
 
     from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+    from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 
 
 log = logging.getLogger(__name__)
@@ -204,9 +205,29 @@ def _run_single_query_with_hook(hook: SnowflakeHook, sql: str) -> list[dict]:
     return result
 
 
+def _run_single_query_with_api_hook(hook: SnowflakeSqlApiHook, sql: str) -> list[dict[str, Any]]:
+    """Execute a query against Snowflake API without adding extra logging or instrumentation."""
+    # `hook.execute_query` resets the query_ids, so we need to save them and re-assign after we're done
+    query_ids_before_execution = list(hook.query_ids)
+    try:
+        _query_ids = hook.execute_query(sql=sql, statement_count=0)
+        hook.wait_for_query(query_id=_query_ids[0], raise_error=True, poll_interval=1, timeout=3)
+        return hook.get_result_from_successful_sql_api_query(query_id=_query_ids[0])
+    finally:
+        hook.query_ids = query_ids_before_execution
+
+
+def _process_data_from_api(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert 'START_TIME' and 'END_TIME' fields to UTC datetime objects."""
+    for row in data:
+        for key in ("START_TIME", "END_TIME"):
+            row[key] = datetime.datetime.fromtimestamp(float(row[key]), timezone.utc)
+    return data
+
+
 def _get_queries_details_from_snowflake(
-    hook: SnowflakeHook, query_ids: list[str]
-) -> dict[str, dict[str, str]]:
+    hook: SnowflakeHook | SnowflakeSqlApiHook, query_ids: list[str]
+) -> dict[str, dict[str, Any]]:
     """Retrieve execution details for specific queries from Snowflake's query history."""
     if not query_ids:
         return {}
@@ -221,7 +242,16 @@ def _get_queries_details_from_snowflake(
         f";"
     )
 
-    result = _run_single_query_with_hook(hook=hook, sql=query)
+    try:
+        # Can't import the SnowflakeSqlApiHook class and do proper isinstance check - circular imports
+        if hook.__class__.__name__ == "SnowflakeSqlApiHook":
+            result = _run_single_query_with_api_hook(hook=hook, sql=query)  # type: ignore[arg-type]
+            result = _process_data_from_api(data=result)
+        else:
+            result = _run_single_query_with_hook(hook=hook, sql=query)
+    except Exception as e:
+        log.warning("OpenLineage could not retrieve extra metadata from Snowflake. Error encountered: %s", e)
+        result = []
 
     return {row["QUERY_ID"]: row for row in result} if result else {}
 
@@ -259,17 +289,18 @@ def _create_snowflake_event_pair(
 
 @require_openlineage_version(provider_min_version="2.3.0")
 def emit_openlineage_events_for_snowflake_queries(
-    query_ids: list[str],
-    query_source_namespace: str,
     task_instance,
-    hook: SnowflakeHook | None = None,
+    hook: SnowflakeHook | SnowflakeSqlApiHook | None = None,
+    query_ids: list[str] | None = None,
+    query_source_namespace: str | None = None,
+    query_for_extra_metadata: bool = False,
     additional_run_facets: dict | None = None,
     additional_job_facets: dict | None = None,
 ) -> None:
     """
     Emit OpenLineage events for executed Snowflake queries.
 
-    Metadata retrieval from Snowflake is attempted only if a `SnowflakeHook` is provided.
+    Metadata retrieval from Snowflake is attempted only if `get_extra_metadata` is True and hook is provided.
     If metadata is available, execution details such as start time, end time, execution status,
     error messages, and SQL text are included in the events. If no metadata is found, the function
     defaults to using the Airflow task instance's state and the current timestamp.
@@ -279,10 +310,16 @@ def emit_openlineage_events_for_snowflake_queries(
     will correspond to actual query execution times.
 
     Args:
-        query_ids: A list of Snowflake query IDs to emit events for.
-        query_source_namespace: The namespace to be included in ExternalQueryRunFacet.
         task_instance: The Airflow task instance that run these queries.
-        hook: A SnowflakeHook instance used to retrieve query metadata if available.
+        hook: A supported Snowflake hook instance used to retrieve query metadata if available.
+        If omitted, `query_ids` and `query_source_namespace` must be provided explicitly and
+        `query_for_extra_metadata` must be `False`.
+        query_ids: A list of Snowflake query IDs to emit events for, can only be None if `hook` is provided
+        and `hook.query_ids` are present.
+        query_source_namespace: The namespace to be included in ExternalQueryRunFacet,
+        can be `None` only if hook is provided.
+        query_for_extra_metadata: Whether to query Snowflake for additional metadata about queries.
+        Must be `False` if `hook` is not provided.
         additional_run_facets: Additional run facets to include in OpenLineage events.
         additional_job_facets: Additional job facets to include in OpenLineage events.
     """
@@ -297,23 +334,49 @@ def emit_openlineage_events_for_snowflake_queries(
     from airflow.providers.openlineage.conf import namespace
     from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 
-    if not query_ids:
-        log.debug("No Snowflake query IDs provided; skipping OpenLineage event emission.")
-        return
-
-    query_ids = [q for q in query_ids]  # Make a copy to make sure it does not change
+    log.info("OpenLineage will emit events for Snowflake queries.")
 
     if hook:
+        if not query_ids:
+            log.debug("No Snowflake query IDs provided; Checking `hook.query_ids` property.")
+            query_ids = getattr(hook, "query_ids", [])
+            if not query_ids:
+                raise ValueError("No Snowflake query IDs provided and `hook.query_ids` are not present.")
+
+        if not query_source_namespace:
+            log.debug("No Snowflake query namespace provided; Creating one from scratch.")
+            from airflow.providers.openlineage.sqlparser import SQLParser
+
+            connection = hook.get_connection(hook.get_conn_id())
+            query_source_namespace = SQLParser.create_namespace(
+                hook.get_openlineage_database_info(connection)
+            )
+    else:
+        if not query_ids:
+            raise ValueError("If 'hook' is not provided, 'query_ids' must be set.")
+        if not query_source_namespace:
+            raise ValueError("If 'hook' is not provided, 'query_source_namespace' must be set.")
+        if query_for_extra_metadata:
+            raise ValueError("If 'hook' is not provided, 'query_for_extra_metadata' must be False.")
+
+    query_ids = [q for q in query_ids]  # Make a copy to make sure we do not change hook's attribute
+
+    if query_for_extra_metadata and hook:
         log.debug("Retrieving metadata for %s queries from Snowflake.", len(query_ids))
         snowflake_metadata = _get_queries_details_from_snowflake(hook, query_ids)
     else:
-        log.debug("SnowflakeHook not provided. No extra metadata fill be fetched from Snowflake.")
+        log.debug("`query_for_extra_metadata` is False. No extra metadata fill be fetched from Snowflake.")
         snowflake_metadata = {}
 
     # If real metadata is unavailable, we send events with eventTime=now
     default_event_time = timezone.utcnow()
     # If no query metadata is provided, we use task_instance's state when checking for success
-    default_state = task_instance.state.value if hasattr(task_instance, "state") else ""
+    # ti.state has no `value` attr (AF2) when task it's still running, in AF3 we get 'running', in that case
+    # assuming it's user call and query succeeded, so we replace it with success.
+    default_state = (
+        getattr(task_instance.state, "value", "running") if hasattr(task_instance, "state") else ""
+    )
+    default_state = "success" if default_state == "running" else default_state
 
     common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
     common_job_facets: dict[str, JobFacet] = {

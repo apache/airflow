@@ -905,14 +905,17 @@ class TestPytestSnowflakeHook:
             assert hook_with_schema_param.get_openlineage_default_schema() == "my_schema"
             mock_get_first.assert_not_called()
 
-    def test_get_openlineage_database_specific_lineage_with_no_query_ids(self):
+    @mock.patch("airflow.providers.snowflake.utils.openlineage.emit_openlineage_events_for_snowflake_queries")
+    def test_get_openlineage_database_specific_lineage_with_no_query_ids(self, mock_emit):
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         assert hook.query_ids == []
 
         result = hook.get_openlineage_database_specific_lineage(None)
+        mock_emit.assert_not_called()
         assert result is None
 
-    def test_get_openlineage_database_specific_lineage_with_single_query_id(self):
+    @mock.patch("airflow.providers.snowflake.utils.openlineage.emit_openlineage_events_for_snowflake_queries")
+    def test_get_openlineage_database_specific_lineage_with_single_query_id(self, mock_emit):
         from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -921,21 +924,26 @@ class TestPytestSnowflakeHook:
         hook.get_connection = mock.MagicMock()
         hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
 
-        result = hook.get_openlineage_database_specific_lineage(None)
+        ti = mock.MagicMock()
+
+        result = hook.get_openlineage_database_specific_lineage(ti)
+        mock_emit.assert_called_once_with(
+            **{
+                "hook": hook,
+                "query_ids": ["query1"],
+                "query_source_namespace": "scheme://auth",
+                "task_instance": ti,
+                "query_for_extra_metadata": True,
+            }
+        )
         assert result == OperatorLineage(
             run_facets={
                 "externalQuery": ExternalQueryRunFacet(externalQueryId="query1", source="scheme://auth")
             }
         )
 
-    @pytest.mark.parametrize("use_external_connection", [True, False])
-    @mock.patch("airflow.providers.openlineage.utils.utils.should_use_external_connection")
     @mock.patch("airflow.providers.snowflake.utils.openlineage.emit_openlineage_events_for_snowflake_queries")
-    def test_get_openlineage_database_specific_lineage_with_multiple_query_ids(
-        self, mock_emit, mock_use_conn, use_external_connection
-    ):
-        mock_use_conn.return_value = use_external_connection
-
+    def test_get_openlineage_database_specific_lineage_with_multiple_query_ids(self, mock_emit):
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
@@ -944,23 +952,19 @@ class TestPytestSnowflakeHook:
         ti = mock.MagicMock()
 
         result = hook.get_openlineage_database_specific_lineage(ti)
-        mock_use_conn.assert_called_once()
         mock_emit.assert_called_once_with(
             **{
-                "hook": hook if use_external_connection else None,
+                "hook": hook,
                 "query_ids": ["query1", "query2"],
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
+                "query_for_extra_metadata": True,
             }
         )
         assert result is None
 
-    # emit_openlineage_events_for_snowflake_queries requires OL provider 2.0.0
     @mock.patch("importlib.metadata.version", return_value="1.99.0")
-    @mock.patch("airflow.providers.openlineage.utils.utils.should_use_external_connection")
-    def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider(
-        self, mock_use_conn, mock_version
-    ):
+    def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider(self, mock_version):
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
@@ -972,7 +976,6 @@ class TestPytestSnowflakeHook:
         )
         with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
             hook.get_openlineage_database_specific_lineage(mock.MagicMock())
-        mock_use_conn.assert_called_once()
 
     @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet")
     @mock.patch("snowflake.snowpark.Session.builder")
