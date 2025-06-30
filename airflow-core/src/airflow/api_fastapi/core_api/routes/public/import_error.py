@@ -22,12 +22,7 @@ from operator import itemgetter
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-<<<<<<< HEAD
 from sqlalchemy import and_, select
-=======
-from sqlalchemy import select
-from sqlalchemy.sql.expression import and_
->>>>>>> 1274d17b84 (Fix ParseImportError query in get_import_errors endpoint)
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
