@@ -68,10 +68,10 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         conn = self.get_connection(self._conn_id)
 
         host = cast("str", conn.host)
-        if cast("str", conn.host).find("://") == -1:
-            host = f"sc://{cast('str', conn.host)}"
+        if host.find("://") == -1:
+            host = f"sc://{host}"
         if conn.port:
-            host = f"{cast('str', conn.host)}:{conn.port}"
+            host = f"{host}:{conn.port}"
 
         url = urlparse(host)
 
@@ -90,15 +90,13 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         if use_ssl is not None:
             params.append(f"{SparkConnectHook.PARAM_USE_SSL}={quote(str(use_ssl))}")
 
-        return str(
-            urlunparse(
-                (
-                    "sc",
-                    url.netloc,
-                    "/",
-                    ";".join(params),  # params
-                    "",
-                    url.fragment,
-                )
+        return urlunparse(
+            (
+                "sc",
+                url.netloc,
+                "/",
+                ";".join(params),  # params
+                "",
+                url.fragment,
             )
         )

@@ -194,9 +194,9 @@ class OracleHook(DbApiHook):
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
-                    dsn = str(dsn) + f":{conn.port}"
+                    dsn += f":{conn.port}"
                 if service_name:
-                    dsn = str(dsn) + f"/{service_name}"
+                    dsn += f"/{service_name}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:
@@ -204,27 +204,27 @@ class OracleHook(DbApiHook):
 
         mode = conn.extra_dejson.get("mode", "").lower()
         if mode == "sysdba":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSDBA)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSDBA
         elif mode == "sysasm":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSASM)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSASM
         elif mode == "sysoper":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSOPER)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSOPER
         elif mode == "sysbkp":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSBKP)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSBKP
         elif mode == "sysdgd":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSDGD)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSDGD
         elif mode == "syskmt":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSKMT)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSKMT
         elif mode == "sysrac":
-            conn_config["mode"] = str(oracledb.AUTH_MODE_SYSRAC)
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSRAC
 
         purity = conn.extra_dejson.get("purity", "").lower()
         if purity == "new":
-            conn_config["purity"] = str(oracledb.PURITY_NEW)
+            conn_config["purity"] = oracledb.PURITY_NEW
         elif purity == "self":
-            conn_config["purity"] = str(oracledb.PURITY_SELF)
+            conn_config["purity"] = oracledb.PURITY_SELF
         elif purity == "default":
-            conn_config["purity"] = str(oracledb.PURITY_DEFAULT)
+            conn_config["purity"] = oracledb.PURITY_DEFAULT
 
         expire_time = conn.extra_dejson.get("expire_time")
         if expire_time:
