@@ -199,8 +199,8 @@ class TestSlackWebhookHook:
             UserWarning, match="Provide `webhook_token` as part of .* parameters is disallowed"
         ):
             hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, webhook_token="foo-bar")
-            assert "webhook_token" not in hook.extra_client_args
-            assert hook._get_conn_params()["url"] == TEST_WEBHOOK_URL
+        assert "webhook_token" not in hook.extra_client_args
+        assert hook._get_conn_params()["url"] == TEST_WEBHOOK_URL
 
     @pytest.mark.parametrize("conn_id", ["conn_token_in_host_1", "conn_token_in_host_2"])
     def test_wrong_connections(self, conn_id):
@@ -479,7 +479,7 @@ class TestSlackWebhookHook:
             hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
             with pytest.warns(Warning, match="Using value for `timeout`"):
                 params = hook._get_conn_params()
-                assert params["timeout"] == 222
+            assert params["timeout"] == 222
 
     def test_empty_string_ignored_prefixed(self):
         with patch.dict(

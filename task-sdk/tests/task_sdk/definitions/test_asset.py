@@ -117,7 +117,7 @@ def test_uri_with_scheme(uri: str, normalized: str) -> None:
 
 
 def test_uri_with_auth() -> None:
-    with pytest.warns(UserWarning) as record:
+    with pytest.warns(UserWarning, match="username") as record:
         asset = Asset("ftp://user@localhost/foo.txt")
     assert len(record) == 1
     assert str(record[0].message) == (

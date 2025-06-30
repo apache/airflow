@@ -54,7 +54,7 @@ def add_log(execdate, session, dag_maker, timezone_override=None):
 
 
 @provide_session
-def test_timestamp_behaviour(dag_maker, session=None):
+def test_timestamp_behaviour(dag_maker, session):
     execdate = timezone.utcnow()
     with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
@@ -66,7 +66,7 @@ def test_timestamp_behaviour(dag_maker, session=None):
 
 
 @provide_session
-def test_timestamp_behaviour_with_timezone(dag_maker, session=None):
+def test_timestamp_behaviour_with_timezone(dag_maker, session):
     execdate = timezone.utcnow()
     with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
