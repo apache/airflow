@@ -21,7 +21,7 @@ import { Select, type SingleValue } from "chakra-react-select";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { useTimezone } from "src/context/timezone";
 import type { Option as TimezoneOption } from "src/utils/option";
@@ -31,6 +31,7 @@ dayjs.extend(timezone);
 
 const TimezoneSelector: React.FC = () => {
   const { selectedTimezone, setSelectedTimezone } = useTimezone();
+  const [currentTime, setCurrentTime] = useState<string>("");
   const timezones = useMemo<Array<string>>(() => {
     const tzList = Intl.supportedValuesOf("timeZone");
     const guessedTz = dayjs.tz.guess();
@@ -54,7 +55,17 @@ const TimezoneSelector: React.FC = () => {
     }
   };
 
-  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss"));
+    };
+
+    updateTime();
+
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, [selectedTimezone]);
 
   return (
     <VStack align="stretch" gap={6}>

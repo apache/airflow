@@ -20,7 +20,7 @@ import { useDisclosure } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
@@ -45,8 +45,20 @@ export const UserSettingsButton = () => {
 
   const [time, setTime] = useState(dayjs());
 
+  useEffect(() => {
+    const updateTime = () => {
+      setTime(dayjs());
+    };
+
+    updateTime();
+
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, [selectedTimezone]);
+
   return (
-    <Menu.Root onOpenChange={() => setTime(dayjs())} positioning={{ placement: "right" }}>
+    <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
         <NavButton icon={<FiUser size="1.75rem" />} title="User" />
       </Menu.Trigger>
