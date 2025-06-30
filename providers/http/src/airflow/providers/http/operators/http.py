@@ -33,8 +33,8 @@ try:
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore
 
+from airflow.models import BaseOperator
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
-from airflow.providers.http.version_compat import BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
