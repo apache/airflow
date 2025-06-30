@@ -158,18 +158,18 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t2(5, 5).operator.multiple_outputs is True
 
+        @task_decorator
+        def t3(  # type: ignore[empty-body]
+            x: "FakeTypeCheckingOnlyClass",
+            y: int,
+        ) -> "UnresolveableName[int, int]": ...
+
         with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
-
-            @task_decorator
-            def t3(  # type: ignore[empty-body]
-                x: "FakeTypeCheckingOnlyClass",
-                y: int,
-            ) -> "UnresolveableName[int, int]": ...
-
             line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
-            if PY311:
-                # extra line explaining the error location in Py311
-                line = line - 1
+
+        if PY311:
+            # extra line explaining the error location in Py311
+            line = line - 1
 
         warn = recwarn[0]
         assert warn.filename == __file__

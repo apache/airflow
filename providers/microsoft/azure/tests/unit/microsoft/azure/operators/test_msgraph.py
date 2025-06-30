@@ -65,17 +65,17 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert len(results) == 30
-                assert results == users.get("value") + next_users.get("value")
-                assert len(events) == 2
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(users)
-                assert isinstance(events[1], TriggerEvent)
-                assert events[1].payload["status"] == "success"
-                assert events[1].payload["type"] == "builtins.dict"
-                assert events[1].payload["response"] == json.dumps(next_users)
+            assert len(results) == 30
+            assert results == users.get("value") + next_users.get("value")
+            assert len(events) == 2
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(users)
+            assert isinstance(events[1], TriggerEvent)
+            assert events[1].payload["status"] == "success"
+            assert events[1].payload["type"] == "builtins.dict"
+            assert events[1].payload["response"] == json.dumps(next_users)
 
     @pytest.mark.db_test
     def test_execute_with_new_result_processor_signature(self):
@@ -128,17 +128,17 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert len(results) == 30
-                assert results == users.get("value") + next_users.get("value")
-                assert len(events) == 2
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(users)
-                assert isinstance(events[1], TriggerEvent)
-                assert events[1].payload["status"] == "success"
-                assert events[1].payload["type"] == "builtins.dict"
-                assert events[1].payload["response"] == json.dumps(next_users)
+            assert len(results) == 30
+            assert results == users.get("value") + next_users.get("value")
+            assert len(events) == 2
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(users)
+            assert isinstance(events[1], TriggerEvent)
+            assert events[1].payload["status"] == "success"
+            assert events[1].payload["type"] == "builtins.dict"
+            assert events[1].payload["response"] == json.dumps(next_users)
 
     @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):
@@ -200,11 +200,11 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert not results
-                assert len(events) == 1
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "failure"
-                assert events[0].payload["message"] == "An error occurred"
+            assert not results
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "failure"
+            assert events[0].payload["message"] == "An error occurred"
 
     @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):

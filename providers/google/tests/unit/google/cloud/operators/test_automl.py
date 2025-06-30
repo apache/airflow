@@ -194,7 +194,9 @@ class TestAutoMLPredictOperator:
                 task_id=TASK_ID,
                 operation_params={"TEST_KEY": "TEST_VALUE"},
             )
+        with pytest.warns(AirflowProviderDeprecationWarning):
             assert isinstance(op.hook, CloudAutoMLHook)
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = AutoMLPredictOperator(
                 endpoint_id="endpoint_id",
                 location=GCP_LOCATION,
@@ -203,7 +205,7 @@ class TestAutoMLPredictOperator:
                 task_id=TASK_ID,
                 operation_params={"TEST_KEY": "TEST_VALUE"},
             )
-            assert isinstance(op.hook, PredictionServiceHook)
+        assert isinstance(op.hook, PredictionServiceHook)
 
 
 class TestAutoMLCreateImportOperator:

@@ -402,7 +402,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, create_task_instance, session=None):
+    def test_ti_updates_with_task(self, create_task_instance, session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -1261,7 +1261,7 @@ class TestTaskInstance:
     )
     @provide_session
     def test_are_dependents_done(
-        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session=None
+        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session
     ):
         ti = create_task_instance(session=session)
         dag = ti.task.dag
@@ -2280,7 +2280,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
     @provide_session
-    def test_handle_failure(self, create_dummy_dag, session=None):
+    def test_handle_failure(self, create_dummy_dag, session):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 

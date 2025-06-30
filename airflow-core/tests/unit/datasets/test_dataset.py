@@ -68,11 +68,14 @@ import pytest
     ),
 )
 def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):
-    with pytest.warns() as record:
-        import importlib
+    import importlib
 
+    with pytest.warns() as record:
         mod = importlib.import_module(module_path, __name__)
         getattr(mod, attr_name)
 
     assert record[0].category is DeprecationWarning
     assert str(record[0].message) == warning_message
+
+
+# ruff: noqa: PT031

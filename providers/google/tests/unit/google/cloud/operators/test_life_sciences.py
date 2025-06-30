@@ -47,8 +47,8 @@ class TestLifeSciencesRunPipelineOperator:
             operator = LifeSciencesRunPipelineOperator(
                 task_id="task-id", body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
             )
-            context = mock.MagicMock()
-            result = operator.execute(context=context)
+        context = mock.MagicMock()
+        result = operator.execute(context=context)
 
         assert result == TEST_OPERATION
 
@@ -62,6 +62,6 @@ class TestLifeSciencesRunPipelineOperator:
                 body=TEST_BODY,
                 location=TEST_LOCATION,
             )
-            context = mock.MagicMock()
-            result = operator.execute(context=context)
+        context = mock.MagicMock()
+        result = operator.execute(context=context)
         assert result == TEST_OPERATION

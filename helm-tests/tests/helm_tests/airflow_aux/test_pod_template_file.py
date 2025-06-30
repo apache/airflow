@@ -1092,3 +1092,6 @@ class TestPodTemplateFile:
 
         scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
         assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)
+
+
+# ruff: noqa: PT028

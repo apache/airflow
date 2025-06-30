@@ -24,7 +24,7 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.time_delta import (
@@ -118,7 +118,8 @@ class TestTimeDeltaSensorAsync:
     @mock.patch(DEFER_PATH)
     def test_timedelta_sensor(self, defer_mock, should_defer):
         delta = timedelta(hours=1)
-        op = TimeDeltaSensorAsync(task_id="timedelta_sensor_check", delta=delta, dag=self.dag)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = TimeDeltaSensorAsync(task_id="timedelta_sensor_check", delta=delta, dag=self.dag)
         if should_defer:
             data_interval_end = pendulum.now("UTC").add(hours=1)
         else:
@@ -178,7 +179,8 @@ class TestTimeDeltaSensorAsync:
             )
             context.update(dag_run=dr)
             delta = timedelta(seconds=1)
-            op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
             base_time = interval_end or run_after
             expected_time = base_time + delta
             with pytest.raises(TaskDeferred) as caught:

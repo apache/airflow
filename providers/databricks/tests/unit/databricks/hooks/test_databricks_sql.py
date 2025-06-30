@@ -435,3 +435,6 @@ def test_create_timeout_thread_no_timeout(
     thread = create_timeout_thread(cur=cur, execution_timeout=None)
     mock_timer.assert_not_called()
     assert thread is None
+
+
+# ruff: noqa: PT028

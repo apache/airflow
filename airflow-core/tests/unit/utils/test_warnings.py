@@ -38,7 +38,7 @@ class TestCaptureWithReraise:
             assert cw == []
 
     def test_capture_warnings(self):
-        with pytest.warns(UserWarning, match="(Foo|Bar|Baz)") as ctx:
+        with pytest.warns(UserWarning, match="(Foo|Bar|Baz)") as ctx:  # noqa: PT031
             with capture_with_reraise() as cw:
                 self.raise_warnings()
             assert len(cw) == 3

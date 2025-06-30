@@ -161,7 +161,7 @@ class TestGenerativeModelWithDefaultProjectIdHook:
                 top_p=TEST_TOP_P,
                 top_k=TEST_TOP_K,
             )
-            assert_warning("generative_model_generate_content", warnings)
+        assert_warning("generative_model_generate_content", warnings)
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
     def test_text_embedding_model_get_embeddings(self, mock_model) -> None:

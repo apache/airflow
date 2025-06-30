@@ -418,3 +418,6 @@ class TestVertexAIGenerateFromCachedContentOperator:
             generation_config=None,
             safety_settings=None,
         )
+
+
+# ruff: noqa: PT031

@@ -135,13 +135,15 @@ codegen = [
     "datamodel-code-generator[http]==0.28.2",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.11.2",
+    "ruff==0.12.1",
     "rich>=12.4.4",
 ]
 dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
+    "pandas>=2.1.2; python_version <\"3.13\"",
+    "pandas>=2.2.3; python_version >=\"3.13\""
 ]
 docs = [
     "apache-airflow-devel-common[docs]",
