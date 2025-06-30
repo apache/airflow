@@ -25,12 +25,11 @@ import attrs
 import structlog
 
 from airflow.exceptions import AirflowException
-from airflow.sdk.definitions._internal.abstractoperator import (
-    AbstractOperator as TaskSDKAbstractOperator,
-    NotMapped,
-)
+from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prevent_duplicates
 
@@ -202,8 +201,9 @@ def get_mapped_ti_count(task: DAGNode, run_id: str, *, session: Session) -> int:
 # https://github.com/python/cpython/issues/86153
 # While we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
 # register.
-@get_mapped_ti_count.register(TaskSDKAbstractOperator)
-def _(task: TaskSDKAbstractOperator, run_id: str, *, session: Session) -> int:
+@get_mapped_ti_count.register(SerializedBaseOperator)
+@get_mapped_ti_count.register(TaskSDKBaseOperator)  # Some tests don't go through task serialization...
+def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, session: Session) -> int:
     group = task.get_closest_mapped_task_group()
     if group is None:
         raise NotMapped()
@@ -211,7 +211,8 @@ def _(task: TaskSDKAbstractOperator, run_id: str, *, session: Session) -> int:
 
 
 @get_mapped_ti_count.register(MappedOperator)
-def _(task: MappedOperator, run_id: str, *, session: Session) -> int:
+@get_mapped_ti_count.register(TaskSDKMappedOperator)  # Some tests don't go through task serialization...
+def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
     exp_input = task._get_specified_expand_input()
