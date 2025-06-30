@@ -70,8 +70,8 @@ from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
-from airflow.models.taskmap import TaskMap, enable_lazy_task_expansion
-from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.models.taskmap import TaskMap
+from airflow.sdk.definitions.mappedoperator import MappedOperator, enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext

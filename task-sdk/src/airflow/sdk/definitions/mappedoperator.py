@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import attrs
 import methodtools
 
+from airflow.configuration import conf
 from airflow.models.abstractoperator import TaskStateChangeCallback
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -81,6 +82,9 @@ if TYPE_CHECKING:
 
 TaskStateChangeCallbackAttrType = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 ValidationSource = Literal["expand"] | Literal["partial"]
+
+# AIP-88: https://cwiki.apache.org/confluence/display/AIRFLOW/%5BWIP%5D+AIP-88%3A+Lazy+task+expansion
+enable_lazy_task_expansion = conf.getboolean("scheduler", "enable_lazy_task_expansion", fallback=False)
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:

@@ -25,10 +25,10 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
+from airflow.sdk.definitions.mappedoperator import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
-from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.execution_time.comms import XComResult
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import XCom
@@ -516,7 +516,7 @@ class MapXComArg(XComArg):
 
         if isinstance(value, (Sequence, dict)):
             return _MapResult(value, self.callables)
-        if isinstance(value, Iterable):
+        if isinstance(value, Iterable) and enable_lazy_task_expansion:
             return _LazyMapResult(value, self.callables)
         raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
 

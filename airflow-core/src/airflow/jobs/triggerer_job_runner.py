@@ -42,8 +42,8 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models.taskmap import enable_lazy_task_expansion
 from airflow.models.trigger import Trigger
+from airflow.sdk.definitions.mappedoperator import enable_lazy_task_expansion
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,

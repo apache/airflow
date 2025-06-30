@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select
 
-from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
@@ -38,10 +37,6 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.taskinstance import TaskInstance
-
-
-# AIP-88: https://cwiki.apache.org/confluence/display/AIRFLOW/%5BWIP%5D+AIP-88%3A+Lazy+task+expansion
-enable_lazy_task_expansion = conf.getboolean("scheduler", "enable_lazy_task_expansion", fallback=False)
 
 
 class TaskMapVariant(enum.Enum):
@@ -139,7 +134,7 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.sdk.definitions.mappedoperator import MappedOperator, enable_lazy_task_expansion
         from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.settings import task_instance_mutation_hook
 
@@ -147,6 +142,7 @@ class TaskMap(TaskInstanceDependencies):
             if not isinstance(task, (BaseOperator, MappedOperator)):
                 raise RuntimeError(
                     f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
+                )
 
             try:
                 total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)
