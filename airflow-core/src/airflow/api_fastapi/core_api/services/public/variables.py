@@ -27,12 +27,13 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionResponse,
     BulkCreateAction,
     BulkDeleteAction,
+    BulkDeleteWithEntityAction,
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
 )
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, add_not_supported_error
 from airflow.models.variable import Variable
 
 
@@ -133,3 +134,8 @@ class BulkVariableService(BulkService[VariableBody]):
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+
+    def handle_bulk_delete_with_entity(
+        self, action: BulkDeleteWithEntityAction, results: BulkActionResponse
+    ) -> None:
+        add_not_supported_error(results, action.action, "Variables")

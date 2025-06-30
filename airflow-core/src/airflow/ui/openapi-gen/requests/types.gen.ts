@@ -175,19 +175,19 @@ export type BulkActionResponse = {
 };
 
 export type BulkBody_BulkTaskInstanceBody_ = {
-    actions: Array<(BulkCreateAction_BulkTaskInstanceBody_ | BulkUpdateAction_BulkTaskInstanceBody_ | BulkDeleteAction_BulkTaskInstanceBody_)>;
+    actions: Array<(BulkCreateAction_BulkTaskInstanceBody_ | BulkUpdateAction_BulkTaskInstanceBody_ | BulkDeleteAction_BulkTaskInstanceBody_ | BulkDeleteWithEntityAction_BulkTaskInstanceBody_)>;
 };
 
 export type BulkBody_ConnectionBody_ = {
-    actions: Array<(BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_)>;
+    actions: Array<(BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_ | BulkDeleteWithEntityAction_ConnectionBody_)>;
 };
 
 export type BulkBody_PoolBody_ = {
-    actions: Array<(BulkCreateAction_PoolBody_ | BulkUpdateAction_PoolBody_ | BulkDeleteAction_PoolBody_)>;
+    actions: Array<(BulkCreateAction_PoolBody_ | BulkUpdateAction_PoolBody_ | BulkDeleteAction_PoolBody_ | BulkDeleteWithEntityAction_PoolBody_)>;
 };
 
 export type BulkBody_VariableBody_ = {
-    actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+    actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_ | BulkDeleteWithEntityAction_VariableBody_)>;
 };
 
 export type BulkCreateAction_BulkTaskInstanceBody_ = {
@@ -286,6 +286,54 @@ export type BulkDeleteAction_VariableBody_ = {
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
+export type BulkDeleteWithEntityAction_BulkTaskInstanceBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete_with_entity";
+    /**
+     * A list of entities to be deleted.
+     */
+    entities: Array<BulkTaskInstanceBody>;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteWithEntityAction_ConnectionBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete_with_entity";
+    /**
+     * A list of entities to be deleted.
+     */
+    entities: Array<ConnectionBody>;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteWithEntityAction_PoolBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete_with_entity";
+    /**
+     * A list of entities to be deleted.
+     */
+    entities: Array<PoolBody>;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteWithEntityAction_VariableBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete_with_entity";
+    /**
+     * A list of entities to be deleted.
+     */
+    entities: Array<VariableBody>;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
 /**
  * Serializer for responses to bulk entity operations.
  *
@@ -306,6 +354,10 @@ export type BulkResponse = {
      * Details of the bulk delete operation, including successful keys and errors.
      */
     delete?: BulkActionResponse | null;
+    /**
+     * Details of the bulk delete operation, including successful keys and errors.
+     */
+    delete_with_entity?: BulkActionResponse | null;
 };
 
 /**
