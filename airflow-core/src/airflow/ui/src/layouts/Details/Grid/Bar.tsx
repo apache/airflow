@@ -42,7 +42,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
   const isSelected = runId === run.run_id;
 
   const search = searchParams.toString();
-  const { data: gridTISummaries } = useGridTiSummaries(run);
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
 
   return (
     <Box

@@ -44,6 +44,9 @@ class LightGridTaskInstanceSummary(BaseModel):
 
     task_id: str
     state: TaskInstanceState | None
+    child_states: dict[TaskInstanceState, int] | None
+    min_start_date: datetime | None
+    max_end_date: datetime | None
 
 
 class GridDAGRunwithTIs(BaseModel):
