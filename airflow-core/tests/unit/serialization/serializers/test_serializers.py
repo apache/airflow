@@ -23,6 +23,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import numpy as np
+import pandas as pd
 import pendulum
 import pendulum.tz
 import pytest
@@ -31,11 +32,11 @@ from kubernetes.client import models as k8s
 from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from pydantic import BaseModel, Field
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
-from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -58,6 +59,13 @@ class CustomTZ(datetime.tzinfo):
 class NoNameTZ(datetime.tzinfo):
     def utcoffset(self, dt):
         return datetime.timedelta(hours=2)
+
+
+class FooBarModel(BaseModel):
+    """Pydantic BaseModel for testing Pydantic Serialization/Deserialization."""
+
+    banana: float = 1.1
+    foo: str = Field()
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -190,20 +198,26 @@ class TestSerializers:
 
         assert serialize(12345) == ("", "", 0, False)
 
+    def test_bignum_deserialize_decimal(self):
+        from airflow.serialization.serializers.bignum import deserialize
+
+        res = deserialize(decimal.Decimal, 1, decimal.Decimal(12345))
+        assert res == decimal.Decimal(12345)
+
     @pytest.mark.parametrize(
         ("klass", "version", "payload", "msg"),
         [
             (
-                "decimal.Decimal",
+                decimal.Decimal,
                 999,
                 "0",
-                r"serialized 999 of decimal\.Decimal",  # newer version
+                r"serialized 999 of decimal\.Decimal > 1",  # newer version
             ),
             (
-                "wrong.ClassName",
+                str,
                 1,
                 "0",
-                r"wrong\.ClassName != .*Decimal",  # wrong classname
+                r"do not know how to deserialize builtins\.str",  # wrong classname
             ),
         ],
     )
@@ -235,8 +249,8 @@ class TestSerializers:
     @pytest.mark.parametrize(
         ("klass", "ver", "value", "msg"),
         [
-            ("numpy.int32", 999, 123, r"serialized version is newer"),
-            ("numpy.float32", 1, 123, r"unsupported numpy\.float32"),
+            (np.int32, 999, 123, r"serialized version is newer"),
+            (np.float32, 1, 123, r"unsupported numpy\.float32"),
         ],
     )
     def test_numpy_deserialize_errors(self, klass, ver, value, msg):
@@ -265,17 +279,23 @@ class TestSerializers:
         assert serialize(123) == ("", "", 0, False)
 
     @pytest.mark.parametrize(
-        ("version", "data", "msg"),
+        ("klass", "version", "data", "msg"),
         [
-            (999, "", r"serialized 999 .* > 1"),  # version too new
-            (1, 123, r"wrong data type .*<class 'int'>"),  # bad payload type
+            (pd.DataFrame, 999, "", r"serialized 999 of pandas.core.frame.DataFrame > 1"),  # version too new
+            (
+                pd.DataFrame,
+                1,
+                123,
+                r"serialized pandas.core.frame.DataFrame has wrong data type .*<class 'int'>",
+            ),  # bad payload type
+            (str, 1, "", r"do not know how to deserialize builtins.str"),  # bad class
         ],
     )
-    def test_pandas_deserialize_errors(self, version, data, msg):
+    def test_pandas_deserialize_errors(self, klass, version, data, msg):
         from airflow.serialization.serializers.pandas import deserialize
 
         with pytest.raises(TypeError, match=msg):
-            deserialize("pandas.core.frame.DataFrame", version, data)
+            deserialize(klass, version, data)
 
     def test_iceberg(self):
         pytest.importorskip("pyiceberg", minversion="2.0.0")
@@ -366,6 +386,32 @@ class TestSerializers:
         monkeypatch.setattr(PodGenerator, "serialize_pod", lambda o: (_ for _ in ()).throw(Exception("fail")))
         assert serialize(pod) == ("", "", 0, False)
         assert serialize(123) == ("", "", 0, False)
+
+    def test_pydantic(self):
+        m = FooBarModel(banana=3.14, foo="hello")
+        e = serialize(m)
+        d = deserialize(e)
+
+        assert m.banana == d.banana
+        assert m.foo == d.foo
+
+    @pytest.mark.parametrize(
+        "klass, version, data, msg",
+        [
+            (
+                FooBarModel,
+                999,
+                FooBarModel(banana=3.14, foo="hello"),
+                "Serialized version 999 is newer than the supported version 1",
+            ),
+            (str, 1, "", r"No deserializer found for builtins\.str"),
+        ],
+    )
+    def test_pydantic_deserialize_errors(self, klass, version, data, msg):
+        from airflow.serialization.serializers.pydantic import deserialize
+
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, version, data)
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(
@@ -528,15 +574,15 @@ class TestSerializers:
     def test_timezone_deserialize_zoneinfo(self):
         from airflow.serialization.serializers.timezone import deserialize
 
-        zi = deserialize("backports.zoneinfo.ZoneInfo", 1, "Asia/Taipei")
+        zi = deserialize(ZoneInfo, 1, "Asia/Taipei")
         assert isinstance(zi, ZoneInfo)
         assert zi.key == "Asia/Taipei"
 
     @pytest.mark.parametrize(
         "klass, version, data, msg",
         [
-            ("pendulum.tz.timezone.FixedTimezone", 1, 1.23, "is not of type int or str"),
-            ("pendulum.tz.timezone.FixedTimezone", 999, "UTC", "serialized 999 .* > 1"),
+            (FixedTimezone, 1, 1.23, "is not of type int or str"),
+            (FixedTimezone, 999, "UTC", "serialized 999 .* > 1"),
         ],
     )
     def test_timezone_deserialize_errors(self, klass, version, data, msg):
@@ -570,14 +616,39 @@ class TestSerializers:
             load_dag_schema_dict()
         assert "Schema file schema.json does not exists" in str(ctx.value)
 
-    def test_builtin_deserialize_frozenset(self):
-        res = builtin.deserialize(qualname(frozenset), 1, [13, 14])
-        assert isinstance(res, frozenset)
-        assert res == frozenset({13, 14})
+    @pytest.mark.parametrize(
+        "klass, version, data",
+        [(tuple, 1, [11, 12]), (set, 1, [11, 12]), (frozenset, 1, [11, 12])],
+    )
+    def test_builtin_deserialize(self, klass, version, data):
+        res = builtin.deserialize(klass, version, klass(data))
+        assert isinstance(res, klass)
+        assert res == klass(data)
 
-    def test_builtin_deserialize_version_too_new(self):
-        with pytest.raises(TypeError, match="serialized version is newer than class version"):
-            builtin.deserialize(qualname(tuple), 999, [1, 2])
+    @pytest.mark.parametrize(
+        "klass, version, data, msg",
+        [
+            (tuple, 999, [11, 12], r"serialized version 999 is newer than class version 1"),
+            (set, 2, [11, 12], r"serialized version 2 is newer than class version 1"),
+            (frozenset, 13, [11, 12], r"serialized version 13 is newer than class version 1"),
+        ],
+    )
+    def test_builtin_deserialize_version_too_new(self, klass, version, data, msg):
+        with pytest.raises(TypeError, match=msg):
+            builtin.deserialize(klass, version, data)
+
+    @pytest.mark.parametrize(
+        "klass, version, data, msg",
+        [
+            (str, 1, "11, 12", r"do not know how to deserialize builtins\.str"),
+            (int, 1, 11, r"do not know how to deserialize builtins\.int"),
+            (bool, 1, True, r"do not know how to deserialize builtins\.bool"),
+            (float, 1, 0.999, r"do not know how to deserialize builtins\.float"),
+        ],
+    )
+    def test_builtin_deserialize_wrong_types(self, klass, version, data, msg):
+        with pytest.raises(TypeError, match=msg):
+            builtin.deserialize(klass, version, data)
 
     @pytest.mark.parametrize(
         "func, msg",

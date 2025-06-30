@@ -78,11 +78,13 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: str) -> Any:
+def deserialize(cls: type, version: int, data: str) -> Any:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 
-    if classname not in deserializers:
-        raise TypeError(f"unsupported {classname} found for numpy deserialization")
+    allowed_deserialize_classes = [import_string(classname) for classname in deserializers]
 
-    return import_string(classname)(data)
+    if cls not in allowed_deserialize_classes:
+        raise TypeError(f"unsupported {qualname(cls)} found for numpy deserialization")
+
+    return cls(data)
