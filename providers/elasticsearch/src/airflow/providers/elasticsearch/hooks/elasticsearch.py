@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib import parse
 
 from elasticsearch import Elasticsearch
@@ -183,8 +183,8 @@ class ElasticsearchSQLHook(DbApiHook):
         conn = self.connection
 
         conn_args = {
-            "host": conn.host,
-            "port": conn.port,
+            "host": cast("str", conn.host),
+            "port": cast("int", conn.port),
             "user": conn.login or None,
             "password": conn.password or None,
             "scheme": conn.schema or "http",
@@ -195,7 +195,7 @@ class ElasticsearchSQLHook(DbApiHook):
         if conn_args.get("http_compress", False):
             conn_args["http_compress"] = bool(conn_args["http_compress"])
 
-        return connect(**conn_args)
+        return connect(**conn_args)  # type: ignore[arg-type]
 
     def get_uri(self) -> str:
         conn = self.connection
@@ -203,7 +203,7 @@ class ElasticsearchSQLHook(DbApiHook):
         login = ""
         if conn.login:
             login = f"{conn.login}:{conn.password}@"
-        host = conn.host
+        host = conn.host or ""
         if conn.port is not None:
             host += f":{conn.port}"
         uri = f"{conn.conn_type}+{conn.schema}://{login}{host}/"
