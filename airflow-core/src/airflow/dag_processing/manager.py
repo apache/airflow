@@ -337,13 +337,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             self.heartbeat()
 
-            with create_session() as session:
-                running_dags = (
-                    session.query(func.count(DagRun.dag_id))
-                    .filter(DagRun.state == DagRunState.RUNNING)
-                    .scalar()
-                )
-                Stats.gauge("executor.running_dags", running_dags)
+            self._emit_running_dags_metric()
 
             self._kill_timed_out_processors()
 
@@ -1017,6 +1011,14 @@ class DagFileProcessorManager(LoggingMixin):
             )
         self._add_files_to_queue(to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
+
+    def _emit_running_dags_metric(self):
+        """Emit executor.running_dags gauge."""
+        with create_session() as session:
+            running_dags = (
+                session.query(func.count(DagRun.dag_id)).filter(DagRun.state == DagRunState.RUNNING).scalar()
+            )
+            Stats.gauge("executor.running_dags", running_dags)
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
