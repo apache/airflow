@@ -376,8 +376,7 @@ def connections_test(args) -> None:
         raise SystemExit(1)
 
     print("\nTesting...")
-    # TODO: Revisit this
-    status, message = conn.test_connection()  # type: ignore
+    status, message = conn.test_connection()
     if status is True:
         console.print("[bold green]\nConnection success!\n")
     else:
