@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
+from uuid6 import uuid7
 
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
@@ -42,17 +43,7 @@ def get_dag_run(dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> Dag
 
 def get_task_instance(task: BaseOperator) -> TaskInstance:
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.dag_version import DagVersion
-
-        if not task.has_dag():
-            dag = DAG(dag_id="test_dag", schedule=None)
-            dag.add_task(task)
-        dag = task.dag
-        dag.sync_to_db()
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        if TYPE_CHECKING:
-            assert dag_version
-        return TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
+        return TaskInstance(task=task, run_id=None, dag_version_id=uuid7())
     return TaskInstance(task=task, run_id=None)  # type: ignore
 
 

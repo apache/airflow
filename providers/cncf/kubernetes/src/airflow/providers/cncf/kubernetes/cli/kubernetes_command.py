@@ -27,7 +27,6 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.models import DagModel, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
@@ -47,8 +46,6 @@ def generate_pod_yaml(args):
     logical_date = args.logical_date if AIRFLOW_V_3_0_PLUS else args.execution_date
     if AIRFLOW_V_3_0_PLUS:
         dag = get_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
     else:
         dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
@@ -70,10 +67,9 @@ def generate_pod_yaml(args):
 
     for task in dag.tasks:
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag_version import DagVersion
+            from uuid6 import uuid7
 
-            dag_version = DagVersion.get_latest_version(dr.dag_id)
-            ti = TaskInstance(task, run_id=dr.run_id, dag_version_id=dag_version.id)
+            ti = TaskInstance(task, run_id=dr.run_id, dag_version_id=uuid7())
         else:
             ti = TaskInstance(task, run_id=dr.run_id)
         ti.dag_run = dr
