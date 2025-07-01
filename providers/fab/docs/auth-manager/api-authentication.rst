@@ -282,8 +282,8 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
                 "client_secret": CLIENT_SECRET,
                 "client_kwargs": {
                     "scope": "email profile",
-                    "code_challenge_method": "S256",    # Needed for PKCE flow
-                    "response_type": "code",            # Needed for PKCE flow
+                    "code_challenge_method": "S256",  # Needed for PKCE flow
+                    "response_type": "code",  # Needed for PKCE flow
                 },
             },
         }
@@ -295,6 +295,7 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
     key_der = b64decode(key_der_base64.encode())
     public_key = serialization.load_der_public_key(key_der)
 
+
     class CustomOAuthView(AuthOAuthView):
         @expose("/logout/", methods=["GET", "POST"])
         def logout(self):
@@ -302,6 +303,7 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
             return redirect(
                 f"{OIDC_ISSUER}/protocol/openid-connect/logout?post_logout_redirect_uri={AIRFLOW__API__BASE_URL}&client_id={CLIENT_ID}"
             )
+
 
     class CustomSecurityManager(FabAirflowSecurityManagerOverride):
         authoauthview = CustomOAuthView
@@ -332,6 +334,7 @@ Here is an example of what you might have in your ``webserver_config.py`` or ``a
                 return userinfo
             else:
                 return {}
+
 
     # Make sure to replace this with your own implementation of AirflowSecurityManager class
     SECURITY_MANAGER_CLASS = CustomSecurityManager
