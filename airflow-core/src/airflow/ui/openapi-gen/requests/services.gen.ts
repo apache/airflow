@@ -983,7 +983,7 @@ export class DagRunService {
      * @param data.runType
      * @param data.state
      * @param data.orderBy
-     * @param data.runId
+     * @param data.runId SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
