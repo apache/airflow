@@ -551,11 +551,11 @@ class TestBranchOperator(BasePythonTest):
             ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
         ],
     )
-    def test_empty_branch(self, choice, expected_states):
+    def test_empty_branch(self, choice, expected_states, session):
         """
         Tests that BranchPythonOperator handles empty branches properly.
         """
-        with self.dag_non_serialized:
+        with self.dag_non_serialized as dag:
 
             def f():
                 return choice
@@ -566,7 +566,9 @@ class TestBranchOperator(BasePythonTest):
 
             branch >> [task1, join]
             task1 >> join
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.flush()
         dr = self.create_dag_run()
         task_ids = [self.task_id, "task1", "join"]
         tis = {ti.task_id: ti for ti in dr.task_instances}
@@ -758,10 +760,11 @@ class TestShortCircuitOperator(BasePythonTest):
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        with self.dag_non_serialized:
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
             short_circuit = ShortCircuitOperator(task_id=self.task_id, python_callable=lambda: False)
             short_circuit >> self.op1 >> self.op2
-        dr = self.create_dag_run()
+
+        dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
