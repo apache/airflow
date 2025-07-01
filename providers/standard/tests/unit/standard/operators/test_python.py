@@ -61,7 +61,7 @@ from airflow.providers.standard.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -1319,17 +1319,38 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, system_site_packages=False, op_args=[4])
 
-    def test_with_index_urls(self):
+    @mock.patch(
+        "airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess",
+        wraps=execute_in_subprocess,
+    )
+    def test_with_index_urls(self, wrapped_execute_in_subprocess):
         def f(a):
             import sys
             from pathlib import Path
 
             pip_conf = (Path(sys.executable).parents[1] / "pip.conf").read_text()
-            assert "abc.def.de" in pip_conf
-            assert "xyz.abc.de" in pip_conf
+            assert "first.package.index" in pip_conf
+            assert "second.package.index" in pip_conf
+            assert "third.package.index" in pip_conf
             return a
 
-        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+        self.run_as_task(
+            f,
+            index_urls=[
+                "https://first.package.index",
+                "http://second.package.index",
+                "http://third.package.index",
+            ],
+            op_args=[4],
+        )
+
+        # first call creates venv, second call installs packages
+        package_install_call_args = wrapped_execute_in_subprocess.call_args[1]
+        assert package_install_call_args["env"]["UV_DEFAULT_INDEX"] == "https://first.package.index"
+        assert (
+            package_install_call_args["env"]["UV_INDEX"]
+            == "http://second.package.index http://third.package.index"
+        )
 
     def test_caching(self):
         def f(a):

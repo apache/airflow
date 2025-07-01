@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euxo pipefail
+"""Version compatibility for Apache Beam provider."""
 
-cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
+from __future__ import annotations
 
-PYTHON_ARG=""
 
-PIP_VERSION="25.1.1"
-UV_VERSION="0.7.17"
-if [[ ${PYTHON_VERSION=} != "" ]]; then
-    PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
-fi
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-python -m pip install --upgrade "pip==${PIP_VERSION}"
-python -m pip install "uv==${UV_VERSION}"
-uv tool uninstall apache-airflow-breeze >/dev/null 2>&1 || true
-# shellcheck disable=SC2086
-uv tool install ${PYTHON_ARG} --force --editable ./dev/breeze/
-echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
+    from airflow import __version__
+
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
+
+
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
+
+__all__ = [
+    "AIRFLOW_V_3_1_PLUS",
+    "BaseOperator",
+]

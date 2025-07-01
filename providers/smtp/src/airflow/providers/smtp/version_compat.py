@@ -35,14 +35,14 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
+    from airflow.sdk import BaseOperator
     from airflow.sdk.definitions.context import Context
 else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+    from airflow.models import BaseOperator  # type: ignore[no-redef]
     from airflow.utils.context import Context  # type: ignore[no-redef]
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
-    "BaseSensorOperator",
+    "BaseOperator",
     "Context",
 ]
