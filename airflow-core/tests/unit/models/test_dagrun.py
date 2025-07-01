@@ -2750,6 +2750,7 @@ def _get_states(dr):
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag(False)
 def test_teardown_and_fail_fast(dag_maker):
     """
     when fail_fast enabled, teardowns should run according to their setups.
@@ -2781,11 +2782,13 @@ def test_teardown_and_fail_fast(dag_maker):
                 t = my_teardown().as_teardown(setups=s)
                 with t:
                     my_work(s)
+
     tg1, tg2 = dag.task_group.children.values()
     tg1 >> tg2
+
     dr = dag.test()
     states = _get_states(dr)
-    expected = {
+    assert states == {
         "tg_1.my_setup": "success",
         "tg_1.my_teardown": "success",
         "tg_1.my_work": "failed",
@@ -2793,4 +2796,3 @@ def test_teardown_and_fail_fast(dag_maker):
         "tg_2.my_teardown": "skipped",
         "tg_2.my_work": "skipped",
     }
-    assert states == expected
