@@ -40,7 +40,8 @@ export const useGridTiSummaries = ({
     {
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        (isStatePending(state) || query.state.data?.task_instances.some((ti) => isStatePending(ti.state))) &&
+        ((state !== undefined && isStatePending(state)) ||
+          query.state.data?.task_instances.some((ti) => isStatePending(ti.state))) &&
         refetchInterval,
     },
   );
