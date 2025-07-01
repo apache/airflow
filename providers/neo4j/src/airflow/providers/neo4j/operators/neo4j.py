@@ -20,8 +20,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
+from airflow.providers.neo4j.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
