@@ -93,6 +93,7 @@ dependencies = [
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
     "sphinxcontrib-spelling>=8.0.0",
+    "websockets>=15.0.1",
 ]
 "docs-gen" = [
     "diagrams>=0.23.4",

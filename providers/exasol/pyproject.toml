@@ -61,6 +61,7 @@ dependencies = [
     "pyexasol>=0.26.0",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
+    "websockets>=15.0.1",
 ]
 
 [dependency-groups]
