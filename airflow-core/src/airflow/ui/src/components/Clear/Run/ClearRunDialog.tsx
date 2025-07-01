@@ -102,13 +102,23 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex alignItems="center" justifyContent="space-between" mt={3}>
-            <Checkbox
-              checked={runOnLatestVersion}
-              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-            >
-              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-            </Checkbox>
+          <Flex
+            {...(dagRun.bundle_version !== null && dagRun.bundle_version !== ""
+              ? { alignItems: "center" }
+              : {})}
+            justifyContent={
+              dagRun.bundle_version !== null && dagRun.bundle_version !== "" ? "space-between" : "end"
+            }
+            mt={3}
+          >
+            {dagRun.bundle_version !== null && dagRun.bundle_version !== "" ? (
+              <Checkbox
+                checked={runOnLatestVersion}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              >
+                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+              </Checkbox>
+            ) : undefined}
             <Button
               colorPalette="blue"
               disabled={affectedTasks.total_entries === 0}
