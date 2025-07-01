@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any
@@ -25,7 +26,12 @@ from uuid import UUID
 from asgiref.sync import sync_to_async
 
 from airflow.providers.standard.execution_time.hitl import get_hitl_response_content_detail
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+log = logging.getLogger(__name__)
+if not AIRFLOW_V_3_1_PLUS:
+    log.warning("Human in the loop functionality needs Airflow 3.1+..")
 
 
 class HITLTrigger(BaseTrigger):

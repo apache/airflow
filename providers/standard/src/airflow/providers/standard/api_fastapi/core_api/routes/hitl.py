@@ -42,7 +42,7 @@ log = structlog.get_logger(__name__)
 
 
 @hitl_router.post(
-    "/{task_instance_id}/response",
+    "/task-instances/{task_instance_id}/responses",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [
@@ -50,15 +50,17 @@ log = structlog.get_logger(__name__)
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
-def write_hitl_response(
+def write_hitl_response_content(
     task_instance_id: UUID,
     add_response_payload: AddHITLResponsePayload,
     user: GetUserDep,
     session: SessionDep,
 ) -> HITLResponseContentDetail:
-    """Write an HITLResponse."""
+    """Add response content to a HITLResponse."""
     ti_id_str = str(task_instance_id)
     hitl_response_model = session.scalar(
         select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
@@ -84,7 +86,7 @@ def write_hitl_response(
 
 
 @hitl_router.get(
-    "/{task_instance_id}/input-requests",
+    "/task-instances/{task_instance_id}/responses",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -98,7 +100,7 @@ def get_hitl_response(
     task_instance_id: UUID,
     session: SessionDep,
 ) -> HITLResponseDetail:
-    """Get a Human-in-the-loop input request of a specific task instance."""
+    """Get a Human-in-the-loop Response of a specific task instance."""
     ti_id_str = str(task_instance_id)
     hitl_response_model = session.scalar(
         select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
@@ -116,7 +118,7 @@ def get_hitl_response(
 
 
 @hitl_router.get(
-    "/input-requests",
+    "/responses",
     status_code=status.HTTP_200_OK,
     dependencies=[
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -125,7 +127,7 @@ def get_hitl_response(
 def get_hitl_responses(
     session: SessionDep,
 ) -> HITLResponseDetailCollection:
-    """Get Human-in-the-loop input requests."""
+    """Get Human-in-the-loop Response."""
     hitl_responses = session.scalars(select(HITLResponseModel)).all()
     return HITLResponseDetailCollection(
         hitl_responses=hitl_responses,

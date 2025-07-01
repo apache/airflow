@@ -25,13 +25,13 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class AddHITLResponsePayload(BaseModel):
-    """Schema for adding a Human-in-the-loop Response for a specific Task Instance."""
+    """Schema for adding a Human-in-the-loop response content detail for a specific Task Instance."""
 
     content: str
 
 
 class HITLResponseContentDetail(BaseModel):
-    """Schema for added HITLResponse."""
+    """Response of adding a Human-in-the-loop response content detail."""
 
     response_content: str
     response_at: datetime
@@ -39,10 +39,11 @@ class HITLResponseContentDetail(BaseModel):
 
 
 class HITLResponseDetail(BaseModel):
-    """Schema for details the Human-in-the-loop response."""
+    """Schema for Human-in-the-loop response."""
 
     ti_id: str
 
+    # Input Request
     options: list[str]
     subject: str
     body: str | None = None
@@ -51,6 +52,7 @@ class HITLResponseDetail(BaseModel):
     params: MutableMapping | None = None
     form_content: MutableMapping | None = None
 
+    # Response Content Detail
     response_at: datetime | None = None
     user_id: str | None = None
     response_content: str | None = None
@@ -67,7 +69,7 @@ class HITLResponseDetail(BaseModel):
 
 
 class HITLResponseDetailCollection(BaseModel):
-    """Schema for a collection details for that awaiting Human-in-the-loop input request."""
+    """Schema for a collection of Human-in-the-loop response.."""
 
     hitl_responses: list[HITLResponseDetail]
     total_entries: int

@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from airflow.providers.standard.models import metadata
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.db_manager import BaseDBManager
 
 PACKAGE_DIR = Path(__file__).parents[1]
@@ -26,14 +28,19 @@ PACKAGE_DIR = Path(__file__).parents[1]
 _REVISION_HEADS_MAP: dict[str, str] = {
     "1.3.0": "5e7113ca79cc",
 }
+log = logging.getLogger(__name__)
 
+if not AIRFLOW_V_3_1_PLUS:
+    log.warning("Human in the loop functionality needs Airflow 3.1+. Skip loadding HITLDBManager.")
+    HITLDBManager = BaseDBManager
+else:
 
-class HITLDBManager(BaseDBManager):
-    """Manages Human in the loop database."""
+    class HITLDBManager(BaseDBManager):
+        """Manages Human in the loop database."""
 
-    metadata = metadata
-    version_table_name = "alembic_version_hitl"
-    migration_dir = (PACKAGE_DIR / "migrations").as_posix()
-    alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
-    supports_table_dropping = True
-    revision_heads_map = _REVISION_HEADS_MAP
+        metadata = metadata
+        version_table_name = "alembic_version_hitl"
+        migration_dir = (PACKAGE_DIR / "migrations").as_posix()
+        alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
+        supports_table_dropping = True
+        revision_heads_map = _REVISION_HEADS_MAP

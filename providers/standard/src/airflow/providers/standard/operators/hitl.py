@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -24,10 +25,15 @@ from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.execution_time.hitl import add_hitl_input_request
 from airflow.providers.standard.triggers.hitl import HITLTrigger
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.param import ParamsDict
+
+log = logging.getLogger(__name__)
+if not AIRFLOW_V_3_1_PLUS:
+    log.warning("Human in the loop functionality needs Airflow 3.1+..")
 
 
 class HITLOperator(BaseOperator):

@@ -24,7 +24,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class HITLInputRequestResponse(BaseModel):
-    """Schema for a Human-in-the-loop input request for a specific task instance."""
+    """Schema for the input request part of a Human-in-the-loop Response for a specific task instance."""
 
     ti_id: UUID
     options: list[str]
@@ -38,7 +38,7 @@ class HITLInputRequestResponse(BaseModel):
 
 
 class GetHITLResponseContentDetailPayload(BaseModel):
-    """Schema for fetching a Human-in-the-loop response content detail for a specific task instance."""
+    """Schema for getting a Human-in-the-loop response content detail for a specific task instance."""
 
     ti_id: UUID
 

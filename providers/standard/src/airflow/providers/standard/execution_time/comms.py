@@ -26,7 +26,7 @@ from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import
 
 
 class CreateHITLInputRequestPayload(HITLInputRequestResponse):
-    """Used in adding the input request part of a Human-in-the-loop response."""
+    """Add the input request part of a Human-in-the-loop response."""
 
     type: Literal["CreateHITLInputRequestPayload"] = "CreateHITLInputRequestPayload"
 
@@ -38,7 +38,7 @@ class HITLInputRequestResponseResult(HITLInputRequestResponse):
 
 
 class GetHITLResponseContentDetail(GetHITLResponseContentDetailPayload):
-    """Used in fetching the content part of a Human-in-the-loop response."""
+    """Get the response content part of a Human-in-the-loop response."""
 
     type: Literal["GetHITLResponseContentDetailPayload"] = "GetHITLResponseContentDetailPayload"
 

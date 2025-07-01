@@ -33,7 +33,11 @@ if TYPE_CHECKING:
 
 
 class HITLOperations:
-    """Operations related to Human in the loop."""
+    """
+    Operations related to Human in the loop. Require Airflow 3.1+.
+
+    :meta: private
+    """
 
     __slots__ = ("client",)
 
