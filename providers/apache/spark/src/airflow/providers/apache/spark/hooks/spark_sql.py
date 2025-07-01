@@ -28,7 +28,10 @@ except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 class SparkSqlHook(BaseHook):
@@ -104,7 +107,7 @@ class SparkSqlHook(BaseHook):
         conn: Connection | None = None
 
         try:
-            conn = self.get_connection(conn_id)  # type: ignore[assignment]
+            conn = self.get_connection(conn_id)
         except AirflowNotFoundException:
             conn = None
         if conn:

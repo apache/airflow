@@ -29,7 +29,10 @@ from teradatasql import TeradataConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 PARAM_TYPES = {bool, float, int, str}
 
@@ -160,8 +163,7 @@ class TeradataHook(DbApiHook):
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
-        # TODO: @amoghrajesh: Handle type better
-        conn = self.get_connection(self.get_conn_id())
+        conn: Connection = self.get_connection(self.get_conn_id())
         conn_config = {
             "host": conn.host or "localhost",
             "dbs_port": conn.port or "1025",

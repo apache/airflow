@@ -127,7 +127,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 )
 
         return AwsConnectionWrapper(
-            conn=connection,  # type: ignore[arg-type]
+            conn=connection,
             region_name=self._region_name,
             botocore_config=self._config,
             verify=self._verify,
