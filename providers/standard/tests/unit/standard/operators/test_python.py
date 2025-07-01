@@ -47,13 +47,6 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
     DeserializingResultError,
 )
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
@@ -77,6 +70,11 @@ from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -1942,8 +1940,8 @@ class TestCurrentContext:
         with set_current_context(example_context):
             pass
         if AIRFLOW_V_3_0_PLUS:
-            with pytest.warns(AirflowProviderDeprecationWarning):
-                with pytest.raises(RuntimeError):
+            with pytest.raises(RuntimeError):
+                with pytest.warns(AirflowProviderDeprecationWarning):
                     get_current_context()
         else:
             with pytest.raises(RuntimeError):
@@ -1965,13 +1963,13 @@ class TestCurrentContext:
             ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
         if AIRFLOW_V_3_0_PLUS:
-            with pytest.warns(AirflowProviderDeprecationWarning):
-                for i in reversed(range(max_stack_depth)):
-                    # Iterate over contexts in reverse order - stack is LIFO
+            for i in reversed(range(max_stack_depth)):
+                # Iterate over contexts in reverse order - stack is LIFO
+                with pytest.warns(AirflowProviderDeprecationWarning):
                     ctx = get_current_context()
-                    assert ctx["ContextId"] == i
-                    # End of with statement
-                    ctx_list[i].__exit__(None, None, None)
+                assert ctx["ContextId"] == i
+                # End of with statement
+                ctx_list[i].__exit__(None, None, None)
         else:
             for i in reversed(range(max_stack_depth)):
                 # Iterate over contexts in reverse order - stack is LIFO

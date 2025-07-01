@@ -1,7 +1,7 @@
 {
   "admin": {
     "Config": "설정",
-    "Connections": "연결들",
+    "Connections": "커넥션들",
     "Plugins": "플러그인들",
     "Pools": "풀들",
     "Providers": "제공자들",
