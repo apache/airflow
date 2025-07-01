@@ -126,7 +126,9 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         _location = location or self.location
         if _location is not None:
             # Google's client library does not provide a method to construct regional secret version paths, so constructing manually.
-            return f"projects/{project_id}/locations/{_location}/secrets/{secret_id}/versions/{secret_version}"
+            return (
+                f"projects/{project_id}/locations/{_location}/secrets/{secret_id}/versions/{secret_version}"
+            )
         return self.client.secret_version_path(project_id, secret_id, secret_version)
 
     @GoogleBaseHook.fallback_to_default_project_id
