@@ -18,7 +18,13 @@
  */
 import { useTheme } from "next-themes";
 
-type ColorMode = "dark" | "light" | "system";
+export const COLOR_MODES = {
+  DARK: "dark",
+  LIGHT: "light",
+  SYSTEM: "system",
+} as const;
+
+export type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
 
 export const useColorMode = () => {
   const { setTheme, theme } = useTheme();

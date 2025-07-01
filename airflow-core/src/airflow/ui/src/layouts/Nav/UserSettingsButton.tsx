@@ -23,8 +23,13 @@ import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
-import { useColorMode } from "src/context/colorMode/useColorMode";
+<<<<<<< HEAD
+import { COLOR_MODES, type ColorMode, useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
+=======
+
+import { useTimezone } from "src/context/timezone";
+>>>>>>> 10d2237aa7 (refactor: Centralize color mode definitions)
 
 import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
@@ -33,7 +38,14 @@ import { PluginMenuItem } from "./PluginMenuItem";
 import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
 
+<<<<<<< HEAD
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
+=======
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+export const UserSettingsButton = () => {
+>>>>>>> 10d2237aa7 (refactor: Centralize color mode definitions)
   const { t: translate } = useTranslation();
   const { setColorMode, theme } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
