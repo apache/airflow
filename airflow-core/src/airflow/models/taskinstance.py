@@ -1079,6 +1079,9 @@ class TaskInstance(Base, LoggingMixin):
                 min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
+                self.log.warning(
+                    "OverflowError occurred while calculating min_backoff, using MAX_RETRY_DELAY for min_backoff."
+                )
 
             # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
             # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
