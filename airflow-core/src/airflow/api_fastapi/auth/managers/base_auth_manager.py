@@ -132,15 +132,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def refresh_token(self, user: T) -> T | None:
-        """
-        Refresh the JWT token if needed.
-
-        This method is called when the JWT token expired. Returns the user if the token was being refreshed, None otherwise.
-        Implementing this method should check whether token needs a refresh before refreshing.
-        """
-        return None
-
     @abstractmethod
     def is_authorized_configuration(
         self,

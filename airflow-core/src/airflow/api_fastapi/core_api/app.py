@@ -192,6 +192,7 @@ def init_middlewares(app: FastAPI) -> None:
 
         app.add_middleware(SimpleAllAdminMiddleware)
 
+
 def init_ui_plugins(app: FastAPI) -> None:
     """Initialize UI plugins."""
     from airflow import plugins_manager

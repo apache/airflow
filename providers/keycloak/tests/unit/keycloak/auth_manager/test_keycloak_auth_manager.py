@@ -20,7 +20,6 @@ import json
 from unittest.mock import Mock, patch
 
 import pytest
-from keycloak import KeycloakPostError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -427,60 +426,3 @@ class TestKeycloakAuthManager:
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1
-
-    @pytest.mark.parametrize("is_expired", [True, False])
-    @patch(
-        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager.get_keycloak_client"
-    )
-    @patch(
-        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager._is_token_expired"
-    )
-    def test_refresh_token(self, mock_is_token_expired, mock_get_keycloak_client, auth_manager, is_expired):
-        mock_client = Mock()
-        mock_get_keycloak_client.return_value = mock_client
-        mock_client.refresh_token.return_value = {
-            "access_token": "new_access_token",
-            "refresh_token": "new_refresh_token",
-        }
-        mock_is_token_expired.return_value = is_expired
-        mock_user = KeycloakAuthManagerUser(
-            user_id="user_id",
-            name="name",
-            access_token="old_access_token",
-            refresh_token="old_refresh_token",
-        )
-
-        refreshed_user = auth_manager.refresh_token(mock_user)
-
-        if is_expired:
-            assert refreshed_user.access_token == "new_access_token"
-            assert refreshed_user.refresh_token == "new_refresh_token"
-            mock_client.refresh_token.assert_called_once_with("old_refresh_token")
-        else:
-            assert refreshed_user.access_token == "old_access_token"
-            assert refreshed_user.refresh_token == "old_refresh_token"
-
-    @pytest.mark.parametrize(
-        "introspect_return_value, expected",
-        [
-            ({"test_introspect_result": "iam_test_introspect_result"}, False),  # Token is expired
-            (KeycloakPostError, False),  # Token is not expired
-        ],
-    )
-    @patch(
-        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager.get_keycloak_client"
-    )
-    def test_is_token_expired(
-        self, mock_get_keycloak_client, auth_manager, introspect_return_value, expected
-    ):
-        # Test with a token that is not expired
-        mock_client = Mock()
-        mock_get_keycloak_client.return_value = mock_client
-        mock_client.introspect.return_value = introspect_return_value
-        mock_user = KeycloakAuthManagerUser(
-            user_id="user_id",
-            name="name",
-            access_token="valid_access_token",
-            refresh_token="valid_refresh_token",
-        )
-        assert expected == auth_manager._is_token_expired(user=mock_user)

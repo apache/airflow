@@ -37,7 +37,7 @@ const getTokenFromCookies = (): string | undefined => {
 };
 
 export const tokenHandler = (config: InternalAxiosRequestConfig) => {
-  const token = (getTokenFromCookies() ?? localStorage.getItem(TOKEN_STORAGE_KEY)) as string | undefined;
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY) ?? getTokenFromCookies();
 
   if (token !== undefined) {
     config.headers.Authorization = `Bearer ${token}`;
