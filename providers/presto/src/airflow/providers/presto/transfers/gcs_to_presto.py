@@ -25,9 +25,9 @@ from collections.abc import Iterable, Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.presto.hooks.presto import PrestoHook
+from airflow.providers.presto.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
