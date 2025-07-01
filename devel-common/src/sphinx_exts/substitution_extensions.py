@@ -60,7 +60,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
 
     def apply(self, **kwargs: Any) -> None:
         def condition(node):
-            return isinstance(node, nodes.literal_block | nodes.literal)
+            return isinstance(node, (nodes.literal_block, nodes.literal))
 
         for node in self.document.traverse(condition):
             if _SUBSTITUTION_OPTION_NAME not in node:

@@ -55,7 +55,7 @@ def json_serialize_legacy(value: Any) -> str | None:
     :param value: the object to serialize
     :return: string representation of `value` if it is an instance of datetime or `None` otherwise
     """
-    if isinstance(value, date | datetime):
+    if isinstance(value, (date, datetime)):
         return value.isoformat()
     return None
 

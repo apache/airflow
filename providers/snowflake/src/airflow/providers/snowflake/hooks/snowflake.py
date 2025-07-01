@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
 
 def _try_to_boolean(value: Any):
-    if isinstance(value, str | type(None)):
+    if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
 

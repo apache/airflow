@@ -340,8 +340,8 @@ class RuntimeTaskInstance(TaskInstance):
         if run_id is None:
             run_id = self.run_id
 
-        single_task_requested = isinstance(task_ids, str | type(None))
-        single_map_index_requested = isinstance(map_indexes, int | type(None))
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
 
         if task_ids is None:
             # default to the current task if not provided
@@ -618,7 +618,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         )
         exit(1)
 
-    if not isinstance(task, BaseOperator | MappedOperator):
+    if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )

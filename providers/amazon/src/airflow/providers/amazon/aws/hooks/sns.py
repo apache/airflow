@@ -29,7 +29,7 @@ def _get_message_attribute(o):
         return {"DataType": "Binary", "BinaryValue": o}
     if isinstance(o, str):
         return {"DataType": "String", "StringValue": o}
-    if isinstance(o, int | float):
+    if isinstance(o, (int, float)):
         return {"DataType": "Number", "StringValue": str(o)}
     if hasattr(o, "__iter__"):
         return {"DataType": "String.Array", "StringValue": json.dumps(o)}

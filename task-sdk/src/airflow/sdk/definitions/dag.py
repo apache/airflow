@@ -122,7 +122,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
         return OnceTimetable()
     if interval == "@continuous":
         return ContinuousTimetable()
-    if isinstance(interval, timedelta | relativedelta):
+    if isinstance(interval, (timedelta, relativedelta)):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
             return DeltaDataIntervalTimetable(interval)
         return DeltaTriggerTimetable(interval)
@@ -807,7 +807,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if isinstance(u, BaseOperator | MappedOperator))
+                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
                 direct_upstreams.extend(upstream)
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.

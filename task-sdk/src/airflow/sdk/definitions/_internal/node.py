@@ -168,7 +168,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             task_object.update_relative(self, not upstream, edge_modifier=edge_modifier)
             relatives = task_object.leaves if upstream else task_object.roots
             for task in relatives:
-                if not isinstance(task, BaseOperator | MappedOperator):
+                if not isinstance(task, (BaseOperator, MappedOperator)):
                     raise TypeError(
                         f"Relationships can only be set between Operators; received {task.__class__.__name__}"
                     )

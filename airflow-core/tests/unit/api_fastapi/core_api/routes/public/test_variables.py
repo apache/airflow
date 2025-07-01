@@ -1095,7 +1095,7 @@ class TestBulkVariables(TestVariableEndpoint):
         response = test_client.patch("/variables", json=actions)
         assert response.status_code == 200
 
-        if isinstance(entity_value, dict | list):
+        if isinstance(entity_value, (dict, list)):
             retrieved_value_deserialized = Variable.get(entity_key, deserialize_json=True)
             assert retrieved_value_deserialized == entity_value
             retrieved_value_raw_string = Variable.get(entity_key, deserialize_json=False)

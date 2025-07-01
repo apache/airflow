@@ -209,7 +209,7 @@ class AssetAliasModel(Base):
     def __eq__(self, other: object) -> bool:
         from airflow.sdk.definitions.asset import AssetAlias
 
-        if isinstance(other, self.__class__ | AssetAlias):
+        if isinstance(other, (self.__class__, AssetAlias)):
             return self.name == other.name
         return NotImplemented
 
@@ -306,7 +306,7 @@ class AssetModel(Base):
     def __eq__(self, other: object) -> bool:
         from airflow.sdk.definitions.asset import Asset
 
-        if isinstance(other, self.__class__ | Asset):
+        if isinstance(other, (self.__class__, Asset)):
             return self.name == other.name and self.uri == other.uri
         return NotImplemented
 

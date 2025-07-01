@@ -107,7 +107,7 @@ class BaseGoogleLink(BaseOperatorLink):
         ti_key: TaskInstanceKey,
     ) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, GoogleCloudBaseOperator | BaseSensorOperator)
+            assert isinstance(operator, (GoogleCloudBaseOperator, BaseSensorOperator))
 
         conf = self.get_config(operator, ti_key)
         if not conf:

@@ -426,7 +426,7 @@ class AbstractOperator(Templater, DAGNode):
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
-            if not isinstance(child, MappedOperator | MappedTaskGroup):
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child

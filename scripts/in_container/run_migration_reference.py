@@ -58,7 +58,7 @@ def wrap_backticks(val):
     def _wrap_backticks(x):
         return f"``{x}``"
 
-    return ",\n".join(map(_wrap_backticks, val)) if isinstance(val, tuple | list) else _wrap_backticks(val)
+    return ",\n".join(map(_wrap_backticks, val)) if isinstance(val, (tuple, list)) else _wrap_backticks(val)
 
 
 def update_doc(file, data, app):

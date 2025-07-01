@@ -42,7 +42,7 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
 
         for call in mock_supervisor_comms.send.mock_calls:
             msg = call.kwargs.get("msg") or call.args[0]
-            if isinstance(msg, TaskState | SucceedTask):
+            if isinstance(msg, (TaskState, SucceedTask)):
                 return msg.state
         raise RuntimeError("Unable to find call to TaskState")
 

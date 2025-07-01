@@ -73,7 +73,7 @@ class ExternalDagLink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, ExternalTaskMarker | ExternalTaskSensor)
+            assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
 
         external_dag_id = operator.external_dag_id
 

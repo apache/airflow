@@ -434,7 +434,7 @@ def _create_ti_state_update_query_and_update_state(
     dag_bag: DagBagDep,
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
-    if isinstance(ti_patch_payload, TITerminalStatePayload | TIRetryStatePayload | TISuccessStatePayload):
+    if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)

@@ -58,7 +58,7 @@ class CustomTTYColoredFormatter(ColoredFormatter, TimezoneAware):
 
     @staticmethod
     def _color_arg(arg: Any) -> str | float | int:
-        if isinstance(arg, int | float):
+        if isinstance(arg, (int, float)):
             # In case of %d or %f formatting
             return arg
         return BOLD_ON + str(arg) + BOLD_OFF
@@ -69,7 +69,7 @@ class CustomTTYColoredFormatter(ColoredFormatter, TimezoneAware):
         return len(matches) if matches else 0
 
     def _color_record_args(self, record: LogRecord) -> LogRecord:
-        if isinstance(record.args, tuple | list):
+        if isinstance(record.args, (tuple, list)):
             record.args = tuple(self._color_arg(arg) for arg in record.args)
         elif isinstance(record.args, dict):
             if self._count_number_of_arguments_in_message(record) > 1:

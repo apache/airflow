@@ -205,11 +205,11 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                     if isinstance(partition_value, list):
                         output_list.append(f"""{partition_col} in {tuple(partition_value)}""")
                         self.log.debug("List formatting for partitions: %s", output_list)
-                    if isinstance(partition_value, int | float | complex):
+                    if isinstance(partition_value, (int, float, complex)):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
-                    if isinstance(partition_value, str | datetime):
+                    if isinstance(partition_value, (str, datetime)):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )

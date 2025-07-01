@@ -27,7 +27,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 
 
 def _get_name(class_like_object) -> str:
-    if isinstance(class_like_object, str | PluginsDirectorySource):
+    if isinstance(class_like_object, (str, PluginsDirectorySource)):
         return str(class_like_object)
     if inspect.isclass(class_like_object):
         return class_like_object.__name__
