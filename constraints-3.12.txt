@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-30T19:44:29.137332
+# This constraints file was automatically generated on 2025-07-01T02:30:54.621231
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -509,9 +509,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.3
 mypy-boto3-appflow==1.39.0
-mypy-boto3-rds==1.38.46
-mypy-boto3-redshift-data==1.38.0
-mypy-boto3-s3==1.38.44
+mypy-boto3-rds==1.39.0
+mypy-boto3-redshift-data==1.39.0
+mypy-boto3-s3==1.39.0
 mypy==1.9.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.3.0
@@ -670,14 +670,14 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.1
 rich-click==1.8.9
-rich-toolkit==0.14.7
+rich-toolkit==0.14.8
 rich==13.9.4
 roman-numerals-py==3.1.0
 rpds-py==0.25.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
-ruff==0.11.13
+ruff==0.12.1
 s3fs==2025.5.1
 s3transfer==0.13.0
 sagemaker_studio==1.0.16
