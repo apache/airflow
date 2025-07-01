@@ -57,8 +57,6 @@
     "up_for_retry": "Wachtend op een nieuwe poging",
     "upstream_failed": "Upstream mislukt"
   },
-  "switchToDarkMode": "Schakel over naar donkere modus",
-  "switchToLightMode": "Schakel over naar lichte modus",
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
