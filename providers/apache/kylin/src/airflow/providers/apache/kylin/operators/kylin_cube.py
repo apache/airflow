@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 from kylinpy import kylinpy
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
 from airflow.providers.apache.kylin.version_compat import BaseOperator
 
