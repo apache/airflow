@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 from keycloak import KeycloakAuthenticationError
@@ -29,6 +30,9 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.providers.keycloak.auth_manager.datamodels.token import TokenBody, TokenResponse
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+
+if TYPE_CHECKING:
+    from airflow.api_fastapi.core_api.security import GetUserDep
 
 log = logging.getLogger(__name__)
 token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
@@ -59,4 +63,24 @@ def create_token(body: TokenBody) -> TokenResponse:
     )
     token = get_auth_manager().generate_jwt(user)
 
+    return TokenResponse(access_token=token)
+
+
+@token_router.post(
+    "/refresh-token",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+)
+def refresh_token(user: GetUserDep) -> TokenResponse:
+    auth_manager = get_auth_manager()
+
+    try:
+        new_user = auth_manager.refresh_token(user=user)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to refresh token",
+        )
+
+    token = auth_manager.generate_jwt(new_user)
     return TokenResponse(access_token=token)
