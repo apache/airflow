@@ -555,7 +555,7 @@ class TestBranchOperator(BasePythonTest):
         """
         Tests that BranchPythonOperator handles empty branches properly.
         """
-        with self.dag_non_serialized as dag:
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
 
             def f():
                 return choice
@@ -566,16 +566,14 @@ class TestBranchOperator(BasePythonTest):
 
             branch >> [task1, join]
             task1 >> join
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
-        session.flush()
-        dr = self.create_dag_run()
+
+        dr = self.dag_maker.create_dagrun()
         task_ids = [self.task_id, "task1", "join"]
         tis = {ti.task_id: ti for ti in dr.task_instances}
 
         for task_id in task_ids:  # Mimic the specific order the scheduling would run the tests.
             task_instance = tis[task_id]
-            task_instance.refresh_from_task(self.dag_non_serialized.get_task(task_id))
+            task_instance.refresh_from_task(self.dag_maker.dag.get_task(task_id))
             if AIRFLOW_V_3_0_1:
                 from airflow.exceptions import DownstreamTasksSkipped
 
