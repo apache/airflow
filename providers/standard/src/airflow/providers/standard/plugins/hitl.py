@@ -69,4 +69,4 @@ class HumanInTheLoopPlugin(AirflowPlugin):
     if AIRFLOW_V_3_1_PLUS:
         fastapi_apps = [_get_api_endpoint()]
     else:
-        log.warning("Human in the loop functionality needs Airflow 3.1+. Skip loadding HITLDBManager.")
+        log.warning("Human in the loop functionality needs Airflow 3.1+. Skip loadding HITP routes.")
