@@ -20,11 +20,11 @@ import asyncio
 import json
 import time
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from enum import Enum
 from functools import cached_property, wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast
 
 import aiohttp
 from asgiref.sync import sync_to_async

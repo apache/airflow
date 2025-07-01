@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import ast
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from provider_yaml_utils import load_package_data

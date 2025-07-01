@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from flask import Response, current_app, request
 from flask_appbuilder.const import AUTH_LDAP

@@ -50,6 +50,9 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
 
 - Section ``[core]``
 
+  - ``execution_api_server_url``: If not set, the base URL from ``edge.api_url`` will be used. For example,
+    when ``edge.api_url`` is set to ``https://your-hostname-and-port/edge_worker/v1/rpcapi``, it will
+    default to ``https://your-hostname-and-port/execution/``.
   - ``executor``: Executor must be set or added to be ``airflow.providers.edge3.executors.EdgeExecutor``
   - ``internal_api_secret_key``: An encryption key must be set on api-server and Edge Worker component as
     shared secret to authenticate traffic. It should be a random string like the fernet key

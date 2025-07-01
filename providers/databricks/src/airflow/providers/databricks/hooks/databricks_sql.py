@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import threading
 from collections import namedtuple
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import closing
 from copy import copy
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     TypeVar,
     cast,
     overload,
@@ -345,10 +344,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
         """
-        Generate OpenLineage metadata for a Databricks task instance based on executed query IDs.
+        Emit separate OpenLineage events for each Databricks query, based on executed query IDs.
 
-        If a single query ID is present, attach an `ExternalQueryRunFacet` to the lineage metadata.
-        If multiple query IDs are present, emits separate OpenLineage events for each query instead.
+        If a single query ID is present, also add an `ExternalQueryRunFacet` to the returned lineage metadata.
 
         Note that `get_openlineage_database_specific_lineage` is usually called after task's execution,
         so if multiple query IDs are present, both START and COMPLETE event for each query will be emitted
@@ -369,12 +367,21 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if not self.query_ids:
-            self.log.debug("openlineage: no databricks query ids found.")
+            self.log.info("OpenLineage could not find databricks query ids.")
             return None
 
         self.log.debug("openlineage: getting connection to get database info")
         connection = self.get_connection(self.get_conn_id())
         namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+
+        self.log.info("Separate OpenLineage events will be emitted for each Databricks query_id.")
+        emit_openlineage_events_for_databricks_queries(
+            task_instance=task_instance,
+            hook=self,
+            query_ids=self.query_ids,
+            query_for_extra_metadata=True,
+            query_source_namespace=namespace,
+        )
 
         if len(self.query_ids) == 1:
             self.log.debug("Attaching ExternalQueryRunFacet with single query_id to OpenLineage event.")
@@ -385,13 +392,5 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                     )
                 }
             )
-
-        self.log.info("Multiple query_ids found. Separate OpenLineage event will be emitted for each query.")
-        emit_openlineage_events_for_databricks_queries(
-            query_ids=self.query_ids,
-            query_source_namespace=namespace,
-            task_instance=task_instance,
-            hook=self,
-        )
 
         return None

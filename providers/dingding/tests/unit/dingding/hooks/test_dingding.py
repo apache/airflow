@@ -24,8 +24,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.dingding.hooks.dingding import DingdingHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestDingdingHook:
     conn_id = "dingding_conn_id_test"

@@ -21,9 +21,9 @@ import itertools
 import re
 import textwrap
 import warnings
-from collections.abc import Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar, cast, overload
 
 import attr
 import typing_extensions
@@ -249,10 +249,9 @@ class DecoratedOperator(BaseOperator):
             if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
-        # TODO(potiuk) - this xcom push is temporary and should be fixed
-        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)  # type: ignore[attr-defined]
+        return self._handle_output(return_value=return_value)
 
-    def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
+    def _handle_output(self, return_value: Any):
         """
         Handle logic for whether a decorator needs to push a single return value or multiple return values.
 

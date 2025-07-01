@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import psycopg2
 import psycopg2.extensions
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
+CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
 
 
 class PostgresHook(DbApiHook):

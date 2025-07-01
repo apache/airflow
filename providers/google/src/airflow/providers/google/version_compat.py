@@ -33,3 +33,31 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+
+# Version-compatible imports
+# BaseOperator: Use 3.1+ due to xcom_push method missing in SDK BaseOperator 3.0.x
+# This is needed for DecoratedOperator compatibility
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
+
+# Other SDK components: Available since 3.0+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import (
+        BaseOperatorLink,
+        BaseSensorOperator,
+    )
+else:
+    from airflow.models import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+
+# Explicitly export these imports to protect them from being removed by linters
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_1_PLUS",
+    "BaseOperator",
+    "BaseSensorOperator",
+    "BaseOperatorLink",
+]

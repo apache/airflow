@@ -34,7 +34,7 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
-Airflow 3.0.3
+Airflow 3.0.2
 ~~~~~~~~~~~~~
 
   * The ``git`` binary was added to the image by default which is needed for the git provider to work.
@@ -328,6 +328,15 @@ here so that users affected can find the reason for the changes.
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request / Issue                   |
 +==============+=====================+=========================================+========================+================================================+
+| 24 Jun 2025  | 3.0.2               | * The ``fab`` provider                  | FAB provider user      | https://github.com/apache/airflow/issues/51854 |
+|              |                     |   upgraded from 2.2.0 to 2.2.1          | creation did not work  |                                                |
+|              |                     |                                         |                        |                                                |
+|              |                     | * ``common.messaging`` provider         | importing SQS message  | https://github.com/apache/airflow/issues/51770 |
+|              |                     |   upgraded from 1.0.2 to 1.0.3          | failed with circular   |                                                |
+|              |                     |                                         | import                 |                                                |
+|              |                     |                                         |                        |                                                |
+|              |                     | * git binary is added to the image      | git bundle need it     | https://github.com/apache/airflow/pull/51580   |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | 02 Aug 2024  | 2.9.3               | * The ``apache-airflow-providers-fab``  | FAB provider logout    | https://github.com/apache/airflow/issues/40922 |
 |              |                     |   upgraded from 1.2.1 to 1.2.2          | did not work for 2.9.3 |                                                |
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+

@@ -19,12 +19,9 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-import pytest
 import requests_mock
 
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
-
-pytestmark = pytest.mark.db_test
 
 
 def test_iceberg_hook():
