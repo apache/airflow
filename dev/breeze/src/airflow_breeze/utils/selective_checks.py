@@ -111,6 +111,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_FILES = "task_sdk_files"
     GO_SDK_FILES = "go_sdk_files"
     AIRFLOW_CTL_FILES = "airflow_ctl_files"
+    ALL_PYPROJECT_TOML_FILES = "all_pyproject_toml_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -185,9 +186,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
             r"^helm-tests",
-        ],
-        FileGroupForCi.DEPENDENCY_FILES: [
-            r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -265,6 +263,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
             r".*/provider\.yaml$",
+        ],
+        FileGroupForCi.ALL_PYPROJECT_TOML_FILES: [
+            r".*pyproject\.toml$",
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^airflow-core/tests/unit/utils/",
@@ -505,13 +506,8 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Running everything in all versions as commit is missing[/]")
             return True
-        if self.hatch_build_changed:
-            get_console().print("[warning]Running everything with all versions: hatch_build.py changed[/]")
-            return True
-        if self.pyproject_toml_changed and self.build_system_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Running everything with all versions: build-system changed in pyproject.toml[/]"
-            )
+        if self.pyproject_toml_changed:
+            get_console().print("[warning]Running everything with all versions: changed pyproject.toml[/]")
             return True
         if self.generated_dependencies_changed:
             get_console().print(
@@ -926,6 +922,8 @@ class SelectiveChecks:
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self._default_branch != "main":
             return []
+        if self.upgrade_to_newer_dependencies:
+            return ["Providers"]
         if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
@@ -1070,10 +1068,6 @@ class SelectiveChecks:
         return "generated/provider_dependencies.json" in self._files
 
     @cached_property
-    def hatch_build_changed(self) -> bool:
-        return "hatch_build.py" in self._files
-
-    @cached_property
     def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine changes as commit is missing[/]")
@@ -1127,35 +1121,9 @@ class SelectiveChecks:
         return True
 
     @cached_property
-    def build_system_changed_in_pyproject_toml(self) -> bool:
-        if not self.pyproject_toml_changed:
-            return False
-        new_build_backend = self._new_toml["build-system"]["build-backend"]
-        old_build_backend = self._old_toml["build-system"]["build-backend"]
-        if new_build_backend != old_build_backend:
-            get_console().print("[warning]Build backend changed in pyproject.toml [/]")
-            self._print_diff([old_build_backend], [new_build_backend])
-            return True
-        new_requires = self._new_toml["build-system"]["requires"]
-        old_requires = self._old_toml["build-system"]["requires"]
-        if new_requires != old_requires:
-            get_console().print("[warning]Build system changed in pyproject.toml [/]")
-            self._print_diff(old_requires, new_requires)
-            return True
-        return False
-
-    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
-        if len(self._matching_files(FileGroupForCi.DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES)) > 0:
+        if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
-            return True
-        if self.hatch_build_changed:
-            get_console().print("[warning]Upgrade to newer dependencies: hatch_build.py changed[/]")
-            return True
-        if self.build_system_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Upgrade to newer dependencies: Build system changed in pyproject.toml[/]"
-            )
             return True
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
             get_console().print("[warning]Upgrade to newer dependencies: Push or Schedule event[/]")
