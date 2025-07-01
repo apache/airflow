@@ -2314,6 +2314,105 @@ class TestSchedulerJob:
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
 
+    @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
+    def test_handle_stuck_queued_tasks_reschedule_sensors(self, dag_maker, session, mock_executors):
+        """Reschedule sensors go in and out of running repeatedly using the same try_number
+        Make sure that they get three attempts per reschedule, not 3 attempts per try_number"""
+        with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
+            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op2", executor="default_exec")
+
+        def _queue_tasks(tis):
+            for ti in tis:
+                ti.state = "queued"
+                ti.queued_dttm = timezone.utcnow()
+            session.commit()
+
+        def _add_running_event(tis):
+            for ti in tis:
+                updated_entry = Log(
+                    dttm=timezone.utcnow(),
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    map_index=ti.map_index,
+                    event="running",
+                    run_id=ti.run_id,
+                    try_number=ti.try_number,
+                )
+                session.add(updated_entry)
+
+        run_id = str(uuid4())
+        dr = dag_maker.create_dagrun(run_id=run_id)
+
+        tis = dr.get_task_instances(session=session)
+        _queue_tasks(tis=tis)
+        scheduler_job = Job()
+        scheduler = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        # job_runner._reschedule_stuck_task = MagicMock()
+        scheduler._task_queued_timeout = -300  # always in violation of timeout
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+        # If the task gets stuck in queued once, we reset it to scheduled
+        tis = dr.get_task_instances(session=session)
+        assert [x.state for x in tis] == ["scheduled", "scheduled"]
+        assert [x.queued_dttm for x in tis] == [None, None]
+
+        _queue_tasks(tis=tis)
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
+        assert log_events == [
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+        ]
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
+        assert log_events == [
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+        ]
+        mock_executors[0].fail.assert_not_called()
+        tis = dr.get_task_instances(session=session)
+        assert [x.state for x in tis] == ["scheduled", "scheduled"]
+
+        _add_running_event(tis)  # This should "reset" the count of stuck queued
+
+        for _ in range(3):  # Should be able to be stuck 3 more times before failing
+            _queue_tasks(tis=tis)
+            with _loader_mock(mock_executors):
+                scheduler._handle_tasks_stuck_in_queued()
+            tis = dr.get_task_instances(session=session)
+
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
+        assert log_events == [
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "running",
+            "running",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued tries exceeded",
+            "stuck in queued tries exceeded",
+        ]
+
+        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        states = [x.state for x in dr.get_task_instances(session=session)]
+        assert states == ["failed", "failed"]
+
     def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
         """Test that if executor no implement revoke_task then we don't blow up."""
         with dag_maker("test_fail_stuck_queued_tasks"):
