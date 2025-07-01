@@ -24,7 +24,8 @@ runs:
     - name: "Test migration file 2 to 3 migration: ${{env.BACKEND}}"
       shell: bash
       run: |
-        breeze shell "${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.11.0 --answer y &&
+        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
+        ${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.11.0 --answer y &&
         breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
         export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANGERS}} &&
         ${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
@@ -47,7 +48,8 @@ runs:
     - name: "Test ORM migration 2 to 3: ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.11.0 --answer y &&
+        breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
+        ${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.11.0 --answer y &&
         breeze shell "export _AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK='1' &&
         export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${{env.DB_MANGERS}} &&
         ${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
