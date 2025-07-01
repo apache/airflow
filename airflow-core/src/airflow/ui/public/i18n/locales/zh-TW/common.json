@@ -172,8 +172,6 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
-  "switchToDarkMode": "切換到深色模式",
-  "switchToLightMode": "切換到淺色模式",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
