@@ -347,7 +347,7 @@ else:
         )
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
-            partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
+            partial_kwargs[attr] = _collect_from_input(partial_kwargs.get(attr := f"on_{k}_callback"))
 
         return OperatorPartial(
             operator_class=operator_class,
@@ -407,12 +407,12 @@ if "airflow.configuration" in sys.modules:
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
 
-def _collect_callbacks(callbacks: None | C | Collection[C]) -> list[C]:
-    if not callbacks:
+def _collect_from_input(value_or_values: None | C | Collection[C]) -> list[C]:
+    if not value_or_values:
         return []
-    if isinstance(callbacks, Collection):
-        return list(callbacks)
-    return [callbacks]
+    if isinstance(value_or_values, Collection):
+        return list(value_or_values)
+    return [value_or_values]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -1062,19 +1062,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.execution_timeout = execution_timeout
 
-        self.on_execute_callback = _collect_callbacks(on_execute_callback)
-        self.on_failure_callback = _collect_callbacks(on_failure_callback)
-        self.on_success_callback = _collect_callbacks(on_success_callback)
-        self.on_retry_callback = _collect_callbacks(on_retry_callback)
-        self.on_skipped_callback = _collect_callbacks(on_skipped_callback)
+        self.on_execute_callback = _collect_from_input(on_execute_callback)
+        self.on_failure_callback = _collect_from_input(on_failure_callback)
+        self.on_success_callback = _collect_from_input(on_success_callback)
+        self.on_retry_callback = _collect_from_input(on_retry_callback)
+        self.on_skipped_callback = _collect_from_input(on_skipped_callback)
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
-        if start_date:
-            self.start_date = timezone.convert_to_utc(start_date)
-
-        if end_date:
-            self.end_date = timezone.convert_to_utc(end_date)
+        self.start_date = timezone.convert_to_utc(start_date)
+        self.end_date = timezone.convert_to_utc(end_date)
 
         if executor:
             warnings.warn(
@@ -1147,27 +1144,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._logger_name = logger_name
 
         # Lineage
-        if inlets:
-            self.inlets = (
-                inlets
-                if isinstance(inlets, list)
-                else [
-                    inlets,
-                ]
-            )
-        else:
-            self.inlets = []
-
-        if outlets:
-            self.outlets = (
-                outlets
-                if isinstance(outlets, list)
-                else [
-                    outlets,
-                ]
-            )
-        else:
-            self.outlets = []
+        self.inlets = _collect_from_input(inlets)
+        self.outlets = _collect_from_input(outlets)
 
         if isinstance(self.template_fields, str):
             warnings.warn(
@@ -1541,6 +1519,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :meta private:
         """
         return self
+
+    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
 
     def render_template_fields(
         self,

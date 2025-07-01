@@ -119,13 +119,13 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.sdk import BaseOperator
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions._internal.abstractoperator import Operator, TaskStateChangeCallback
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
     from airflow.typing_compat import Literal
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
@@ -1074,18 +1074,10 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
 
-        if not hasattr(self.task, "deps"):
-            # These deps are not on BaseOperator since they are only needed and evaluated
-            # in the scheduler and not needed at the Runtime.
-            from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-            serialized_op = SerializedBaseOperator.deserialize_operator(
-                SerializedBaseOperator.serialize_operator(self.task)
-            )
-            setattr(self.task, "deps", serialized_op.deps)  # type: ignore[union-attr]
+        from airflow.serialization.serialized_objects import create_scheduler_operator
 
         dep_context = dep_context or DepContext()
-        for dep in dep_context.deps | self.task.deps:
+        for dep in dep_context.deps | create_scheduler_operator(self.task).deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
@@ -1595,7 +1587,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # TODO: TaskSDK add start_trigger_args to SDK definitions
         if TYPE_CHECKING:
-            assert self.task is None or isinstance(self.task, BaseOperator)
+            assert self.task is not None
 
         timeout: timedelta | None
         if exception is not None:
@@ -1605,7 +1597,7 @@ class TaskInstance(Base, LoggingMixin):
             timeout = exception.timeout
         elif self.task is not None and self.task.start_trigger_args is not None:
             context = self.get_template_context()
-            start_trigger_args = self.task.expand_start_trigger_args(context=context, session=session)
+            start_trigger_args = self.task.expand_start_trigger_args(context=context)
             if start_trigger_args is None:
                 raise TaskDeferralError(
                     "A none 'None' start_trigger_args has been change to 'None' during expandion"
@@ -1766,10 +1758,9 @@ class TaskInstance(Base, LoggingMixin):
 
         task: BaseOperator | None = None
         try:
-            if getattr(ti, "task", None) and context:
-                if TYPE_CHECKING:
-                    assert isinstance(ti.task, BaseOperator)
-                task = ti.task.unmap((context, session))
+            if (orig_task := getattr(ti, "task", None)) and context:
+                # TODO: Move runtime unmap into task runner.
+                task = orig_task.unmap((context, session))
         except Exception:
             cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
 

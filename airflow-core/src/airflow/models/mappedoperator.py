@@ -30,7 +30,6 @@ from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:
@@ -102,43 +101,6 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
         # Ordering is significant; mapped kwargs should override partial ones.
         return mapped_kwargs.get(
             "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
-        )
-
-    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
-        """
-        Get the kwargs to create the unmapped start_trigger_args.
-
-        This method is for allowing mapped operator to start execution from triggerer.
-        """
-        if not self.start_trigger_args:
-            return None
-
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context)
-        if self._disallow_kwargs_override:
-            prevent_duplicates(
-                self.partial_kwargs,
-                mapped_kwargs,
-                fail_reason="unmappable or already specified",
-            )
-
-        # Ordering is significant; mapped kwargs should override partial ones.
-        trigger_kwargs = mapped_kwargs.get(
-            "trigger_kwargs",
-            self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
-        )
-        next_kwargs = mapped_kwargs.get(
-            "next_kwargs",
-            self.partial_kwargs.get("next_kwargs", self.start_trigger_args.next_kwargs),
-        )
-        timeout = mapped_kwargs.get(
-            "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
-        )
-        return StartTriggerArgs(
-            trigger_cls=self.start_trigger_args.trigger_cls,
-            trigger_kwargs=trigger_kwargs,
-            next_method=self.start_trigger_args.next_method,
-            next_kwargs=next_kwargs,
-            timeout=timeout,
         )
 
     @functools.cached_property
