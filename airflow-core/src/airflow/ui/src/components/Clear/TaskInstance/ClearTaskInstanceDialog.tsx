@@ -142,13 +142,28 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex alignItems="center" justifyContent="space-between" mt={3}>
-            <Checkbox
-              checked={runOnLatestVersion}
-              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-            >
-              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-            </Checkbox>
+          <Flex
+            {...(taskInstance.dag_version?.bundle_version !== null &&
+            taskInstance.dag_version?.bundle_version !== ""
+              ? { alignItems: "center" }
+              : {})}
+            justifyContent={
+              taskInstance.dag_version?.bundle_version !== null &&
+              taskInstance.dag_version?.bundle_version !== ""
+                ? "space-between"
+                : "end"
+            }
+            mt={3}
+          >
+            {taskInstance.dag_version?.bundle_version !== null &&
+            taskInstance.dag_version?.bundle_version !== "" ? (
+              <Checkbox
+                checked={runOnLatestVersion}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              >
+                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+              </Checkbox>
+            ) : undefined}
             <Button
               colorPalette="blue"
               disabled={affectedTasks.total_entries === 0}
