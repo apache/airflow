@@ -62,6 +62,7 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
   set the ``FORWARDED_ALLOW_IPS`` environment variable so Uvicorn knows who to trust this header from. See
   `Uvicorn's docs <https://www.uvicorn.org/deployment/#proxies-and-forwarded-headers>`_. For the full options you can pass here.
   (Please note the ``--forwarded-allow-ips`` CLI option does not exist in Airflow.)
+
 - Please make sure your proxy does not enforce http-only status on the Set-Cookie headers.
   Airflow frontend needs to access the cookies through javascript, and a http-only flag would disturb this functionality.
 
