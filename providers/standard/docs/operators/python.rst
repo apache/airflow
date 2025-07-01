@@ -197,6 +197,10 @@ pip install configurations. Passed index urls replace the standard system config
 To prevent adding secrets to the private repository in your DAG code you can use the Airflow
 :doc:`apache-airflow:authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
 
+The first ``index_url`` in the list will be used as main index URL (``index-url`` for pip or ``default-index`` for uv) of the virtual environment setup.
+Additional URLs will be added as extra index URLs. If you provide both parameters ``index_urls`` and ``index_urls_from_connection_ids``, the first URL in
+the ``index_urls`` will be used as the main index URL and the rest will be added as extra index URLs.
+
 In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
 
