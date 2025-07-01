@@ -7,6 +7,12 @@
     "Providers": "Providers",
     "Variables": "變數"
   },
+  "appearance": {
+    "appearance": "外觀",
+    "darkMode": "深色模式",
+    "lightMode": "淺色模式",
+    "systemMode": "使用系統設定"
+  },
   "asset_one": "資源",
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
