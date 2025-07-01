@@ -144,6 +144,10 @@ Features
 
 * ``Support connection extra parameters in MsSqlHook (#44310)``
 
+.. warning::
+  If you are using an ODBC driver, please use ``airflow.providers.odbc.hooks.OdbcHook`` instead of ``MsSqlHook`` as it is specifically
+  designed to handle ODBC-specific parameters like 'driver' and 'encrypt'.
+
 Misc
 ~~~~
 
