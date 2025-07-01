@@ -29,6 +29,7 @@ export const supportedLanguages = [
   { code: "ko", flag: "🇰🇷", name: "한국어" },
   { code: "nl", flag: "🇳🇱", name: "Nederlands" },
   { code: "pl", flag: "🇵🇱", name: "Polski" },
+  { code: "pt", flag: "🇵🇹", name: "Português" },
   { code: "zh-TW", flag: "🇹🇼", name: "繁體中文" },
   { code: "fr", flag: "🇫🇷", name: "Français" },
 ] as const;
