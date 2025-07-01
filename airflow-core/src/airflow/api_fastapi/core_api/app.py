@@ -57,9 +57,11 @@ def init_views(app: FastAPI) -> None:
     if dev_mode:
         app.mount(
             "/static/i18n/locales",
-            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales"),
+            StaticFiles(
+                directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales",
+                follow_symlink=True,
+            ),
             name="dev_i18n_static",
-            follow_symlink=True,
         )
 
     app.mount(
