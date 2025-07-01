@@ -254,13 +254,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
-    def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context) -> k8s.V1Pod:
+    def get_or_create_spark_crd(self, context) -> k8s.V1Pod:
         if self.reattach_on_restart:
             driver_pod = self.find_spark_job(context)
             if driver_pod:
                 return driver_pod
 
-        driver_pod, spark_obj_spec = launcher.start_spark_job(
+        driver_pod, spark_obj_spec = self.launcher.start_spark_job(
             image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
         )
         return driver_pod
@@ -268,8 +268,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
-                self.log.info("Deleting spark job: %s", pod.metadata.name.replace("-driver", ""))
-                self.launcher.delete_spark_job(pod.metadata.name.replace("-driver", ""))
+                pod_name = pod.metadata.name.replace("-driver", "")
+                self.log.info("Deleting spark job: %s", pod_name)
+                self.launcher.delete_spark_job(pod_name)
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
@@ -293,18 +294,22 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def custom_obj_api(self) -> CustomObjectsApi:
         return CustomObjectsApi()
 
-    def execute(self, context: Context):
-        self.name = self.create_job_name()
-
-        self.log.info("Creating sparkApplication.")
-        self.launcher = CustomObjectLauncher(
+    @cached_property
+    def launcher(self) -> CustomObjectLauncher:
+        launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
             kube_client=self.client,
             custom_obj_api=self.custom_obj_api,
             template_body=self.template_body,
         )
-        self.pod = self.get_or_create_spark_crd(self.launcher, context)
+        return launcher
+
+    def execute(self, context: Context):
+        self.name = self.create_job_name()
+
+        self.log.info("Creating sparkApplication.")
+        self.pod = self.get_or_create_spark_crd(context)
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)

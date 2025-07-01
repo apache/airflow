@@ -56,16 +56,20 @@ def parse_constraints_generation_date(lines):
     return None
 
 
-def get_constraints_file(python_version):
-    url = f"https://raw.githubusercontent.com/apache/airflow/refs/heads/constraints-main/constraints-{python_version}.txt"
+def get_constraints_file(python_version, airflow_constraints_mode="constraints"):
+    url = f"https://raw.githubusercontent.com/apache/airflow/refs/heads/constraints-main/{airflow_constraints_mode}-{python_version}.txt"
     try:
         response = urllib.request.urlopen(url)
         return response.read().decode("utf-8").splitlines()
     except HTTPError as e:
         if e.code == 404:
-            console.print(f"[bold red]Error: Constraints file for Python {python_version} not found.[/]")
+            console.print(
+                f"[bold red]Error: Constraints file for Python {python_version} and mode {airflow_constraints_mode} not found.[/]"
+            )
             console.print(f"[bold red]URL: {url}[/]")
-            console.print("[bold red]Please check if the Python version is correct and the file exists.[/]")
+            console.print(
+                "[bold red]Please check if the Python version and constraints mode are correct and the file exists.[/]"
+            )
         else:
             console.print(f"[bold red]HTTP Error: {e.code} - {e.reason}[/]")
         exit(1)
@@ -163,13 +167,16 @@ def get_first_newer_release_date_str(releases, current_version):
 
 def main(
     python_version: str,
+    airflow_constraints_mode: str,
     mode: str,
     selected_packages: set[str] | None = None,
     explain_why: bool = False,
     verbose: bool = False,
 ):
-    lines = get_constraints_file(python_version)
+    lines = get_constraints_file(python_version, airflow_constraints_mode)
     constraints_date = parse_constraints_generation_date(lines)
+    console.print(f"[bold cyan]Python version:[/] [white]{python_version}[/]")
+    console.print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]\n")
     if constraints_date:
         console.print(
             f"[bold cyan]Constraints file generation date:[/] [white]{constraints_date.strftime('%Y-%m-%d %H:%M:%S')}[/]"
@@ -181,7 +188,15 @@ def main(
     print_table_header(format_str, headers, total_width)
 
     outdated_count, skipped_count, explanations = process_packages(
-        packages, constraints_date, mode, explain_why, verbose, col_widths, format_str
+        packages,
+        constraints_date,
+        mode,
+        explain_why,
+        verbose,
+        col_widths,
+        format_str,
+        python_version,
+        airflow_constraints_mode,
     )
 
     print_table_footer(total_width, len(packages), outdated_count, skipped_count, mode)
@@ -267,6 +282,8 @@ def process_packages(
     verbose: bool,
     col_widths: dict,
     format_str: str,
+    python_version: str,
+    airflow_constraints_mode: str,
 ) -> tuple[int, int, list[str]]:
     import subprocess
     import tempfile
@@ -319,6 +336,10 @@ def process_packages(
         if not dep_added:
             new_lines.append(f'    "{pkg}=={latest_version}",')
         pyproject_path.write_text("\n".join(new_lines) + "\n")
+        if verbose:
+            console.print(
+                f"[cyan]Fixed {pkg} at {latest_version} in [white]{pyproject_path}[/] [dim](pyproject.toml)[/]"
+            )
 
     airflow_pyproject = Path(__file__).parent.parent / "pyproject.toml"
     airflow_pyproject = airflow_pyproject.resolve()
@@ -369,6 +390,8 @@ def process_packages(
                         run_uv_sync,
                         update_pyproject_dependency,
                         verbose,
+                        python_version,
+                        airflow_constraints_mode,
                     )
                     explanations.append(explanation)
             except HTTPError as e:
@@ -430,6 +453,8 @@ def explain_package_upgrade(
     run_uv_sync,
     update_pyproject_dependency,
     verbose: bool,
+    python_version: str,
+    airflow_constraints_mode: str,
 ) -> str:
     explanation = (
         f"[bold blue]\n--- Explaining for {pkg} (current: {pinned_version}, latest: {latest_version}) ---[/]"
@@ -443,20 +468,28 @@ def explain_package_upgrade(
         finally:
             pyproject_path.write_text(original_content)
 
+    additional_args = []
+    if airflow_constraints_mode == "constraints-source-providers":
+        # In case of source constraints we also need to add all development dependencies
+        # to reflect exactly what is installed in the CI image by default
+        additional_args.extend(["--group dev", "--group docs", "--group docs-gen", "--group leveldb"])
     with preserve_pyproject_file(airflow_pyproject):
         before_result = run_uv_sync(
             [
                 "uv",
                 "sync",
                 "--all-packages",
+                *additional_args,
                 "--resolution",
                 "highest",
                 "--refresh",
+                "--python",
+                python_version,
             ],
             cwd=repo_root,
         )
         (temp_dir_path / "uv_sync_before.txt").write_text(before_result.stdout + before_result.stderr)
-        update_pyproject_dependency(airflow_pyproject, pkg, latest_version)
+        update_pyproject_dependency(airflow_pyproject, pkg, latest_version, airflow_constraints_mode)
         if verbose:
             syntax = Syntax(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False
@@ -470,13 +503,15 @@ def explain_package_upgrade(
                 "--resolution",
                 "highest",
                 "--refresh",
+                "--python",
+                python_version,
             ],
             cwd=repo_root,
         )
         (temp_dir_path / "uv_sync_after.txt").write_text(after_result.stdout + after_result.stderr)
         if after_result.returncode == 0:
             explanation += f"\n[bold yellow]Package {pkg} can be upgraded from {pinned_version} to {latest_version} without conflicts.[/]."
-        else:
+        if after_result.returncode != 0 or verbose:
             explanation += f"\n[yellow]uv sync output for {pkg}=={latest_version}:[/]\n"
             explanation += after_result.stdout + after_result.stderr
     return explanation
@@ -485,46 +520,47 @@ def explain_package_upgrade(
 @click.command()
 @click.option(
     "--python-version",
-    required=False,
+    type=click.Choice(["3.10", "3.11", "3.12", "3.13"]),
     default="3.10",
-    help="Python version to check constraints for (e.g., 3.12)",
+    help="Python version to check constraints for (e.g. 3.10, 3.11, 3.12, 3.13).",
+)
+@click.option(
+    "--airflow-constraints-mode",
+    type=click.Choice(
+        ["constraints", "constraints-no-providers", "constraints-source-providers"], case_sensitive=False
+    ),
+    default="constraints",
+    show_default=True,
+    help="Constraints mode to use: constraints, constraints-no-providers, constraints-source-providers.",
 )
 @click.option(
     "--mode",
-    type=click.Choice(["full", "diff-constraints", "diff-all"]),
-    default="diff-constraints",
+    type=click.Choice(["full", "diff-all", "diff-constraints"], case_sensitive=False),
+    default="full",
     show_default=True,
-    help="Operation mode: full, diff-constraints, or diff-all.",
+    help="Report mode: full, diff-all, diff-constraints.",
 )
 @click.option(
-    "--selected-packages",
-    required=False,
-    default=None,
-    help="Comma-separated list of package names to check (e.g., 'requests,flask'). If not set, all packages are checked.",
+    "--package",
+    multiple=True,
+    help="Only check specific package(s). Can be used multiple times.",
 )
 @click.option(
-    "--explain-why",
-    is_flag=True,
+    "--explain-why/--no-explain-why",
     default=False,
-    help="For each selected package, attempts to upgrade to the latest version and explains why it cannot be upgraded.",
+    help="Show explanations for outdated packages.",
 )
 @click.option(
-    "--verbose",
-    is_flag=True,
+    "--verbose/--no-verbose",
     default=False,
-    help="Print the temporary pyproject.toml file used for each package when running --explain-why.",
+    help="Show verbose output.",
 )
-def cli(
-    python_version: str,
-    mode: str,
-    selected_packages: str | None,
-    explain_why: bool,
-    verbose: bool,
-):
-    selected_packages_set = None
-    if selected_packages:
-        selected_packages_set = set(pkg.strip() for pkg in selected_packages.split(",") if pkg.strip())
-    main(python_version, mode, selected_packages_set, explain_why, verbose)
+def cli(python_version, airflow_constraints_mode, mode, package, explain_why, verbose):
+    if os.environ.get("CI", "false") == "true":
+        # Show output outside the group in CI
+        print("::endgroup::")
+    selected_packages = set(package) if package else None
+    main(python_version, airflow_constraints_mode, mode, selected_packages, explain_why, verbose)
 
 
 if __name__ == "__main__":
