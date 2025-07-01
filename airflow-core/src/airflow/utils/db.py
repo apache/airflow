@@ -1066,7 +1066,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             except ImportError:
                 log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
                 return
-        if not inspect(session.get_bind()).has_table("ab_user") and not unitest_mode:
+        if "ab_user" not in inspect(settings.engine).get_table_names() and not unitest_mode:
             raise AirflowException(
                 "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
                 "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
