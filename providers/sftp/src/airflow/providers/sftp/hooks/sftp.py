@@ -148,6 +148,7 @@ class SFTPHook(SSHHook):
                 self._sftp_conn = None
                 self._ssh_conn.close()
                 self._ssh_conn = None
+                del self.host_proxy
 
     def get_conn_count(self) -> int:
         """Get the number of open connections."""
