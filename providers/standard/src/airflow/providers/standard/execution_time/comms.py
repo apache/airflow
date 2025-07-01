@@ -22,6 +22,7 @@ from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import
     GetHITLResponseContentDetailPayload,
     HITLInputRequestResponse,
     HITLResponseContentDetail,
+    UpdateHITLResponsePayload,
 )
 
 
@@ -40,7 +41,13 @@ class HITLInputRequestResponseResult(HITLInputRequestResponse):
 class GetHITLResponseContentDetail(GetHITLResponseContentDetailPayload):
     """Get the response content part of a Human-in-the-loop response."""
 
-    type: Literal["GetHITLResponseContentDetailPayload"] = "GetHITLResponseContentDetailPayload"
+    type: Literal["GetHITLResponseContentDetail"] = "GetHITLResponseContentDetail"
+
+
+class UpdateHITLResponse(UpdateHITLResponsePayload):
+    """Update the response content part of an existing Human-in-the-loop response."""
+
+    type: Literal["UpdateHITLResponse"] = "UpdateHITLResponse"
 
 
 class HITLResponseContentDetailResult(HITLResponseContentDetail):

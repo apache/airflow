@@ -23,6 +23,7 @@ from uuid import UUID
 from airflow.providers.standard.execution_time.comms import (
     CreateHITLInputRequestPayload,
     GetHITLResponseContentDetail,
+    UpdateHITLResponse,
 )
 
 if TYPE_CHECKING:
@@ -53,6 +54,20 @@ def add_hitl_input_request(
             form_content=form_content,
         )
     )
+
+
+def update_htil_response_content_detail(
+    ti_id: UUID,
+    response_content: str,
+) -> HITLResponseContentDetail:
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    response = SUPERVISOR_COMMS.send(
+        msg=UpdateHITLResponse(ti_id=ti_id, response_content=response_content),
+    )
+    if TYPE_CHECKING:
+        assert isinstance(response, HITLResponseContentDetail)
+    return response
 
 
 def get_hitl_response_content_detail(ti_id: UUID) -> HITLResponseContentDetail:

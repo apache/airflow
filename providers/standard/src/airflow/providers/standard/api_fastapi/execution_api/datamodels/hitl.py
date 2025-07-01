@@ -43,6 +43,13 @@ class GetHITLResponseContentDetailPayload(BaseModel):
     ti_id: UUID
 
 
+class UpdateHITLResponsePayload(BaseModel):
+    """Schema for writing a Human-in-the-loop response content detail for a specific task instance."""
+
+    ti_id: UUID
+    response_content: str
+
+
 class HITLResponseContentDetail(BaseModel):
     """Schema for Human-in-the-loop response content detail for a specific task instance."""
 

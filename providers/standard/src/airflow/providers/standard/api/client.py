@@ -26,6 +26,7 @@ from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import
 from airflow.providers.standard.execution_time.comms import (
     CreateHITLInputRequestPayload,
     HITLInputRequestResponseResult,
+    UpdateHITLResponse,
 )
 
 if TYPE_CHECKING:
@@ -56,7 +57,7 @@ class HITLOperations:
         params: MutableMapping | None = None,
         form_content: MutableMapping | None = None,
     ) -> HITLInputRequestResponseResult:
-        """Add the Human-in-the-loop input request detail of a specific Task Instance."""
+        """Add the Human-in-the-loop input request part of a specific Task Instance."""
         payload = CreateHITLInputRequestPayload(
             ti_id=ti_id,
             options=options,
@@ -67,10 +68,30 @@ class HITLOperations:
             params=params,
             form_content=form_content,
         )
-        resp = self.client.post(f"/hitl/{ti_id}/input-requests", content=payload.model_dump_json())
+        resp = self.client.post(
+            f"/hitl/task-instances/{ti_id}/input-requests",
+            content=payload.model_dump_json(),
+        )
         return HITLInputRequestResponseResult.model_validate_json(resp.read())
+
+    def update_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        response_content: str,
+    ) -> HITLResponseContentDetail:
+        """Add the Human-in-the-loop response content detail part of a specific Task Instance."""
+        payload = UpdateHITLResponse(
+            ti_id=ti_id,
+            response_content=response_content,
+        )
+        resp = self.client.patch(
+            f"/hitl/task-instances/{ti_id}/responses",
+            content=payload.model_dump_json(),
+        )
+        return HITLResponseContentDetail.model_validate_json(resp.read())
 
     def get_response(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
         """Get the Human-in-the-loop response of a specific Task Instance."""
-        resp = self.client.get(f"/hitl/{ti_id}/responses")
+        resp = self.client.get(f"/hitl/task-instances/{ti_id}/responses")
         return HITLResponseContentDetail.model_validate_json(resp.read())

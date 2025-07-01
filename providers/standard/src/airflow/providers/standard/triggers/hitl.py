@@ -25,7 +25,10 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.standard.execution_time.hitl import get_hitl_response_content_detail
+from airflow.providers.standard.execution_time.hitl import (
+    get_hitl_response_content_detail,
+    update_htil_response_content_detail,
+)
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -74,7 +77,16 @@ class HITLTrigger(BaseTrigger):
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
             if self.timeout_datetime and self.timeout_datetime < datetime.now(timezone.utc):
-                # TODO: write default into the db and return it as content
+                if self.default is None:
+                    # TODO: unify trigger event format
+                    # TODO: also check in operator end
+                    yield TriggerEvent({"error": "default cannot be None when timeout is set"})
+                    return
+
+                default_content: str = self.default[0] if isinstance(self.default, list) else self.default
+                resp = await sync_to_async(update_htil_response_content_detail)(
+                    ti_id=self.ti_id, response_content=default_content
+                )
                 yield TriggerEvent({"content": self.default if self.default is None else self.default[0]})
                 return
 
