@@ -20,7 +20,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.providers.slack.version_compat import BaseOperator
 
 try:
     from airflow.sdk import BaseHook

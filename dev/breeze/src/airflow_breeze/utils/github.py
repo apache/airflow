@@ -176,10 +176,10 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
             get_console().print("[error]Error fetching tag date for Airflow {version}")
             sys.exit(1)
         airflow_release_dates[version] = date
-    get_console().print("[info]All Airflow 2 versions")
-    for version in airflow_versions:
-        get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
+    get_console().print("[info]All Airflow 2/3 versions")
     if confirm:
+        for version in airflow_versions:
+            get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
         answer = user_confirm(
             "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
         )
