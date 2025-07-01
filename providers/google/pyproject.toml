@@ -138,7 +138,7 @@ dependencies = [
     # further constrain it since older versions are buggy.
     "proto-plus>=1.19.6",
     # Used to write parquet files by BaseSqlToGCSOperator
-    "pyarrow>=14.0.1",
+    "pyarrow>=16.1.0",
     "python-slugify>=7.0.0",
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
