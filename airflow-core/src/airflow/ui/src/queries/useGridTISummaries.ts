@@ -38,6 +38,7 @@ export const useGridTiSummaries = ({
     },
     undefined,
     {
+      enabled: Boolean(runId) && Boolean(dagId),
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         ((state !== undefined && isStatePending(state)) ||

@@ -28,7 +28,6 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
-import type { DAGResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -46,7 +45,6 @@ import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
 type Props = {
-  readonly dag?: DAGResponse;
   readonly error?: unknown;
   readonly isLoading?: boolean;
   readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
