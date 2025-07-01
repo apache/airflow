@@ -32,7 +32,7 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:

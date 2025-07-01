@@ -23,7 +23,7 @@ from urllib.parse import quote, urlparse, urlunparse
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

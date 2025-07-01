@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils import timezone
 
 TEST_CONN = "aws_test_conn"

@@ -33,7 +33,7 @@ from airflow.providers.google.common.hooks.base_google import get_field
 try:
     from airflow.sdk import BaseHook
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from google.ads.googleads.v19.services.services.customer_service import CustomerServiceClient
