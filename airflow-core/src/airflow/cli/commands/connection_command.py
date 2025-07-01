@@ -35,7 +35,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk import BaseHook
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
@@ -67,6 +66,8 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 def connections_get(args):
     """Get a connection."""
     try:
+        from airflow.sdk import BaseHook
+
         conn = BaseHook.get_connection(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
