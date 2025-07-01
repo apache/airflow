@@ -46,7 +46,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     TaskDeferred,
 )
-from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -81,6 +80,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     get_container_termination_message,
 )
+from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key

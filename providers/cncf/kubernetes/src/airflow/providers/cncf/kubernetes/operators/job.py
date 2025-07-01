@@ -32,7 +32,6 @@ from kubernetes.client.rest import ApiException
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     add_unique_suffix,
@@ -42,6 +41,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
+from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
 from airflow.utils import yaml
 from airflow.utils.context import Context
 

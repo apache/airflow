@@ -27,20 +27,14 @@ from typing import TYPE_CHECKING
 import dill
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        DecoratedOperator,
-        TaskDecorator,
-        task_decorator_factory,
-    )
-
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
+)
+from airflow.providers.cncf.kubernetes.version_compat import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
 )
 
 if TYPE_CHECKING:
