@@ -53,6 +53,8 @@ class HITLOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("subject", "body")
 
+    allow_arbitrary_input: bool = False
+
     def __init__(
         self,
         *,
@@ -103,11 +105,24 @@ class HITLOperator(BaseOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> object:
-        response = event["content"]
-        if response not in self.options:
-            raise ValueError(f"Response {response} is not a valid option. Valid option: {self.options}")
-        return event["content"]
+    def validate_response_content(self, response_content: str | list[str]) -> None:
+        if isinstance(response_content, list):
+            if self.multiple is False:
+                raise ValueError(
+                    f"Multiple response {response_content} received while multiple is set to False"
+                )
+
+            if diff := set(response_content) - set(self.options):
+                raise ValueError(f"Responses {diff} not in {self.options}")
+
+        if response_content not in self.options:
+            raise ValueError(f"Response {response_content} not in {self.options}")
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        response_content = event["content"]
+        if self.allow_arbitrary_input:
+            self.validate_response_content(response_content)
+        return response_content
 
 
 class ApprovalOperator(HITLOperator):
