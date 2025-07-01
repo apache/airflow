@@ -43,6 +43,7 @@ class TestCommsDecoder:
                 "try_number": 1,
                 "run_id": "b",
                 "dag_id": "c",
+                "dag_version_id": uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
             },
             "ti_context": {
                 "dag_run": {
