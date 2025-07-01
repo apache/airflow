@@ -891,6 +891,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/calendar/{dag_id}:
+    get:
+      tags:
+      - Calendar
+      summary: Get Calendar
+      description: "Get calendar data for a DAG including historical and planned runs.\n\
+        \nArgs:\n    dag_id: The DAG ID\n    session: Database session\n    dag_bag:\
+        \ DAG bag dependency\n    logical_date: Date range filter\n    granularity:\
+        \ Time granularity (\"hourly\" or \"daily\")\n\nReturns:\n    List of calendar\
+        \ time range results"
+      operationId: get_calendar
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          enum:
+          - hourly
+          - daily
+          type: string
+          default: daily
+          title: Granularity
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarTimeRangeResult'
+                title: Response Get Calendar
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BackfillCollectionResponse:
@@ -1032,6 +1096,31 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
+    CalendarTimeRangeResult:
+      properties:
+        datetime:
+          type: string
+          format: date-time
+          title: Datetime
+        state:
+          type: string
+          enum:
+          - queued
+          - running
+          - success
+          - failed
+          - planned
+          title: State
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - datetime
+      - state
+      - count
+      title: CalendarTimeRangeResult
+      description: Task Instance Summary model for the Grid UI.
     ConfigResponse:
       properties:
         page_size:
