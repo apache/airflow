@@ -33,9 +33,15 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
 else:
     from airflow.decorators.base import (  # type: ignore[no-redef]
@@ -43,7 +49,7 @@ else:
         TaskDecorator,
         task_decorator_factory,
     )
-    from airflow.models import BaseOperator  # type: ignore[no-redef]
+
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 __all__ = [
