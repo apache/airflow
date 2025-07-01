@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-30T22:56:29.915744
+# This constraints file was automatically generated on 2025-07-01T08:54:32.000258
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -69,7 +69,7 @@ alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.15
 alibabacloud_tea_util==0.3.13
-alibabacloud_tea_xml==0.0.2
+alibabacloud_tea_xml==0.0.3
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
@@ -669,7 +669,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.0
-uv==0.7.16
+uv==0.7.17
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.34.0
