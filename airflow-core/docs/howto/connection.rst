@@ -22,11 +22,6 @@ Managing Connections
 
   For an overview of hooks and connections, see :doc:`/authoring-and-scheduling/connections`.
 
-.. versionchanged:: 3.0
-
-   Direct metadata-model access to :class:`~airflow.models.connection.Connection` in task or management code is deprecated.
-   Use the public SDK API (:class:`~airflow.sdk.Connection`), the Stable REST API, or the Python Client instead.
-
 Airflow's :class:`~airflow.sdk.Connection` object is used for storing credentials and other information necessary for connecting to external services.
 
 Connections may be defined in the following ways:
