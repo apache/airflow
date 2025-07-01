@@ -296,7 +296,7 @@ ingress:
     cacheType: lru
 
     # Per‐metric time‐to‐live. When set to a non‐zero duration, any metric
-    # series that hasn’t received an update in this interval will be dropped
+    # series that hasn't received an update in this interval will be dropped
     # from the exported /metrics output.
     # Format: Go duration string (e.g. "30s", "5m", "1h")
     # Default: "0s" (disabled, never expires)
