@@ -20,8 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.redis.hooks.redis import RedisHook
+from airflow.providers.redis.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
