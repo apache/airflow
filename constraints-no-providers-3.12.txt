@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-28T11:37:28.687386
+# This constraints file was automatically generated on 2025-07-01T11:58:23.705501
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -111,7 +111,7 @@ mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
 more-itertools==10.7.0
-multidict==6.6.1
+multidict==6.6.3
 numpy==1.26.4
 opentelemetry-api==1.34.1
 opentelemetry-exporter-otlp-proto-common==1.34.1
