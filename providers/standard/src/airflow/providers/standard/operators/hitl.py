@@ -84,7 +84,7 @@ class HITLOperator(BaseOperator):
             body=self.body,
             default=self.default,
             multiple=self.multiple,
-            params=self.params,
+            params=self.params.dump() if isinstance(self.params, ParamsDict) else self.params,
             # TODO: add form_content
             form_content=None,
         )
