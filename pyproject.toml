@@ -504,11 +504,11 @@ packages = []
 ]
 "github-enterprise" = [
     "apache-airflow-providers-fab",
-    "authlib>=1.0.0",
+    "authlib>=1.6.0",
 ]
 "google-auth" = [
     "apache-airflow-providers-fab",
-    "authlib>=1.0.0",
+    "authlib>=1.6.0",
 ]
 "ldap" = [
     "python-ldap>=3.4.4",
