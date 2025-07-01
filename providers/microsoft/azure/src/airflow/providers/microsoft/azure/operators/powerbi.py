@@ -141,7 +141,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
             dataset_refresh_id = event["dataset_refresh_id"]
 
         if dataset_refresh_id:
-            context["task_instance"].xcom_push(
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_Id",
                 value=dataset_refresh_id,
             )
@@ -167,7 +167,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            context["task_instance"].xcom_push(
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_status",
                 value=event["dataset_refresh_status"],
             )
@@ -233,7 +233,7 @@ class PowerBIWorkspaceListOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            context["task_instance"].xcom_push(
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_workspace_ids",
                 value=event["workspace_ids"],
             )
@@ -303,7 +303,7 @@ class PowerBIDatasetListOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            context["task_instance"].xcom_push(
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_ids",
                 value=event["dataset_ids"],
             )

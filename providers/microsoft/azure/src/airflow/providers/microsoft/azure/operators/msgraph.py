@@ -307,7 +307,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.key,
                 value,
             )
-            context["task_instance"].xcom_push(key=self.key, value=value)
+            context["ti"].xcom_push(key=self.key, value=value)
 
     @staticmethod
     def paginate(
