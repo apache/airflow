@@ -67,7 +67,6 @@ def add_hitl_input_request(
         default=payload.default,
         multiple=payload.multiple,
         params=payload.params,
-        params_input=payload.params_input,
     )
     session.add(hitl_input_request)
     session.commit()
@@ -95,6 +94,7 @@ def update_hitl_response(
 
     hitl_response_model.user_id = "fallback to default"
     hitl_response_model.response_content = payload.response_content
+    hitl_response_model.params_input = payload.response_content
     hitl_response_model.response_at = datetime.now(timezone.utc)
     session.add(hitl_response_model)
     session.commit()

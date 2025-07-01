@@ -472,6 +472,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
                 response_content=msg.response_content,
+                params_input=msg.params_input,
             )
             resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
         # TODO: Remove this block once we can make the execution API pluggable.

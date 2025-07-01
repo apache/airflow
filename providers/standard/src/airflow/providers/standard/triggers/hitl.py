@@ -46,6 +46,7 @@ class HITLTrigger(BaseTrigger):
         ti_id: UUID,
         options: list[str],
         default: list[str] | None = None,
+        params: dict | None = None,
         multiple: bool = False,
         timeout_datetime: datetime | None,
         poke_interval: float = 5.0,
@@ -56,6 +57,7 @@ class HITLTrigger(BaseTrigger):
         self.options = options
         self.timeout_datetime = timeout_datetime
         self.default = default
+        self.params = params
         self.multiple = multiple
         self.poke_interval = poke_interval
 
@@ -67,6 +69,7 @@ class HITLTrigger(BaseTrigger):
                 "ti_id": self.ti_id,
                 "options": self.options,
                 "default": self.default,
+                "params": self.params,
                 "multiple": self.multiple,
                 "timeout_datetime": self.timeout_datetime,
                 "poke_interval": self.poke_interval,
@@ -78,21 +81,33 @@ class HITLTrigger(BaseTrigger):
         while True:
             if self.timeout_datetime and self.timeout_datetime < datetime.now(timezone.utc):
                 if self.default is None:
-                    # TODO: unify trigger event format
-                    # TODO: also check in operator end
-                    yield TriggerEvent({"error": "default cannot be None when timeout is set"})
+                    yield TriggerEvent(
+                        {
+                            "error": 'default" is requied when "execution_timeout" is provided.',
+                        }
+                    )
                     return
 
                 default_content: str = self.default[0] if isinstance(self.default, list) else self.default
                 resp = await sync_to_async(update_htil_response_content_detail)(
                     ti_id=self.ti_id, response_content=default_content
                 )
-                yield TriggerEvent({"content": self.default if self.default is None else self.default[0]})
+                yield TriggerEvent(
+                    {
+                        "response_content": default_content,
+                        "params_input": self.params,
+                    }
+                )
                 return
 
             resp = await sync_to_async(get_hitl_response_content_detail)(ti_id=self.ti_id)
             if resp.response_received:
                 self.log.info("Responsed by %s at %s", resp.user_id, resp.response_at)
-                yield TriggerEvent({"content": resp.response_content})
+                yield TriggerEvent(
+                    {
+                        "response_content": resp.response_content,
+                        "params_input": resp.params_input,
+                    }
+                )
                 return
             await asyncio.sleep(self.poke_interval)

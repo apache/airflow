@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
+from airflow.providers.standard.exceptions import HITLTriggerEventError
 from airflow.providers.standard.execution_time.hitl import add_hitl_input_request
 from airflow.providers.standard.triggers.hitl import HITLTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
@@ -71,8 +72,13 @@ class HITLOperator(BaseOperator):
         self.body = body
         self.params = params or {}
         self.multiple = False
-
         self.default = [default] if isinstance(default, str) else default
+
+        self.validate_default()
+
+    def validate_default(self) -> None:
+        if self.default is None and self.execution_timeout:
+            raise ValueError('"default" is requied when "execution_timeout" is provided.')
 
     def execute(self, context: Context):
         ti_id = context["task_instance"].id
@@ -84,9 +90,7 @@ class HITLOperator(BaseOperator):
             body=self.body,
             default=self.default,
             multiple=self.multiple,
-            params=self.params.dump() if isinstance(self.params, ParamsDict) else self.params,
-            # TODO: add params_input
-            params_input=None,
+            params=self.serializable_params,
         )
         self.log.info("Waiting for response")
         if self.execution_timeout:
@@ -99,11 +103,26 @@ class HITLOperator(BaseOperator):
                 ti_id=ti_id,
                 options=self.options,
                 default=self.default,
+                params=self.serializable_params,
                 multiple=self.multiple,
                 timeout_datetime=timeout_datetime,
             ),
             method_name="execute_complete",
         )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        if "error" in event:
+            raise HITLTriggerEventError(event["error"])
+
+        response_content = event["response_content"]
+        params_input = event["params_input"]
+        if self.allow_arbitrary_input:
+            self.validate_response_content(response_content)
+        self.validate_params_input(params_input)
+        return {
+            "response_content": response_content,
+            "params_input": params_input,
+        }
 
     def validate_response_content(self, response_content: str | list[str]) -> None:
         if isinstance(response_content, list):
@@ -118,11 +137,17 @@ class HITLOperator(BaseOperator):
         if response_content not in self.options:
             raise ValueError(f"Response {response_content} not in {self.options}")
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
-        response_content = event["content"]
-        if self.allow_arbitrary_input:
-            self.validate_response_content(response_content)
-        return response_content
+    def validate_params_input(self, params_input: dict | None) -> None:
+        if (
+            self.serializable_params is not None
+            and params_input is not None
+            and set(self.serializable_params.keys()) ^ set(params_input)
+        ):
+            raise ValueError(f"params_input {params_input} does not match params {self.params}")
+
+    @property
+    def serializable_params(self) -> dict[str, Any] | None:
+        return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
 
 
 class ApprovalOperator(HITLOperator):

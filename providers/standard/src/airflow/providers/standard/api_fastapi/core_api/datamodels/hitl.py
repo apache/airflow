@@ -50,12 +50,12 @@ class HITLResponseDetail(BaseModel):
     default: list[str] | None = None
     multiple: bool = False
     params: MutableMapping | None = None
-    params_input: MutableMapping | None = None
 
     # Response Content Detail
     response_at: datetime | None = None
     user_id: str | None = None
     response_content: str | None = None
+    params_input: MutableMapping | None = None
 
     response_received: bool = False
 

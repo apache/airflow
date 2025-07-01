@@ -32,9 +32,7 @@ class HITLInputRequestResponse(BaseModel):
     body: str | None = None
     default: list[str] | None = None
     multiple: bool = False
-
     params: MutableMapping | None = None
-    params_input: MutableMapping | None = None
 
 
 class GetHITLResponseContentDetailPayload(BaseModel):
@@ -48,6 +46,7 @@ class UpdateHITLResponsePayload(BaseModel):
 
     ti_id: UUID
     response_content: str
+    params_input: MutableMapping | None = None
 
 
 class HITLResponseContentDetail(BaseModel):
@@ -57,3 +56,4 @@ class HITLResponseContentDetail(BaseModel):
     response_at: datetime | None
     user_id: str | None
     response_content: str | None
+    params_input: MutableMapping | None = None

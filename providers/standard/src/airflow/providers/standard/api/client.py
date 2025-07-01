@@ -55,7 +55,6 @@ class HITLOperations:
         default: list[str] | None = None,
         multiple: bool = False,
         params: MutableMapping | None = None,
-        params_input: MutableMapping | None = None,
     ) -> HITLInputRequestResponseResult:
         """Add the Human-in-the-loop input request part of a specific Task Instance."""
         payload = CreateHITLInputRequestPayload(
@@ -66,7 +65,6 @@ class HITLOperations:
             default=default,
             multiple=multiple,
             params=params,
-            params_input=params_input,
         )
         resp = self.client.post(
             f"/hitl/task-instances/{ti_id}/input-requests",
@@ -79,11 +77,13 @@ class HITLOperations:
         *,
         ti_id: uuid.UUID,
         response_content: str,
+        params_input: MutableMapping | None = None,
     ) -> HITLResponseContentDetail:
         """Add the Human-in-the-loop response content detail part of a specific Task Instance."""
         payload = UpdateHITLResponse(
             ti_id=ti_id,
             response_content=response_content,
+            params_input=params_input,
         )
         resp = self.client.patch(
             f"/hitl/task-instances/{ti_id}/responses",

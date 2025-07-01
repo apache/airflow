@@ -38,7 +38,6 @@ def add_hitl_input_request(
     default: list[str] | None = None,
     multiple: bool = False,
     params: MutableMapping | None = None,
-    params_input: MutableMapping | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -51,7 +50,6 @@ def add_hitl_input_request(
             default=default,
             params=params,
             multiple=multiple,
-            params_input=params_input,
         )
     )
 
@@ -59,11 +57,16 @@ def add_hitl_input_request(
 def update_htil_response_content_detail(
     ti_id: UUID,
     response_content: str,
+    params_input: MutableMapping | None = None,
 ) -> HITLResponseContentDetail:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     response = SUPERVISOR_COMMS.send(
-        msg=UpdateHITLResponse(ti_id=ti_id, response_content=response_content),
+        msg=UpdateHITLResponse(
+            ti_id=ti_id,
+            response_content=response_content,
+            params_input=params_input,
+        ),
     )
     if TYPE_CHECKING:
         assert isinstance(response, HITLResponseContentDetail)
