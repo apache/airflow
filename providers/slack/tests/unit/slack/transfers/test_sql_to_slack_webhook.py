@@ -22,11 +22,8 @@ import pandas as pd
 import pytest
 
 from airflow.models import Connection
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 from airflow.utils import timezone
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -43,9 +40,6 @@ def mocked_hook():
 class TestSqlToSlackWebhookOperator:
     def setup_method(self):
         self.default_hook_parameters = {"timeout": None, "proxy": None, "retry_handlers": None}
-        if AIRFLOW_V_3_0_PLUS:
-            self.example_dag.sync_to_db()
-            SerializedDagModel.write_dag(self.example_dag, bundle_name="testing")
 
     @staticmethod
     def _construct_operator(**kwargs):
