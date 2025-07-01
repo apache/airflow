@@ -463,7 +463,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         for role, perms in access_control.items():
             if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
                 updated_access_control[role] = updated_access_control.get(role, {})
-                if isinstance(perms, set | list):
+                if isinstance(perms, (set, list)):
                     # Support for old-style access_control where only the actions are specified
                     updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
                 else:
@@ -541,7 +541,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, NullTimetable | OnceTimetable | AssetTriggeredTimetable):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, AssetTriggeredTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -959,7 +959,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             tis = tis.where(DagRun.logical_date <= end_date)
 
         if state:
-            if isinstance(state, str | TaskInstanceState):
+            if isinstance(state, (str, TaskInstanceState)):
                 tis = tis.where(TaskInstance.state == state)
             elif len(state) == 1:
                 tis = tis.where(TaskInstance.state == state[0])

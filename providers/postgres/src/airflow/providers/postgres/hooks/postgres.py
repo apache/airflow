@@ -228,7 +228,7 @@ class PostgresHook(DbApiHook):
         :param conn: The database connection
         :return: The cell
         """
-        if isinstance(cell, dict | list):
+        if isinstance(cell, (dict, list)):
             cell = Json(cell)
         return cell
 
