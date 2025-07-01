@@ -102,6 +102,10 @@ from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
+from airflow.utils.operator_resources import Resources
+from airflow.utils.session import create_session
+from airflow.utils.timezone import from_timestamp, parse_timezone
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -3581,7 +3585,7 @@ class XComOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
-    def get_link(self, session: Session, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Retrieve the link from the XComs.
 
@@ -3592,15 +3596,17 @@ class XComOperatorLink(LoggingMixin):
         self.log.info(
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
-        value = session.execute(
-            XComModel.get_many(
-                key=self.xcom_key,
-                run_id=ti_key.run_id,
-                dag_ids=ti_key.dag_id,
-                task_ids=ti_key.task_id,
-                map_indexes=ti_key.map_index,
-            )
-        ).first()
+        with create_session() as session:
+            value = session.execute(
+                XComModel.get_many(
+                    key=self.xcom_key,
+                    run_id=ti_key.run_id,
+                    dag_ids=ti_key.dag_id,
+                    task_ids=ti_key.task_id,
+                    map_indexes=ti_key.map_index,
+                )
+            ).first()
+
         if not value:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",
