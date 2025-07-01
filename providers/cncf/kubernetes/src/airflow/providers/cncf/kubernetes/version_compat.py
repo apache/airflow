@@ -54,6 +54,7 @@ else:
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_1_PLUS",
     "BaseOperator",
     "BaseSensorOperator",
     "DecoratedOperator",
