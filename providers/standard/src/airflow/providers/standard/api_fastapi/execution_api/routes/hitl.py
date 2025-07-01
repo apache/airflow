@@ -67,7 +67,7 @@ def add_hitl_input_request(
         default=payload.default,
         multiple=payload.multiple,
         params=payload.params,
-        form_content=payload.form_content,
+        params_input=payload.params_input,
     )
     session.add(hitl_input_request)
     session.commit()

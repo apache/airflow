@@ -26,10 +26,10 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.execution_time.hitl import add_hitl_input_request
 from airflow.providers.standard.triggers.hitl import HITLTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.sdk.definitions.param import ParamsDict
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.param import ParamsDict
 
 log = logging.getLogger(__name__)
 if not AIRFLOW_V_3_1_PLUS:
@@ -85,8 +85,8 @@ class HITLOperator(BaseOperator):
             default=self.default,
             multiple=self.multiple,
             params=self.params.dump() if isinstance(self.params, ParamsDict) else self.params,
-            # TODO: add form_content
-            form_content=None,
+            # TODO: add params_input
+            params_input=None,
         )
         self.log.info("Waiting for response")
         if self.execution_timeout:

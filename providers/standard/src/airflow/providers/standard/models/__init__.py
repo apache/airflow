@@ -55,7 +55,7 @@ class HITLResponseModel(Base):
     multiple = Column(Boolean, unique=False, default=False)
 
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    form_content = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     # Response Content Detail
     response_at = Column(UtcDateTime, nullable=True)

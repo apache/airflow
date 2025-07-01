@@ -114,7 +114,7 @@ class CreateHITLInputRequestPayload(BaseModel):
     default: Annotated[list[str] | None, Field(title="Default")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    form_content: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
     type: Annotated[Literal["CreateHITLInputRequestPayload"] | None, Field(title="Type")] = (
         "CreateHITLInputRequestPayload"
     )
@@ -184,7 +184,7 @@ class HITLInputRequestResponse(BaseModel):
     default: Annotated[list[str] | None, Field(title="Default")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    form_content: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
 
 
 class HITLResponseContentDetail(BaseModel):

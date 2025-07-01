@@ -38,7 +38,7 @@ def add_hitl_input_request(
     default: list[str] | None = None,
     multiple: bool = False,
     params: MutableMapping | None = None,
-    form_content: MutableMapping | None = None,
+    params_input: MutableMapping | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -51,7 +51,7 @@ def add_hitl_input_request(
             default=default,
             params=params,
             multiple=multiple,
-            form_content=form_content,
+            params_input=params_input,
         )
     )
 

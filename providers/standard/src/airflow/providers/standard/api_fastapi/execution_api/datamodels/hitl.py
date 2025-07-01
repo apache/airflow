@@ -34,7 +34,7 @@ class HITLInputRequestResponse(BaseModel):
     multiple: bool = False
 
     params: MutableMapping | None = None
-    form_content: MutableMapping | None = None
+    params_input: MutableMapping | None = None
 
 
 class GetHITLResponseContentDetailPayload(BaseModel):
