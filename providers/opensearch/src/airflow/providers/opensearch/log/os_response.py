@@ -130,7 +130,7 @@ class OpensearchResponse(AttributeDict):
 
     def __getitem__(self, key):
         """Retrieve a specific hit or a slice of hits from the Elasticsearch response."""
-        if isinstance(key, slice | int):
+        if isinstance(key, (slice, int)):
             return self.hits[key]
         return super().__getitem__(key)
 

@@ -62,21 +62,21 @@ class NotFullyPopulated(RuntimeError):
 def is_mappable(v: Any) -> TypeGuard[OperatorExpandArgument]:
     from airflow.sdk.definitions.xcom_arg import XComArg
 
-    return isinstance(v, MappedArgument | XComArg | Mapping | Sequence) and not isinstance(v, str)
+    return isinstance(v, (MappedArgument, XComArg, Mapping, Sequence)) and not isinstance(v, str)
 
 
 # To replace tedious isinstance() checks.
 def _is_parse_time_mappable(v: OperatorExpandArgument) -> TypeGuard[Mapping | Sequence]:
     from airflow.sdk.definitions.xcom_arg import XComArg
 
-    return not isinstance(v, MappedArgument | XComArg)
+    return not isinstance(v, (MappedArgument, XComArg))
 
 
 # To replace tedious isinstance() checks.
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | XComArg]:
     from airflow.sdk.definitions.xcom_arg import XComArg
 
-    return isinstance(v, MappedArgument | XComArg)
+    return isinstance(v, (MappedArgument, XComArg))
 
 
 @attrs.define(kw_only=True)
