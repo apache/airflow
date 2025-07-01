@@ -22,12 +22,23 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe, FiMonitor, FiEye, FiChevronRight } from "react-icons/fi";
+import {
+  FiClock,
+  FiGrid,
+  FiLogOut,
+  FiMoon,
+  FiSun,
+  FiUser,
+  FiGlobe,
+  FiMonitor,
+  FiEye,
+  FiChevronRight,
+} from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
-import { useColorMode } from "src/context/colorMode/useColorMode";
+import { COLOR_MODES, type ColorMode, useColorMode } from "src/context/colorMode/useColorMode";
 import { useTimezone } from "src/context/timezone";
 
 import LanguageModal from "./LanguageModal";
@@ -37,14 +48,6 @@ import TimezoneModal from "./TimezoneModal";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-const COLOR_MODES = {
-  DARK: "dark",
-  LIGHT: "light",
-  SYSTEM: "system",
-} as const;
-
-type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
 
 export const UserSettingsButton = () => {
   const { t: translate } = useTranslation();
