@@ -300,7 +300,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             StaticFiles(
                 directory=directory,
                 html=True,
-                follow_symlink=True,
             ),
             name="simple_auth_manager_ui_folder",
         )
