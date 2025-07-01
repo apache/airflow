@@ -24,7 +24,7 @@ from airflow.providers.alibaba.cloud.operators.oss import OSSCreateBucketOperato
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "oss_bucket_dag"
-REGION = os.environ.get("REGION", "default_regior")
+REGION = os.environ.get("REGION", "default_region")
 # [START howto_operator_oss_bucket]
 with DAG(
     dag_id=DAG_ID,

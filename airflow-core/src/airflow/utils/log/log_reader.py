@@ -20,7 +20,7 @@ import logging
 import time
 from collections.abc import Iterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.typing_compat import TypeAlias
 
-LogMessages: TypeAlias = Union[list[StructuredLogMessage], str]
+LogMessages: TypeAlias = list[StructuredLogMessage] | str
 LogMetadata: TypeAlias = dict[str, Any]
 
 
@@ -45,7 +45,8 @@ class TaskLogReader:
 
     STREAM_LOOP_SLEEP_SECONDS = 1
     """Time to sleep between loops while waiting for more logs"""
-    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 5
+
+    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 10
     """Number of empty loop iterations before stopping the stream"""
 
     def read_log_chunks(

@@ -24,12 +24,12 @@ import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
-export const Iframe = () => {
+export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
   const iframeView = pluginData?.plugins
-    .flatMap((plugin) => plugin.iframe_views)
+    .flatMap((plugin) => plugin.external_views)
     .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
 
   if (!iframeView) {
@@ -47,8 +47,8 @@ export const Iframe = () => {
   return (
     <Box flexGrow={1} m={-3}>
       <iframe
-        sandbox="allow-same-origin allow-forms"
-        src={iframeView.src}
+        sandbox={sandbox}
+        src={iframeView.href}
         style={{ height: "100%", width: "100%" }}
         title={iframeView.name}
       />

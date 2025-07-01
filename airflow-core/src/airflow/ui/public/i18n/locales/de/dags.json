@@ -23,7 +23,7 @@
     },
     "clear": {
       "button": "{{type}} zurücksetzen",
-      "buttonTooltip": "STRG+C zum Zurücksetzen tippen",
+      "buttonTooltip": "Umschalttaste+C zum Zurücksetzen tippen",
       "error": "Fehler beim Zurücksetzen von {{type}}",
       "title": "{{type}} bereinigen und neu planen"
     },
@@ -43,8 +43,8 @@
     "markAs": {
       "button": "{{type}} markieren...",
       "buttonTooltip": {
-        "failed": "STRG+F tippen um als fehlgeschlagen zu markieren",
-        "success": "STRG+S tippen um als erfolgreich zu markieren"
+        "failed": "Umschalttaste+F tippen um als fehlgeschlagen zu markieren",
+        "success": "Umschalttaste+S tippen um als erfolgreich zu markieren"
       },
       "title": "{{type}} auf den Status {{state}} setzen"
     },

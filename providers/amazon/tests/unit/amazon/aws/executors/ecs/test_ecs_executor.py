@@ -22,8 +22,8 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -60,8 +60,6 @@ from airflow.version import version as airflow_version_str
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-pytestmark = pytest.mark.db_test
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 

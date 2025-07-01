@@ -37,6 +37,7 @@ from airflow.providers.google.cloud.links.translate import (
     TranslationNativeDatasetLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import DatasetImportDataResultsCheckHelper
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -479,7 +480,7 @@ class TranslateCreateDatasetOperator(GoogleCloudBaseOperator):
         result = hook.wait_for_operation_result(result_operation)
         result = type(result).to_dict(result)
         dataset_id = hook.extract_object_id(result)
-        self.xcom_push(context, key="dataset_id", value=dataset_id)
+        context["ti"].xcom_push(key="dataset_id", value=dataset_id)
         self.log.info("Dataset creation complete. The dataset_id: %s.", dataset_id)
 
         project_id = self.project_id or hook.project_id
@@ -575,7 +576,7 @@ class TranslateDatasetsListOperator(GoogleCloudBaseOperator):
         return result_ids
 
 
-class TranslateImportDataOperator(GoogleCloudBaseOperator):
+class TranslateImportDataOperator(GoogleCloudBaseOperator, DatasetImportDataResultsCheckHelper):
     """
     Import data to the translation dataset.
 
@@ -602,6 +603,7 @@ class TranslateImportDataOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param raise_for_empty_result: Raise an error if no additional data has been populated after the import.
     """
 
     template_fields: Sequence[str] = (
@@ -627,6 +629,7 @@ class TranslateImportDataOperator(GoogleCloudBaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        raise_for_empty_result: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -639,9 +642,21 @@ class TranslateImportDataOperator(GoogleCloudBaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.raise_for_empty_result = raise_for_empty_result
 
     def execute(self, context: Context):
         hook = TranslateHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        initial_dataset_size = self._get_number_of_ds_items(
+            dataset=hook.get_dataset(
+                dataset_id=self.dataset_id,
+                project_id=self.project_id,
+                location=self.location,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            ),
+            total_key_name="example_count",
+        )
         self.log.info("Importing data to dataset...")
         operation = hook.import_dataset_data(
             dataset_id=self.dataset_id,
@@ -660,7 +675,22 @@ class TranslateImportDataOperator(GoogleCloudBaseOperator):
             location=self.location,
         )
         hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
+
+        result_dataset_size = self._get_number_of_ds_items(
+            dataset=hook.get_dataset(
+                dataset_id=self.dataset_id,
+                project_id=self.project_id,
+                location=self.location,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            ),
+            total_key_name="example_count",
+        )
+        if self.raise_for_empty_result:
+            self._raise_for_empty_import_result(self.dataset_id, initial_dataset_size, result_dataset_size)
         self.log.info("Importing data finished!")
+        return {"total_imported": int(result_dataset_size) - int(initial_dataset_size)}
 
 
 class TranslateDeleteDatasetOperator(GoogleCloudBaseOperator):
@@ -819,7 +849,7 @@ class TranslateCreateModelOperator(GoogleCloudBaseOperator):
         result = hook.wait_for_operation_result(operation=result_operation)
         result = type(result).to_dict(result)
         model_id = hook.extract_object_id(result)
-        self.xcom_push(context, key="model_id", value=model_id)
+        context["ti"].xcom_push(key="model_id", value=model_id)
         self.log.info("Model creation complete. The model_id: %s.", model_id)
 
         project_id = self.project_id or hook.project_id
@@ -1406,7 +1436,7 @@ class TranslateCreateGlossaryOperator(GoogleCloudBaseOperator):
         result = type(result).to_dict(result)
 
         glossary_id = hook.extract_object_id(result)
-        self.xcom_push(context, key="glossary_id", value=glossary_id)
+        context["ti"].xcom_push(key="glossary_id", value=glossary_id)
         self.log.info("Glossary creation complete. The glossary_id: %s.", glossary_id)
         return result
 

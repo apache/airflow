@@ -39,7 +39,12 @@
       "selectConnectionType": "Verbindungstyp auswählen",
       "standardFields": "Standardfelder"
     },
-    "noRowMessage": "Keine Verbindungen gefunden",
+    "nothingFound": {
+      "description": "Verbindungen, die durch Secret-Managers oder Umgebungsvariablen definiert sind werden hier nicht gelistet.",
+      "documentationLink": "Mehr Details sind in der Airflow-Dokumentation beschrieben.",
+      "learnMore": "Diese Verbindungen werden erst eingelesen, wenn ein Task, der sie verwendet ausgeführt wird und sie sind daher in dieser Ansicht nicht sichtbar.",
+      "title": "Keine Verbindungen gefunden!"
+    },
     "searchPlaceholder": "Verbindungen suchen",
     "test": "Verbindung testen",
     "testDisabled": "Das Testen von Verbindungen ist deaktiviert. Der Administrator kann via Konfiguration das Testen freischalten.",

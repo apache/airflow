@@ -27,11 +27,11 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
 import tenacity
@@ -796,11 +796,13 @@ class KubernetesPodOperator(BaseOperator):
         del self.pod_manager
 
     def execute_async(self, context: Context) -> None:
-        self.pod_request_obj = self.build_pod_request_obj(context)
-        self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-            pod_request_obj=self.pod_request_obj,
-            context=context,
-        )
+        if self.pod_request_obj is None:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+        if self.pod is None:
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
         if self.callbacks:
             pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:
