@@ -18,20 +18,17 @@
 Concepts
 ========
 
+This section covers the fundamental concepts that DAG authors need to understand when working with the Task SDK.
+
 Terminology
 -----------
 - **Task**: a Python function (decorated with ``@task``) or Operator invocation representing a unit of work in a DAG.
 - **Task Execution**: the runtime machinery that executes user tasks in isolated subprocesses, managed via the Supervisor and Execution API.
 
-Airflow Execution API Server & Architecture
--------------------------------------------
+Airflow 2.x vs 3.x Architecture
+-------------------------------
 
-Airflow 3 introduces a dedicated Execution API server to decouple the scheduler, executor, and workers. In Airflow 2.x, tasks are scheduled via the metadata database and picked up by workers directly. Airflow 3.x instead:
-
-- Uses a RESTful HTTP API for task state transitions (``/run``, ``/patch``, heartbeat), secured with JWT tokens.
-- Centralizes retry eligibility and ``fail_fast`` semantics in the server responses (``TIRunContext``).
-- Enables fine-grained capability restrictions (per AIP-072) so that task code has no direct database access and relies solely on the Execution API.
-- Provides a lightweight worker runtime: workers require only the Task SDK package, not the full Airflow core installation, reducing deployment complexity.
+Understanding the architectural differences between Airflow 2.x and 3.x helps DAG authors understand the benefits and changes in the Task SDK approach.
 
 Airflow 2.x Architecture
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -56,21 +53,20 @@ Airflow 3.x Architecture
 - Workers communicate with the API server.
 - DAG processor and Triggerer utilize the task execution mechanism for their tasks, especially when they require variables or connections.
 
+Database Access Restrictions
+----------------------------
 
-Execution API Server Responsibilities
--------------------------------------
+In Airflow 3.x, direct metadata database access from task code is now restricted. This is a key security and architectural improvement that affects how DAG authors interact with Airflow resources:
 
-- **Fail-fast enforcement**: if a DAG is defined with ``fail_fast``, any task failure triggers immediate failure of downstream tasks.
-- **Asset registration**: records emitted asset events in the metadata database upon successful task completion.
-- **Retry eligibility**: computes and returns retry eligibility and related settings within the ``TIRunContext`` response.
-- **JWT-based authentication**: uses a FastAPI dependency to validate JWT tokens on each Execution API call, refreshing tokens via heartbeat responses.
-- **Cadwyn versioning & backward compatibility**: applies Cadwyn versioning to maintain stable API contracts and ensure backward compatibility across Airflow releases.
-- **Health check endpoint**: serves a ``/execution`` GET endpoint returning HTTP 200 OK for server liveness/readiness.
+- **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
+- **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.
+- **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
+- **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
 
-Life cycle of a Task Instance
------------------------------
+Task Lifecycle
+--------------
 
-A task instance moves through several stages during execution:
+Understanding the task lifecycle helps DAG authors write more effective tasks and debug issues:
 
 - **Scheduled**: The Airflow scheduler enqueues the task instance. The Executor assigns a workload token used for subsequent API authentication and validation.
 - **Queued**: Workers poll the queue to retrieve and reserve queued task instances.

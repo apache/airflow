@@ -130,7 +130,7 @@ Explore a variety of DAG examples and patterns in the :doc:`examples` page.
 5. Concepts
 -----------
 
-Discover the fundamental concepts behind the Task SDK, including its service-oriented architecture and task lifecycle. For full details, see the :doc:`concepts` page.
+Discover the fundamental concepts that DAG authors need to understand when working with the Task SDK, including Airflow 2.x vs 3.x architectural differences, database access restrictions, and task lifecycle. For full details, see the :doc:`concepts` page.
 
 Airflow 2.x Architecture
 ^^^^^^^^^^^^^^^^^^^^^^^^
