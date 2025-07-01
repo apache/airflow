@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -1530,6 +1530,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
+
+    def unmap(self, resolve: None | Mapping[str, Any]) -> Self:
+        """
+        Get the "normal" operator from the current operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original operator.
+
+        :meta private:
+        """
+        return self
 
     def render_template_fields(
         self,

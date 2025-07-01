@@ -109,7 +109,6 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
-    from airflow.typing_compat import Self
 
     HAS_KUBERNETES: bool
     try:
@@ -1649,17 +1648,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def serialize_for_task_group(self) -> tuple[DAT, Any]:
         """Serialize; required by DAGNode."""
         return DAT.OP, self.task_id
-
-    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> Self:
-        """
-        Get the "normal" operator from the current operator.
-
-        Since a BaseOperator is not mapped to begin with, this simply returns
-        the original operator.
-
-        :meta private:
-        """
-        return self
 
     def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
         """
