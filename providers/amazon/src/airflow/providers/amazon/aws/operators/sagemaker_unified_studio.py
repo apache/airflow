@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
     SageMakerNotebookHook,
 )
@@ -34,6 +33,7 @@ from airflow.providers.amazon.aws.links.sagemaker_unified_studio import (
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
+from airflow.providers.amazon.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -159,7 +159,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.statement_id: str = query_execution_output.statement_id
 
         if query_execution_output.session_id:
-            self.xcom_push(context, key="session_id", value=query_execution_output.session_id)
+            context["ti"].xcom_push(key="session_id", value=query_execution_output.session_id)
 
         if self.deferrable and self.wait_for_completion:
             is_finished: bool = self.hook.check_query_is_finished(self.statement_id)
