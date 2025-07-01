@@ -232,7 +232,7 @@ class SecretsMasker(logging.Filter):
             return {
                 dict_key: self._redact_all(subval, depth + 1, max_depth) for dict_key, subval in item.items()
             }
-        if isinstance(item, tuple | set):
+        if isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self._redact_all(subval, depth + 1, max_depth) for subval in item)
         if isinstance(item, list):
@@ -270,7 +270,7 @@ class SecretsMasker(logging.Filter):
                     # the structure.
                     return self.replacer.sub("***", str(item))
                 return item
-            if isinstance(item, tuple | set):
+            if isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
                 return tuple(
                     self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
