@@ -34,12 +34,12 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
     to string type because databricks does not understand 'True' or 'False' values.
     """
     normalise = normalise_json_content
-    if isinstance(content, str | bool):
+    if isinstance(content, (str, bool)):
         return content
-    if isinstance(content, int | float):
+    if isinstance(content, (int, float)):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
-    if isinstance(content, list | tuple):
+    if isinstance(content, (list, tuple)):
         return [normalise(e, f"{json_path}[{i}]") for i, e in enumerate(content)]
     if isinstance(content, dict):
         return {k: normalise(v, f"{json_path}[{k}]") for k, v in content.items()}

@@ -24,7 +24,7 @@ import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
-export const Iframe = () => {
+export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
@@ -47,7 +47,7 @@ export const Iframe = () => {
   return (
     <Box flexGrow={1} m={-3}>
       <iframe
-        sandbox="allow-same-origin allow-forms"
+        sandbox={sandbox}
         src={iframeView.href}
         style={{ height: "100%", width: "100%" }}
         title={iframeView.name}
