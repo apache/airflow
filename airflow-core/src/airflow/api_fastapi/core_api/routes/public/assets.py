@@ -56,6 +56,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
@@ -348,6 +349,7 @@ def create_asset_event(
 def materialize_asset(
     asset_id: int,
     dag_bag: DagBagDep,
+    user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a DAG run that produces it."""
@@ -381,6 +383,7 @@ def materialize_asset(
         run_after=run_after,
         run_type=DagRunType.MANUAL,
         triggered_by=DagRunTriggeredByType.REST_API,
+        triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
         session=session,
     )
