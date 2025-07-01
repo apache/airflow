@@ -38,6 +38,7 @@ class TestSsmRunCommandOperator:
             _conn.send_command.return_value = {
                 "Command": {
                     "CommandId": self.COMMAND_ID,
+                    "InstanceIds": ["test_instance_id_1", "test_instance_id_2"],
                 }
             }
             yield _conn
@@ -45,8 +46,8 @@ class TestSsmRunCommandOperator:
     def setup_method(self):
         self.operator = SsmRunCommandOperator(
             task_id="test_run_command_operator",
-            instance_ids=["test_instance_id_1", "test_instance_id_2"],
             document_name="test_ssm_custom_document",
+            run_command_kwargs={"InstanceIds": ["test_instance_id_1", "test_instance_id_2"]},
         )
         self.operator.defer = mock.MagicMock()
 

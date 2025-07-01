@@ -41,31 +41,8 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SsmRunCommandOperator`
 
-    :param instance_ids: The IDs of the managed nodes where the command should run. Required if `targets` is not provided.
-    :param targets: A list of search criteria that targets managed nodes using a Key,Value combination.
-        Required if `instance_ids` is not provided.
     :param document_name: The name of the Amazon Web Services Systems Manager document (SSM document) to run.
-    :param document_version: Optional SSM document version to use in the request. Options are: $DEFAULT,
-        $LATEST, or a specific version number
-    :param document_hash: Optional Sha256 or Sha1 hash created by the system when the document was created.
-    :param document_hash_type: Optional type of hash provided in `document_hash`. Valid values are "Sha256" or "Sha1".
-    :param timeout_seconds: Optional. If this time is reached and the command hasn't already started running, it won't run.
-    :param comment: Optional user-specified information about the command.
-    :param parameters: Optional dictionary of parameter names and their values to pass to the SSM document.
-    :param output_s3_bucket_name: Optional name of the S3 bucket where command execution responses should be stored.
-    :param output_s3_key_prefix: Optional prefix to use when storing command output in the specified S3 bucket
-    :param max_concurrency: Optional maximum number of instances that can execute the command simultaneously.
-        Specify as a number (e.g., "10") or a percentage (e.g., "10%"). (Default: 50)
-    :param max_errors: Optional maximum number of errors allowed without the command failing.
-        Specify as a number (e.g., "10") or a percentage (e.g., "10%"). (Default: 0)
-    :param service_role_arn: Optional ARN of the IAM service role to use to publish Amazon SNS notifications
-        for Run Command commands.
-    :param notification_config: Optional configurations for sending notifications. Includes the parameters
-        `NotificationArn`, `NotificationEvents`, and `NotificationType`.
-    :param cloudwatch_output_config: Optional configuration for sending command output to Amazon CloudWatch.
-        Can include `CloudWatchOutputEnabled` (boolean) and `CloudWatchLogGroupName`.
-    :param alarm_configuration: Optional configuration for triggering alarms based on command status.
-        Can include `IgnorePollAlarmFailure` (boolean) and a list of `Alarms` (each with `Name`).
+    :param run_command_kwargs: Optional parameters to pass to the send_command API.
 
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
@@ -88,37 +65,14 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
     aws_hook_class = SsmHook
     template_fields: Sequence[str] = aws_template_fields(
         "document_name",
-        "document_version",
-        "document_hash",
-        "document_hash_type",
-        "comment",
-        "output_s3_bucket_name",
-        "output_s3_key_prefix",
-        "max_concurrency",
-        "max_errors",
-        "service_role_arn",
+        "run_command_kwargs",
     )
 
     def __init__(
         self,
         *,
-        instance_ids: list[str],
-        targets: list[dict[str, str | list[str]]] | None = None,
         document_name: str,
-        document_version: str | None = None,
-        document_hash: str | None = None,
-        document_hash_type: str | None = None,
-        timeout_seconds: int | None = None,
-        comment: str | None = None,
-        parameters: dict[str, list[str]] | None = None,
-        output_s3_bucket_name: str | None = None,
-        output_s3_key_prefix: str | None = None,
-        max_concurrency: str | None = None,
-        max_errors: str | None = None,
-        service_role_arn: str | None = None,
-        notification_config: dict[str, str | list[str]] | None = None,
-        cloudwatch_output_config: dict[str, str | bool] | None = None,
-        alarm_configuration: dict[str, bool | list[dict[str, str]]] | None = None,
+        run_command_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
@@ -131,23 +85,8 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
-        self.instance_ids = instance_ids
-        self.targets = targets
         self.document_name = document_name
-        self.document_version = document_version
-        self.document_hash = document_hash
-        self.document_hash_type = document_hash_type
-        self.timeout_seconds = timeout_seconds
-        self.comment = comment
-        self.parameters = parameters
-        self.output_s3_bucket_name = output_s3_bucket_name
-        self.output_s3_key_prefix = output_s3_key_prefix
-        self.max_concurrency = max_concurrency
-        self.max_errors = max_errors
-        self.service_role_arn = service_role_arn
-        self.notification_config = notification_config
-        self.cloudwatch_output_config = cloudwatch_output_config
-        self.alarm_configuration = alarm_configuration
+        self.run_command_kwargs = run_command_kwargs or {}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         event = validate_execute_complete_event(event)
@@ -160,23 +99,8 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
 
     def execute(self, context: Context):
         response = self.hook.conn.send_command(
-            InstanceIds=self.instance_ids,
-            Targets=self.targets,
             DocumentName=self.document_name,
-            DocumentVersion=self.document_version,
-            DocumentHash=self.document_hash,
-            DocumentHashType=self.document_hash_type,
-            TimeoutSeconds=self.timeout_seconds,
-            Comment=self.comment,
-            Parameters=self.parameters,
-            OutputS3BucketName=self.output_s3_bucket_name,
-            OutputS3KeyPrefix=self.output_s3_key_prefix,
-            MaxConcurrency=self.max_concurrency,
-            MaxErrors=self.max_errors,
-            ServiceRoleArn=self.service_role_arn,
-            NotificationConfig=self.notification_config,
-            CloudWatchOutputConfig=self.cloudwatch_output_config,
-            AlarmConfiguration=self.alarm_configuration,
+            **self.run_command_kwargs,
         )
 
         command_id = response["Command"]["CommandId"]
@@ -197,7 +121,9 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         elif self.wait_for_completion:
             self.log.info("Waiting for %s", task_description)
             waiter = self.hook.get_waiter("run_command_instance_complete")
-            for instance_id in self.instance_ids:
+
+            instance_ids = response["Command"]["InstanceIds"]
+            for instance_id in instance_ids:
                 waiter.wait(
                     CommandId=command_id,
                     InstanceId=instance_id,
