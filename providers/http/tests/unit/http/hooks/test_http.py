@@ -71,6 +71,10 @@ def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"
     return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
 
 
+def get_airflow_connection_with_port_without_schema(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test.com", port=443, schema=None)
+
+
 @pytest.fixture
 def setup_connections_with_extras(request, create_connection_without_db):
     extra = request.param if hasattr(request, "param") else {}
@@ -851,3 +855,20 @@ class TestHttpAsyncHook:
                 async with aiohttp.ClientSession() as session:
                     await hook.run(session=session, endpoint="test.com:8080/v1/test")
                     assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
+
+    @pytest.mark.asyncio
+    async def test_async_hook_falls_back_to_https_when_port_443(self):
+        """If conn.schema is missing but conn.port is 443, then fallback to https"""
+
+        conn = get_airflow_connection_with_port_without_schema()
+        hook = HttpAsyncHook(method="GET")
+
+        with (
+            mock.patch.object(HttpAsyncHook, "get_connection", return_value=conn),
+            mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get,
+        ):
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="health")
+
+            called_url = mocked_get.call_args.args[0]
+            assert called_url.startswith("https://") is True
