@@ -489,7 +489,7 @@ def explain_package_upgrade(
             cwd=repo_root,
         )
         (temp_dir_path / "uv_sync_before.txt").write_text(before_result.stdout + before_result.stderr)
-        update_pyproject_dependency(airflow_pyproject, pkg, latest_version, airflow_constraints_mode)
+        update_pyproject_dependency(airflow_pyproject, pkg, latest_version)
         if verbose:
             syntax = Syntax(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False
