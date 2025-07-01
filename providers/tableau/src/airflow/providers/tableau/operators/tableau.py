@@ -20,12 +20,12 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
     TableauJobFailedException,
     TableauJobFinishCode,
 )
+from airflow.providers.tableau.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

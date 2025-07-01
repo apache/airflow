@@ -23,9 +23,9 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.utils.constants import Constants
+from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
