@@ -25,10 +25,8 @@ XComs (short for "cross-communications") are a mechanism that let :doc:`tasks` t
 
 An XCom is identified by a ``key`` (essentially its name), as well as the ``task_id`` and ``dag_id`` it came from. They can have any serializable value (including objects that are decorated with ``@dataclass`` or ``@attr.define``, see :ref:`TaskFlow arguments <concepts:arbitrary-arguments>`:), but they are only designed for small amounts of data; do not use them to pass around large values, like dataframes.
 
-.. versionchanged:: 3.0
-
-   In Airflow 3.0+, XCom operations should be performed through the Task Context using
-   :func:`~airflow.sdk.get_current_context`. Direct database access is not possible.
+XCom operations should be performed through the Task Context using
+:func:`~airflow.sdk.get_current_context`. Direct database access is not possible.
 
 XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xcom_push`` and ``xcom_pull`` methods on Task Instances.
 
@@ -78,26 +76,24 @@ An example of pushing multiple XComs and pulling them individually:
         # Pulling entire xcom data from push_multiple task
         data = context["ti"].xcom_pull(task_ids="push_multiple", key="return_value")
 
-.. versionchanged:: 3.0
+You can also use the Task Context directly for XCom operations:
 
-   In Airflow 3.0+, you can also use the Task Context directly for XCom operations:
+.. code-block:: python
 
-   .. code-block:: python
-
-       from airflow.sdk import get_current_context
+    from airflow.sdk import get_current_context
 
 
-       @task
-       def example_task():
-           context = get_current_context()
-           ti = context["ti"]
+    @task
+    def example_task():
+        context = get_current_context()
+        ti = context["ti"]
 
-           # Push XCom
-           ti.xcom_push(key="my_key", value="my_value")
+        # Push XCom
+        ti.xcom_push(key="my_key", value="my_value")
 
-           # Pull XCom
-           value = ti.xcom_pull(task_ids="previous_task", key="my_key")
-           return value
+        # Pull XCom
+        value = ti.xcom_pull(task_ids="previous_task", key="my_key")
+        return value
 
 .. note::
 
@@ -117,10 +113,8 @@ The XCom system has interchangeable backends, and you can set which backend is b
 
 If you want to implement your own backend, you should subclass :class:`~airflow.sdk.execution_time.xcom.XCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
 
-.. versionchanged:: 3.0
-
-   The base class for custom XCom backends is now :class:`~airflow.sdk.execution_time.xcom.XCom`
-   from the airflow.sdk namespace.
+The base class for custom XCom backends is now :class:`~airflow.sdk.execution_time.xcom.XCom`
+from the airflow.sdk namespace.
 
 You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the xcom data from the custom backend. This will be called as part of ``delete``.
 
