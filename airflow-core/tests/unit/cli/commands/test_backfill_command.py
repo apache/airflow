@@ -128,6 +128,7 @@ class TestCliBackfill:
             dag_run_conf=None,
             reprocess_behavior=None,
             run_on_latest_version=True,
+            triggering_user_name="root",
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")
