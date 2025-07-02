@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseHook,
     AzureSynapsePipelineHook,
@@ -31,6 +30,11 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseSparkBatchRunStatus,
 )
 from airflow.providers.microsoft.azure.version_compat import BaseOperator
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions
