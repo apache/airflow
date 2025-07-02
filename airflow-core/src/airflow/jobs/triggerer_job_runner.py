@@ -396,7 +396,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result
-                dump_opts = {"exclude_unset": True}
+                # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
+                dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
         elif isinstance(msg, GetVariable):
