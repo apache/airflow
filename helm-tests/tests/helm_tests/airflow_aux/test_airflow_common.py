@@ -372,7 +372,6 @@ class TestAirflowCommon:
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
-            "AIRFLOW__WEBSERVER__SECRET_KEY",
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
