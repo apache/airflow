@@ -36,6 +36,15 @@ from airflow.utils import timezone
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operators"
 GROUP_ID = "group_id"
@@ -69,7 +78,7 @@ DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
 class TestPowerBIDatasetListOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_dataset_list_success(self, connection):
         """Assert that get_dataset_list log success message"""
         operator = PowerBIDatasetListOperator(
@@ -149,7 +158,7 @@ class TestPowerBIDatasetListOperator(Base):
 
 
 class TestPowerBIWorkspaceListOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_workspace_list_success(self, connection):
         """Assert that get_workspace_list log success message"""
         operator = PowerBIWorkspaceListOperator(

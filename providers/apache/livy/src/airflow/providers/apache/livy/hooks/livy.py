@@ -528,7 +528,7 @@ class LivyAsyncHook(HttpAsyncHook):
         if self.http_conn_id:
             conn = await sync_to_async(self.get_connection)(self.http_conn_id)
 
-            self.base_url = self._generate_base_url(conn)
+            self.base_url = self._generate_base_url(conn)  # type: ignore[arg-type]
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
