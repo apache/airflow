@@ -22,6 +22,7 @@ import time
 from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.utils.databricks import extract_failed_task_errors_async
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -97,19 +98,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
                     await asyncio.sleep(self.polling_period_seconds)
                     continue
 
-                failed_tasks = []
-                if run_state.result_state == "FAILED":
-                    run_info = await self.hook.a_get_run(self.run_id)
-                    for task in run_info.get("tasks", []):
-                        if task.get("state", {}).get("result_state", "") == "FAILED":
-                            task_run_id = task["run_id"]
-                            task_key = task["task_key"]
-                            run_output = await self.hook.a_get_run_output(task_run_id)
-                            if "error" in run_output:
-                                error = run_output["error"]
-                            else:
-                                error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                run_info = await self.hook.a_get_run(self.run_id)
+                failed_tasks = await extract_failed_task_errors_async(self.hook, run_info, run_state)
                 yield TriggerEvent(
                     {
                         "run_id": self.run_id,
