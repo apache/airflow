@@ -270,6 +270,7 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
