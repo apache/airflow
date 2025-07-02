@@ -50,10 +50,31 @@ class IntermediateTIState(str, Enum):
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
+    RUNNING = "running"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class SuccessTIState(str, Enum):
+    """States that a Task Instance can be in that indicate it has reached a terminal successful state."""
+
+    SUCCESS = "success"
+    SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class FailureTIState(str, Enum):
+    """States that a Task Instance can be in that indicate it has reached a terminal failed state."""
+
+    FAILED = "failed"
+    REMOVED = "removed"
 
     def __str__(self) -> str:
         return self.value
