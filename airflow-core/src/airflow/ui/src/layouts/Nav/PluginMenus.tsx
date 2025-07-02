@@ -32,17 +32,38 @@ export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
   const { data } = usePluginServiceGetPlugins();
 
-  const menuPlugins =
+  let menuPlugins =
     data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
     [];
 
-  // Only show external plugins in menu if there are more than 2
-  const menuExternalViews = menuPlugins.length > 2 ? menuPlugins : [];
-  const directExternalViews = menuPlugins.length <= 2 ? menuPlugins : [];
+  const hasLegacyViews =
+    (
+      data?.plugins
+        .flatMap((plugin) => plugin.appbuilder_views)
+        // Only include legacy views that have a visible link in the menu. No menu items views
+        // are accessible via direct URLs.
+        .filter((view) => view.name !== undefined && view.name !== null) ?? []
+    ).length >= 1;
+
+  if (hasLegacyViews) {
+    menuPlugins = [
+      ...menuPlugins,
+      {
+        destination: "nav",
+        href: "/pluginsv2",
+        name: translate("nav.legacyFabViews"),
+        url_route: "legacy-fab-views",
+      },
+    ];
+  }
 
   if (data === undefined || menuPlugins.length === 0) {
     return undefined;
   }
+
+  // Only show external plugins in menu if there are more than 2
+  const menuExternalViews = menuPlugins.length > 2 ? menuPlugins : [];
+  const directExternalViews = menuPlugins.length <= 2 ? menuPlugins : [];
 
   const categories: Record<string, Array<ExternalViewResponse>> = {};
   const buttons: Array<ExternalViewResponse> = [];
@@ -71,7 +92,7 @@ export const PluginMenus = () => {
           </Menu.Trigger>
           <Menu.Content>
             {buttons.map((externalView) => (
-              <Menu.Item asChild key={externalView.name} value={externalView.name}>
+              <Menu.Item key={externalView.name} value={externalView.name}>
                 <PluginMenuItem {...externalView} />
               </Menu.Item>
             ))}
@@ -83,7 +104,7 @@ export const PluginMenus = () => {
                 </Menu.TriggerItem>
                 <Menu.Content>
                   {menuButtons.map((externalView) => (
-                    <Menu.Item asChild key={externalView.name} value={externalView.name}>
+                    <Menu.Item key={externalView.name} value={externalView.name}>
                       <PluginMenuItem {...externalView} />
                     </Menu.Item>
                   ))}

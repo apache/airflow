@@ -18,6 +18,7 @@
  */
 import { Box, Link, Image } from "@chakra-ui/react";
 import { LuPlug } from "react-icons/lu";
+import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
@@ -44,11 +45,12 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
         to={href}
       />
     ) : (
-      <Box alignItems="center" display="flex" gap={2} outline="none" px={2} py="6px">
+      <Box alignItems="center" display="flex" width="100%">
         <Link
           aria-label={name}
           fontSize="sm"
           href={href}
+          outline="none"
           rel="noopener noreferrer"
           target="_blank"
           width="100%"
@@ -78,15 +80,19 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
   }
 
   return (
-    <RouterLink to={`plugin/${urlRoute}`}>
-      <Box alignItems="center" display="flex" fontSize="sm" gap={2} px={2} py="6px">
-        {typeof icon === "string" ? (
-          <Image height="1.25rem" src={icon} width="1.25rem" />
-        ) : (
-          <LuPlug size="1.25rem" />
-        )}
-        {name}
-      </Box>
-    </RouterLink>
+    <Box width="100%">
+      <RouterLink style={{ outline: "none" }} to={`plugin/${urlRoute}`}>
+        <Box alignItems="center" display="flex" fontSize="sm">
+          {typeof icon === "string" ? (
+            <Image height="1.25rem" src={icon} width="1.25rem" />
+          ) : urlRoute === "legacy-fab-views" ? (
+            <RiArchiveStackLine size="1.25rem" />
+          ) : (
+            <LuPlug size="1.25rem" />
+          )}
+          {name}
+        </Box>
+      </RouterLink>
+    </Box>
   );
 };

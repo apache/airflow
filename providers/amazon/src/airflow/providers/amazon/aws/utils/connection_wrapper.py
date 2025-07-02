@@ -32,7 +32,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection  # Avoid circular imports.
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 @dataclass
@@ -187,7 +190,7 @@ class AwsConnectionWrapper(LoggingMixin):
             return
 
         if TYPE_CHECKING:
-            assert isinstance(conn, Connection | _ConnectionMetadata)
+            assert isinstance(conn, (Connection, _ConnectionMetadata))
 
         # Assign attributes from AWS Connection
         self.conn_id = conn.conn_id

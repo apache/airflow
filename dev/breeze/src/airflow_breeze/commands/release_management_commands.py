@@ -50,6 +50,7 @@ from airflow_breeze.commands.common_options import (
     option_airflow_extras,
     option_allow_pre_releases,
     option_answer,
+    option_builder,
     option_clean_airflow_installation,
     option_commit_sha,
     option_debug_resources,
@@ -101,6 +102,7 @@ from airflow_breeze.global_constants import (
     PYTHON_TO_MIN_AIRFLOW_MAPPING,
     UV_VERSION,
 )
+from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageErrorBuildingPackageException,
@@ -118,6 +120,7 @@ from airflow_breeze.utils.add_back_references import (
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
+from airflow_breeze.utils.constraints_version_check import constraints_version_check
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.debug_pyproject_toml import debug_pyproject_tomls
 from airflow_breeze.utils.docker_command_utils import (
@@ -242,7 +245,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.16"
+AIRFLOW_UV_VERSION = "0.7.17"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -2792,10 +2795,9 @@ def get_all_constraint_files(
             CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
             for airflow_version in all_airflow_versions:
                 if not download_constraints_file(
-                    airflow_version=airflow_version,
+                    constraints_reference=f"constraints-{airflow_version}",
                     python_version=python_version,
                     github_token=github_token,
-                    include_provider_dependencies=True,
                     output_file=CONSTRAINTS_CACHE_PATH
                     / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
@@ -3949,3 +3951,64 @@ def publish_docs_to_s3(
             "Please check the version in the docs and try again.[/]"
         )
         sys.exit(1)
+
+
+@release_management.command(
+    name="constraints-version-check", help="Check constraints against released versions of packages."
+)
+@option_builder
+@option_python
+@option_airflow_constraints_mode_ci
+@click.option(
+    "--diff-mode",
+    type=click.Choice(["full", "diff-all", "diff-constraints"], case_sensitive=False),
+    default="full",
+    show_default=True,
+    help="Report mode: full, diff-all, diff-constraints.",
+)
+@click.option(
+    "--package",
+    multiple=True,
+    help="Only check specific package(s). Can be used multiple times.",
+)
+@click.option(
+    "--explain-why/--no-explain-why",
+    default=False,
+    help="Show explanations for outdated packages.",
+)
+@option_github_token
+@option_github_repository
+@option_verbose
+@option_dry_run
+def version_check(
+    python: str,
+    airflow_constraints_mode: str,
+    diff_mode,
+    package: tuple[str],
+    explain_why: bool,
+    github_token: str,
+    github_repository: str,
+    builder: str,
+):
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    build_params = BuildCiParams(
+        github_repository=github_repository,
+        python=python,
+        builder=builder,
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    if os.environ.get("CI", "false") == "true":
+        # Show output outside the group in CI
+        print("::endgroup::")
+    selected_packages = set(package) if package else None
+    constraints_version_check(
+        python=python,
+        airflow_constraints_mode=airflow_constraints_mode,
+        diff_mode=diff_mode,
+        selected_packages=selected_packages,
+        explain_why=explain_why,
+        github_token=github_token,
+        github_repository=github_repository,
+    )

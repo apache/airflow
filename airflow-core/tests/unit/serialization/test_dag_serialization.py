@@ -53,7 +53,6 @@ from airflow.exceptions import (
     ParamValidationError,
     SerializationError,
 )
-from airflow.hooks.base import BaseHook
 from airflow.models.asset import AssetModel
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -64,7 +63,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
-from airflow.sdk import AssetAlias, teardown
+from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
@@ -404,7 +403,7 @@ def collect_dags(dag_folder=None):
             "providers/*/*/tests/system/*/*/",
         ]
     else:
-        if isinstance(dag_folder, list | tuple):
+        if isinstance(dag_folder, (list, tuple)):
             patterns = dag_folder
         else:
             patterns = [dag_folder]
@@ -723,7 +722,7 @@ class TestStringifiedDAGs:
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         assert not isinstance(task, SerializedBaseOperator)
-        assert isinstance(task, BaseOperator | MappedOperator)
+        assert isinstance(task, (BaseOperator, MappedOperator))
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
         assert serialized_task.task_group
