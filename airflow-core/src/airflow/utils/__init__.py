@@ -46,5 +46,7 @@ __deprecated_classes = {
     "xcom": {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
+    # TODO: move this to somewhere in task SDK instead.
+    "timezone": {"*": "airflow._vendor.airflow_shared.timezone"},
 }
 add_deprecated_classes(__deprecated_classes, __name__)

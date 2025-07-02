@@ -1001,6 +1001,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/shared/core-and-tasksdk/src",
+    "$MYPY_CONFIG_FILE_DIR/shared/core-and-tasksdk/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
@@ -1249,7 +1251,8 @@ dev = [
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
-    "apache-airflow-ctl"
+    "apache-airflow-ctl",
+    "vendoring",
 ]
 
 # To build docs:
@@ -1283,6 +1286,7 @@ no-build-isolation-package = ["sphinx-redoc"]
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
+airflow-shared = {workspace = true}
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
@@ -1398,6 +1402,7 @@ apache-airflow-providers-zendesk = { workspace = true }
 [tool.uv.workspace]
 members = [
     ".",
+    "shared/*",
     "airflow-core",
     "dev/breeze",
     "airflow-ctl",
