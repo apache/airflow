@@ -35,9 +35,10 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, BaseSensorOperator
+    from airflow.sdk import BaseHook, BaseOperator, BaseSensorOperator
     from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, context_to_airflow_vars
 else:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models import BaseOperator
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
     from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
@@ -48,6 +49,7 @@ else:
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
+    "BaseHook",
     "BaseOperator",
     "BaseSensorOperator",
     "AIRFLOW_VAR_NAME_FORMAT_MAPPING",
