@@ -137,9 +137,6 @@ class AbstractOperator(Templater, DAGNode):
         )
     )
 
-    def get_dag(self) -> DAG | None:
-        raise NotImplementedError()
-
     @property
     def task_type(self) -> str:
         raise NotImplementedError()
@@ -244,43 +241,6 @@ class AbstractOperator(Templater, DAGNode):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
-
-    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
-        """
-        Get a flat set of relative IDs, upstream or downstream.
-
-        Will recurse each relative found in the direction specified.
-
-        :param upstream: Whether to look for upstream or downstream relatives.
-        """
-        dag = self.get_dag()
-        if not dag:
-            return set()
-
-        relatives: set[str] = set()
-
-        # This is intentionally implemented as a loop, instead of calling
-        # get_direct_relative_ids() recursively, since Python has significant
-        # limitation on stack level, and a recursive implementation can blow up
-        # if a DAG contains very long routes.
-        task_ids_to_trace = self.get_direct_relative_ids(upstream)
-        while task_ids_to_trace:
-            task_ids_to_trace_next: set[str] = set()
-            for task_id in task_ids_to_trace:
-                if task_id in relatives:
-                    continue
-                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                relatives.add(task_id)
-            task_ids_to_trace = task_ids_to_trace_next
-
-        return relatives
-
-    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
-        """Get a flat list of relatives, either upstream or downstream."""
-        dag = self.get_dag()
-        if not dag:
-            return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def get_upstreams_follow_setups(self) -> Iterable[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
