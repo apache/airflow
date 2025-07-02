@@ -199,27 +199,32 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
-_PARTIAL_DEFAULTS: dict[str, Any] = {
-    "map_index_template": None,
-    "owner": DEFAULT_OWNER,
-    "trigger_rule": DEFAULT_TRIGGER_RULE,
+OPERATOR_DEFAULTS: dict[str, Any] = {
+    "allow_nested_operators": True,
     "depends_on_past": False,
-    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-    "wait_for_downstream": False,
-    "retries": DEFAULT_RETRIES,
-    # "executor": DEFAULT_EXECUTOR,
-    "queue": DEFAULT_QUEUE,
-    "pool_slots": DEFAULT_POOL_SLOTS,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+    # "executor": DEFAULT_EXECUTOR,
+    "executor_config": {},
+    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    "inlets": [],
+    "map_index_template": None,
+    "on_execute_callback": [],
+    "on_failure_callback": [],
+    "on_retry_callback": [],
+    "on_skipped_callback": [],
+    "on_success_callback": [],
+    "outlets": [],
+    "owner": DEFAULT_OWNER,
+    "pool_slots": DEFAULT_POOL_SLOTS,
+    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "queue": DEFAULT_QUEUE,
+    "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": False,
-    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "trigger_rule": DEFAULT_TRIGGER_RULE,
+    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "wait_for_downstream": False,
     "weight_rule": DEFAULT_WEIGHT_RULE,
-    "inlets": [],
-    "outlets": [],
-    "allow_nested_operators": True,
-    "executor_config": {},
 }
 
 
@@ -325,7 +330,7 @@ else:
         )
 
         # Fill fields not provided by the user with default values.
-        partial_kwargs.update((k, v) for k, v in _PARTIAL_DEFAULTS.items() if k not in partial_kwargs)
+        partial_kwargs.update((k, v) for k, v in OPERATOR_DEFAULTS.items() if k not in partial_kwargs)
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
         if "task_concurrency" in kwargs:  # Reject deprecated option.

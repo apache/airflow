@@ -52,6 +52,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, BaseOperator, XComArg
+from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
@@ -1176,6 +1177,10 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     start_from_trigger: bool
     start_trigger_args: StartTriggerArgs
 
+    # TODO: Figure out a better way to supply these defaults.
+    inherits_from_empty_operator: bool = False
+    inherits_from_skipmixin: bool = False
+
     def __init__(
         self,
         *,
@@ -1183,6 +1188,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         params: Mapping[str, Any] | None = None,
         _airflow_from_mapped: bool = False,
     ) -> None:
+        super().__init__()
+        self.__dict__.update(self._CONSTRUCTOR_PARAMS)
+        self.__dict__.update(OPERATOR_DEFAULTS)
         self._BaseOperator__from_mapped = _airflow_from_mapped
         self.task_id = task_id
         self.params = ParamsDict(params)
