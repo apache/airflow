@@ -23,8 +23,19 @@
     }
   },
   "logs": {
+    "allLevels": "All Log Levels",
+    "allSources": "All Sources",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Full screen",
+      "tooltip": "Press {{hotkey}} for fullscreen"
+    },
+    "info": "INFO",
     "noTryNumber": "No try number",
-    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})"
+    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
+    "warning": "WARNING"
   },
   "overview": {
     "buttons": {
@@ -98,13 +109,5 @@
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
-  },
-  "taskLogs": {
-    "allLogLevels": "All Log Levels",
-    "allSources": "All Sources",
-    "fullscreen": {
-      "button": "Full screen",
-      "tooltip": "Press {{hotkey}} for fullscreen"
-    }
   }
 }

@@ -16,27 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useParams } from "react-router-dom";
-
 import { useGridServiceGetGridTiSummaries } from "openapi/queries";
-import type { GridRunsResponse } from "openapi/requests";
+import type { TaskInstanceState } from "openapi/requests";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const useGridTiSummaries = (run: GridRunsResponse) => {
-  const { dagId = "" } = useParams();
-
+export const useGridTiSummaries = ({
+  dagId,
+  runId,
+  state,
+}: {
+  dagId: string;
+  runId: string;
+  state?: TaskInstanceState | null | undefined;
+}) => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: gridTiSummaries, ...rest } = useGridServiceGetGridTiSummaries(
     {
       dagId,
-      runId: run.run_id,
+      runId,
     },
     undefined,
     {
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        (isStatePending(run.state) ||
+        ((state !== undefined && isStatePending(state)) ||
           query.state.data?.task_instances.some((ti) => isStatePending(ti.state))) &&
         refetchInterval,
     },
