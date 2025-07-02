@@ -20,7 +20,6 @@ from typing import Any
 
 import yandexcloud
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.yandex.utils.credentials import (
     CredentialsType,
     get_credentials,
@@ -29,6 +28,11 @@ from airflow.providers.yandex.utils.credentials import (
 from airflow.providers.yandex.utils.defaults import conn_name_attr, conn_type, default_conn_name, hook_name
 from airflow.providers.yandex.utils.fields import get_field_from_extras
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 
 class YandexCloudBaseHook(BaseHook):

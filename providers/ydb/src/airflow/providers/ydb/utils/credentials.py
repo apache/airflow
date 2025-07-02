@@ -23,7 +23,10 @@ import ydb
 import ydb.iam.auth as auth
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 

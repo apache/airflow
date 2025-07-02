@@ -25,7 +25,11 @@ import tempfile
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 log = logging.getLogger(__name__)
 

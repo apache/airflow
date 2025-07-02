@@ -34,13 +34,20 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 class SmtpHook(BaseHook):
@@ -366,11 +373,11 @@ class SmtpHook(BaseHook):
 
     @property
     def smtp_user(self) -> str:
-        return self.conn.login
+        return self.conn.login if self.conn.login else ""
 
     @property
     def smtp_password(self) -> str:
-        return self.conn.password
+        return self.conn.password if self.conn.password else ""
 
     @property
     def smtp_starttls(self) -> bool:
@@ -378,11 +385,11 @@ class SmtpHook(BaseHook):
 
     @property
     def host(self) -> str:
-        return self.conn.host
+        return self.conn.host if self.conn.host else ""
 
     @property
     def port(self) -> int:
-        return self.conn.port
+        return cast("int", self.conn.port)
 
     @property
     def timeout(self) -> int:

@@ -33,7 +33,10 @@ DEFAULT_YDB_GRPCS_PORT: int = 2135
 if TYPE_CHECKING:
     from ydb_dbapi import Cursor as DbApiCursor
 
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 class YDBCursor:
@@ -228,7 +231,8 @@ class YDBHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn: Connection = self.get_connection(self.get_conn_id())
+        # TODO: @amoghrajesh: Handle type better
+        conn: Connection = self.get_connection(self.get_conn_id())  # type: ignore[assignment]
         return URL.create(
             drivername="ydb",
             username=conn.login,

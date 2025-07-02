@@ -20,8 +20,12 @@ from typing import Any
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 try:
     from opensearchpy import OpenSearch

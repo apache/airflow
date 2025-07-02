@@ -43,8 +43,12 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
-from airflow.hooks.base import BaseHook
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 
 class BatchStatus(str, Enum):

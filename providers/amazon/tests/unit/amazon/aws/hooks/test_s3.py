@@ -43,6 +43,16 @@ from airflow.providers.amazon.aws.hooks.s3 import (
 )
 from airflow.utils.timezone import datetime
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 @pytest.fixture
 def mocked_s3_res():
@@ -1748,7 +1758,7 @@ class TestAwsS3Hook:
         ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
     ],
 )
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_unify_and_provide_bucket_name_combination(
     mock_base, key_kind, has_conn, has_bucket, precedence, expected, caplog
 ):
@@ -1811,7 +1821,7 @@ def test_unify_and_provide_bucket_name_combination(
         ("rel_key", "with_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
     ],
 )
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
     if has_conn == "with_conn":
         c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})

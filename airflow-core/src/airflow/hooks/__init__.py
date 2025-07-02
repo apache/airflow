@@ -31,5 +31,8 @@ __deprecated_classes = {
     "subprocess": {
         "SubprocessHook": "airflow.providers.standard.hooks.subprocess.SubprocessHook",
     },
+    "base": {
+        "BaseHook": "airflow.sdk.bases.hook.BaseHook",
+    },
 }
 add_deprecated_classes(__deprecated_classes, __name__)

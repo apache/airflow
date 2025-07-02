@@ -20,9 +20,13 @@ from typing import Any
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils import timezone
 
 TEST_CONN = "aws_test_conn"

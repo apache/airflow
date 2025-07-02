@@ -32,7 +32,11 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -77,8 +81,9 @@ class ImapHook(BaseHook):
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            self.mail_client = self._build_client(conn)
-            self.mail_client.login(conn.login, conn.password)
+            self.mail_client = self._build_client(conn)  # type: ignore[arg-type]
+            if conn.login and conn.password:
+                self.mail_client.login(conn.login, conn.password)
 
         return self
 

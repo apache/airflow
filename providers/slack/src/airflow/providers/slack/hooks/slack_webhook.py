@@ -26,8 +26,12 @@ from typing import TYPE_CHECKING, Any
 from slack_sdk import WebhookClient
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

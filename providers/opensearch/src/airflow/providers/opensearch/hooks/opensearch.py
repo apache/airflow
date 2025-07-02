@@ -27,7 +27,11 @@ if TYPE_CHECKING:
     from opensearchpy import Connection as OpenSearchConnectionClass
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.strings import to_boolean
 
 

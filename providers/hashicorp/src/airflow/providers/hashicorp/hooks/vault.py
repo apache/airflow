@@ -23,12 +23,16 @@ from typing import TYPE_CHECKING, Any
 
 from hvac.exceptions import VaultError
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
 )
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:

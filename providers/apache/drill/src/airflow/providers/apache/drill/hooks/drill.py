@@ -73,7 +73,7 @@ class DrillHook(DbApiHook):
         e.g: ``drill://localhost:8047/dfs``
         """
         conn_md = self.get_connection(self.get_conn_id())
-        host = conn_md.host
+        host = conn_md.host or ""
         if conn_md.port is not None:
             host += f":{conn_md.port}"
         conn_type = conn_md.conn_type or "drill"

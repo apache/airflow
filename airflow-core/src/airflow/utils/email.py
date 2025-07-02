@@ -246,7 +246,7 @@ def send_mime_email(
 
     if conn_id is not None:
         try:
-            from airflow.hooks.base import BaseHook
+            from airflow.sdk import BaseHook
 
             airflow_conn = BaseHook.get_connection(conn_id)
             smtp_user = airflow_conn.login

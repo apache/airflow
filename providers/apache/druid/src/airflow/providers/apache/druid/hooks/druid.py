@@ -27,8 +27,12 @@ import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -83,7 +87,7 @@ class DruidHook(BaseHook):
 
     @cached_property
     def conn(self) -> Connection:
-        return self.get_connection(self.druid_ingest_conn_id)
+        return self.get_connection(self.druid_ingest_conn_id)  # type: ignore[return-value]
 
     @property
     def get_connection_type(self) -> str:
@@ -238,8 +242,8 @@ class DruidDbApiHook(DbApiHook):
         e.g: druid://localhost:8082/druid/v2/sql/
         """
         conn = self.get_connection(self.get_conn_id())
-        host = conn.host
-        if conn.port is not None:
+        host = conn.host or ""
+        if conn.port:
             host += f":{conn.port}"
         conn_type = conn.conn_type or "druid"
         endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")

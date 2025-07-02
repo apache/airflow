@@ -37,12 +37,16 @@ from azure.servicebus.management import (
     SubscriptionProperties,
 )
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     import datetime
