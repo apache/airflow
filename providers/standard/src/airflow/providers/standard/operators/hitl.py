@@ -78,7 +78,7 @@ class HITLOperator(BaseOperator):
 
     def validate_default(self) -> None:
         if self.default is None and self.execution_timeout:
-            raise ValueError('"default" is requied when "execution_timeout" is provided.')
+            raise ValueError('"default" is required when "execution_timeout" is provided.')
 
     def execute(self, context: Context):
         ti_id = context["task_instance"].id

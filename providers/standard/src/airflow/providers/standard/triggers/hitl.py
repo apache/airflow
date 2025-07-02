@@ -83,7 +83,7 @@ class HITLTrigger(BaseTrigger):
                 if self.default is None:
                     yield TriggerEvent(
                         {
-                            "error": 'default" is requied when "execution_timeout" is provided.',
+                            "error": 'default" is required when "execution_timeout" is provided.',
                         }
                     )
                     return
@@ -102,7 +102,7 @@ class HITLTrigger(BaseTrigger):
 
             resp = await sync_to_async(get_hitl_response_content_detail)(ti_id=self.ti_id)
             if resp.response_received:
-                self.log.info("Responsed by %s at %s", resp.user_id, resp.response_at)
+                self.log.info("Responded by %s at %s", resp.user_id, resp.response_at)
                 yield TriggerEvent(
                     {
                         "response_content": resp.response_content,
