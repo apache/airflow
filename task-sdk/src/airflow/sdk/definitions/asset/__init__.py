@@ -58,8 +58,12 @@ __all__ = [
     "AssetWatcher",
 ]
 
+from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
+
+
+SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
 
 
 @attrs.define(frozen=True)
@@ -186,13 +190,16 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
 
 
 def _validate_identifier(instance, attribute, value):
+    is_mysql_backend = "mysql" in SQL_ALCHEMY_CONN
     if not isinstance(value, str):
         raise ValueError(f"{type(instance).__name__} {attribute.name} must be a string")
     if len(value) > 1500:
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    if not value.isascii():
+    ## We use latin1_general_cs to store the name (and group, asset values etc) on MySQL.
+    ## relaxing this check for non mysql backend
+    if is_mysql_backend and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
 
