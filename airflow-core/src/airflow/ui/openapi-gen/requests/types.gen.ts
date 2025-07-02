@@ -635,6 +635,7 @@ export type DAGRunResponse = {
     run_type: DagRunType;
     state: DagRunState;
     triggered_by: DagRunTriggeredByType | null;
+    triggering_user_name: string | null;
     conf: {
     [key: string]: unknown;
 } | null;
@@ -1812,6 +1813,11 @@ export type LatestRunResponse = {
 export type LightGridTaskInstanceSummary = {
     task_id: string;
     state: TaskInstanceState | null;
+    child_states: {
+    [key: string]: (number);
+} | null;
+    min_start_date: string | null;
+    max_end_date: string | null;
 };
 
 /**
