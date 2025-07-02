@@ -43,5 +43,7 @@ __deprecated_classes = {
         "BaseSetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.BaseSetupTeardownContext",
         "SetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.SetupTeardownContext",
     },
+    # TODO: move this to somewhere in task SDK instead.
+    "timezone": {"*": "airflow._vendor.airflow_shared.timezone"},
 }
 add_deprecated_classes(__deprecated_classes, __name__)

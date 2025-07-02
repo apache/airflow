@@ -43,6 +43,7 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.sdk._vendor.airflow_shared import timezone, timezone as tz
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -114,7 +115,6 @@ from airflow.sdk.execution_time.supervisor import (
     set_supervisor_comms,
     supervise,
 )
-from airflow.utils import timezone, timezone as tz
 
 if TYPE_CHECKING:
     import kgb

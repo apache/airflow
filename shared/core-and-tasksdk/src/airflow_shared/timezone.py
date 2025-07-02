@@ -36,6 +36,8 @@ _PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 # - FixedTimezone(0, "UTC") in pendulum 2
 utc = pendulum.UTC
 
+TIMEZONE: Timezone
+
 
 def is_localized(value: dt.datetime) -> bool:
     """
@@ -98,7 +100,7 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
         return value
 
     if not is_localized(value):
-        from airflow.settings import TIMEZONE
+        from airflow_shared.timezone import TIMEZONE
 
         value = pendulum.instance(value, TIMEZONE)
 
@@ -126,7 +128,7 @@ def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> 
     :return: localized datetime in settings.TIMEZONE or timezone
     """
     if timezone is None:
-        from airflow.settings import TIMEZONE
+        from airflow_shared.timezone import TIMEZONE
 
         timezone = TIMEZONE
 
@@ -161,7 +163,7 @@ def make_naive(value, timezone=None):
     :return: naive datetime
     """
     if timezone is None:
-        from airflow.settings import TIMEZONE
+        from airflow_shared.timezone import TIMEZONE
 
         timezone = TIMEZONE
 
@@ -181,12 +183,12 @@ def make_naive(value, timezone=None):
 
 def datetime(*args, **kwargs):
     """
-    Wrap around datetime.datetime to add settings.TIMEZONE if tzinfo not specified.
+    Wrap around datetime.datetime to add default timezone if tzinfo not specified.
 
     :return: datetime.datetime
     """
     if "tzinfo" not in kwargs:
-        from airflow.settings import TIMEZONE
+        from airflow_shared.timezone import TIMEZONE
 
         kwargs["tzinfo"] = TIMEZONE
 
@@ -201,7 +203,7 @@ def parse(string: str, timezone=None, *, strict=False) -> DateTime:
     :param timezone: the timezone
     :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
     """
-    from airflow.settings import TIMEZONE
+    from airflow_shared.timezone import TIMEZONE
 
     return pendulum.parse(string, tz=timezone or TIMEZONE, strict=strict)  # type: ignore
 
@@ -316,3 +318,17 @@ def from_timestamp(timestamp: int | float, tz: str | FixedTimezone | Timezone = 
             tz = local_timezone()
         result = result.in_timezone(tz)
     return result
+
+
+def __getattr__(name):
+    if name == "TIMEZONE":
+        from airflow.configuration import conf
+
+        try:
+            if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":
+                TIMEZONE = parse_timezone(tz)
+            else:
+                TIMEZONE = local_timezone()
+        except Exception:
+            TIMEZONE = utc
+        globals()["TIMEZONE"] = TIMEZONE

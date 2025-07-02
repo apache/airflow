@@ -171,6 +171,10 @@ if __name__ == "__main__":
         END_OPTIONAL_DEPENDENCIES,
     )
     all_mypy_paths = []
+    for pyproject_toml_file in (AIRFLOW_ROOT_PATH / "shared").rglob("pyproject.toml"):
+        relative_path = pyproject_toml_file.relative_to(AIRFLOW_ROOT_PATH).parent.as_posix()
+        all_mypy_paths.append(f'    "$MYPY_CONFIG_FILE_DIR/{relative_path}/src",\n')
+        all_mypy_paths.append(f'    "$MYPY_CONFIG_FILE_DIR/{relative_path}/tests",\n')
     for provider_id in all_providers:
         provider_mypy_path = f"$MYPY_CONFIG_FILE_DIR/providers/{provider_path(provider_id)}"
         all_mypy_paths.append(f'    "{provider_mypy_path}/src",\n')

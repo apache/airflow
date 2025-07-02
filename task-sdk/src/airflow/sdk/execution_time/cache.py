@@ -21,7 +21,7 @@ import datetime
 import multiprocessing
 
 from airflow.configuration import conf
-from airflow.utils import timezone
+from airflow.sdk._vendor.airflow_shared import timezone
 
 
 class SecretCache:

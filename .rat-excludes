@@ -179,3 +179,8 @@ www-hash.txt
 go.mod
 go.sum
 mocks/*
+
+
+# Ignore things in the vendor folders. This is a little more broad than we'd
+# like, but it's the best we can do with rat, as the paths aren't full paths
+_vendor/*
