@@ -160,8 +160,8 @@ jobs:
       - name: "Dependency upgrade summary"
         shell: bash
         run: >
-          breeze run uv run /opt/airflow/dev/constraints-updated-version-check.py
-          --python-version "${MATRIX_PYTHON_VERSION}"
+          breeze release-management constraints-version-check
+          --python "${MATRIX_PYTHON_VERSION}"
           --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" --explain-why
         env:
           MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"

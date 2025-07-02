@@ -374,15 +374,19 @@ class SbomCoreJob(SbomApplicationJob):
         lock_file_relative_path = "airflow/www/yarn.lock"
         if self.include_npm:
             download_file_from_github(
-                tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
+                reference=self.airflow_version,
+                path=lock_file_relative_path,
+                output_file=source_dir / "yarn.lock",
             )
         else:
             (source_dir / "yarn.lock").unlink(missing_ok=True)
         if self.include_python:
             if not download_constraints_file(
-                airflow_version=self.airflow_version,
+                constraints_reference=f"constraints-{self.airflow_version}",
                 python_version=self.python_version,
-                include_provider_dependencies=self.include_provider_dependencies,
+                airflow_constraints_mode="constraints"
+                if self.include_provider_dependencies
+                else "constraints-no-providers",
                 output_file=source_dir / "requirements.txt",
                 github_token=github_token,
             ):
