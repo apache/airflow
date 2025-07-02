@@ -88,7 +88,7 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
         if days_diff <= 5:
             return "📢 <5d          "
         if days_diff <= 30:
-            return "⚠ <30d          "
+            return "⚠️ <30d           "
         return f"🚨 >{days_diff}d".ljust(15)
     except Exception:
         return "📢 N/A           "
@@ -412,15 +412,16 @@ def print_package_table_row(
     color = (
         "green"
         if is_latest_version
-        else ("yellow" if status.startswith("📢") or status.startswith("⚠") else "red")
+        else ("yellow" if status.startswith("📢") or status.startswith("⚠️") else "red")
     )
+    offset = 1 if status.startswith("⚠️") else 0
     string_to_print = format_str.format(
         pkg,
         pinned_version[: col_widths["Constraint Version"]],
         constraint_release_date[: col_widths["Constraint Date"]],
         latest_version[: col_widths["Latest Version"]],
         latest_release_date[: col_widths["Latest Date"]],
-        status[: col_widths["📢 Status"]],
+        status[: (col_widths["📢 Status"] + offset)],
         versions_behind_str,
         pypi_link,
     )
