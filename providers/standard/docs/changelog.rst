@@ -35,8 +35,14 @@
 Changelog
 ---------
 
-1.3.1
+1.4.0
 .....
+
+Features
+~~~~~~~~
+
+* ``Add support for 'PackageIndex' connections in 'PythonVirtualenvOperator' (#52288)``
+* ``Honor 'index_urls' when venv is created with 'uv' in 'PythonVirtualenvOperator' (#52287)``
 
 Misc
 ~~~~
@@ -49,12 +55,6 @@ Misc
 * ``Drop support for Python 3.9 (#52072)``
 * ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
 * ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
-
-Doc-only
-~~~~~~~~
-
-* ``Add support for 'PackageIndex' connections in 'PythonVirtualenvOperator' (#52288)``
-* ``Honor 'index_urls' when venv is created with 'uv' in 'PythonVirtualenvOperator' (#52287)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
