@@ -129,7 +129,8 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
 
 If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
 them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
-Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
+Ideally, you should convert your plugins to the Airflow 3 Plugin interface i.e External Views (``external_views``), Fast API apps (``fastapi_apps``)
+and FastAPI middlewares (``fastapi_root_middlewares``).
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
