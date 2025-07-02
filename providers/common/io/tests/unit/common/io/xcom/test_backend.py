@@ -374,7 +374,11 @@ class TestXComObjectStorageBackend:
     @pytest.mark.parametrize(
         "value, expected_value",
         [
-            pytest.param("file://airflow/xcoms/non_existing_file.json", "file://airflow/xcoms/non_existing_file.json", id="str"),
+            pytest.param(
+                "file://airflow/xcoms/non_existing_file.json",
+                "file://airflow/xcoms/non_existing_file.json",
+                id="str",
+            ),
             pytest.param(1, 1, id="int"),
             pytest.param(1.0, 1.0, id="float"),
             pytest.param("string", "string", id="str"),
