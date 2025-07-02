@@ -1549,7 +1549,7 @@ workers:
         Number of seconds to wait after a task process exits before forcibly closing any
         remaining communication sockets. This helps prevent the task supervisor from hanging
         indefinitely due to missed EOF signals.
-      version_added: 3.0.2
+      version_added: 3.0.3
       type: float
       example: ~
       default: "60.0"
