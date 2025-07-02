@@ -17,12 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
 from airflow.models import Connection
 from airflow.providers.redis.hooks.redis import DEFAULT_SSL_CERT_REQS, RedisHook
+
+sys.modules["flask_babel"] = MagicMock()
 
 
 class TestRedisHook:
