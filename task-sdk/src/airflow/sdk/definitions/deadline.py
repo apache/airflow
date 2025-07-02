@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
