@@ -20,12 +20,10 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from typing_extensions import Literal
-
-from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
+from airflow.providers.slack.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

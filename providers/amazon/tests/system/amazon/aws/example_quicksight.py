@@ -43,6 +43,9 @@ https://quicksight.aws.amazon.com/sn/console/signup?#
 2. The activation process creates an IAM Role called `aws-quicksight-service-role-v0`.
  You have to add a policy named 'AWSQuickSightS3Policy' with the S3 access permissions.
  The policy name is enforced, and the permissions json can be copied from `AmazonS3FullAccess`.
+3. Navigate to your QuickSight account, select your user account and click "Manage QuickSight".
+ Then select 'Security & Permissions' and under "IAM role in use" specify the
+ `aws-quicksight-service-role-v0` role.
 
 NOTES:  If Create Ingestion fails for any reason, that ingestion name will remain in use and
  future runs will stall with the sensor returning a status of QUEUED "forever".  If you run

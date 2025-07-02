@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
 from tabulate import tabulate

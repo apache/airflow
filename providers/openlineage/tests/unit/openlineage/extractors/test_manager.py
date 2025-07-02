@@ -324,7 +324,6 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     assert metadata.outputs == []
 
 
-@pytest.mark.db_test
 @pytest.mark.skipif(
     AIRFLOW_V_3_0_PLUS,
     reason="Test for hook level lineage in Airflow < 3.0",

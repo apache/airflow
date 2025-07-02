@@ -27,7 +27,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -555,9 +555,12 @@ TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestSparkKubernetesSensor:
-    def setup_method(self):
-        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({}))
+        )
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",

@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.apache.hdfs.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from hdfs import InsecureClient

@@ -51,6 +51,8 @@ from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogUpdateTagTemplateOperator,
 )
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 if TYPE_CHECKING:
     from google.api_core.gapic_v1.method import _MethodDefault
 
@@ -121,6 +123,7 @@ TEST_TAG_DICT: dict = {
 }
 TEST_TAG_TEMPLATE: TagTemplate = TagTemplate(name=TEST_TAG_TEMPLATE_PATH)
 TEST_TAG_TEMPLATE_DICT: dict = {
+    "dataplex_transfer_status": 0,
     "display_name": "",
     "fields": {},
     "is_publicly_readable": False,
@@ -145,8 +148,7 @@ class TestCloudDataCatalogCreateEntryOperator:
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
         **{"return_value.create_entry.return_value": TEST_ENTRY},
     )
-    @mock.patch(BASE_PATH.format("CloudDataCatalogCreateEntryOperator.xcom_push"))
-    def test_assert_valid_hook_call(self, mock_xcom, mock_hook) -> None:
+    def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
             task = CloudDataCatalogCreateEntryOperator(
                 task_id="task_id",
@@ -161,8 +163,11 @@ class TestCloudDataCatalogCreateEntryOperator:
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
-        context = mock.MagicMock()
-        result = task.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
+        result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
@@ -177,8 +182,7 @@ class TestCloudDataCatalogCreateEntryOperator:
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
+        mock_ti.xcom_push.assert_any_call(
             key="entry_id",
             value=TEST_ENTRY_ID,
         )
@@ -186,8 +190,7 @@ class TestCloudDataCatalogCreateEntryOperator:
         assert result == TEST_ENTRY_DICT
 
     @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
-    @mock.patch(BASE_PATH.format("CloudDataCatalogCreateEntryOperator.xcom_push"))
-    def test_assert_valid_hook_call_when_exists(self, mock_xcom, mock_hook) -> None:
+    def test_assert_valid_hook_call_when_exists(self, mock_hook) -> None:
         mock_hook.return_value.create_entry.side_effect = AlreadyExists(message="message")
         mock_hook.return_value.get_entry.return_value = TEST_ENTRY
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -204,8 +207,11 @@ class TestCloudDataCatalogCreateEntryOperator:
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
-        context = mock.MagicMock()
-        result = task.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
+        result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
@@ -229,8 +235,7 @@ class TestCloudDataCatalogCreateEntryOperator:
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
+        mock_ti.xcom_push.assert_any_call(
             key="entry_id",
             value=TEST_ENTRY_ID,
         )
@@ -242,8 +247,7 @@ class TestCloudDataCatalogCreateEntryGroupOperator:
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
         **{"return_value.create_entry_group.return_value": TEST_ENTRY_GROUP},
     )
-    @mock.patch(BASE_PATH.format("CloudDataCatalogCreateEntryGroupOperator.xcom_push"))
-    def test_assert_valid_hook_call(self, mock_xcom, mock_hook) -> None:
+    def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
             task = CloudDataCatalogCreateEntryGroupOperator(
                 task_id="task_id",
@@ -257,8 +261,11 @@ class TestCloudDataCatalogCreateEntryGroupOperator:
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
-        context = mock.MagicMock()
-        result = task.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
+        result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
@@ -272,8 +279,7 @@ class TestCloudDataCatalogCreateEntryGroupOperator:
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
+        mock_ti.xcom_push.assert_any_call(
             key="entry_group_id",
             value=TEST_ENTRY_GROUP_ID,
         )
@@ -285,8 +291,7 @@ class TestCloudDataCatalogCreateTagOperator:
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
         **{"return_value.create_tag.return_value": TEST_TAG},
     )
-    @mock.patch(BASE_PATH.format("CloudDataCatalogCreateTagOperator.xcom_push"))
-    def test_assert_valid_hook_call(self, mock_xcom, mock_hook) -> None:
+    def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
             task = CloudDataCatalogCreateTagOperator(
                 task_id="task_id",
@@ -302,8 +307,11 @@ class TestCloudDataCatalogCreateTagOperator:
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
-        context = mock.MagicMock()
-        result = task.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
+        result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
@@ -319,8 +327,7 @@ class TestCloudDataCatalogCreateTagOperator:
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
+        mock_ti.xcom_push.assert_any_call(
             key="tag_id",
             value=TEST_TAG_ID,
         )
@@ -332,8 +339,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
         **{"return_value.create_tag_template.return_value": TEST_TAG_TEMPLATE},
     )
-    @mock.patch(BASE_PATH.format("CloudDataCatalogCreateTagTemplateOperator.xcom_push"))
-    def test_assert_valid_hook_call(self, mock_xcom, mock_hook) -> None:
+    def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
             task = CloudDataCatalogCreateTagTemplateOperator(
                 task_id="task_id",
@@ -347,8 +353,11 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
-        context = mock.MagicMock()
-        result = task.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
+        result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
@@ -362,12 +371,11 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
+        mock_ti.xcom_push.assert_any_call(
             key="tag_template_id",
             value=TEST_TAG_TEMPLATE_ID,
         )
-        assert result == {**result, **TEST_TAG_TEMPLATE_DICT}
+        assert result == TEST_TAG_TEMPLATE_DICT
 
 
 class TestCloudDataCatalogCreateTagTemplateFieldOperator:
@@ -375,8 +383,7 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
         **{"return_value.create_tag_template_field.return_value": TEST_TAG_TEMPLATE_FIELD},  # type: ignore
     )
-    @mock.patch(BASE_PATH.format("CloudDataCatalogCreateTagTemplateFieldOperator.xcom_push"))
-    def test_assert_valid_hook_call(self, mock_xcom, mock_hook) -> None:
+    def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
             task = CloudDataCatalogCreateTagTemplateFieldOperator(
                 task_id="task_id",
@@ -391,8 +398,11 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
-        context = mock.MagicMock()
-        result = task.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
+        result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
@@ -407,12 +417,11 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
+        mock_ti.xcom_push.assert_any_call(
             key="tag_template_field_id",
             value=TEST_TAG_TEMPLATE_FIELD_ID,
         )
-        assert result == {**result, **TEST_TAG_TEMPLATE_FIELD_DICT}
+        assert result == TEST_TAG_TEMPLATE_FIELD_DICT
 
 
 class TestCloudDataCatalogDeleteEntryOperator:

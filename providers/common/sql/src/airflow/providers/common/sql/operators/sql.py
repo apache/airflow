@@ -19,16 +19,21 @@ from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, NoReturn, SupportsAbs
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import SkipMixin
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.version_compat import BaseOperator
 from airflow.utils.helpers import merge_dicts
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage

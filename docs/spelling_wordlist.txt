@@ -215,6 +215,7 @@ botocore
 BounceX
 Bq
 bq
+bteq
 bugfix
 bugfixes
 buildType
@@ -830,6 +831,7 @@ hotfix
 Hou
 howto
 hql
+href
 html
 htmlcontent
 Http
@@ -1154,6 +1156,7 @@ mssql
 mTLS
 mtls
 muldelete
+multimodal
 Multinamespace
 mutex
 mv

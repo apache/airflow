@@ -20,7 +20,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import structlog
 from pydantic import BaseModel, Field
@@ -159,6 +159,6 @@ class RunTrigger(BaseModel):
 
 
 All = Annotated[
-    Union[ExecuteTask, RunTrigger],
+    ExecuteTask | RunTrigger,
     Field(discriminator="type"),
 ]

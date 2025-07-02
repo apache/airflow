@@ -22,8 +22,9 @@ import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useGridServiceGridData, useTaskServiceGetTask } from "openapi/queries";
+import { useDagServiceGetDagDetails, useTaskServiceGetTask } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { getGroupTask } from "src/utils/groupTask";
 
 import { GroupTaskHeader } from "./GroupTaskHeader";
@@ -49,18 +50,9 @@ export const Task = () => {
     enabled: groupId === undefined,
   });
 
-  const { data: gridData } = useGridServiceGridData(
-    {
-      dagId,
-      includeDownstream: true,
-      includeUpstream: true,
-    },
-    undefined,
-    { enabled: groupId !== undefined },
-  );
+  const { data: dagStructure } = useGridStructure({ limit: 1 });
 
-  const groupTask =
-    groupId === undefined ? undefined : getGroupTask(gridData?.structure.nodes ?? [], groupId);
+  const groupTask = getGroupTask(dagStructure, groupId);
 
   const {
     data: dag,
@@ -79,7 +71,7 @@ export const Task = () => {
         tabs={displayTabs}
       >
         {task === undefined ? undefined : <Header task={task} />}
-        {groupTask ? <GroupTaskHeader groupTask={groupTask} /> : undefined}
+        {groupTask ? <GroupTaskHeader title={groupTask.label} /> : undefined}
       </DetailsLayout>
     </ReactFlowProvider>
   );

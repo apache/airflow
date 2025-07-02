@@ -42,11 +42,13 @@ if __name__ == "__main__":
     files = [
         file[len(relative_dir.as_posix()) + 1 :]
         for file in original_files
-        if Path(file).is_relative_to(relative_dir) and "openapi-gen/" not in file
+        if Path(file).is_relative_to(relative_dir)
     ]
     all_non_yaml_files = [file for file in files if not file.endswith(".yaml")]
     print("All non-YAML files:", all_non_yaml_files)
     all_ts_files = [file for file in files if file.endswith(".ts") or file.endswith(".tsx")]
+    if all_ts_files:
+        all_ts_files.append("src/vite-env.d.ts")
     print("All TypeScript files:", all_ts_files)
 
     run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)

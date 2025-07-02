@@ -29,12 +29,12 @@ import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import lazy_object_proxy
 from packaging.requirements import InvalidRequirement, Requirement
@@ -48,10 +48,10 @@ from airflow.exceptions import (
     AirflowSkipException,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
+from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
@@ -62,7 +62,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin
+    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
     from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 
@@ -656,6 +656,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     :param index_urls: an optional list of index urls to load Python packages from.
         If not provided the system pip conf will be used to source packages from.
+    :param index_urls_from_connection_ids: An optional list of ``PackageIndex`` connection IDs.
+        Will be appended to ``index_urls``.
     :param venv_cache_path: Optional path to the virtual environment parent folder in which the
         virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
@@ -669,7 +671,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
+        {"requirements", "index_urls", "index_urls_from_connection_ids", "venv_cache_path"}.union(
+            PythonOperator.template_fields
+        )
     )
     template_ext: Sequence[str] = (".txt",)
 
@@ -690,6 +694,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
@@ -724,6 +729,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = list(index_urls)
         else:
             self.index_urls = None
+        if isinstance(index_urls_from_connection_ids, str):
+            self.index_urls_from_connection_ids: list[str] | None = [index_urls_from_connection_ids]
+        elif isinstance(index_urls_from_connection_ids, Collection):
+            self.index_urls_from_connection_ids = list(index_urls_from_connection_ids)
+        else:
+            self.index_urls_from_connection_ids = None
         self.venv_cache_path = venv_cache_path
         super().__init__(
             python_callable=python_callable,
@@ -850,7 +861,18 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
+    def _retrieve_index_urls_from_connection_ids(self):
+        """Retrieve index URLs from Package Index connections."""
+        if self.index_urls is None:
+            self.index_urls = []
+        for conn_id in self.index_urls_from_connection_ids:
+            conn_url = PackageIndexHook(conn_id).get_connection_url()
+            self.index_urls.append(conn_url)
+
     def execute_callable(self):
+        if self.index_urls_from_connection_ids:
+            self._retrieve_index_urls_from_connection_ids()
+
         if self.venv_cache_path:
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"

@@ -17,20 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.github.hooks.github import GithubHook
+from airflow.providers.github.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.github.version_compat import Context
 
 
 class GithubOperator(BaseOperator):
