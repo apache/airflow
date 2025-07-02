@@ -38,6 +38,7 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+    description: str | None = Field(default=None, description="Connection description")
 
 
 class ConnectionCollectionResponse(BaseModel):
