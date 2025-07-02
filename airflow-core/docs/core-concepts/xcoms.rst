@@ -76,25 +76,6 @@ An example of pushing multiple XComs and pulling them individually:
         # Pulling entire xcom data from push_multiple task
         data = context["ti"].xcom_pull(task_ids="push_multiple", key="return_value")
 
-You can also use the Task Context directly for XCom operations:
-
-.. code-block:: python
-
-    from airflow.sdk import get_current_context
-
-
-    @task
-    def example_task():
-        context = get_current_context()
-        ti = context["ti"]
-
-        # Push XCom
-        ti.xcom_push(key="my_key", value="my_value")
-
-        # Pull XCom
-        value = ti.xcom_pull(task_ids="previous_task", key="my_key")
-        return value
-
 .. note::
 
   If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
@@ -111,7 +92,7 @@ Custom XCom Backends
 
 The XCom system has interchangeable backends, and you can set which backend is being used via the ``xcom_backend`` configuration option.
 
-If you want to implement your own backend, you should subclass :class:`~airflow.sdk.execution_time.xcom.XCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
+If you want to implement your own backend, you should subclass :class:`~airflow.models.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
 
 The base class for custom XCom backends is now :class:`~airflow.sdk.execution_time.xcom.XCom`
 from the airflow.sdk namespace.
