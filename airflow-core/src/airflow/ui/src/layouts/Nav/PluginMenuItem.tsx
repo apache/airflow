@@ -18,6 +18,7 @@
  */
 import { Box, Link, Image } from "@chakra-ui/react";
 import { LuPlug } from "react-icons/lu";
+import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
@@ -82,6 +83,8 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
       <Box alignItems="center" display="flex" fontSize="sm" gap={2} px={2} py="6px">
         {typeof icon === "string" ? (
           <Image height="1.25rem" src={icon} width="1.25rem" />
+        ) : urlRoute === "legacy-fab-views" ? (
+          <RiArchiveStackLine size="1.25rem" />
         ) : (
           <LuPlug size="1.25rem" />
         )}
