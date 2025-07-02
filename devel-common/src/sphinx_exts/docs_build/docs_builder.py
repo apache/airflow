@@ -117,6 +117,10 @@ class AirflowDocsBuilder:
         if self.package_name.startswith("apache-airflow-providers-"):
             package_paths = self.package_name[len("apache-airflow-providers-") :].split("-")
             return (AIRFLOW_CONTENT_ROOT_PATH / "providers").joinpath(*package_paths) / "docs"
+        if self.package_name == "apache-airflow-ctl":
+            return AIRFLOW_CONTENT_ROOT_PATH / "airflow-ctl" / "docs"
+        if self.package_name == "task-sdk":
+            return AIRFLOW_CONTENT_ROOT_PATH / "task-sdk" / "docs"
         console.print(f"[red]Unknown package name: {self.package_name}")
         sys.exit(1)
 
@@ -330,6 +334,8 @@ def get_available_packages(include_suspended: bool = False, short_form: bool = F
         "apache-airflow",
         *provider_names,
         "apache-airflow-providers",
+        "apache-airflow-ctl",
+        "task-sdk",
         "helm-chart",
         "docker-stack",
     ]
