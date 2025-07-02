@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-02T13:53:39.799928
+# This constraints file was automatically generated on 2025-07-02T19:45:56.420871
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -364,7 +364,7 @@ google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.3
-google-cloud-dataproc==5.20.0
+google-cloud-dataproc==5.21.0
 google-cloud-dlp==3.31.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.2
@@ -385,7 +385,7 @@ google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.3
 google-cloud-texttospeech==2.27.0
-google-cloud-translate==3.21.0
+google-cloud-translate==3.21.1
 google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
@@ -515,7 +515,7 @@ multidict==6.6.3
 mypy-boto3-appflow==1.39.0
 mypy-boto3-rds==1.39.1
 mypy-boto3-redshift-data==1.39.0
-mypy-boto3-s3==1.39.0
+mypy-boto3-s3==1.39.2
 mypy==1.9.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.3.0
@@ -558,7 +558,7 @@ oss2==2.19.1
 packaging==25.0
 pagerduty==2.3.0
 pandas-gbq==0.29.1
-pandas-stubs==2.2.3.250527
+pandas-stubs==2.3.0.250703
 pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.6.0
