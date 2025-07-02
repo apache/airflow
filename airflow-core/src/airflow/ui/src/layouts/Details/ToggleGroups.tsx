@@ -20,22 +20,21 @@ import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react
 import { useMemo } from "react";
 import { MdExpand, MdCompress } from "react-icons/md";
 import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
-import { useStructureServiceStructureData } from "openapi/queries";
 import { useOpenGroups } from "src/context/openGroups";
+import { useGridStructure } from "src/queries/useGridStructure.ts";
 
 import { flattenNodes } from "./Grid/utils";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
-  const { dagId = "" } = useParams();
-  const { data: structure } = useStructureServiceStructureData({
-    dagId,
-  });
   const { openGroupIds, setOpenGroupIds } = useOpenGroups();
-
+  const { dagId = "" } = useParams();
+  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const { data: dagStructure } = useGridStructure({ limit });
   const { allGroupIds } = useMemo(
-    () => flattenNodes(structure?.nodes ?? [], openGroupIds),
-    [structure?.nodes, openGroupIds],
+    () => flattenNodes(dagStructure, openGroupIds),
+    [dagStructure, openGroupIds],
   );
 
   // Don't show button if the DAG has no task groups

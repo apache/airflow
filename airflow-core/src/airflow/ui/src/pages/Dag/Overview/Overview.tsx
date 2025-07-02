@@ -20,6 +20,7 @@ import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import {
   useAssetServiceGetAssetEvents,
@@ -30,7 +31,7 @@ import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -44,8 +45,6 @@ export const Overview = () => {
   const [endDate, setEndDate] = useState(now.toISOString());
   const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
-  const refetchInterval = useAutoRefresh({});
-
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
@@ -55,28 +54,17 @@ export const Overview = () => {
     state: ["failed"],
   });
 
+  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
+    limit,
     runAfterGte: startDate,
     runAfterLte: endDate,
     state: ["failed"],
   });
-
-  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns(
-    {
-      dagId: dagId ?? "",
-      limit: 14,
-      orderBy: "-run_after",
-    },
-    undefined,
-    {
-      refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
-    },
-  );
-
+  const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
-    limit: 6,
+    limit,
     orderBy: assetSortBy,
     sourceDagId: dagId,
     timestampGte: startDate,
@@ -131,7 +119,7 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={runs?.dag_runs.slice().reverse()} kind="Dag Run" />
+            <DurationChart entries={gridRuns?.slice().reverse()} kind="Dag Run" />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (

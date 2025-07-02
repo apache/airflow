@@ -216,6 +216,14 @@ import type {
   StructureDataResponse2,
   GridDataData,
   GridDataResponse,
+  GetDagStructureData,
+  GetDagStructureResponse,
+  GetGridRunsData,
+  GetGridRunsResponse,
+  GetGridTiSummariesData,
+  GetGridTiSummariesResponse,
+  GetLatestRunData,
+  GetLatestRunResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -3586,6 +3594,139 @@ export class GridService {
         run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
+      },
+      errors: {
+        400: "Bad Request",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Structure
+   * Return dag structure for grid view.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.offset
+   * @param data.limit
+   * @param data.orderBy
+   * @param data.runAfterGte
+   * @param data.runAfterLte
+   * @returns GridNodeResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagStructure(data: GetDagStructureData): CancelablePromise<GetDagStructureResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/grid/structure/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        offset: data.offset,
+        limit: data.limit,
+        order_by: data.orderBy,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
+      },
+      errors: {
+        400: "Bad Request",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Grid Runs
+   * Get info about a run for the grid.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.offset
+   * @param data.limit
+   * @param data.orderBy
+   * @param data.runAfterGte
+   * @param data.runAfterLte
+   * @returns GridRunsResponse Successful Response
+   * @throws ApiError
+   */
+  public static getGridRuns(data: GetGridRunsData): CancelablePromise<GetGridRunsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/grid/runs/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        offset: data.offset,
+        limit: data.limit,
+        order_by: data.orderBy,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
+      },
+      errors: {
+        400: "Bad Request",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Grid Ti Summaries
+   * Get states for TIs / "groups" of TIs.
+   *
+   * Essentially this is to know what color to put in the squares in the grid.
+   *
+   * The tricky part here is that we aggregate the state for groups and mapped tasks.
+   *
+   * We don't add all the TIs for mapped TIs -- we only add one entry for the mapped task and
+   * its state is an aggregate of its TI states.
+   *
+   * And for task groups, we add a "task" for that which is not really a task but is just
+   * an entry that represents the group (so that we can show a filled in box when the group
+   * is not expanded) and its state is an agg of those within it.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.runId
+   * @returns GridTISummaries Successful Response
+   * @throws ApiError
+   */
+  public static getGridTiSummaries(
+    data: GetGridTiSummariesData,
+  ): CancelablePromise<GetGridTiSummariesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/grid/ti_summaries/{dag_id}/{run_id}",
+      path: {
+        dag_id: data.dagId,
+        run_id: data.runId,
+      },
+      errors: {
+        400: "Bad Request",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Latest Run
+   * Get information about the latest dag run by run_after.
+   *
+   * This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getLatestRun(data: GetLatestRunData): CancelablePromise<GetLatestRunResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/grid/latest_run/{dag_id}",
+      path: {
+        dag_id: data.dagId,
       },
       errors: {
         400: "Bad Request",
