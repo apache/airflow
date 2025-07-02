@@ -161,11 +161,11 @@ class TestDataflowTemplatedJobStartOperator:
             cancel_timeout=CANCEL_TIMEOUT,
         )
 
-    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.xcom_push")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
-    def test_execute(self, hook_mock, mock_xcom_push, sync_operator):
+    def test_execute(self, hook_mock, sync_operator):
         start_template_hook = hook_mock.return_value.start_template_dataflow
-        sync_operator.execute(None)
+        mock_context = {"task_instance": mock.MagicMock()}
+        sync_operator.execute(mock_context)
         assert hook_mock.called
         expected_options = {
             "project": "test",
@@ -231,9 +231,8 @@ class TestDataflowTemplatedJobStartOperator:
             DataflowTemplatedJobStartOperator(**init_kwargs)
 
     @pytest.mark.db_test
-    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.xcom_push")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook.start_template_dataflow")
-    def test_start_with_custom_region(self, dataflow_mock, mock_xcom_push):
+    def test_start_with_custom_region(self, dataflow_mock):
         init_kwargs = {
             "task_id": TASK_ID,
             "template": TEMPLATE,
@@ -245,16 +244,16 @@ class TestDataflowTemplatedJobStartOperator:
             "cancel_timeout": CANCEL_TIMEOUT,
         }
         operator = DataflowTemplatedJobStartOperator(**init_kwargs)
-        operator.execute(None)
+        mock_context = {"task_instance": mock.MagicMock()}
+        operator.execute(mock_context)
         assert dataflow_mock.called
         _, kwargs = dataflow_mock.call_args_list[0]
         assert kwargs["variables"]["region"] == TEST_REGION
         assert kwargs["location"] == DEFAULT_DATAFLOW_LOCATION
 
     @pytest.mark.db_test
-    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.xcom_push")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook.start_template_dataflow")
-    def test_start_with_location(self, dataflow_mock, mock_xcom_push):
+    def test_start_with_location(self, dataflow_mock):
         init_kwargs = {
             "task_id": TASK_ID,
             "template": TEMPLATE,
@@ -264,7 +263,8 @@ class TestDataflowTemplatedJobStartOperator:
             "cancel_timeout": CANCEL_TIMEOUT,
         }
         operator = DataflowTemplatedJobStartOperator(**init_kwargs)
-        operator.execute(None)
+        mock_context = {"task_instance": mock.MagicMock()}
+        operator.execute(mock_context)
         assert dataflow_mock.called
         _, kwargs = dataflow_mock.call_args_list[0]
         assert not kwargs["variables"]
@@ -409,19 +409,18 @@ class TestDataflowStartYamlJobOperator:
         )
         mock_defer_method.assert_called_once()
 
-    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.xcom_push")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
-    def test_execute_complete_success(self, mock_hook, mock_xcom_push, deferrable_operator):
+    def test_execute_complete_success(self, mock_hook, deferrable_operator):
         expected_result = {"id": JOB_ID}
+        mock_context = {"task_instance": mock.MagicMock()}
         actual_result = deferrable_operator.execute_complete(
-            context=None,
+            context=mock_context,
             event={
                 "status": "success",
                 "message": "Batch job completed.",
                 "job": expected_result,
             },
         )
-        mock_xcom_push.assert_called_with(None, key="job_id", value=JOB_ID)
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self, deferrable_operator):
@@ -449,7 +448,8 @@ class TestDataflowStopJobOperator:
         Test DataflowHook is created and the right args are passed to cancel_job.
         """
         cancel_job_hook = dataflow_mock.return_value.cancel_job
-        self.dataflow.execute(None)
+        mock_context = {"task_instance": mock.MagicMock()}
+        self.dataflow.execute(mock_context)
         assert dataflow_mock.called
         cancel_job_hook.assert_called_once_with(
             job_name=None,
@@ -473,7 +473,8 @@ class TestDataflowStopJobOperator:
         """
         is_job_running_hook = dataflow_mock.return_value.is_job_dataflow_running
         cancel_job_hook = dataflow_mock.return_value.cancel_job
-        self.dataflow.execute(None)
+        mock_context = {"task_instance": mock.MagicMock()}
+        self.dataflow.execute(mock_context)
         assert dataflow_mock.called
         is_job_running_hook.assert_called_once_with(
             name=JOB_NAME,
@@ -575,7 +576,6 @@ class TestDataflowCreatePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_response_409(self, mock_hook, create_operator):
         """
@@ -595,7 +595,6 @@ class TestDataflowCreatePipelineOperator:
         )
 
 
-@pytest.mark.db_test
 class TestDataflowRunPipelineOperator:
     @pytest.fixture
     def run_operator(self):
@@ -627,6 +626,7 @@ class TestDataflowRunPipelineOperator:
             location=TEST_LOCATION,
         )
 
+    @pytest.mark.db_test
     def test_invalid_data_pipeline_name(self):
         """
         Test that AirflowException is raised if Run Operator is not given a data pipeline name.
@@ -641,6 +641,7 @@ class TestDataflowRunPipelineOperator:
         with pytest.raises(AirflowException):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_project_id(self):
         """
         Test that AirflowException is raised if Run Operator is not given a project ID.
@@ -655,6 +656,7 @@ class TestDataflowRunPipelineOperator:
         with pytest.raises(AirflowException):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_location(self):
         """
         Test that AirflowException is raised if Run Operator is not given a location.
@@ -685,7 +687,6 @@ class TestDataflowRunPipelineOperator:
                 "error": {"message": "example error"}
             }
 
-    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_response_404(self, mock_hook, run_operator):
         """
@@ -702,7 +703,6 @@ class TestDataflowRunPipelineOperator:
         )
 
 
-@pytest.mark.db_test
 class TestDataflowDeletePipelineOperator:
     @pytest.fixture
     def run_operator(self):
@@ -736,6 +736,7 @@ class TestDataflowDeletePipelineOperator:
             location=TEST_LOCATION,
         )
 
+    @pytest.mark.db_test
     def test_invalid_data_pipeline_name(self):
         """
         Test that AirflowException is raised if Delete Operator is not given a data pipeline name.
@@ -750,6 +751,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_project_id(self):
         """
         Test that AirflowException is raised if Delete Operator is not given a project ID.
@@ -764,6 +766,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_location(self):
         """
         Test that AirflowException is raised if Delete Operator is not given a location.
@@ -778,6 +781,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_invalid_response(self):
         """
         Test that AirflowException is raised if Delete Operator fails execution and returns error.

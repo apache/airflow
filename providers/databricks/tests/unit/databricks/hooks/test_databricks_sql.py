@@ -33,9 +33,6 @@ from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureE
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
-from airflow.utils.session import provide_session
-
-pytestmark = pytest.mark.db_test
 
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -44,15 +41,18 @@ HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 TOKEN = "token"
 
 
-@provide_session
 @pytest.fixture(autouse=True)
-def create_connection(session):
-    conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-    conn.host = HOST
-    conn.login = None
-    conn.password = TOKEN
-    conn.extra = None
-    session.commit()
+def create_connection(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host=HOST,
+            login=None,
+            password=TOKEN,
+            extra=None,
+        )
+    )
 
 
 @pytest.fixture
@@ -457,7 +457,8 @@ def test_get_openlineage_database_specific_lineage_with_no_query_id():
     assert result is None
 
 
-def test_get_openlineage_database_specific_lineage_with_single_query_id():
+@mock.patch("airflow.providers.databricks.utils.openlineage.emit_openlineage_events_for_databricks_queries")
+def test_get_openlineage_database_specific_lineage_with_single_query_id(mock_emit):
     from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
     from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -466,7 +467,18 @@ def test_get_openlineage_database_specific_lineage_with_single_query_id():
     hook.get_connection = mock.MagicMock()
     hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
 
-    result = hook.get_openlineage_database_specific_lineage(None)
+    ti = mock.MagicMock()
+
+    result = hook.get_openlineage_database_specific_lineage(ti)
+    mock_emit.assert_called_once_with(
+        **{
+            "hook": hook,
+            "query_ids": ["query1"],
+            "query_source_namespace": "scheme://auth",
+            "task_instance": ti,
+            "query_for_extra_metadata": True,
+        }
+    )
     assert result == OperatorLineage(
         run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="query1", source="scheme://auth")}
     )
@@ -488,6 +500,7 @@ def test_get_openlineage_database_specific_lineage_with_multiple_query_ids(mock_
             "query_ids": ["query1", "query2"],
             "query_source_namespace": "scheme://auth",
             "task_instance": ti,
+            "query_for_extra_metadata": True,
         }
     )
     assert result is None
@@ -560,3 +573,6 @@ def test_get_df(df_type, df_class, description):
             assert df.row(1)[0] == result_sets[1][0]
 
         assert isinstance(df, df_class)
+
+
+# ruff: noqa: PT028

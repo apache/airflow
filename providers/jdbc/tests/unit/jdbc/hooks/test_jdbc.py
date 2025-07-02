@@ -32,10 +32,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
 logger = logging.getLogger(__name__)
@@ -79,8 +75,9 @@ def get_hook(
 
 
 class TestJdbcHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="jdbc_default",
                 conn_type="jdbc",

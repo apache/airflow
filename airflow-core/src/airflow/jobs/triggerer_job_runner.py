@@ -30,7 +30,7 @@ from contextlib import suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
 import attrs
 import structlog
@@ -210,18 +210,16 @@ class messages:
 
 
 ToTriggerRunner = Annotated[
-    Union[
-        messages.StartTriggerer,
-        messages.TriggerStateSync,
-        ConnectionResult,
-        VariableResult,
-        XComResult,
-        DagRunStateResult,
-        DRCount,
-        TICount,
-        TaskStatesResult,
-        ErrorResponse,
-    ],
+    messages.StartTriggerer
+    | messages.TriggerStateSync
+    | ConnectionResult
+    | VariableResult
+    | XComResult
+    | DagRunStateResult
+    | DRCount
+    | TICount
+    | TaskStatesResult
+    | ErrorResponse,
     Field(discriminator="type"),
 ]
 """
@@ -231,16 +229,14 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[
-        messages.TriggerStateChanges,
-        GetConnection,
-        GetVariable,
-        GetXCom,
-        GetTICount,
-        GetTaskStates,
-        GetDagRunState,
-        GetDRCount,
-    ],
+    messages.TriggerStateChanges
+    | GetConnection
+    | GetVariable
+    | GetXCom
+    | GetTICount
+    | GetTaskStates
+    | GetDagRunState
+    | GetDRCount,
     Field(discriminator="type"),
 ]
 """
@@ -396,7 +392,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result
-                dump_opts = {"exclude_unset": True}
+                # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
+                dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
         elif isinstance(msg, GetVariable):
@@ -713,11 +710,11 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
 
     async def _aread_frame(self):
         len_bytes = await self._async_reader.readexactly(4)
-        len = int.from_bytes(len_bytes, byteorder="big")
-        if len >= 2**32:
-            raise OverflowError(f"Refusing to receive messages larger than 4GiB {len=}")
+        length = int.from_bytes(len_bytes, byteorder="big")
+        if length >= 2**32:
+            raise OverflowError(f"Refusing to receive messages larger than 4GiB {length=}")
 
-        buffer = await self._async_reader.readexactly(len)
+        buffer = await self._async_reader.readexactly(length)
         return self.resp_decoder.decode(buffer)
 
     async def _aget_response(self, expect_id: int) -> ToTriggerRunner | None:
@@ -874,8 +871,16 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                kwargs = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
-                trigger_instance = trigger_class(**kwargs)
+                from airflow.serialization.serialized_objects import smart_decode_trigger_kwargs
+
+                # Decrypt and clean trigger kwargs before for execution
+                # Note: We only clean up serialization artifacts (__var, __type keys) here,
+                # not in `_decrypt_kwargs` because it is used during hash comparison in
+                # add_asset_trigger_references and could lead to adverse effects like hash mismatches
+                # that could cause None values in collections.
+                kw = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
+                deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
+                trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))
