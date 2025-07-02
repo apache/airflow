@@ -151,7 +151,7 @@ jobs:
       - name: "Building docs with --docs-only flag"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
-          INCLUDE_COMMITS: "true"
+          INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only
       - name: Check disk space available
