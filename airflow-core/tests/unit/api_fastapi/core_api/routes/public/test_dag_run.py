@@ -1335,6 +1335,7 @@ class TestTriggerDagRun:
             "data_interval_start": expected_data_interval_start,
             "queued_at": fixed_now.replace("+00:00", "Z"),
             "last_scheduling_decision": None,
+            "note": note,
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
         }
