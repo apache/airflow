@@ -342,7 +342,7 @@ class TestBashDecorator:
         """Verify task failure for non-existent, user-defined working directory."""
         cwd_path = tmp_path / "test_cwd"
 
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash(cwd=os.fspath(cwd_path))
             def bash():
@@ -363,7 +363,7 @@ class TestBashDecorator:
         cwd_file = tmp_path / "testfile.var.env"
         cwd_file.touch()
 
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash(cwd=os.fspath(cwd_file))
             def bash():
@@ -381,7 +381,7 @@ class TestBashDecorator:
 
     def test_command_not_found(self):
         """Fail task if executed command is not found on path."""
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash
             def bash():
@@ -481,7 +481,7 @@ class TestBashDecorator:
 
     def test_rtif_updates_upon_failure(self):
         """Veriy RenderedTaskInstanceField data should contain the rendered command even if the task fails."""
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash
             def bash():
