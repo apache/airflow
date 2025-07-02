@@ -20,48 +20,14 @@ Concepts
 
 This section covers the fundamental concepts that DAG authors need to understand when working with the Task SDK.
 
+.. note::
+
+    For information about Airflow 3.x architectural changes and database access restrictions, see the "Upgrading to Airflow 3" guide in the main Airflow documentation.
+
 Terminology
 -----------
 - **Task**: a Python function (decorated with ``@task``) or Operator invocation representing a unit of work in a DAG.
 - **Task Execution**: the runtime machinery that executes user tasks in isolated subprocesses, managed via the Supervisor and Execution API.
-
-Airflow 2.x vs 3.x Architecture
--------------------------------
-
-Understanding the architectural differences between Airflow 2.x and 3.x helps DAG authors understand the benefits and changes in the Task SDK approach.
-
-Airflow 2.x Architecture
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. image:: img/airflow-2-arch.png
-   :alt: Airflow 2.x architecture diagram showing scheduler, metadata database, and worker
-   :align: center
-
-- All components communicate with the Airflow metadata database.
-- Airflow 2 was designed to run all components within the same network space: task code and task execution code (airflow package code that runs user code) run in the same process.
-- Workers communicate directly with the Airflow database and execute all user code.
-- User code could import sessions and perform malicious actions on the Airflow metadata database.
-- The number of connections to the database was excessive, leading to scaling challenges.
-
-Airflow 3.x Architecture
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. image:: img/airflow-3-arch.png
-   :alt: Airflow 3.x architecture diagram showing the decoupled Execution API Server and worker subprocesses
-   :align: center
-
-- The API server is currently the sole access point for the metadata DB for tasks and workers.
-- It supports several applications: the Airflow REST API, an internal API for the Airflow UI that hosts static JS, and an API for workers to interact with when executing TIs via the task execution interface.
-- Workers communicate with the API server.
-- DAG processor and Triggerer utilize the task execution mechanism for their tasks, especially when they require variables or connections.
-
-Database Access Restrictions
-----------------------------
-
-In Airflow 3.x, direct metadata database access from task code is now restricted. This is a key security and architectural improvement that affects how DAG authors interact with Airflow resources:
-
-- **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
-- **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.
-- **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
-- **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
 
 Task Lifecycle
 --------------
