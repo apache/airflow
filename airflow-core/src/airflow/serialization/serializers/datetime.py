@@ -92,7 +92,7 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
     if classname == qualname(DateTime) and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
-    if classname == qualname(datetime.timedelta) and isinstance(data, str | float):
+    if classname == qualname(datetime.timedelta) and isinstance(data, (str, float)):
         return datetime.timedelta(seconds=float(data))
 
     if classname == qualname(datetime.date) and isinstance(data, str):

@@ -49,10 +49,10 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     else:
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.models.mappedoperator import MappedOperator
+        from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+        from airflow.models.mappedoperator import MappedOperator  # type: ignore[no-redef]
 
-    return [n for n in nodes if isinstance(n, BaseOperator | MappedOperator)]
+    return [n for n in nodes if isinstance(n, (BaseOperator, MappedOperator))]
 
 
 # This class should only be used in Airflow 3.0 and later.

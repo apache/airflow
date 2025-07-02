@@ -128,6 +128,32 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
+def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> str | None:
+    """Get the provider package version for the given operator."""
+    try:
+        class_path = get_fully_qualified_class_name(operator)
+
+        if not class_path.startswith("airflow.providers."):
+            return None
+
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+
+        for package_name, provider_info in providers_manager.providers.items():
+            if package_name.startswith("apache-airflow-providers-"):
+                provider_module_path = package_name.replace(
+                    "apache-airflow-providers-", "airflow.providers."
+                ).replace("-", ".")
+                if class_path.startswith(provider_module_path + "."):
+                    return provider_info.version
+
+        return None
+
+    except Exception:
+        return None
+
+
 def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
@@ -207,7 +233,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 
 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
-    if isinstance(operator, MappedOperator | SerializedBaseOperator):
+    if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
     op_class = get_operator_class(operator)
@@ -224,7 +250,7 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    if isinstance(obj, BaseOperator | MappedOperator):
+    if isinstance(obj, (BaseOperator, MappedOperator)):
         return is_task_lineage_enabled(obj)
     raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
@@ -302,7 +328,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, set | list | tuple):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
@@ -377,7 +403,7 @@ class DagInfo(InfoJsonEncodable):
                 return serialized
 
             def _serialize_ds(ds: BaseDatasetEventInput) -> dict[str, Any]:
-                if isinstance(ds, DatasetAny | DatasetAll):
+                if isinstance(ds, (DatasetAny, DatasetAll)):
                     return {
                         "__type": "dataset_all" if isinstance(ds, DatasetAll) else "dataset_any",
                         "objects": [_serialize_ds(child) for child in ds.objects],
@@ -511,6 +537,7 @@ class TaskInfo(InfoJsonEncodable):
         ),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "operator_provider_version": lambda task: get_operator_provider_version(task),
     }
 
 

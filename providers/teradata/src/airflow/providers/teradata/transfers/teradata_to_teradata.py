@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
+from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

@@ -36,7 +36,6 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
@@ -45,6 +44,11 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_completed,
     container_is_running,
 )
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -174,7 +178,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         default to cluster-derived credentials.
         """
         try:
-            return super().get_connection(conn_id)
+            return super().get_connection(conn_id)  # type: ignore[return-value]
         except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)

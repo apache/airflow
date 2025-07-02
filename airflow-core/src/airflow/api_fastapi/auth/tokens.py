@@ -68,7 +68,7 @@ def key_to_jwk_dict(key: AllowedKeys, kid: str | None = None):
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
     from jwt.algorithms import OKPAlgorithm, RSAAlgorithm
 
-    if isinstance(key, RSAPrivateKey | Ed25519PrivateKey):
+    if isinstance(key, (RSAPrivateKey, Ed25519PrivateKey)):
         key = key.public_key()
 
     if isinstance(key, RSAPublicKey):

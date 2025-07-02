@@ -359,8 +359,9 @@ class TestTableauHook:
             jobs_status = tableau_hook.get_job_status(job_id="j1")
             assert jobs_status == expected_status
 
+    @patch("time.sleep", return_value=None)
     @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_wait_for_state(self, mock_tableau_server):
+    def test_wait_for_state(self, mock_tableau_server, sleep_mock):
         """
         Test wait_for_state
         """

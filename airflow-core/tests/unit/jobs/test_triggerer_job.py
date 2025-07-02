@@ -31,7 +31,6 @@ import pytest
 from asgiref.sync import sync_to_async
 
 from airflow.executors import workloads
-from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     TriggerCommsDecoder,
@@ -49,6 +48,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.sdk import BaseHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
@@ -645,7 +645,16 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
-    connection = Connection(conn_id="test_connection", conn_type="http")
+    connection = Connection(
+        conn_id="test_connection",
+        conn_type="http",
+        schema="https",
+        login="user",
+        password="pass",
+        extra={"key": "value"},
+        port=443,
+        host="example.com",
+    )
     variable = Variable(key="test_variable", val="some_variable_value")
     XComModel.set(
         key="test_xcom",
@@ -675,12 +684,12 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
                 "conn_id": "test_connection",
                 "conn_type": "http",
                 "description": None,
-                "host": None,
-                "schema": None,
-                "login": None,
-                "password": None,
-                "port": None,
-                "extra": None,
+                "host": "example.com",
+                "schema": "https",
+                "login": "user",
+                "password": "pass",
+                "port": 443,
+                "extra": '{"key": "value"}',
             },
             "variable": "some_variable_value",
             "xcom": '"some_xcom_value"',
