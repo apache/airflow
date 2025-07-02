@@ -23,6 +23,12 @@
     }
   },
   "logs": {
+    "allLevels": "Alle Protokoll-Stufen",
+    "allSources": "Alle Quellen",
+    "fullscreen": {
+      "button": "Vollbild",
+      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
+    },
     "noTryNumber": "Keine Versuchsnummer",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen"
   },
@@ -98,13 +104,5 @@
   "taskGroups": {
     "collapseAll": "Alle Task-Gruppen einklappen",
     "expandAll": "Alle Task-Gruppen aufklappen"
-  },
-  "taskLogs": {
-    "allLogLevels": "Alle Protokoll-Stufen",
-    "allSources": "Alle Quellen",
-    "fullscreen": {
-      "button": "Vollbild",
-      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
-    }
   }
 }

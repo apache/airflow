@@ -76,7 +76,7 @@ export const TaskLogHeader = ({
     value: string;
   }>({
     items: [
-      { label: translate("dag:taskLogs.allSources"), value: "all" },
+      { label: translate("dag:logs.allSources"), value: "all" },
       ...(sourceOptions ?? []).map((source) => ({ label: source, value: source })),
     ],
   });
@@ -145,7 +145,7 @@ export const TaskLogHeader = ({
                     ))}
                   </HStack>
                 ) : (
-                  translate("dag:taskLogs.allLogLevels")
+                  translate("dag:logs.allLevels")
                 )
               }
             </Select.ValueText>
@@ -154,9 +154,11 @@ export const TaskLogHeader = ({
             {logLevelOptions.items.map((option) => (
               <Select.Item item={option} key={option.label}>
                 {option.value === "all" ? (
-                  option.label
+                  translate(option.label)
                 ) : (
-                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>{option.label}</Badge>
+                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>
+                    {translate(option.label)}
+                  </Badge>
                 )}
               </Select.Item>
             ))}
@@ -171,7 +173,7 @@ export const TaskLogHeader = ({
             value={sources}
           >
             <Select.Trigger clearable>
-              <Select.ValueText placeholder={translate("dag:taskLogs.allSources")} />
+              <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
             <Select.Content>
               {sourceOptionList.items.map((option) => (
@@ -199,11 +201,11 @@ export const TaskLogHeader = ({
           {!isFullscreen && (
             <Tooltip
               closeDelay={100}
-              content={translate("dag:taskLogs.fullscreen.tooltip", { hotkey: "f" })}
+              content={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
               openDelay={100}
             >
               <IconButton
-                aria-label={translate("dag:taskLogs.fullscreen.button")}
+                aria-label={translate("dag:logs.fullscreen.button")}
                 bg="bg.panel"
                 onClick={toggleFullscreen}
                 variant="outline"

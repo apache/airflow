@@ -17,6 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
@@ -28,13 +29,13 @@ import { Header } from "./Header";
 
 export const GroupTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
-
+  const { t: translate } = useTranslation();
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
+  const tabs = [{ icon: <MdOutlineTask />, label: translate("taskInstances_other"), value: "" }];
 
   return (
     <ReactFlowProvider>

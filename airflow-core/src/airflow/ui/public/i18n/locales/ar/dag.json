@@ -23,6 +23,12 @@
     }
   },
   "logs": {
+    "allLevels": "جميع مستويات السجل",
+    "allSources": "جميع المصادر",
+    "fullscreen": {
+      "button": "ملء الشاشة",
+      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
+    },
     "noTryNumber": "لا يوجد رقم محاولة",
     "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})"
   },
@@ -98,13 +104,5 @@
   "taskGroups": {
     "collapseAll": "طي جميع مجموعات المهام",
     "expandAll": "توسيع جميع مجموعات المهام"
-  },
-  "taskLogs": {
-    "allLogLevels": "جميع مستويات السجل",
-    "allSources": "جميع المصادر",
-    "fullscreen": {
-      "button": "ملء الشاشة",
-      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
-    }
   }
 }

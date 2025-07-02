@@ -27,7 +27,6 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { getDuration } from "src/utils";
 
 const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
@@ -55,10 +54,11 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
     accessorKey: "reprocess_behavior",
     cell: ({ row }) => (
       <Text>
-        {
-          reprocessBehaviors.find((rb: { value: string }) => rb.value === row.original.reprocess_behavior)
-            ?.label
-        }
+        {row.original.reprocess_behavior === "none"
+          ? translate("backfill.missingRuns")
+          : row.original.reprocess_behavior === "failed"
+            ? translate("backfill.missingAndErroredRuns")
+            : translate("backfill.allRuns")}
       </Text>
     ),
     enableSorting: false,

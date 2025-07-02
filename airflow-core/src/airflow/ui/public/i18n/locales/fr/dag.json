@@ -23,6 +23,12 @@
     }
   },
   "logs": {
+    "allLevels": "Tous les niveaux de journalisation",
+    "allSources": "Toutes les sources",
+    "fullscreen": {
+      "button": "Plein écran",
+      "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
+    },
     "noTryNumber": "Aucun essai",
     "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})"
   },
@@ -98,13 +104,5 @@
   "taskGroups": {
     "collapseAll": "Réduire tous les groupes de tâches",
     "expandAll": "Développer tous les groupes de tâches"
-  },
-  "taskLogs": {
-    "allLogLevels": "Tous les niveaux de journalisation",
-    "allSources": "Toutes les sources",
-    "fullscreen": {
-      "button": "Plein écran",
-      "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
-    }
   }
 }
