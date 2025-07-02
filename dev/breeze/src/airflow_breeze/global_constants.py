@@ -68,7 +68,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
-    "gremlin",
+    "tinkerpop",
     "kafka",
     "mongo",
     "mssql",
@@ -199,7 +199,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.16"
+UV_VERSION = "0.7.17"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
