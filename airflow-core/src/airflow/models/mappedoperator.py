@@ -68,7 +68,7 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
                 task_id=self.task_id,
                 dag_id=self.dag_id,
             )
-        return False
+            return False
         # start_from_trigger only makes sense when start_trigger_args exists.
         if not self.start_trigger_args:
             return False
