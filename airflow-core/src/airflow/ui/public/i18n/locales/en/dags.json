@@ -14,7 +14,7 @@
       "all": "All",
       "paused": "Paused"
     },
-    "runIdFilter": "Add run_id filter"
+    "runIdPatternFilter": "Add run_id filter"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {

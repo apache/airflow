@@ -18,12 +18,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Input, Link, type SelectValueChangeDetails, Text, InputGroup } from "@chakra-ui/react";
+import { Flex, HStack, Link, type SelectValueChangeDetails, Text, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { FiHash } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -38,6 +37,7 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
@@ -49,7 +49,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
   END_DATE: END_DATE_PARAM,
-  RUN_ID: RUN_ID_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
@@ -162,7 +162,7 @@ export const DagRuns = () => {
   const { pageIndex, pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
-  const filteredRunId = searchParams.get(RUN_ID_PARAM);
+  const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
 
@@ -176,7 +176,7 @@ export const DagRuns = () => {
       limit,
       offset: pageIndex * pageSize,
       orderBy,
-      runId: filteredRunId ?? undefined,
+      runId: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
@@ -225,14 +225,12 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleRunIdChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const { value } = event.target;
-
+  const handleRunIdPatternChange = useCallback(
+    (value: string) => {
       if (value === "") {
-        searchParams.delete(RUN_ID_PARAM);
+        searchParams.delete(RUN_ID_PATTERN_PARAM);
       } else {
-        searchParams.set(RUN_ID_PARAM, value);
+        searchParams.set(RUN_ID_PATTERN_PARAM, value);
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -314,14 +312,14 @@ export const DagRuns = () => {
           </Select.Content>
         </Select.Root>
 
-        <InputGroup startElement={<FiHash size={14} />}>
-          <Input
-            maxW="200px"
-            onChange={handleRunIdChange}
-            placeholder={translate("dags:filters.runIdFilter")}
-            value={filteredRunId ?? ""}
+        <Box flex="1" maxW="200px">
+          <SearchBar
+            defaultValue={filteredRunIdPattern ?? ""}
+            hotkeyDisabled={false}
+            onChange={handleRunIdPatternChange}
+            placeHolder={translate("dags:filters.runIdPatternFilter")}
           />
-        </InputGroup>
+        </Box>
       </HStack>
       <DataTable
         columns={runColumns(translate, dagId)}

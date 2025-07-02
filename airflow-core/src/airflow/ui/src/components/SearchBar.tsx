@@ -43,7 +43,7 @@ export const SearchBar = ({
   buttonProps,
   defaultValue,
   groupProps,
-  hideAdvanced = false,
+  hideAdvanced = true,
   hotkeyDisabled = false,
   onChange,
   placeHolder,
