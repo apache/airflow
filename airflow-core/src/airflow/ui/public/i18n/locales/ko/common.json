@@ -55,7 +55,8 @@
     "runAfter": "다음 실행",
     "runType": "실행 유형",
     "sourceAssetEvent": "소스 에셋 이벤트",
-    "triggeredBy": "실행 주체"
+    "triggeredBy": "실행 주체",
+    "triggeringUser": "트리거한 사용자 이름"
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
