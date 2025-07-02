@@ -17,8 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.bases.sensor import (
-    BaseSensorOperator as BaseSensorOperator,
-    PokeReturnValue as PokeReturnValue,
-    poke_mode_only as poke_mode_only,
-)
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+
+class TokenResponse(BaseModel):
+    """Token serializer for responses."""
+
+    access_token: str
+
+
+class TokenBody(StrictBaseModel):
+    """Token serializer for post bodies."""
+
+    username: str = Field()
+    password: str = Field()

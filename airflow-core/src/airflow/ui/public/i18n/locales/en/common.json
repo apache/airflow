@@ -17,6 +17,7 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -54,7 +55,8 @@
     "runAfter": "Run After",
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
-    "triggeredBy": "Triggered By"
+    "triggeredBy": "Triggered By",
+    "triggeringUser": "Triggering User Name"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
@@ -144,6 +146,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "showDetailsPanel": "Show Details Panel",
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",

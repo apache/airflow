@@ -44,13 +44,12 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.9"
+requires-python = "~=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -59,7 +58,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     'apache-beam>=2.60.0',
-    "pyarrow>=14.0.1",
+    "pyarrow>=16.1.0",
     "numpy>=1.26.0",
 
 ]

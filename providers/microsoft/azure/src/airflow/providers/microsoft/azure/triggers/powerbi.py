@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import tenacity
 
@@ -51,9 +51,9 @@ class PowerBITrigger(BaseTrigger):
     :param dataset_id: The dataset Id to refresh.
     :param dataset_refresh_id: The dataset refresh Id to poll for the status, if not provided a new refresh will be triggered.
     :param group_id: The workspace Id where dataset is located.
-    :param end_time: Time in seconds when trigger should stop polling.
     :param check_interval: Time in seconds to wait between each poll.
     :param wait_for_termination: Wait for the dataset refresh to complete or fail.
+    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     """
 
     def __init__(
@@ -67,6 +67,7 @@ class PowerBITrigger(BaseTrigger):
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
         wait_for_termination: bool = True,
+        request_body: dict[str, Any] | None = None,
     ):
         super().__init__()
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
@@ -76,6 +77,7 @@ class PowerBITrigger(BaseTrigger):
         self.group_id = group_id
         self.check_interval = check_interval
         self.wait_for_termination = wait_for_termination
+        self.request_body = request_body
 
     def serialize(self):
         """Serialize the trigger instance."""
@@ -91,6 +93,7 @@ class PowerBITrigger(BaseTrigger):
                 "timeout": self.timeout,
                 "check_interval": self.check_interval,
                 "wait_for_termination": self.wait_for_termination,
+                "request_body": self.request_body,
             },
         )
 
@@ -113,6 +116,7 @@ class PowerBITrigger(BaseTrigger):
             dataset_refresh_id = await self.hook.trigger_dataset_refresh(
                 dataset_id=self.dataset_id,
                 group_id=self.group_id,
+                request_body=self.request_body,
             )
 
             if dataset_refresh_id:

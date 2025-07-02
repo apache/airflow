@@ -17,89 +17,87 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OID
 from starlette.exceptions import HTTPException
 
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 
-if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+
+@pytest.fixture
+def auth_manager():
+    return MagicMock()
 
 
-@pytest.mark.db_test
+@pytest.fixture
+def security_manager():
+    return MagicMock()
+
+
+@pytest.fixture
+def user():
+    user = MagicMock()
+    user.password = "dummy"
+    return user
+
+
 @patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
 class TestLogin:
     def setup_method(
         self,
     ):
-        self.dummy_auth_manager = MagicMock()
-        self.dummy_app_builder = MagicMock()
-        self.dummy_app = MagicMock()
-        self.dummy_login_body = MagicMock()
-        self.dummy_user = MagicMock()
-        self.dummy_user.password = "dummy"
-        self.dummy_security_manager = MagicMock()
-        self.dummy_login_body.username = "dummy"
-        self.dummy_login_body.password = "dummy"
+        self.login_body = MagicMock()
+        self.login_body.username = "username"
+        self.login_body.password = "password"
         self.dummy_token = "DUMMY_TOKEN"
 
-    def test_create_token(self, get_auth_manager):
-        get_auth_manager.return_value = self.dummy_auth_manager
-        self.dummy_auth_manager.security_manager = self.dummy_security_manager
-        self.dummy_security_manager.find_user.return_value = self.dummy_user
-        self.dummy_auth_manager.generate_jwt.return_value = self.dummy_token
-        self.dummy_security_manager.check_password.return_value = True
+    @pytest.mark.parametrize(
+        "auth_type, method",
+        [
+            [AUTH_DB, "auth_user_db"],
+            [AUTH_LDAP, "auth_user_ldap"],
+        ],
+    )
+    def test_create_token(self, get_auth_manager, auth_type, method, auth_manager, security_manager, user):
+        security_manager.auth_type = auth_type
+        getattr(security_manager, method).return_value = user
 
-        login_response: LoginResponse = FABAuthManagerLogin.create_token(
-            body=self.dummy_login_body,
-            expiration_time_in_seconds=1,
+        auth_manager.security_manager = security_manager
+        auth_manager.generate_jwt.return_value = self.dummy_token
+
+        get_auth_manager.return_value = auth_manager
+
+        result = FABAuthManagerLogin.create_token(
+            body=self.login_body,
         )
-        assert login_response.access_token == self.dummy_token
+        assert result.access_token == self.dummy_token
+        getattr(security_manager, method).assert_called_once_with(
+            self.login_body.username, self.login_body.password, rotate_session_id=False
+        )
+        auth_manager.generate_jwt.assert_called_once_with(user=user, expiration_time_in_seconds=ANY)
 
-    def test_create_token_invalid_username(self, get_auth_manager):
-        get_auth_manager.return_value = self.dummy_auth_manager
-        self.dummy_auth_manager.security_manager = self.dummy_security_manager
-        self.dummy_security_manager.find_user.return_value = None
-        self.dummy_security_manager.check_password.return_value = False
+    @pytest.mark.parametrize(
+        "auth_type, methods",
+        [
+            [AUTH_DB, ["auth_user_db"]],
+            [AUTH_LDAP, ["auth_user_ldap", "auth_user_db"]],
+            [AUTH_OID, ["auth_user_db"]],
+        ],
+    )
+    def test_create_token_no_user(
+        self, get_auth_manager, auth_type, methods, auth_manager, security_manager, user
+    ):
+        security_manager.auth_type = auth_type
+        for method in methods:
+            getattr(security_manager, method).return_value = None
+
+        auth_manager.security_manager = security_manager
+        get_auth_manager.return_value = auth_manager
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerLogin.create_token(
-                body=self.dummy_login_body,
-                expiration_time_in_seconds=1,
+                body=self.login_body,
             )
         assert ex.value.status_code == 401
-        assert ex.value.detail == "Invalid username"
-
-    def test_create_token_invalid_password(self, get_auth_manager):
-        get_auth_manager.return_value = self.dummy_auth_manager
-        self.dummy_auth_manager.security_manager = self.dummy_security_manager
-        self.dummy_security_manager.find_user.return_value = self.dummy_user
-        self.dummy_user.password = "invalid_password"
-        self.dummy_security_manager.check_password.return_value = False
-
-        with pytest.raises(HTTPException) as ex:
-            FABAuthManagerLogin.create_token(
-                body=self.dummy_login_body,
-                expiration_time_in_seconds=1,
-            )
-        assert ex.value.status_code == 401
-        assert ex.value.detail == "Invalid password"
-
-    def test_create_token_empty_user_password(self, get_auth_manager):
-        get_auth_manager.return_value = self.dummy_auth_manager
-        self.dummy_auth_manager.security_manager = self.dummy_security_manager
-        self.dummy_security_manager.find_user.return_value = self.dummy_user
-        self.dummy_login_body.username = ""
-        self.dummy_login_body.password = ""
-        self.dummy_security_manager.check_password.return_value = False
-
-        with pytest.raises(HTTPException) as ex:
-            FABAuthManagerLogin.create_token(
-                body=self.dummy_login_body,
-                expiration_time_in_seconds=1,
-            )
-        assert ex.value.status_code == 400
-        assert ex.value.detail == "Username and password must be provided"

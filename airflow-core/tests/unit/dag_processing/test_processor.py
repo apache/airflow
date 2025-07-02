@@ -21,8 +21,9 @@ import inspect
 import pathlib
 import sys
 import textwrap
+from collections.abc import Callable
 from socket import socketpair
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -299,8 +300,7 @@ class TestDagFileProcessor:
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
-            from airflow.hooks.base import BaseHook
-            from airflow.sdk import DAG
+            from airflow.sdk import DAG, BaseHook
 
             with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
                 ...
@@ -331,8 +331,7 @@ class TestDagFileProcessor:
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
-            from airflow.hooks.base import BaseHook
-            from airflow.sdk import DAG
+            from airflow.sdk import DAG, BaseHook
 
             with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
                 ...

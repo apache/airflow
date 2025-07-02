@@ -31,13 +31,18 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     import logging

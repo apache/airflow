@@ -22,7 +22,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.providers.redis.hooks.redis import RedisHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.redis.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

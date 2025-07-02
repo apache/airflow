@@ -50,8 +50,12 @@ from tenacity import (
 
 from airflow import __version__
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -135,7 +139,7 @@ class BaseDatabricksHook(BaseHook):
 
     @cached_property
     def databricks_conn(self) -> Connection:
-        return self.get_connection(self.databricks_conn_id)
+        return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
@@ -353,14 +357,15 @@ class BaseDatabricksHook(BaseHook):
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        token = await AsyncManagedIdentityCredential().get_token(f"{resource}/.default")
+                        async with AsyncManagedIdentityCredential() as credential:
+                            token = await credential.get_token(f"{resource}/.default")
                     else:
-                        credential = AsyncClientSecretCredential(
+                        async with AsyncClientSecretCredential(
                             client_id=self.databricks_conn.login,
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
-                        )
-                        token = await credential.get_token(f"{resource}/.default")
+                        ) as credential:
+                            token = await credential.get_token(f"{resource}/.default")
                     jsn = {
                         "access_token": token.token,
                         "token_type": "Bearer",
