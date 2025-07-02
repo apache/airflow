@@ -157,14 +157,14 @@ class OracleHook(DbApiHook):
         if thick_mode is True:
             if self.thick_mode_lib_dir is None:
                 self.thick_mode_lib_dir = conn.extra_dejson.get("thick_mode_lib_dir")
-                if not isinstance(self.thick_mode_lib_dir, str | type(None)):
+                if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_lib_dir expected str or None, "
                         f"got {type(self.thick_mode_lib_dir).__name__}"
                     )
             if self.thick_mode_config_dir is None:
                 self.thick_mode_config_dir = conn.extra_dejson.get("thick_mode_config_dir")
-                if not isinstance(self.thick_mode_config_dir, str | type(None)):
+                if not isinstance(self.thick_mode_config_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_config_dir expected str or None, "
                         f"got {type(self.thick_mode_config_dir).__name__}"

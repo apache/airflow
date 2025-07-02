@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseHook,
     AzureSynapsePipelineHook,
@@ -30,6 +29,7 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 try:
     from airflow.sdk import BaseHook

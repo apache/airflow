@@ -188,7 +188,15 @@ def main(
     print_table_header(format_str, headers, total_width)
 
     outdated_count, skipped_count, explanations = process_packages(
-        packages, constraints_date, mode, explain_why, verbose, col_widths, format_str, python_version
+        packages,
+        constraints_date,
+        mode,
+        explain_why,
+        verbose,
+        col_widths,
+        format_str,
+        python_version,
+        airflow_constraints_mode,
     )
 
     print_table_footer(total_width, len(packages), outdated_count, skipped_count, mode)
@@ -275,6 +283,7 @@ def process_packages(
     col_widths: dict,
     format_str: str,
     python_version: str,
+    airflow_constraints_mode: str,
 ) -> tuple[int, int, list[str]]:
     import subprocess
     import tempfile
@@ -382,6 +391,7 @@ def process_packages(
                         update_pyproject_dependency,
                         verbose,
                         python_version,
+                        airflow_constraints_mode,
                     )
                     explanations.append(explanation)
             except HTTPError as e:
@@ -444,6 +454,7 @@ def explain_package_upgrade(
     update_pyproject_dependency,
     verbose: bool,
     python_version: str,
+    airflow_constraints_mode: str,
 ) -> str:
     explanation = (
         f"[bold blue]\n--- Explaining for {pkg} (current: {pinned_version}, latest: {latest_version}) ---[/]"
@@ -457,12 +468,18 @@ def explain_package_upgrade(
         finally:
             pyproject_path.write_text(original_content)
 
+    additional_args = []
+    if airflow_constraints_mode == "constraints-source-providers":
+        # In case of source constraints we also need to add all development dependencies
+        # to reflect exactly what is installed in the CI image by default
+        additional_args.extend(["--group dev", "--group docs", "--group docs-gen", "--group leveldb"])
     with preserve_pyproject_file(airflow_pyproject):
         before_result = run_uv_sync(
             [
                 "uv",
                 "sync",
                 "--all-packages",
+                *additional_args,
                 "--resolution",
                 "highest",
                 "--refresh",

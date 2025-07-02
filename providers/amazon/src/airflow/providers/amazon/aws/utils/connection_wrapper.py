@@ -190,7 +190,7 @@ class AwsConnectionWrapper(LoggingMixin):
             return
 
         if TYPE_CHECKING:
-            assert isinstance(conn, Connection | _ConnectionMetadata)
+            assert isinstance(conn, (Connection, _ConnectionMetadata))
 
         # Assign attributes from AWS Connection
         self.conn_id = conn.conn_id

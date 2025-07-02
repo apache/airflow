@@ -97,7 +97,7 @@ def is_soft_quota_exception(exception: Exception):
     if isinstance(exception, Forbidden):
         return any(reason in error.details() for reason in INVALID_REASONS for error in exception.errors)
 
-    if isinstance(exception, ResourceExhausted | TooManyRequests):
+    if isinstance(exception, (ResourceExhausted, TooManyRequests)):
         return any(key in error.details() for key in INVALID_KEYS for error in exception.errors)
 
     return False

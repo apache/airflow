@@ -58,7 +58,7 @@ requires-python = "~=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     'apache-beam>=2.60.0',
-    "pyarrow>=14.0.1",
+    "pyarrow>=16.1.0",
     "numpy>=1.26.0",
 
 ]
