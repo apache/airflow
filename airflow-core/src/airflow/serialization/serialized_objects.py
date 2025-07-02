@@ -319,11 +319,11 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
 
 def smart_decode_trigger_kwargs(d):
     """
-    Slightly clean up kwargs for display.
+    Slightly clean up kwargs for display or execution.
 
     This detects one level of BaseSerialization and tries to deserialize the
     content, removing some __type __var ugliness when the value is displayed
-    in UI to the user.
+    in UI to the user and/or while execution.
     """
     if not isinstance(d, dict) or Encoding.TYPE not in d:
         return d
