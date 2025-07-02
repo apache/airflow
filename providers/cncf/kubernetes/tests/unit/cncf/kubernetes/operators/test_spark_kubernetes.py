@@ -34,7 +34,6 @@ from kubernetes.client import models as k8s
 from airflow import DAG
 from airflow.exceptions import TaskDeferred
 from airflow.models import Connection, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -199,8 +198,6 @@ def create_context(task):
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     if AIRFLOW_V_3_0_PLUS:
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_run = DagRun(
             dag_id=dag.dag_id,
             logical_date=logical_date,
@@ -215,10 +212,9 @@ def create_context(task):
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.dag_version import DagVersion
+        from uuid6 import uuid7
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        task_instance = TaskInstance(task=task, dag_version_id=dag_version.id)
+        task_instance = TaskInstance(task=task, dag_version_id=uuid7())
     else:
         task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
