@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 
 import pymssql
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.providers.apache.hive.version_compat import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:

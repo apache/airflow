@@ -117,7 +117,7 @@ class DbtCloudJobRunStatus(Enum):
     @classmethod
     def check_is_valid(cls, statuses: int | Sequence[int] | set[int]):
         """Validate input statuses are a known value."""
-        if isinstance(statuses, Sequence | set):
+        if isinstance(statuses, (Sequence, set)):
             for status in statuses:
                 cls(status)
         else:

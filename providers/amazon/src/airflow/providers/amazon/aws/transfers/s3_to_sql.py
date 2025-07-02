@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
