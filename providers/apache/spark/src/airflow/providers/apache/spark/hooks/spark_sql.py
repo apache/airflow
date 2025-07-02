@@ -21,10 +21,17 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 class SparkSqlHook(BaseHook):

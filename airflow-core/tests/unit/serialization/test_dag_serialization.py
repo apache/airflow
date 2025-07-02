@@ -53,7 +53,6 @@ from airflow.exceptions import (
     ParamValidationError,
     SerializationError,
 )
-from airflow.hooks.base import BaseHook
 from airflow.models.asset import AssetModel
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -64,7 +63,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
-from airflow.sdk import AssetAlias, teardown
+from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey

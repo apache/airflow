@@ -26,8 +26,8 @@ from importlib import import_module
 from pathlib import Path
 
 import airflow
-from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
+from airflow.sdk import BaseHook
 from airflow.secrets import BaseSecretsBackend
 from airflow.sensors.base import BaseSensorOperator
 

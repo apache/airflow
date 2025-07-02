@@ -50,12 +50,16 @@ from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:

@@ -26,11 +26,15 @@ import pytest
 from pyodbc import Cursor
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 
 class DbApiHookInProvider(DbApiHook):
