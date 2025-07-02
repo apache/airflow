@@ -45,9 +45,9 @@ def get_task_group_children_getter() -> Callable:
 
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}
@@ -60,7 +60,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
             setup_teardown_type["setup_teardown_type"] = "teardown"
         if isinstance(task, MappedOperator) or parent_group_is_mapped:
             is_mapped["is_mapped"] = True
-        if isinstance(task, BaseOperator) or isinstance(task, MappedOperator):
+        if isinstance(task, (AbstractOperator, SerializedBaseOperator)):
             node_operator["operator"] = task.operator_name
 
         return {
