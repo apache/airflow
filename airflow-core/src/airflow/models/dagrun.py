@@ -584,9 +584,8 @@ class DagRun(Base, LoggingMixin):
         """
         Return the next queued DagRuns that the scheduler should attempt to schedule.
 
-        This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
-        query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
-        the transaction is committed it will be unlocked.
+        Uses a window function to select up to max_active_runs per DAG/backfill, removing the need for
+        post-query filtering.
 
         :meta private:
         """
@@ -603,11 +602,31 @@ class DagRun(Base, LoggingMixin):
             )
             .where(DagRun.state == DagRunState.RUNNING)
             .group_by(DagRun.dag_id, DagRun.backfill_id)
-            .subquery()
+            .cte()
+        )
+        effective_max_runs = coalesce(Backfill.max_active_runs, DagModel.max_active_runs)
+        now_running = coalesce(running_drs.c.num_running, text("0"))
+        priority_order = [
+            nulls_first(BackfillDagRun.sort_ordinal, session=session),
+            nulls_first(cls.last_scheduling_decision, session=session),
+            cls.run_after,
+            nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority)
+        ]
+
+        # Assign a row number per dag_id
+        dag_row_number = (
+            func.row_number().over(partition_by=(DagRun.dag_id), order_by=priority_order).label("dag_rank")
         )
 
-        query = (
-            select(cls)
+        # Assign a row number per backfill_id
+        backfill_row_number = (
+            func.row_number()
+            .over(partition_by=(coalesce(DagRun.backfill_id, text("-1"))), order_by=priority_order)
+            .label("backfill_rank")
+        )
+
+        inner_query = (
+            select(cls, dag_row_number, backfill_row_number)
             .where(cls.state == DagRunState.QUEUED)
             .join(
                 DagModel,
@@ -636,31 +655,44 @@ class DagRun(Base, LoggingMixin):
                 isouter=True,
             )
             .where(
-                # there are two levels of checks for num_running
-                # the one done in this query verifies that the dag is not maxed out
-                # it could return many more dag runs than runnable if there is even
-                # capacity for 1.  this could be improved.
-                coalesce(running_drs.c.num_running, text("0"))
-                < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
                 # don't set paused dag runs as running
-                not_(coalesce(Backfill.is_paused, False)),
+                not_(coalesce(Backfill.is_paused, False))
             )
-            .order_by(
-                # ordering by backfill sort ordinal first ensures that backfill dag runs
-                # have lower priority than all other dag run types (since sort_ordinal >= 1).
-                # additionally, sorting by sort_ordinal ensures that the backfill
-                # dag runs are created in the right order when that matters.
-                # todo: AIP-78 use row_number to avoid starvation; limit the number of returned runs per-dag
-                nulls_first(BackfillDagRun.sort_ordinal, session=session),
-                nulls_first(cls.last_scheduling_decision, session=session),
-                nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
-                cls.run_after,
+            .subquery()
+        )
+        query = (
+            select(cls)
+            .join(inner_query, cls.id == inner_query.c.id)
+            .join(DagModel, DagModel.dag_id == cls.dag_id)
+            .join(
+                BackfillDagRun,
+                and_(
+                    BackfillDagRun.dag_run_id == DagRun.id,
+                    BackfillDagRun.backfill_id == DagRun.backfill_id,
+                ),
+                isouter=True,
             )
+            .join(Backfill, isouter=True)
+            .join(
+                running_drs,
+                and_(
+                    running_drs.c.dag_id == DagRun.dag_id,
+                    coalesce(running_drs.c.backfill_id, text("-1"))
+                    == coalesce(DagRun.backfill_id, text("-1")),
+                ),
+                isouter=True,
+            )
+            .where(
+                and_(
+                    inner_query.c.backfill_rank + now_running <= effective_max_runs,
+                    inner_query.c.dag_rank + now_running <= effective_max_runs,
+                )
+            )
+            .order_by(*priority_order)
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
         query = query.where(DagRun.run_after <= func.now())
-
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
     @classmethod
