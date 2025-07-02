@@ -102,7 +102,7 @@ if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk import DAG as SdkDag, BaseOperatorLink
     from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -1209,6 +1209,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     @property
     def node_id(self) -> str:
         return self.task_id
+
+    def get_dag(self) -> SdkDag | None:
+        return self.dag
 
     @property
     def roots(self) -> Sequence[DAGNode]:
