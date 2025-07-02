@@ -2185,3 +2185,40 @@ def test_handle_execution_date_fn_fallback_to_execution_date():
     )
     dates = sensor._get_dttm_filter(ctx)
     assert dates == [exec_dt]
+
+
+# -------------------------------------------------------------------
+# Tests for the _get_logical_date() helper fallback logic
+# -------------------------------------------------------------------
+
+
+class DummyDagRun:
+    def __init__(self, run_after):
+        self.run_after = run_after
+
+
+@pytest.fixture
+def sensor():
+    return ExternalTaskSensor(
+        task_id="test_sensor",
+        external_dag_id="dummy",
+        execution_date_fn=lambda dt, **kwargs: [dt],
+    )
+
+
+def test__get_logical_date_with_logical_date_key(sensor):
+    now = dt.datetime(2025, 6, 1, 0, 0)
+    ctx = {"logical_date": now, "dag_run": DummyDagRun(dt.datetime(2000, 1, 1))}
+    assert sensor._get_logical_date(ctx) == now
+
+
+def test__get_logical_date_fallback_to_run_after(sensor):
+    run_after = dt.datetime(2025, 6, 2, 0, 0)
+    ctx = {"dag_run": DummyDagRun(run_after)}
+    assert sensor._get_logical_date(ctx) == run_after
+
+
+def test__get_logical_date_fallback_to_execution_date(sensor):
+    exec_dt = dt.datetime(2025, 6, 3, 0, 0)
+    ctx = {"execution_date": exec_dt}
+    assert sensor._get_logical_date(ctx) == exec_dt

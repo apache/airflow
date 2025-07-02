@@ -528,6 +528,28 @@ class ExternalTaskSensor(BaseSensorOperator):
             dttm_filter, self.external_task_group_id, self.external_dag_id, session
         )
 
+    def _get_logical_date(self, context) -> datetime.datetime:
+        """
+        Handle backwards- and forwards-compatible retrieval of the date.
+
+        to pass as the positional argument to execution_date_fn.
+        """
+        # Airflow 3.x: contexts define "logical_date" (or fall back to dag_run.run_after).
+        if AIRFLOW_V_3_0_PLUS:
+            logical_date = context.get("logical_date")
+            dag_run = context.get("dag_run")
+            if not (logical_date or (dag_run and dag_run.run_after)):
+                raise ValueError(
+                    "Either `logical_date` or `dag_run.run_after` must be provided in the context"
+                )
+            return logical_date or dag_run.run_after
+
+        # Airflow 2.x and earlier: contexts used "execution_date"
+        execution_date = context.get("execution_date")
+        if not execution_date:
+            raise ValueError("Either `execution_date` must be provided in the context`")
+        return execution_date
+
     def _handle_execution_date_fn(self, context) -> Any:
         """
         Handle backward compatibility.
@@ -540,9 +562,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "logical_date" because it is already a mandatory positional argument
-        logical_date = (
-            context.get("logical_date") or context.get("execution_date") or context["dag_run"].run_after
-        )
+        logical_date = self._get_logical_date(context)
         kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)
