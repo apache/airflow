@@ -646,7 +646,14 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
 
     # Create the appropriate Connection, Variable and XCom
     connection = Connection(
-        conn_id="test_connection", conn_type="http", schema="https", login="user", password="pass"
+        conn_id="test_connection",
+        conn_type="http",
+        schema="https",
+        login="user",
+        password="pass",
+        extra={"key": "value"},
+        port=443,
+        host="example.com",
     )
     variable = Variable(key="test_variable", val="some_variable_value")
     XComModel.set(
@@ -677,12 +684,12 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
                 "conn_id": "test_connection",
                 "conn_type": "http",
                 "description": None,
-                "host": None,
+                "host": "example.com",
                 "schema": "https",
                 "login": "user",
                 "password": "pass",
-                "port": None,
-                "extra": None,
+                "port": 443,
+                "extra": '{"key": "value"}',
             },
             "variable": "some_variable_value",
             "xcom": '"some_xcom_value"',
