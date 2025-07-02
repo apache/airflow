@@ -35,8 +35,12 @@ import asyncssh
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
@@ -723,9 +727,9 @@ class SFTPHookAsync(BaseHook):
         """
         conn = await sync_to_async(self.get_connection)(self.sftp_conn_id)
         if conn.extra is not None:
-            self._parse_extras(conn)
+            self._parse_extras(conn)  # type: ignore[arg-type]
 
-        conn_config = {
+        conn_config: dict[str, Any] = {
             "host": conn.host,
             "port": conn.port,
             "username": conn.login,
@@ -737,10 +741,10 @@ class SFTPHookAsync(BaseHook):
             if self.known_hosts.lower() == "none":
                 conn_config.update(known_hosts=None)
             else:
-                conn_config.update(known_hosts=self.known_hosts)
+                conn_config.update(known_hosts=self.known_hosts)  # type: ignore
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)
-            conn_config.update(client_keys=[_private_key])
+            conn_config["client_keys"] = [_private_key]
         if self.passphrase:
             conn_config.update(passphrase=self.passphrase)
         ssh_client_conn = await asyncssh.connect(**conn_config)
