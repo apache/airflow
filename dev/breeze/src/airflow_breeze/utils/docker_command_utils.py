@@ -724,7 +724,11 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
 
 
 def execute_command_in_shell(
-    shell_params: ShellParams, project_name: str, command: str | None = None, output: Output | None = None
+    shell_params: ShellParams,
+    project_name: str,
+    command: str | None = None,
+    output: Output | None = None,
+    signal_error: bool = True,
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -765,10 +769,12 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
-    return enter_shell(shell_params, output=output)
+    return enter_shell(shell_params, output=output, signal_error=signal_error)
 
 
-def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunCommandResult:
+def enter_shell(
+    shell_params: ShellParams, output: Output | None = None, signal_error: bool = True
+) -> RunCommandResult:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -838,7 +844,8 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     )
     if command_result.returncode == 0:
         return command_result
-    get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+    if signal_error:
+        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
     if get_verbose():
         get_console().print(command_result.stderr)
     notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)

@@ -478,6 +478,7 @@ def explain_package_upgrade(
                 ]
             ),
             output=output_before,
+            signal_error=False,
         )
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version)
         if get_verbose():
@@ -502,6 +503,7 @@ def explain_package_upgrade(
                 ],
             ),
             output=output_after,
+            signal_error=False,
         )
         if after_result.returncode == 0:
             explanation += f"\n[bold yellow]Package {pkg} can be upgraded from {pinned_version} to {latest_version} without conflicts.[/]."
