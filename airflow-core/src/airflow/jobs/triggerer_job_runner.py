@@ -871,8 +871,16 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                kwargs = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
-                trigger_instance = trigger_class(**kwargs)
+                from airflow.serialization.serialized_objects import smart_decode_trigger_kwargs
+
+                # Decrypt and clean trigger kwargs before for execution
+                # Note: We only clean up serialization artifacts (__var, __type keys) here,
+                # not in `_decrypt_kwargs` because it is used during hash comparison in
+                # add_asset_trigger_references and could lead to adverse effects like hash mismatches
+                # that could cause None values in collections.
+                kw = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
+                deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
+                trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))
