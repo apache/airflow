@@ -210,69 +210,25 @@ export const UseDagWarningServiceListDagWarningsKeyFn = ({ dagId, limit, offset,
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
 export type DagServiceGetDagsQueryResult<TData = DagServiceGetDagsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsKey = "DagServiceGetDags";
-export const UseDagServiceGetDagsKeyFn = (
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagRunEndDateGte,
-    dagRunEndDateLte,
-    dagRunStartDateGte,
-    dagRunStartDateLte,
-    dagRunState,
-    excludeStale,
-    isFavorite,
-    lastDagRunState,
-    limit,
-    offset,
-    orderBy,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagRunEndDateGte?: string;
-    dagRunEndDateLte?: string;
-    dagRunStartDateGte?: string;
-    dagRunStartDateLte?: string;
-    dagRunState?: string[];
-    excludeStale?: boolean;
-    isFavorite?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useDagServiceGetDagsKey,
-  ...(queryKey ?? [
-    {
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagRunEndDateGte,
-      dagRunEndDateLte,
-      dagRunStartDateGte,
-      dagRunStartDateLte,
-      dagRunState,
-      excludeStale,
-      isFavorite,
-      lastDagRunState,
-      limit,
-      offset,
-      orderBy,
-      owners,
-      paused,
-      tags,
-      tagsMatchMode,
-    },
-  ]),
-];
+export const UseDagServiceGetDagsKeyFn = ({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  dagDisplayNamePattern?: string;
+  dagIdPattern?: string;
+  dagRunEndDateGte?: string;
+  dagRunEndDateLte?: string;
+  dagRunStartDateGte?: string;
+  dagRunStartDateLte?: string;
+  dagRunState?: string[];
+  excludeStale?: boolean;
+  isFavorite?: boolean;
+  lastDagRunState?: DagRunState;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  owners?: string[];
+  paused?: boolean;
+  tags?: string[];
+  tagsMatchMode?: "any" | "all";
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
 export type DagServiceGetDagDefaultResponse = Awaited<ReturnType<typeof DagService.getDag>>;
 export type DagServiceGetDagQueryResult<TData = DagServiceGetDagDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagKey = "DagServiceGetDag";

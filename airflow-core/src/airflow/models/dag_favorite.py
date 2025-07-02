@@ -17,13 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, String
+from sqlalchemy import Column, ForeignKey
 
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 
 
 class DagFavorite(Base):
+    """Association table model linking users to their favorite DAGs."""
+
     __tablename__ = "dag_favorite"
 
-    user_id = Column(String, primary_key=True)
-    dag_id = Column(ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(StringID(), primary_key=True)
+    dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True)

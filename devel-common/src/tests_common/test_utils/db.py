@@ -38,7 +38,6 @@ from airflow.models import (
     Variable,
 )
 from airflow.models.dag import DagOwnerAttributes
-from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
@@ -67,6 +66,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.dag_favorite import DagFavorite
 
 
 def _bootstrap_dagbag():
