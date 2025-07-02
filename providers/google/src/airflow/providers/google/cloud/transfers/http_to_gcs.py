@@ -20,7 +20,11 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
+
+from requests import Response
+
+from airflow.exceptions import AirflowException
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
@@ -102,6 +106,8 @@ class HttpToGCSOperator(BaseOperator):
         method: str = "GET",
         data: Any = None,
         headers: dict[str, str] | None = None,
+        response_check: Callable[..., bool] | None = None,
+        response_filter: Callable[..., Any] | None = None,
         extra_options: dict[str, Any] | None = None,
         http_conn_id: str = "http_default",
         log_response: bool = False,
@@ -130,6 +136,8 @@ class HttpToGCSOperator(BaseOperator):
         self.method = method
         self.endpoint = endpoint
         self.headers = headers or {}
+        self.response_check = response_check
+        self.response_filter = response_filter
         self.data = data or {}
         self.extra_options = extra_options or {}
         self.log_response = log_response
@@ -172,18 +180,21 @@ class HttpToGCSOperator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info("Calling HTTP method")
-        response = self.http_hook.run(
+        raw_response = self.http_hook.run(
             endpoint=self.endpoint, data=self.data, headers=self.headers, extra_options=self.extra_options
         )
 
+        self.log.info("Evaluating HTTP response")
+        processed_response = self.process_response(context=context, response=raw_response)
+
         self.log.info("Uploading to GCS")
         self.gcs_hook.upload(
-            data=response.content,
+            data=processed_response.content,
             bucket_name=self.bucket_name,
             object_name=self.object_name,
             mime_type=self.mime_type,
             gzip=self.gzip,
-            encoding=self.encoding or response.encoding,
+            encoding=self.encoding or processed_response.encoding,
             chunk_size=self.chunk_size,
             timeout=self.timeout,
             num_max_attempts=self.num_max_attempts,
@@ -191,3 +202,35 @@ class HttpToGCSOperator(BaseOperator):
             cache_control=self.cache_control,
             user_project=self.user_project,
         )
+
+    @staticmethod
+    def _default_response_maker(response: Response | list[Response]) -> Callable:
+        """
+        Create a default response maker function based on the type of response.
+
+        :param response: The response object or list of response objects.
+        :return: A function that returns response text(s).
+        """
+        if isinstance(response, Response):
+            response_object = response  # Makes mypy happy
+            return lambda: response_object.text
+
+        response_list: list[Response] = response  # Makes mypy happy
+        return lambda: [entry.text for entry in response_list]
+
+    def process_response(self, context: Context, response: Response | list[Response]) -> Any:
+        """Process the response."""
+        from airflow.utils.operator_helpers import determine_kwargs
+
+        make_default_response: Callable = self._default_response_maker(response=response)
+
+        if self.log_response:
+            self.log.info(make_default_response())
+        if self.response_check:
+            kwargs = determine_kwargs(self.response_check, [response], context)
+            if not self.response_check(response, **kwargs):
+                raise AirflowException("Response check returned False.")
+        if self.response_filter:
+            kwargs = determine_kwargs(self.response_filter, [response], context)
+            return self.response_filter(response, **kwargs)
+        return make_default_response()
