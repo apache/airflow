@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-01T18:36:59.985418
+# This constraints file was automatically generated on 2025-07-02T09:12:50.008182
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -219,7 +219,7 @@ google-api-python-client==2.174.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.100.0
+google-cloud-aiplatform==1.101.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -292,7 +292,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.33.1
+huggingface-hub==0.33.2
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -386,7 +386,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.3
 mypy-boto3-appflow==1.39.0
-mypy-boto3-rds==1.39.0
+mypy-boto3-rds==1.39.1
 mypy-boto3-redshift-data==1.39.0
 mypy-boto3-s3==1.39.0
 mypy==1.9.0
@@ -529,7 +529,7 @@ ray==2.42.0
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
-redshift-connector==2.1.7
+redshift-connector==2.1.8
 referencing==0.36.2
 regex==2024.11.6
 requests-file==2.1.0
@@ -576,7 +576,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.15.0
+snowflake-connector-python==3.16.0
 snowflake-snowpark-python==1.33.0
 snowflake-sqlalchemy==1.7.5
 sortedcontainers==2.4.0
@@ -617,7 +617,7 @@ tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.32
-teradatasqlalchemy==20.0.0.5
+teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
 text-unidecode==1.3
 threadpoolctl==3.6.0
