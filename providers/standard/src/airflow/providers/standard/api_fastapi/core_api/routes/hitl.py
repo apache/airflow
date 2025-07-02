@@ -41,9 +41,8 @@ hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 log = structlog.get_logger(__name__)
 
 
-@hitl_router.post(
-    "/task-instances/{task_instance_id}/responses",
-    status_code=status.HTTP_201_CREATED,
+@hitl_router.patch(
+    "/{task_instance_id}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -86,7 +85,7 @@ def write_hitl_response_content(
 
 
 @hitl_router.get(
-    "/task-instances/{task_instance_id}/responses",
+    "/{task_instance_id}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -118,7 +117,7 @@ def get_hitl_response(
 
 
 @hitl_router.get(
-    "/responses",
+    "/",
     status_code=status.HTTP_200_OK,
     dependencies=[
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),

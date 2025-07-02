@@ -104,7 +104,7 @@ class ConnectionResponse(BaseModel):
 
 class CreateHITLInputRequestPayload(BaseModel):
     """
-    Used in adding the input request part of a Human-in-the-loop response.
+    Add the input request part of a Human-in-the-loop response.
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
@@ -114,7 +114,6 @@ class CreateHITLInputRequestPayload(BaseModel):
     default: Annotated[list[str] | None, Field(title="Default")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
     type: Annotated[Literal["CreateHITLInputRequestPayload"] | None, Field(title="Type")] = (
         "CreateHITLInputRequestPayload"
     )
@@ -174,7 +173,7 @@ class DagRunType(str, Enum):
 
 class HITLInputRequestResponse(BaseModel):
     """
-    Schema for a Human-in-the-loop input request for a specific task instance.
+    Schema for the input request part of a Human-in-the-loop Response for a specific task instance.
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
@@ -184,7 +183,6 @@ class HITLInputRequestResponse(BaseModel):
     default: Annotated[list[str] | None, Field(title="Default")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Form Content")] = None
 
 
 class HITLResponseContentDetail(BaseModel):
@@ -196,6 +194,7 @@ class HITLResponseContentDetail(BaseModel):
     response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
     user_id: Annotated[str | None, Field(title="User Id")] = None
     response_content: Annotated[str | None, Field(title="Response Content")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -367,6 +366,17 @@ class TriggerDAGRunPayload(BaseModel):
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
+
+
+class UpdateHITLResponse(BaseModel):
+    """
+    Update the response content part of an existing Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    response_content: Annotated[str, Field(title="Response Content")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    type: Annotated[Literal["UpdateHITLResponse"] | None, Field(title="Type")] = "UpdateHITLResponse"
 
 
 class ValidationError(BaseModel):

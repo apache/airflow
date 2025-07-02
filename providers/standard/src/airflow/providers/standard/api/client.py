@@ -67,7 +67,7 @@ class HITLOperations:
             params=params,
         )
         resp = self.client.post(
-            f"/hitl/task-instances/{ti_id}/input-requests",
+            f"/hitl-responses/{ti_id}",
             content=payload.model_dump_json(),
         )
         return HITLInputRequestResponseResult.model_validate_json(resp.read())
@@ -86,12 +86,12 @@ class HITLOperations:
             params_input=params_input,
         )
         resp = self.client.patch(
-            f"/hitl/task-instances/{ti_id}/responses",
+            f"/hitl-responses/{ti_id}",
             content=payload.model_dump_json(),
         )
         return HITLResponseContentDetail.model_validate_json(resp.read())
 
     def get_response(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
         """Get the Human-in-the-loop response of a specific Task Instance."""
-        resp = self.client.get(f"/hitl/task-instances/{ti_id}/responses")
+        resp = self.client.get(f"/hitl-responses/{ti_id}")
         return HITLResponseContentDetail.model_validate_json(resp.read())

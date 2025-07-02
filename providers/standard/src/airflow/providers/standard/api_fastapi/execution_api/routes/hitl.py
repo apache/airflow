@@ -40,7 +40,7 @@ log = structlog.get_logger(__name__)
 
 
 @router.post(
-    "/task-instances/{task_instance_id}/input-requests",
+    "/{task_instance_id}",
     status_code=status.HTTP_201_CREATED,
 )
 def add_hitl_input_request(
@@ -73,9 +73,7 @@ def add_hitl_input_request(
     return HITLInputRequestResponse.model_validate(hitl_input_request)
 
 
-@router.patch(
-    "/task-instances/{task_instance_id}/responses",
-)
+@router.patch("/{task_instance_id}")
 def update_hitl_response(
     task_instance_id: UUID,
     payload: UpdateHITLResponse,
@@ -94,7 +92,7 @@ def update_hitl_response(
 
     hitl_response_model.user_id = "fallback to default"
     hitl_response_model.response_content = payload.response_content
-    hitl_response_model.params_input = payload.response_content
+    hitl_response_model.params_input = payload.params_input
     hitl_response_model.response_at = datetime.now(timezone.utc)
     session.add(hitl_response_model)
     session.commit()
@@ -107,7 +105,7 @@ def update_hitl_response(
 
 
 @router.get(
-    "/task-instances/{task_instance_id}/responses",
+    "/{task_instance_id}",
     status_code=status.HTTP_200_OK,
 )
 def get_hitl_response(

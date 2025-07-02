@@ -102,11 +102,13 @@ try:
         CreateHITLInputRequestPayload,
         GetHITLResponseContentDetail,
         HITLInputRequestResponseResult,
+        UpdateHITLResponse,
     )
 except ModuleNotFoundError:
     GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
     CreateHITLInputRequestPayload = object  # type: ignore[misc, assignment]
     HITLInputRequestResponseResult = object  # type: ignore[misc, assignment]
+    UpdateHITLResponse = object  # type: ignore[misc, assignment]
 
 
 if TYPE_CHECKING:
@@ -886,6 +888,7 @@ ToSupervisor = Annotated[
     | ResendLoggingFD
     # HITL response from standard provider
     | CreateHITLInputRequestPayload
+    | UpdateHITLResponse
     | GetHITLResponseContentDetail,
     Field(discriminator="type"),
 ]

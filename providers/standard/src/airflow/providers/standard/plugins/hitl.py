@@ -48,9 +48,8 @@ if AIRFLOW_V_3_1_PLUS:
             title="Airflow Human-in-the-loop API",
             # TODO: update description
             description=(
-                "This is Airflow Human-in-the-loop API - which is a the access endpoint for workers running on remote "
-                "sites serving for Apache Airflow jobs. It also proxies internal API to edge endpoints. It is "
-                "not intended to be used by any external code. You can find more information in AIP-90 "
+                "This is Airflow Human-in-the-loop API - which allow human interactions."
+                "You can find more information in AIP-90 "
                 "https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-90+Human+in+the+loop"
             ),
         )
@@ -58,7 +57,7 @@ if AIRFLOW_V_3_1_PLUS:
 
         return {
             "app": hitl_api_app,
-            "url_prefix": "/hitl",
+            "url_prefix": "/hitl-responses",
             "name": "Airflow Human in the loop API",
         }
 
