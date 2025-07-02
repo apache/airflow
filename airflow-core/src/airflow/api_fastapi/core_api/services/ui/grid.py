@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import contextlib
+from collections import Counter
+from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
@@ -150,7 +152,6 @@ def fill_task_instance_summaries(
 
     :param grouped_task_instances: Grouped Task Instances
     :param task_instance_summaries_to_fill: Task Instance Summaries to fill
-    :param task_node_map: Task Node Map
     :param session: Session
 
     :return: None
@@ -309,3 +310,86 @@ def _get_node_by_id(nodes, node_id):
         if node["id"] == node_id:
             return node
     return {}
+
+
+def _is_task_node_mapped_task_group(task_node: BaseOperator | MappedTaskGroup | TaskMap | None) -> bool:
+    """Check if the Task Node is a Mapped Task Group."""
+    return type(task_node) is MappedTaskGroup
+
+
+def agg_state(states):
+    states = Counter(states)
+    for state in state_priority:
+        if state in states:
+            return state
+    return None
+
+
+def _get_aggs_for_node(detail):
+    states = [x["state"] for x in detail if x["state"] is not None]
+    try:
+        min_start_date = min(x["start_date"] for x in detail if x["start_date"])
+    except ValueError:
+        min_start_date = None
+    try:
+        max_end_date = max(x["end_date"] for x in detail if x["end_date"])
+    except ValueError:
+        max_end_date = None
+    return {
+        "state": agg_state(states),
+        "min_start_date": min_start_date,
+        "max_end_date": max_end_date,
+        "child_states": dict(Counter(states)),
+    }
+
+
+def _find_aggregates(
+    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap,
+    parent_node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
+    ti_details: dict[str, list],
+) -> Iterable[dict]:
+    """Recursively fill the Task Group Map."""
+    node_id = node.node_id
+    parent_id = parent_node.node_id if parent_node else None
+    details = ti_details[node_id]
+
+    if node is None:
+        return
+    if isinstance(node, MappedOperator):
+        yield {
+            "task_id": node_id,
+            "type": "mapped_task",
+            "parent_id": parent_id,
+            **_get_aggs_for_node(details),
+        }
+
+        return
+    if isinstance(node, TaskGroup):
+        children = []
+        for child in get_task_group_children_getter()(node):
+            for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):
+                if child_node["parent_id"] == node_id:
+                    children.append(
+                        {
+                            "state": child_node["state"],
+                            "start_date": child_node["min_start_date"],
+                            "end_date": child_node["max_end_date"],
+                        }
+                    )
+                yield child_node
+        if node_id:
+            yield {
+                "task_id": node_id,
+                "type": "group",
+                "parent_id": parent_id,
+                **_get_aggs_for_node(children),
+            }
+        return
+    if isinstance(node, BaseOperator):
+        yield {
+            "task_id": node_id,
+            "type": "task",
+            "parent_id": parent_id,
+            **_get_aggs_for_node(details),
+        }
+        return

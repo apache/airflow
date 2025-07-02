@@ -26,14 +26,6 @@ import pytest
 from uuid6 import uuid7
 
 from airflow import DAG
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils import timezone
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import task
-else:
-    from airflow.decorators import task
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset
@@ -52,12 +44,14 @@ from airflow.providers.openlineage.utils.utils import (
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
+    get_operator_provider_version,
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -65,6 +59,12 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator, task
+else:
+    from airflow.decorators import task  # type: ignore[no-redef]
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -1598,6 +1598,7 @@ def test_task_info_af3():
         "multiple_outputs": False,
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
+        "operator_provider_version": None,  # Custom operator doesn't have provider version
         "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
         "owner": "airflow",
         "priority_weight": 1,
@@ -1675,6 +1676,7 @@ def test_task_info_af2():
         "multiple_outputs": False,
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
+        "operator_provider_version": None,  # Custom operator doesn't have provider version
         "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
         "owner": "airflow",
         "priority_weight": 1,
@@ -1696,3 +1698,85 @@ def test_task_info_complete():
     task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
     result = TaskInfoComplete(task_0)
     assert "'bash_command': 'exit 0;'" in str(result)
+
+
+@patch("airflow.providers.openlineage.utils.utils.get_fully_qualified_class_name")
+def test_get_operator_provider_version_exception_handling(mock_class_name):
+    mock_class_name.side_effect = Exception("Test exception")
+    operator = MagicMock()
+    assert get_operator_provider_version(operator) is None
+
+
+def test_get_operator_provider_version_for_core_operator():
+    """Test that get_operator_provider_version returns None for core operators."""
+    operator = BaseOperator(task_id="test_task")
+    result = get_operator_provider_version(operator)
+    assert result is None
+
+
+@patch("airflow.providers_manager.ProvidersManager")
+def test_get_operator_provider_version_for_provider_operator(mock_providers_manager):
+    """Test that get_operator_provider_version returns version for provider operators."""
+    # Mock ProvidersManager
+    mock_manager_instance = MagicMock()
+    mock_providers_manager.return_value = mock_manager_instance
+
+    # Mock providers data
+    mock_manager_instance.providers = {
+        "apache-airflow-providers-standard": MagicMock(version="1.2.0"),
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+        "apache-airflow-providers-google": MagicMock(version="10.5.0"),
+    }
+
+    # Test with BashOperator (standard provider)
+    operator = BashOperator(task_id="test_task", bash_command="echo test")
+    result = get_operator_provider_version(operator)
+    assert result == "1.2.0"
+
+
+@patch("airflow.providers_manager.ProvidersManager")
+def test_get_operator_provider_version_provider_not_found(mock_providers_manager):
+    """Test that get_operator_provider_version returns None when provider is not found."""
+    # Mock ProvidersManager with no matching provider
+    mock_manager_instance = MagicMock()
+    mock_providers_manager.return_value = mock_manager_instance
+    mock_manager_instance.providers = {
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+        "apache-airflow-providers-google": MagicMock(version="10.5.0"),
+    }
+
+    operator = BashOperator(task_id="test_task", bash_command="echo test")
+    result = get_operator_provider_version(operator)
+    assert result is None
+
+
+def test_get_operator_provider_version_for_custom_operator():
+    """Test that get_operator_provider_version returns None for custom operators."""
+
+    # Create a custom operator that doesn't belong to any provider
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            pass
+
+    operator = CustomOperator(task_id="test_task")
+    result = get_operator_provider_version(operator)
+    assert result is None
+
+
+@patch("airflow.providers_manager.ProvidersManager")
+def test_get_operator_provider_version_for_mapped_operator(mock_providers_manager):
+    """Test that get_operator_provider_version works with mapped operators."""
+    # Mock ProvidersManager
+    mock_manager_instance = MagicMock()
+    mock_providers_manager.return_value = mock_manager_instance
+
+    # Mock providers data
+    mock_manager_instance.providers = {
+        "apache-airflow-providers-standard": MagicMock(version="1.2.0"),
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+    }
+
+    # Test with mapped BashOperator (standard provider)
+    mapped_operator = BashOperator.partial(task_id="test_task").expand(bash_command=["echo 1", "echo 2"])
+    result = get_operator_provider_version(mapped_operator)
+    assert result == "1.2.0"

@@ -166,7 +166,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--airflow-skip-constraints",
                 "--clean-airflow-installation",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
@@ -197,8 +196,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--airflow-skip-constraints",
                 "--clean-airflow-installation",
+                "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--distribution-format",
                 "--providers-constraints-location",
@@ -469,5 +468,30 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-write-to-stable-folder",
             ],
         }
+    ],
+    "breeze release-management constraints-version-check": [
+        {
+            "name": "Constraints options.",
+            "options": [
+                "--python",
+                "--airflow-constraints-mode",
+                "--github-repository",
+                "--github-token",
+            ],
+        },
+        {
+            "name": "Comparison mode.",
+            "options": [
+                "--diff-mode",
+                "--package",
+                "--explain-why",
+            ],
+        },
+        {
+            "name": "Build options.",
+            "options": [
+                "--builder",
+            ],
+        },
     ],
 }

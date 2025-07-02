@@ -26,7 +26,7 @@ import sys
 from fnmatch import fnmatch
 from importlib import import_module
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import attr
 
@@ -56,8 +56,8 @@ OLD_DICT = "dict"
 DEFAULT_VERSION = 0
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
-U = Union[bool, float, int, dict, list, str, tuple, set]
-S = Union[list, tuple, set]
+U = bool | float | int | dict | list | str | tuple | set
+S = list | tuple | set
 
 _serializers: dict[str, ModuleType] = {}
 _deserializers: dict[str, ModuleType] = {}
