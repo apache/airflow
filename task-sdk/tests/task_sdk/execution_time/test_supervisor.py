@@ -975,7 +975,9 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=client_with_ti_start,
             target=subprocess_main,
         )
