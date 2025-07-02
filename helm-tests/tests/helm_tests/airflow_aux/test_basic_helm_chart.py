@@ -70,7 +70,7 @@ DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Deployment", "test-basic-airflow-dag-processor"),
         ("ServiceAccount", "test-basic-airflow-api-server"),
         ("ServiceAccount", "test-basic-airflow-dag-processor"),
-        ("Secret", "test-basic-api-secret-key"),
+        ("Secret", "test-basic-airflow-api-secret-key"),
         ("Secret", "test-basic-jwt-secret"),
     }
 )
@@ -463,7 +463,7 @@ class TestBaseChartTest:
             kind_names_tuples += [
                 (f"{release_name}-api-server", "Service", "api-server"),
                 (f"{release_name}-api-server", "Deployment", "api-server"),
-                (f"{release_name}-api-server", "ServiceAccount", "api-server"),
+                (f"{release_name}-airflow-api-server", "ServiceAccount", "api-server"),
                 (f"{release_name}-api-secret-key", "Secret", "api-server"),
                 (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
             ]
