@@ -26,8 +26,8 @@ from connexion.exceptions import BadRequestProblem, ProblemException
 from flask import request
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.api_connexion.exceptions import common_error_handler
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from flask import Flask
