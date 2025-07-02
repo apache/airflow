@@ -24,6 +24,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SftpFile, SFTPToWasbOperator
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 TASK_ID = "test-gcs-to-sftp-operator"
 WASB_CONN_ID = "wasb_default"
 SFTP_CONN_ID = "ssh_default"
@@ -55,6 +57,53 @@ class TestSFTPToWasbOperator:
         assert operator.wasb_conn_id == WASB_CONN_ID
         assert operator.blob_prefix == BLOB_PREFIX
         assert operator.create_container is False
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="dry_run only exists in Airflow 3.0+")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook")
+    def test_dry_run_logs_and_skips_real_action(self, mock_sftp_hook, mock_wasb_hook, caplog):
+        mock_sftp_hook.return_value.get_tree_map.return_value = [
+            ["main_dir/test_object3.json"],  # files
+            [],  # dirs
+            [],  # links
+        ]
+        operator = SFTPToWasbOperator(
+            task_id=TASK_ID,
+            sftp_source_path=SOURCE_PATH_NO_WILDCARD,
+            sftp_conn_id=SFTP_CONN_ID,
+            container_name=CONTAINER_NAME,
+            wasb_conn_id=WASB_CONN_ID,
+            blob_prefix="sponge-bob/",
+            move_object=True,
+        )
+
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            operator.dry_run()
+
+        assert "Process will upload file from (SFTP) main_dir/test_object3.json" in caplog.text
+        assert "as sponge-bob/test_object3.json" in caplog.text
+        assert "Executing delete of" in caplog.text
+
+        assert not mock_wasb_hook.return_value.load_file.called
+        assert not mock_sftp_hook.return_value.delete_file.called
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.AIRFLOW_V_3_0_PLUS", False)
+    def test_dry_run_raises_not_implemented(mock_version_tuple):
+        operator = SFTPToWasbOperator(
+            task_id="test-task",
+            sftp_source_path="main_dir/test_*.json",
+            sftp_conn_id="sftp_default",
+            container_name="test-container",
+            wasb_conn_id="wasb_default",
+            blob_prefix="sponge-bob/",
+            move_object=False,
+        )
+
+        with pytest.raises(NotImplementedError) as exc_info:
+            operator.dry_run()
+
+        assert "dry_run() is only supported in Airflow 3.0+." in str(exc_info.value)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook", autospec=True)
     def test_execute_more_than_one_wildcard_exception(self, mock_hook):
