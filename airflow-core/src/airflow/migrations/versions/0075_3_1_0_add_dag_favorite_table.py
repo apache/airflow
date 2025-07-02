@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add dag_favorite table
+Add dag_favorite table.
 
 Revision ID: ffdb0566c7c0
 Revises: 66a7743fe20e
@@ -38,10 +38,10 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Apply add dag_favorite table"""
+    """Apply add dag_favorite table."""
     op.create_table(
         "dag_favorite",
-        sa.Column("user_id", sa.String(), nullable=False),
+        sa.Column("user_id", sa.String(length=250), nullable=False),
         sa.Column("dag_id", sa.String(length=250), nullable=False),
         sa.ForeignKeyConstraint(
             ["dag_id"], ["dag.dag_id"], name=op.f("dag_favorite_dag_id_fkey"), ondelete="CASCADE"
@@ -51,5 +51,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add dag_favorite table"""
+    """Unapply add dag_favorite table."""
     op.drop_table("dag_favorite")

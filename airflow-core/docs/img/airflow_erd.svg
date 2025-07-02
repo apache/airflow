@@ -1747,24 +1747,24 @@
 <!-- dag_favorite -->
 <g id="node32" class="node">
 <title>dag_favorite</title>
-<polygon fill="none" stroke="black" points="954.5,-1937.5 954.5,-1965.5 1212.5,-1965.5 1212.5,-1937.5 954.5,-1937.5"/>
-<text text-anchor="start" x="1027.5" y="-1948.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_favorite</text>
-<polygon fill="none" stroke="black" points="954.5,-1912.5 954.5,-1937.5 1212.5,-1937.5 1212.5,-1912.5 954.5,-1912.5"/>
-<text text-anchor="start" x="959.5" y="-1922.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
-<text text-anchor="start" x="1005.5" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1010.5" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="1131.5" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="954.5,-1887.5 954.5,-1912.5 1212.5,-1912.5 1212.5,-1887.5 954.5,-1887.5"/>
-<text text-anchor="start" x="959.5" y="-1897.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">user_id</text>
-<text text-anchor="start" x="1010.5" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1015.5" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR]</text>
-<text text-anchor="start" x="1098.5" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="952.5,-1937.5 952.5,-1965.5 1215.5,-1965.5 1215.5,-1937.5 952.5,-1937.5"/>
+<text text-anchor="start" x="1028" y="-1948.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_favorite</text>
+<polygon fill="none" stroke="black" points="952.5,-1912.5 952.5,-1937.5 1215.5,-1937.5 1215.5,-1912.5 952.5,-1912.5"/>
+<text text-anchor="start" x="957.5" y="-1922.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
+<text text-anchor="start" x="1003.5" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1008.5" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="1129.5" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="952.5,-1887.5 952.5,-1912.5 1215.5,-1912.5 1215.5,-1887.5 952.5,-1887.5"/>
+<text text-anchor="start" x="957.5" y="-1897.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">user_id</text>
+<text text-anchor="start" x="1008.5" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1013.5" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="1134.5" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag&#45;&#45;dag_favorite -->
 <g id="edge28" class="edge">
 <title>dag&#45;&#45;dag_favorite</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.26,-1926.5C868.97,-1926.5 909.55,-1926.5 946.26,-1926.5"/>
-<text text-anchor="start" x="915.26" y="-1915.3" font-family="Times,serif" font-size="14.00">0..N</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M829.26,-1926.5C868.13,-1926.5 907.84,-1926.5 943.93,-1926.5"/>
+<text text-anchor="start" x="912.93" y="-1915.3" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="829.26" y="-1915.3" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- deadline -->

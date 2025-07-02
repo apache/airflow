@@ -2339,16 +2339,16 @@ export type GetDagDetailsData = {
 export type GetDagDetailsResponse = DAGDetailsResponse;
 
 export type FavoriteDagData = {
-  dagId: string;
+    dagId: string;
 };
 
-export type FavoriteDagResponse = unknown;
+export type FavoriteDagResponse = void;
 
 export type UnfavoriteDagData = {
-  dagId: string;
+    dagId: string;
 };
 
-export type UnfavoriteDagResponse = unknown;
+export type UnfavoriteDagResponse = void;
 
 export type GetDagTagsData = {
     limit?: number;
@@ -4306,37 +4306,37 @@ export type $OpenApiTs = {
             };
         };
         delete: {
-      req: DeleteDagData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: unknown;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Unprocessable Entity
-         */
-        422: HTTPExceptionResponse;
-      };
+            req: DeleteDagData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
+            };
+        };
     };
-  };
-  "/api/v2/dags/{dag_id}/details": {
-    get: {
+    '/api/v2/dags/{dag_id}/details': {
+        get: {
             req: GetDagDetailsData;
             res: {
                 /**
@@ -4373,35 +4373,8 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: DAGResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
+                204: void;
                 /**
-                 * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/api/v2/dags/{dag_id}/unfavorite": {
-    post: {
-      req: UnfavoriteDagData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGResponse;
-        /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -4414,10 +4387,37 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/unfavorite': {
+        post: {
+            req: UnfavoriteDagData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;

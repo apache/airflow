@@ -440,119 +440,48 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
   warningType?: DagWarningType;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
- * Get Dags
- * Get all DAGs.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @param data.dagRunStartDateGte
- * @param data.dagRunStartDateLte
- * @param data.dagRunEndDateGte
- * @param data.dagRunEndDateLte
- * @param data.dagRunState
- * @param data.orderBy
- * @param data.isFavorite
- * @returns DAGCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceGetDags = <
-  TData = Common.DagServiceGetDagsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagRunEndDateGte,
-    dagRunEndDateLte,
-    dagRunStartDateGte,
-    dagRunStartDateLte,
-    dagRunState,
-    excludeStale,
-    isFavorite,
-    lastDagRunState,
-    limit,
-    offset,
-    orderBy,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagRunEndDateGte?: string;
-    dagRunEndDateLte?: string;
-    dagRunStartDateGte?: string;
-    dagRunStartDateLte?: string;
-    dagRunState?: string[];
-    excludeStale?: boolean;
-    isFavorite?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagsKeyFn(
-      {
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagRunEndDateGte,
-        dagRunEndDateLte,
-        dagRunStartDateGte,
-        dagRunStartDateLte,
-        dagRunState,
-        excludeStale,
-        isFavorite,
-        lastDagRunState,
-        limit,
-        offset,
-        orderBy,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDags({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagRunEndDateGte,
-        dagRunEndDateLte,
-        dagRunStartDateGte,
-        dagRunStartDateLte,
-        dagRunState,
-        excludeStale,
-        isFavorite,
-        lastDagRunState,
-        limit,
-        offset,
-        orderBy,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
-    ...options,
-  });
+* Get Dags
+* Get all DAGs.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.tags
+* @param data.tagsMatchMode
+* @param data.owners
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.excludeStale
+* @param data.paused
+* @param data.lastDagRunState
+* @param data.dagRunStartDateGte
+* @param data.dagRunStartDateLte
+* @param data.dagRunEndDateGte
+* @param data.dagRunEndDateLte
+* @param data.dagRunState
+* @param data.orderBy
+* @param data.isFavorite
+* @returns DAGCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetDags = <TData = Common.DagServiceGetDagsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  dagDisplayNamePattern?: string;
+  dagIdPattern?: string;
+  dagRunEndDateGte?: string;
+  dagRunEndDateLte?: string;
+  dagRunStartDateGte?: string;
+  dagRunStartDateLte?: string;
+  dagRunState?: string[];
+  excludeStale?: boolean;
+  isFavorite?: boolean;
+  lastDagRunState?: DagRunState;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  owners?: string[];
+  paused?: boolean;
+  tags?: string[];
+  tagsMatchMode?: "any" | "all";
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsKeyFn({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDags({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
 /**
 * Get Dag
 * Get basic information about a DAG.
@@ -1625,77 +1554,31 @@ export const useDagRunServiceGetListDagRunsBatch = <TData = Common.DagRunService
   requestBody: DAGRunsBatchBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.getListDagRunsBatch({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
- * Favorite Dag
- * Mark the DAG as favorite.
- * @param data The data for the request.
- * @param data.dagId
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const useDagServiceFavoriteDag = <
-  TData = Common.DagServiceFavoriteDagMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        dagId: string;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      dagId: string;
-    },
-    TContext
-  >({
-    mutationFn: ({ dagId }) => DagService.favoriteDag({ dagId }) as unknown as Promise<TData>,
-    ...options,
-  });
+* Favorite Dag
+* Mark the DAG as favorite.
+* @param data The data for the request.
+* @param data.dagId
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useDagServiceFavoriteDag = <TData = Common.DagServiceFavoriteDagMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+}, TContext>({ mutationFn: ({ dagId }) => DagService.favoriteDag({ dagId }) as unknown as Promise<TData>, ...options });
 /**
- * Unfavorite Dag
- * Unmark the DAG as favorite.
- * @param data The data for the request.
- * @param data.dagId
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const useDagServiceUnfavoriteDag = <
-  TData = Common.DagServiceUnfavoriteDagMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        dagId: string;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      dagId: string;
-    },
-    TContext
-  >({
-    mutationFn: ({ dagId }) => DagService.unfavoriteDag({ dagId }) as unknown as Promise<TData>,
-    ...options,
-  });
+* Unfavorite Dag
+* Unmark the DAG as favorite.
+* @param data The data for the request.
+* @param data.dagId
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useDagServiceUnfavoriteDag = <TData = Common.DagServiceUnfavoriteDagMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+}, TContext>({ mutationFn: ({ dagId }) => DagService.unfavoriteDag({ dagId }) as unknown as Promise<TData>, ...options });
 /**
 * Get Task Instances Batch
 * Get list of task instances.

@@ -1281,211 +1281,162 @@ export class DagWarningService {
 }
 
 export class DagService {
-  /**
-   * Get Dags
-   * Get all DAGs.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.tags
-   * @param data.tagsMatchMode
-   * @param data.owners
-   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   * @param data.excludeStale
-   * @param data.paused
-   * @param data.lastDagRunState
-   * @param data.dagRunStartDateGte
-   * @param data.dagRunStartDateLte
-   * @param data.dagRunEndDateGte
-   * @param data.dagRunEndDateLte
-   * @param data.dagRunState
-   * @param data.orderBy
-   * @param data.isFavorite
-   * @returns DAGCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getDags(data: GetDagsData = {}): CancelablePromise<GetDagsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/api/v2/dags",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        tags: data.tags,
-        tags_match_mode: data.tagsMatchMode,
-        owners: data.owners,
-        dag_id_pattern: data.dagIdPattern,
-        dag_display_name_pattern: data.dagDisplayNamePattern,
-        exclude_stale: data.excludeStale,
-        paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
-        dag_run_start_date_gte: data.dagRunStartDateGte,
-        dag_run_start_date_lte: data.dagRunStartDateLte,
-        dag_run_end_date_gte: data.dagRunEndDateGte,
-        dag_run_end_date_lte: data.dagRunEndDateLte,
-        dag_run_state: data.dagRunState,
-        order_by: data.orderBy,
-        is_favorite: data.isFavorite,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Patch Dags
-   * Patch multiple DAGs.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @param data.updateMask
-   * @param data.limit
-   * @param data.offset
-   * @param data.tags
-   * @param data.tagsMatchMode
-   * @param data.owners
-   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   * @param data.excludeStale
-   * @param data.paused
-   * @returns DAGCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static patchDags(data: PatchDagsData): CancelablePromise<PatchDagsResponse> {
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/api/v2/dags",
-      query: {
-        update_mask: data.updateMask,
-        limit: data.limit,
-        offset: data.offset,
-        tags: data.tags,
-        tags_match_mode: data.tagsMatchMode,
-        owners: data.owners,
-        dag_id_pattern: data.dagIdPattern,
-        exclude_stale: data.excludeStale,
-        paused: data.paused,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Dag
-   * Get basic information about a DAG.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @returns DAGResponse Successful Response
-   * @throws ApiError
-   */
-  public static getDag(data: GetDagData): CancelablePromise<GetDagResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/api/v2/dags/{dag_id}",
-      path: {
-        dag_id: data.dagId,
-      },
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Unprocessable Entity",
-      },
-    });
-  }
-
-  /**
-   * Patch Dag
-   * Patch the specific DAG.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.requestBody
-   * @param data.updateMask
-   * @returns DAGResponse Successful Response
-   * @throws ApiError
-   */
-  public static patchDag(data: PatchDagData): CancelablePromise<PatchDagResponse> {
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/api/v2/dags/{dag_id}",
-      path: {
-        dag_id: data.dagId,
-      },
-      query: {
-        update_mask: data.updateMask,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Favorite Dag
-   * Mark the DAG as favorite.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @returns unknown Successful Response
-   * @throws ApiError
-   */
-  public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/api/v2/dags/{dag_id}/favorite",
-      path: {
-        dag_id: data.dagId,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Unfavorite Dag
-   * Unmark the DAG as favorite.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @returns unknown Successful Response
-   * @throws ApiError
-   */
-  public static unfavoriteDag(data: UnfavoriteDagData): CancelablePromise<UnfavoriteDagResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/api/v2/dags/{dag_id}/unfavorite",
-      path: {
-        dag_id: data.dagId,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        409: "Conflict",
-        422: "Validation Error",
-      },
-    });
-  }
-
+    /**
+     * Get Dags
+     * Get all DAGs.
+     * @param data The data for the request.
+     * @param data.limit
+     * @param data.offset
+     * @param data.tags
+     * @param data.tagsMatchMode
+     * @param data.owners
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.excludeStale
+     * @param data.paused
+     * @param data.lastDagRunState
+     * @param data.dagRunStartDateGte
+     * @param data.dagRunStartDateLte
+     * @param data.dagRunEndDateGte
+     * @param data.dagRunEndDateLte
+     * @param data.dagRunState
+     * @param data.orderBy
+     * @param data.isFavorite
+     * @returns DAGCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDags(data: GetDagsData = {}): CancelablePromise<GetDagsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags',
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                tags: data.tags,
+                tags_match_mode: data.tagsMatchMode,
+                owners: data.owners,
+                dag_id_pattern: data.dagIdPattern,
+                dag_display_name_pattern: data.dagDisplayNamePattern,
+                exclude_stale: data.excludeStale,
+                paused: data.paused,
+                last_dag_run_state: data.lastDagRunState,
+                dag_run_start_date_gte: data.dagRunStartDateGte,
+                dag_run_start_date_lte: data.dagRunStartDateLte,
+                dag_run_end_date_gte: data.dagRunEndDateGte,
+                dag_run_end_date_lte: data.dagRunEndDateLte,
+                dag_run_state: data.dagRunState,
+                order_by: data.orderBy,
+                is_favorite: data.isFavorite
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Dags
+     * Patch multiple DAGs.
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @param data.updateMask
+     * @param data.limit
+     * @param data.offset
+     * @param data.tags
+     * @param data.tagsMatchMode
+     * @param data.owners
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.excludeStale
+     * @param data.paused
+     * @returns DAGCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchDags(data: PatchDagsData): CancelablePromise<PatchDagsResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags',
+            query: {
+                update_mask: data.updateMask,
+                limit: data.limit,
+                offset: data.offset,
+                tags: data.tags,
+                tags_match_mode: data.tagsMatchMode,
+                owners: data.owners,
+                dag_id_pattern: data.dagIdPattern,
+                exclude_stale: data.excludeStale,
+                paused: data.paused
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Dag
+     * Get basic information about a DAG.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @returns DAGResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDag(data: GetDagData): CancelablePromise<GetDagResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}',
+            path: {
+                dag_id: data.dagId
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Unprocessable Entity'
+            }
+        });
+    }
+    
+    /**
+     * Patch Dag
+     * Patch the specific DAG.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.requestBody
+     * @param data.updateMask
+     * @returns DAGResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchDag(data: PatchDagData): CancelablePromise<PatchDagResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                update_mask: data.updateMask
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
     /**
      * Delete Dag
      * Delete the specific DAG.
@@ -1531,6 +1482,55 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Favorite Dag
+     * Mark the DAG as favorite.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/dags/{dag_id}/favorite',
+            path: {
+                dag_id: data.dagId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Unfavorite Dag
+     * Unmark the DAG as favorite.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static unfavoriteDag(data: UnfavoriteDagData): CancelablePromise<UnfavoriteDagResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/dags/{dag_id}/unfavorite',
+            path: {
+                dag_id: data.dagId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
