@@ -99,6 +99,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG, Context
     from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
@@ -1376,7 +1377,7 @@ class DagRun(Base, LoggingMixin):
         finished_tis: list[TI],
         session: Session,
     ) -> tuple[list[TI], bool, bool]:
-        old_states = {}
+        old_states: dict[TaskInstanceKey, Any] = {}
         ready_tis: list[TI] = []
         changed_tis = False
 
@@ -1428,7 +1429,7 @@ class DagRun(Base, LoggingMixin):
         # Check dependencies.
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
-        revised_map_index_task_ids = set()
+        revised_map_index_task_ids: set[str] = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, BaseOperator)
@@ -1904,8 +1905,8 @@ class DagRun(Base, LoggingMixin):
         """
         # Get list of TI IDs that do not need to executed, these are
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
-        empty_ti_ids = []
-        schedulable_ti_ids = []
+        empty_ti_ids: list[str] = []
+        schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
             if TYPE_CHECKING:
                 assert isinstance(ti.task, BaseOperator)
