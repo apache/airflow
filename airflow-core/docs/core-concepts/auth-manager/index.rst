@@ -107,7 +107,7 @@ Authentication related methods
 * ``get_url_logout``: Return the URL the user is redirected to when logging out. This is an optional method,
   this redirection is usually needed to invalidate resources when logging out, such as a session.
 * ``serialize_user``: Serialize a user instance to a dict. This dict is the actual content of the JWT token.
-  It should contain all the information needed to identity the user and make authorization request.
+  It should contain all the information needed to identify the user and make an authorization request.
 * ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
   This is the same dict returned by ``serialize_user``.
 
