@@ -469,6 +469,7 @@ click.rich_click.OPTION_GROUPS = {
         {
             "name": "Miscellaneous options",
             "options": [
+                "--include-commits",
                 "--jobs",
                 "--verbose",
             ],
@@ -502,6 +503,7 @@ click.rich_click.OPTION_GROUPS = {
 )
 @click.option("--docs-only", is_flag=True, help="Only build documentation")
 @click.option("--spellcheck-only", is_flag=True, help="Only perform spellchecking")
+@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
 @click.option(
     "-j",
     "--jobs",
@@ -535,6 +537,7 @@ def build_docs(
     clean_build,
     docs_only,
     spellcheck_only,
+    include_commits,
     jobs,
     list_packages,
     verbose,
@@ -608,7 +611,7 @@ def build_docs(
     ):
         for pkg_no, pkg in enumerate(packages_to_build, start=1):
             console.print(f"{pkg_no}. {pkg}")
-
+    os.environ["INCLUDE_COMMITS"] = "true" if include_commits else "false"
     all_build_errors: dict[str | None, list[DocBuildError]] = {}
     all_spelling_errors: dict[str | None, list[SpellingError]] = {}
     if priority_packages:
