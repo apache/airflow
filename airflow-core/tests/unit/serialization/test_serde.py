@@ -261,6 +261,21 @@ class TestSerDe:
 
     @conf_vars(
         {
+            ("core", "allowed_deserialization_classes"): "airflow.*",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_for_deserialize_pydantic_model(self):
+        # for Pydantic model to be deserialized, it must be in `allowed_deserialization_classes`
+        i = U(x=7, v=V(w=W(x=42), s=["hello", "world"], t=(1, 2, 3), c=99), u=("extra", 123))
+        e = serialize(i)
+        with pytest.raises(ImportError) as ex:
+            deserialize(e)
+
+        assert f"{qualname(U)} was not found in allow list" in str(ex.value)
+
+    @conf_vars(
+        {
             ("core", "allowed_deserialization_classes"): "unit.airflow.*",
         }
     )
