@@ -88,13 +88,14 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
 
     def poke(self, context: Context):
         response = self.hook.conn.list_command_invocations(CommandId=self.command_id)
-        instance_ids = [invocation["InstanceId"] for invocation in response.get("CommandInvocations", [])]
+        command_invocations = response.get("CommandInvocations", [])
 
-        for instance_id in instance_ids:
-            state = self.hook.conn.get_command_invocation(
-                CommandId=self.command_id,
-                InstanceId=instance_id,
-            )["Status"]
+        if not command_invocations:
+            self.log.info("No command invocations found for command_id=%s yet, waiting...", self.command_id)
+            return False
+
+        for invocation in command_invocations:
+            state = invocation["Status"]
 
             if state in self.FAILURE_STATES:
                 raise AirflowException(self.FAILURE_MESSAGE)
