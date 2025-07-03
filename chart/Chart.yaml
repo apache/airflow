@@ -95,6 +95,12 @@ annotations:
       links:
       - name: '#51828'
         url: https://github.com/apache/airflow/pull/51828
+    - description: Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver]
+        secret_key``
+      kind: fixed
+      links:
+      - name: '#52269'
+        url: https://github.com/apache/airflow/pull/52269
     - description: 'Docs: Update supported executors in docs'
       kind: changed
       links:

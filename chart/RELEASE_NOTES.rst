@@ -42,6 +42,7 @@ Bug Fixes
 - Use ``api-server`` instead of ``webserver`` in NOTES.txt for Airflow 3.0+ (#52194)
 - Change default executor in pod template to support executor parameter in task (#49433)
 - Use ``merged`` to render airflow.cfg and include computed defaults (#51828)
+- Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver] secret_key`` (#52269)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^
