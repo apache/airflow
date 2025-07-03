@@ -92,7 +92,7 @@ export const PluginMenus = () => {
           </Menu.Trigger>
           <Menu.Content>
             {buttons.map((externalView) => (
-              <Menu.Item asChild key={externalView.name} value={externalView.name}>
+              <Menu.Item key={externalView.name} value={externalView.name}>
                 <PluginMenuItem {...externalView} />
               </Menu.Item>
             ))}
@@ -104,7 +104,7 @@ export const PluginMenus = () => {
                 </Menu.TriggerItem>
                 <Menu.Content>
                   {menuButtons.map((externalView) => (
-                    <Menu.Item asChild key={externalView.name} value={externalView.name}>
+                    <Menu.Item key={externalView.name} value={externalView.name}>
                       <PluginMenuItem {...externalView} />
                     </Menu.Item>
                   ))}

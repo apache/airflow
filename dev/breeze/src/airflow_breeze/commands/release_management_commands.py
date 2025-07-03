@@ -95,6 +95,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    CONSTRAINTS_SOURCE_PROVIDERS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DESTINATION_LOCATIONS,
@@ -2632,7 +2633,8 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = sorted(pull_requests.keys())
+    # Only include PRs that have corresponding user data to avoid KeyError in template
+    pr_list = sorted([pr for pr in pull_requests.keys() if pr in users])
     user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
     all_users: set[str] = set()
     for user_list in users.values():
@@ -2778,6 +2780,7 @@ def get_airflow_versions_supported_by_python(
 def get_all_constraint_files(
     refresh_constraints: bool,
     python_version: str,
+    airflow_constraints_mode: str,
     github_token: str | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
@@ -2798,6 +2801,7 @@ def get_all_constraint_files(
                     constraints_reference=f"constraints-{airflow_version}",
                     python_version=python_version,
                     github_token=github_token,
+                    airflow_constraints_mode=airflow_constraints_mode,
                     output_file=CONSTRAINTS_CACHE_PATH
                     / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
@@ -2842,6 +2846,7 @@ def generate_providers_metadata(refresh_constraints: bool, github_token: str | N
     all_airflow_releases, airflow_release_dates = get_all_constraint_files(
         refresh_constraints=refresh_constraints,
         python_version=python,
+        airflow_constraints_mode=CONSTRAINTS_SOURCE_PROVIDERS,
         github_token=github_token,
     )
     constraints = load_constraints(python_version=python)
