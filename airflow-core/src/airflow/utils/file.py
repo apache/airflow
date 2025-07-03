@@ -48,10 +48,12 @@ class _IgnoreRule(Protocol):
 
         ``base_dir`` and ``definition_file`` should be absolute paths.
         """
+        ...
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
         """Match a candidate absolute path against a list of rules."""
+        ...
 
 
 class _RegexpIgnoreRule(NamedTuple):
@@ -89,7 +91,7 @@ class _GlobIgnoreRule(NamedTuple):
     relative_to: Path | None = None
 
     @staticmethod
-    def compile(pattern: str, _, definition_file: Path) -> _IgnoreRule | None:
+    def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
         """Build an ignore rule from the supplied glob pattern and log a useful warning if it is invalid."""
         relative_to: Path | None = None
         if pattern.strip() == "/":
