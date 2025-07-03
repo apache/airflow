@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-03T07:45:05.949037
+# This constraints file was automatically generated on 2025-07-03T13:50:55.756198
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -82,7 +82,7 @@ apprise==1.9.3
 argcomplete==3.6.2
 arro3-core==0.5.1
 asana==5.2.0
-asgiref==3.8.1
+asgiref==3.9.0
 asn1crypto==1.5.1
 astroid==3.3.10
 asttokens==3.0.0
@@ -160,7 +160,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.10.1
 connexion==2.14.2
-coverage==7.9.1
+coverage==7.9.2
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -501,7 +501,7 @@ pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.6
 pyodbc==5.2.0
-pyodps==0.12.3
+pyodps==0.12.4
 pyparsing==3.2.3
 pypsrp==0.8.1
 pyspark==4.0.0
@@ -581,7 +581,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.17.0
 slack_sdk==3.35.0
-smart_open==7.3.0
+smart_open==7.3.0.post1
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
