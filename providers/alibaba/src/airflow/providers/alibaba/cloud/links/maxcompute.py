@@ -18,10 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.alibaba.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.alibaba.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 

@@ -18,10 +18,7 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.alibaba.version_compat import BaseHook
 
 
 class AccessKeyCredentials(NamedTuple):
