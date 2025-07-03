@@ -91,8 +91,6 @@
     "up_for_retry": "جاهز للمحاولة مرة أخرى",
     "upstream_failed": "فشِل في المهام السابقة"
   },
-  "switchToDarkMode": "تبديل إلى الوضع الداكن",
-  "switchToLightMode": "تبديل إلى الوضع الفاتح",
   "table": {
     "filterByTag": "تصفية الDags حسب الوسم",
     "filterColumns": "تصفية أعمدة الجدول",

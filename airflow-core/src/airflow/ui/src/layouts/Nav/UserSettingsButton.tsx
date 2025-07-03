@@ -22,12 +22,23 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
+import {
+  FiClock,
+  FiGrid,
+  FiLogOut,
+  FiMoon,
+  FiSun,
+  FiUser,
+  FiGlobe,
+  FiMonitor,
+  FiEye,
+  FiChevronRight,
+} from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
-import { useColorMode } from "src/context/colorMode/useColorMode";
+import { COLOR_MODES, type ColorMode, useColorMode } from "src/context/colorMode/useColorMode";
 import { useTimezone } from "src/context/timezone";
 
 import LanguageModal from "./LanguageModal";
@@ -40,7 +51,7 @@ dayjs.extend(timezone);
 
 export const UserSettingsButton = () => {
   const { t: translate } = useTranslation();
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { setColorMode, theme } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
@@ -71,19 +82,36 @@ export const UserSettingsButton = () => {
           <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
           {translate("selectLanguage")}
         </Menu.Item>
-        <Menu.Item onClick={toggleColorMode} value="color-mode">
-          {colorMode === "light" ? (
-            <>
-              <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("switchToDarkMode")}
-            </>
-          ) : (
-            <>
-              <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("switchToLightMode")}
-            </>
-          )}
-        </Menu.Item>
+
+        <Menu.Root>
+          <Menu.TriggerItem>
+            <FiEye size="1.25rem" style={{ marginRight: "8px" }} />
+            {translate("appearance.appearance")}
+            <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
+          </Menu.TriggerItem>
+          <Menu.Content>
+            <Menu.RadioItemGroup
+              onValueChange={(element) => setColorMode(element.value as ColorMode)}
+              value={theme}
+            >
+              <Menu.RadioItem value={COLOR_MODES.DARK}>
+                <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
+                {translate("appearance.darkMode")}
+                <Menu.ItemIndicator />
+              </Menu.RadioItem>
+              <Menu.RadioItem value={COLOR_MODES.LIGHT}>
+                <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
+                {translate("appearance.lightMode")}
+                <Menu.ItemIndicator />
+              </Menu.RadioItem>
+              <Menu.RadioItem value={COLOR_MODES.SYSTEM}>
+                <FiMonitor size="1.25rem" style={{ marginRight: "8px" }} />
+                {translate("appearance.systemMode")}
+                <Menu.ItemIndicator />
+              </Menu.RadioItem>
+            </Menu.RadioItemGroup>
+          </Menu.Content>
+        </Menu.Root>
         <Menu.Item
           onClick={() => (dagView === "grid" ? setDagView("graph") : setDagView("grid"))}
           value={dagView}
