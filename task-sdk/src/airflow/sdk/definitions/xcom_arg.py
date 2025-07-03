@@ -109,7 +109,7 @@ class XComArg(LoggingMixin, ResolveMixin, DependencyMixin):
         """
         if isinstance(arg, ResolveMixin):
             yield from arg.iter_references()
-        elif isinstance(arg, tuple | set | list):
+        elif isinstance(arg, (tuple, set, list)):
             for elem in arg:
                 yield from XComArg.iter_xcom_references(elem)
         elif isinstance(arg, dict):
@@ -579,7 +579,7 @@ class ZipXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         values = [arg.resolve(context) for arg in self.args]
         for value in values:
-            if not isinstance(value, Sequence | dict):
+            if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
         return _ZipResult(values, fillvalue=self.fillvalue)
 
@@ -642,7 +642,7 @@ class ConcatXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         values = [arg.resolve(context) for arg in self.args]
         for value in values:
-            if not isinstance(value, Sequence | dict):
+            if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
         return _ConcatResult(values)
 

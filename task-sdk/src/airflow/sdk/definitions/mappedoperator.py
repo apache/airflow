@@ -145,9 +145,9 @@ def is_mappable_value(value: Any) -> TypeGuard[Collection]:
 
     :meta private:
     """
-    if not isinstance(value, Sequence | dict):
+    if not isinstance(value, (Sequence, dict)):
         return False
-    if isinstance(value, bytearray | bytes | str):
+    if isinstance(value, (bytearray, bytes, str)):
         return False
     return True
 
@@ -197,7 +197,7 @@ class OperatorPartial:
 
         if isinstance(kwargs, Sequence):
             for item in kwargs:
-                if not isinstance(item, XComArg | Mapping):
+                if not isinstance(item, (XComArg, Mapping)):
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")

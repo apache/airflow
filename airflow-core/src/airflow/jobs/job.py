@@ -35,7 +35,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, add_span
+from airflow.traces.tracer import DebugTrace, add_debug_span
 from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -210,7 +210,7 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
-        with Trace.start_span(span_name="heartbeat", component="Job") as span:
+        with DebugTrace.start_span(span_name="heartbeat", component="Job") as span:
             try:
                 span.set_attribute("heartbeat", str(self.latest_heartbeat))
                 # This will cause it to load from the db
@@ -426,7 +426,7 @@ def execute_job(
     return ret
 
 
-@add_span
+@add_debug_span
 def perform_heartbeat(
     job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:

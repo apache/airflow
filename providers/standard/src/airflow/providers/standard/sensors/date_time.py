@@ -23,13 +23,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
 from airflow.utils import timezone
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 try:
     from airflow.triggers.base import StartTriggerArgs

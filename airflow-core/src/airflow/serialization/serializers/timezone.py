@@ -70,7 +70,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 def deserialize(classname: str, version: int, data: object) -> Any:
     from airflow.utils.timezone import parse_timezone
 
-    if not isinstance(data, str | int):
+    if not isinstance(data, (str, int)):
         raise TypeError(f"{data} is not of type int or str but of {type(data)}")
 
     if version > __version__:
