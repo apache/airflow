@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+4.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HDFS remote_base to use path for compatibility with hdfs client (#50804)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK for apache/hdfs (#52505)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Remove HDFSHook, HdfsRegexSensor, HdfsSensor, HdfsFolderSensor (#52217)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.10.0
 ......
 

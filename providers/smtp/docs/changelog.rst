@@ -28,6 +28,21 @@ Changelog
 ---------
 
 
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Replace 'models.BaseOperator' to Task SDK for 'smtp' (#52596)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean DB Test flag from SMTP where Connection is used (#52029)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 2.1.0
 .....
 

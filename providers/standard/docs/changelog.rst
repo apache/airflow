@@ -35,6 +35,32 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for 'PackageIndex' connections in 'PythonVirtualenvOperator' (#52288)``
+* ``Honor 'index_urls' when venv is created with 'uv' in 'PythonVirtualenvOperator' (#52287)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Move compat shim in Standard Provider to 'version_compat.py' (#52567)``
+* ``Add a bunch of no-redef ignores so Mypy is happy (#52507)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``One more redef needing ignore (#52525)``
+   * ``Make sure all test version imports come from test_common (#52425)``
+
 1.3.0
 .....
 

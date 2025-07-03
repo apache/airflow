@@ -15,6 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
+0.0.4
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+
+Doc-only
+~~~~~~~~
+
+* ``Minor pre-commit fixes (#51769)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.mark.db_test: Git (#52035)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 0.0.3
 .....
 

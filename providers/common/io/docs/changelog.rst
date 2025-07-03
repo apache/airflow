@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+1.6.1
+.....
+
+Misc
+~~~~
+
+* ``Replace models.BaseOperator to Task SDK one for Common Providers (#52443)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+
 1.6.0
 .....
 

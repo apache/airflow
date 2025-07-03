@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.9.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for OpsGenie (#52564)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytestmark and add db_test marker to relevant tests (#52140)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 5.9.0
 .....
 

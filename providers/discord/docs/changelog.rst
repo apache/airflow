@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.10.1
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``test: remove pytest.mark.db_test from discord provider (#52041)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 3.10.0
 ......
 
