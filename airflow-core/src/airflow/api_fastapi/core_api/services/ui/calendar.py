@@ -115,9 +115,7 @@ class CalendarService:
         calendar_results = [
             CalendarTimeRangeDagRuns(
                 # ds.datetime in sqlite and mysql is a string, in postgresql it is a datetime
-                date=ds.datetime.replace(tzinfo=None)
-                if isinstance(ds.datetime, datetime.datetime)
-                else ds.datetime,
+                date=ds.datetime,
                 state=ds.state,
                 count=ds.count,
             )
@@ -204,7 +202,6 @@ class CalendarService:
 
             dates[self._truncate_datetime_for_granularity(dt, granularity)] += 1
 
-        log.debug("Calculated cron planned runs", dag_id=dag.dag_id, count=len(dates))
         return [
             CalendarTimeRangeDagRuns(date=dt, state="planned", count=count) for dt, count in dates.items()
         ]
@@ -280,18 +277,18 @@ class CalendarService:
             if dialect == "postgresql":
                 expression = sa.func.date_trunc("hour", column)
             elif dialect == "mysql":
-                expression = sa.func.date_format(column, "%Y-%m-%d %H:00:00")
+                expression = sa.func.date_format(column, "%Y-%m-%dT%H:00:00Z")
             elif dialect == "sqlite":
-                expression = sa.func.strftime("%Y-%m-%d %H:00:00", column)
+                expression = sa.func.strftime("%Y-%m-%dT%H:00:00Z", column)
             else:
                 raise ValueError(f"Unsupported dialect: {dialect}")
         else:
             if dialect == "postgresql":
-                expression = sa.func.cast(sa.func.cast(column, sa.Date), sa.DateTime)
+                expression = sa.func.timezone("UTC", sa.func.cast(sa.func.cast(column, sa.Date), sa.DateTime))
             elif dialect == "mysql":
-                expression = sa.func.cast(sa.func.date(column), sa.DateTime)
+                expression = sa.func.date_format(column, "%Y-%m-%dT%00:00:00Z")
             elif dialect == "sqlite":
-                expression = sa.func.datetime(sa.func.date(column))
+                expression = sa.func.strftime("%Y-%m-%dT00:00:00Z", column)
             else:
                 raise ValueError(f"Unsupported dialect: {dialect}")
         return expression
@@ -312,8 +309,8 @@ class CalendarService:
             Truncated datetime
         """
         if granularity == "hourly":
-            return dt.replace(minute=0, second=0, microsecond=0, tzinfo=None)
-        return dt.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+            return dt.replace(minute=0, second=0, microsecond=0)
+        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
     def _is_date_in_range(self, dt: datetime.datetime, logical_date: RangeFilter) -> bool:
         """Check if a date is within the specified range filter."""

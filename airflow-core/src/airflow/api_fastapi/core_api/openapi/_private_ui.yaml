@@ -896,11 +896,8 @@ paths:
       tags:
       - Calendar
       summary: Get Calendar
-      description: "Get calendar data for a DAG including historical and planned runs.\n\
-        \nArgs:\n    dag_id: The DAG ID\n    session: Database session\n    dag_bag:\
-        \ DAG bag dependency\n    logical_date: Date range filter\n    granularity:\
-        \ Time granularity (\"hourly\" or \"daily\")\n\nReturns:\n    List of calendar\
-        \ time range results"
+      description: Get calendar data for a DAG including historical and planned DAG
+        runs.
       operationId: get_calendar
       security:
       - OAuth2PasswordBearer: []

@@ -72,11 +72,11 @@ class TestCalendar:
                 {
                     "total_entries": 5,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00", "state": "failed", "count": 1},
-                        {"date": "2025-01-01T00:00:00", "state": "success", "count": 1},
-                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                        {"date": "2025-01-02T00:00:00", "state": "planned", "count": 1},
-                        {"date": "2025-01-03T00:00:00", "state": "planned", "count": 2},
+                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1},
+                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "planned", "count": 1},
+                        {"date": "2025-01-03T00:00:00Z", "state": "planned", "count": 2},
                     ],
                 },
             ),
@@ -85,8 +85,8 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00", "state": "failed", "count": 1},
-                        {"date": "2025-01-01T00:00:00", "state": "success", "count": 1},
+                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1},
+                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
                     ],
                 },
             ),
@@ -95,8 +95,8 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                        {"date": "2025-01-02T00:00:00", "state": "planned", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "planned", "count": 1},
                     ],
                 },
             ),
@@ -106,6 +106,7 @@ class TestCalendar:
         response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
         assert response.status_code == 200
         body = response.json()
+        print(body)
 
         assert body == result
 
@@ -117,12 +118,12 @@ class TestCalendar:
                 {
                     "total_entries": 6,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00", "state": "failed", "count": 1},
-                        {"date": "2025-01-01T01:00:00", "state": "success", "count": 1},
-                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                        {"date": "2025-01-02T01:00:00", "state": "planned", "count": 1},
-                        {"date": "2025-01-03T00:00:00", "state": "planned", "count": 1},
-                        {"date": "2025-01-03T01:00:00", "state": "planned", "count": 1},
+                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1},
+                        {"date": "2025-01-01T01:00:00Z", "state": "success", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
+                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
+                        {"date": "2025-01-03T00:00:00Z", "state": "planned", "count": 1},
+                        {"date": "2025-01-03T01:00:00Z", "state": "planned", "count": 1},
                     ],
                 },
             ),
@@ -135,8 +136,8 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                        {"date": "2025-01-02T01:00:00", "state": "planned", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
+                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
                     ],
                 },
             ),
