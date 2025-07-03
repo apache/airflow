@@ -50,7 +50,7 @@ Airflow 3.x Architecture
 
 Database Access Restrictions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-In Airflow 3.x, direct metadata database access from task code is now restricted. This is a key security and architectural improvement that affects how DAG authors interact with Airflow resources:
+In Airflow 3, direct metadata database access from task code is now restricted. This is a key security and architectural improvement that affects how DAG authors interact with Airflow resources:
 
 - **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
 - **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.

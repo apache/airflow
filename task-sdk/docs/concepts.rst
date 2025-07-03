@@ -34,12 +34,12 @@ Task Lifecycle
 
 Understanding the task lifecycle helps DAG authors write more effective tasks and debug issues:
 
-- **Scheduled**: The Airflow scheduler enqueues the task instance. The Executor assigns a workload token used for subsequent API authentication and validation.
+- **Scheduled**: The Airflow scheduler enqueues the task instance. The Executor assigns a workload token used for subsequent API authentication and validation with the Airflow API Server.
 - **Queued**: Workers poll the queue to retrieve and reserve queued task instances.
 - **Subprocess Launch**: The worker's Supervisor process spawns a dedicated subprocess (Task Runner) for the task instance, isolating its execution.
 - **Run API Call**: The Supervisor sends a ``POST /run`` call to the Execution API to mark the task as running; the API server responds with a ``TIRunContext`` (including retry limits, fail-fast flags, etc.).
-- **Resource Fetch**: During execution, if the task code requests Airflow resources (variables, connections, etc.), it writes a request to STDOUT. The Supervisor intercepts it, issues a corresponding API call, and writes the API response into the subprocess's STDIN.
-- **Heartbeats & Token Renewal**: The Task Runner periodically emits ``POST /heartbeat`` calls. Each call authenticates via JWT; if the token has expired, the API server returns a refreshed token in the ``Refreshed-API-Token`` header.
+- **Runtime Dependency Fetching**: During execution, if the task code requests Airflow resources (variables, connections, etc.), it writes a request to STDOUT. The Supervisor receives it and issues a corresponding API call, and writes the API response into the subprocess's STDIN.
+- **Heartbeats & Token Renewal**: The Task Runner periodically emits ``POST /heartbeat`` calls through the Supervisor. Each call authenticates via JWT; if the token has expired, the API server returns a refreshed token in the ``Refreshed-API-Token`` header.
 - **XCom Operations**: Upon successful task completion (or when explicitly invoked during execution), the Supervisor issues API calls to set or clear XCom entries for inter-task data passing.
 - **State Patch**: When the task reaches a terminal (success/failed), deferred, or rescheduled state, the Supervisor invokes ``PATCH /state`` with the final task status and metadata.
 
