@@ -67,7 +67,10 @@ export const LimitedItemsList = ({
         ))}
         {shouldTruncate ? (
           remainingItems.length === 1 ? (
-            <Text as="span">{remainingItems[0]}</Text>
+            <>
+              <Text as="span">{separator}</Text>
+              <Text as="span">{remainingItems[0]}</Text>
+            </>
           ) : (
             <Tooltip content={remainingItemsList} interactive={interactive}>
               <Text as="span" cursor="help">
