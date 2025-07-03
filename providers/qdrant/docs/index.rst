@@ -70,7 +70,7 @@ apache-airflow-providers-qdrant package
 `Qdrant <https://qdrant.tech/documentation>`__
 
 
-Release: 1.4.0
+Release: 1.4.1
 
 Provider package
 ----------------
