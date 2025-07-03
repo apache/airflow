@@ -46,31 +46,59 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
 
 @pytest.mark.parametrize(
-    ["name"],
+    "sql_conn_value, name, should_raise",
     [
-        pytest.param("", id="empty"),
-        pytest.param("\n\t", id="whitespace"),
-        pytest.param("a" * 1501, id="too_long"),
-        pytest.param("😊", id="non-ascii"),
+        pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),
+        pytest.param("mysql://localhost/db", "\n\t", True, id="mysql-whitespace"),
+        pytest.param("mysql://localhost/db", "a" * 1501, True, id="mysql-too-long"),
+        pytest.param("mysql://localhost/db", "😊", True, id="mysql-non-ascii"),
+        pytest.param("sqlite:///:memory:", "", True, id="sqlite-empty"),
+        pytest.param("sqlite:///:memory:", "\n\t", True, id="sqlite-whitespace"),
+        pytest.param("sqlite:///:memory:", "a" * 1501, True, id="sqlite-too-long"),
+        pytest.param("sqlite:///:memory:", "😊", False, id="sqlite-non-ascii"),
+        pytest.param("postgresql://localhost/db", "", True, id="postgres-empty"),
+        pytest.param("postgresql://localhost/db", "\n\t", True, id="postgres-whitespace"),
+        pytest.param("postgresql://localhost/db", "a" * 1501, True, id="postgres-too-long"),
+        pytest.param("postgresql://localhost/db", "😊", False, id="postgres-non-ascii"),
     ],
 )
-def test_invalid_names(name):
-    with pytest.raises(ValueError):
+def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
+    monkeypatch.setattr("airflow.sdk.definitions.asset.SQL_ALCHEMY_CONN", sql_conn_value)
+    if should_raise:
+        with pytest.raises(ValueError):
+            Asset(name=name)
+    else:
         Asset(name=name)
 
 
 @pytest.mark.parametrize(
-    ["uri"],
+    "sql_conn_value, uri, should_raise",
     [
-        pytest.param("", id="empty"),
-        pytest.param("\n\t", id="whitespace"),
-        pytest.param("a" * 1501, id="too_long"),
-        pytest.param("airflow://xcom/dag/task", id="reserved_scheme"),
-        pytest.param("😊", id="non-ascii"),
+        pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),
+        pytest.param("mysql://localhost/db", "\n\t", True, id="mysql-whitespace"),
+        pytest.param("mysql://localhost/db", "a" * 1501, True, id="mysql-too-long"),
+        pytest.param("mysql://localhost/db", "airflow://xcom/dag/task", True, id="mysql-reserved-scheme"),
+        pytest.param("mysql://localhost/db", "😊", True, id="mysql-non-ascii"),
+        pytest.param("sqlite:///:memory:", "", True, id="sqlite-empty"),
+        pytest.param("sqlite:///:memory:", "\n\t", True, id="sqlite-whitespace"),
+        pytest.param("sqlite:///:memory:", "a" * 1501, True, id="sqlite-too-long"),
+        pytest.param("sqlite:///:memory:", "airflow://xcom/dag/task", True, id="sqlite-reserved-scheme"),
+        pytest.param("sqlite:///:memory:", "😊", False, id="sqlite-non-ascii"),
+        pytest.param("postgresql://localhost/db", "", True, id="postgres-empty"),
+        pytest.param("postgresql://localhost/db", "\n\t", True, id="postgres-whitespace"),
+        pytest.param("postgresql://localhost/db", "a" * 1501, True, id="postgres-too-long"),
+        pytest.param(
+            "postgresql://localhost/db", "airflow://xcom/dag/task", True, id="postgres-reserved-scheme"
+        ),
+        pytest.param("postgresql://localhost/db", "😊", False, id="postgres-non-ascii"),
     ],
 )
-def test_invalid_uris(uri):
-    with pytest.raises(ValueError):
+def test_invalid_uris(sql_conn_value, uri, should_raise, monkeypatch):
+    monkeypatch.setattr("airflow.sdk.definitions.asset.SQL_ALCHEMY_CONN", sql_conn_value)
+    if should_raise:
+        with pytest.raises(ValueError):
+            Asset(uri=uri)
+    else:
         Asset(uri=uri)
 
 
