@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-messaging``
 
-Release: ``1.0.3``
+Release: ``1.0.4``
 
 
 ``Common Messaging Provider``
@@ -36,7 +36,7 @@ This is a provider package for ``common.messaging`` provider. All classes for th
 are in ``airflow.providers.common.messaging`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.4/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-messaging``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12
 
 Requirements
 ------------
@@ -57,4 +57,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.4/changelog.html>`_.
