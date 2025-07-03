@@ -102,7 +102,7 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
-class CreateHITLInputRequestPayload(BaseModel):
+class CreateHITLResponsePayload(BaseModel):
     """
     Add the input request part of a Human-in-the-loop response.
     """
@@ -114,8 +114,8 @@ class CreateHITLInputRequestPayload(BaseModel):
     default: Annotated[list[str] | None, Field(title="Default")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    type: Annotated[Literal["CreateHITLInputRequestPayload"] | None, Field(title="Type")] = (
-        "CreateHITLInputRequestPayload"
+    type: Annotated[Literal["CreateHITLResponsePayload"] | None, Field(title="Type")] = (
+        "CreateHITLResponsePayload"
     )
 
 

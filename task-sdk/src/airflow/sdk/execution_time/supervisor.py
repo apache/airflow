@@ -1234,9 +1234,9 @@ class ActivitySubprocess(WatchedSubprocess):
         else:
             # TODO: Remove this block once we can make the execution API pluggable.
             with contextlib.suppress(ModuleNotFoundError):
-                from airflow.providers.standard.execution_time.comms import CreateHITLInputRequestPayload
+                from airflow.providers.standard.execution_time.comms import CreateHITLResponsePayload
 
-                if isinstance(msg, CreateHITLInputRequestPayload):
+                if isinstance(msg, CreateHITLResponsePayload):
                     resp = self.client.hitl.add_response(
                         ti_id=msg.ti_id,
                         options=msg.options,

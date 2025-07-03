@@ -26,14 +26,14 @@ from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import
 )
 
 
-class CreateHITLInputRequestPayload(HITLInputRequestResponse):
+class CreateHITLResponsePayload(HITLInputRequestResponse):
     """Add the input request part of a Human-in-the-loop response."""
 
-    type: Literal["CreateHITLInputRequestPayload"] = "CreateHITLInputRequestPayload"
+    type: Literal["CreateHITLResponsePayload"] = "CreateHITLResponsePayload"
 
 
 class HITLInputRequestResponseResult(HITLInputRequestResponse):
-    """Response to CreateHITLInputRequestPayload request."""
+    """Response to CreateHITLResponsePayload request."""
 
     type: Literal["HITLInputRequestResponseResult"] = "HITLInputRequestResponseResult"
 

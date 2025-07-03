@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from airflow.providers.standard.execution_time.comms import (
-    CreateHITLInputRequestPayload,
+    CreateHITLResponsePayload,
     GetHITLResponseContentDetail,
     UpdateHITLResponse,
 )
@@ -42,7 +42,7 @@ def add_hitl_input_request(
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     SUPERVISOR_COMMS.send(
-        msg=CreateHITLInputRequestPayload(
+        msg=CreateHITLResponsePayload(
             ti_id=ti_id,
             options=options,
             subject=subject,

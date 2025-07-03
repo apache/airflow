@@ -99,14 +99,14 @@ except ImportError:
 # TODO: Remove this block once we can make the execution API pluggable.
 try:
     from airflow.providers.standard.execution_time.comms import (
-        CreateHITLInputRequestPayload,
+        CreateHITLResponsePayload,
         GetHITLResponseContentDetail,
         HITLInputRequestResponseResult,
         UpdateHITLResponse,
     )
 except ModuleNotFoundError:
     GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
-    CreateHITLInputRequestPayload = object  # type: ignore[misc, assignment]
+    CreateHITLResponsePayload = object  # type: ignore[misc, assignment]
     HITLInputRequestResponseResult = object  # type: ignore[misc, assignment]
     UpdateHITLResponse = object  # type: ignore[misc, assignment]
 
@@ -591,7 +591,7 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
-    | CreateHITLInputRequestPayload
+    | CreateHITLResponsePayload
     | HITLInputRequestResponseResult
     | OKResponse,
     Field(discriminator="type"),
@@ -887,7 +887,7 @@ ToSupervisor = Annotated[
     | DeleteVariable
     | ResendLoggingFD
     # HITL response from standard provider
-    | CreateHITLInputRequestPayload
+    | CreateHITLResponsePayload
     | UpdateHITLResponse
     | GetHITLResponseContentDetail,
     Field(discriminator="type"),

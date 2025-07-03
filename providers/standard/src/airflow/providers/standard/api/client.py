@@ -24,7 +24,7 @@ from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import
     HITLResponseContentDetail,
 )
 from airflow.providers.standard.execution_time.comms import (
-    CreateHITLInputRequestPayload,
+    CreateHITLResponsePayload,
     HITLInputRequestResponseResult,
     UpdateHITLResponse,
 )
@@ -56,8 +56,8 @@ class HITLOperations:
         multiple: bool = False,
         params: MutableMapping | None = None,
     ) -> HITLInputRequestResponseResult:
-        """Add the Human-in-the-loop input request part of a specific Task Instance."""
-        payload = CreateHITLInputRequestPayload(
+        """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
+        payload = CreateHITLResponsePayload(
             ti_id=ti_id,
             options=options,
             subject=subject,

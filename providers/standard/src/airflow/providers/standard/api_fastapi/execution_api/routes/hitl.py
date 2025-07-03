@@ -28,7 +28,7 @@ from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import
     HITLInputRequestResponse,
 )
 from airflow.providers.standard.execution_time.comms import (
-    CreateHITLInputRequestPayload,
+    CreateHITLResponsePayload,
     HITLResponseContentDetail,
     UpdateHITLResponse,
 )
@@ -45,7 +45,7 @@ log = structlog.get_logger(__name__)
 )
 def add_hitl_input_request(
     task_instance_id: UUID,
-    payload: CreateHITLInputRequestPayload,
+    payload: CreateHITLResponsePayload,
     session: SessionDep,
 ) -> HITLInputRequestResponse:
     """Get Human-in-the-loop Response for a specific Task Instance."""
