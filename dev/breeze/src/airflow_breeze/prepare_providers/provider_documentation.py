@@ -200,8 +200,14 @@ def classification_result(changed_files):
         return "other"
 
     has_docs_only = all(re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst") for f in changed_files)
+    has_some_docs = any(re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst") for f in changed_files)
 
     has_test_or_example_only = all(
+        re.match(r"^providers/[^/]+/tests/", f)
+        or re.match(r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f)
+        for f in changed_files
+    )
+    has_some_test_or_example = any(
         re.match(r"^providers/[^/]+/tests/", f)
         or re.match(r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f)
         for f in changed_files
@@ -211,6 +217,8 @@ def classification_result(changed_files):
         return "documentation"
     if has_test_or_example_only:
         return "test_or_example_only"
+    if has_some_test_or_example and has_some_docs:
+        return "documentation"
     return "other"
 
 

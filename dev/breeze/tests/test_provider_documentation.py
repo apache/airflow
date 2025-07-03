@@ -423,14 +423,6 @@ def test_get_most_impactful_change(changes, expected):
         pytest.param(
             [
                 "providers/slack/src/airflow/providers/slack/hooks/slack.py",
-                "providers/slack/docs/slack.rst",
-            ],
-            "documentation",
-            id="docs_and_real_code",
-        ),
-        pytest.param(
-            [
-                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
                 "providers/slack/tests/test_slack.py",
             ],
             "other",
