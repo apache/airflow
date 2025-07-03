@@ -1463,7 +1463,10 @@ class TestKubernetesPodOperator:
 
         pod, _ = self.run_pod(k)
         if AIRFLOW_V_3_0_PLUS:
-            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+            with create_session() as session:
+                pod_name = session.scalars(
+                    XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name")
+                ).first()
             pod_namespace = XCom.get_many(
                 run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
             ).first()

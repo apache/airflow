@@ -3597,7 +3597,7 @@ class XComOperatorLink(LoggingMixin):
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
         with create_session() as session:
-            value = session.execute(
+            value = session.scalars(
                 XComModel.get_many(
                     key=self.xcom_key,
                     run_id=ti_key.run_id,
