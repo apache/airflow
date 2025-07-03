@@ -23,6 +23,32 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.18.0 (2025-07-07)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Improvements
+^^^^^^^^^^^^
+- Allow ConfigMap and Secret references in ``apiServer.env`` (#51191)
+- Add custom annotations to JWT Secret (#52166)
+
+Bug Fixes
+^^^^^^^^^
+- Fix JWT secret name (#52268)
+- Use ``api-server`` instead of ``webserver`` in NOTES.txt for Airflow 3.0+ (#52194)
+- Change default executor in pod template to support executor parameter in task (#49433)
+- Use ``merged`` to render airflow.cfg and include computed defaults (#51828)
+- Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver] secret_key`` (#52269)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Update supported executors in docs (#52132)
+- Update service name for port-forward of Airflow UI (#51945)
+
 Airflow Helm Chart 1.17.0 (2025-06-21)
 --------------------------------------
 
