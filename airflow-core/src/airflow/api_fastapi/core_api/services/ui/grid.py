@@ -65,7 +65,7 @@ def _merge_node_dicts(current, new) -> None:
         if node["id"] in current_ids:
             current_node = _get_node_by_id(current, node["id"])
             # if we have children, merge those as well
-            if "children" in current_node:
+            if current_node.get("children"):
                 _merge_node_dicts(current_node["children"], node["children"])
         else:
             current.append(node)
