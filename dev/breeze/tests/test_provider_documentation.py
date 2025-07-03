@@ -436,6 +436,15 @@ def test_get_most_impactful_change(changes, expected):
             "other",
             id="real_code_and_tests",
         ),
+        pytest.param(
+            [
+                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/docs/slack.rst",
+            ],
+            "other",
+            id="docs_and_real_code",
+        ),
         pytest.param(["airflow/utils/db.py"], "other", id="non_provider_file"),
         pytest.param([], "other", id="empty_commit"),
     ],
