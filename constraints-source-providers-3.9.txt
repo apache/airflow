@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-03T17:11:46.048722
+# This constraints file was automatically generated on 2025-07-03T21:15:16.111567
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -158,7 +158,7 @@ colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.10.1
+confluent-kafka==2.11.0
 connexion==2.14.2
 coverage==7.9.2
 crcmod==1.7
