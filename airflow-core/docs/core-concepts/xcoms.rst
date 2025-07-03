@@ -26,7 +26,7 @@ XComs (short for "cross-communications") are a mechanism that let :doc:`tasks` t
 An XCom is identified by a ``key`` (essentially its name), as well as the ``task_id`` and ``dag_id`` it came from. They can have any serializable value (including objects that are decorated with ``@dataclass`` or ``@attr.define``, see :ref:`TaskFlow arguments <concepts:arbitrary-arguments>`:), but they are only designed for small amounts of data; do not use them to pass around large values, like dataframes.
 
 XCom operations should be performed through the Task Context using
-:func:`~airflow.sdk.get_current_context`. Direct database access is not possible.
+:func:`~airflow.sdk.get_current_context`. Directly updating using XCom database model is not possible.
 
 XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xcom_push`` and ``xcom_pull`` methods on Task Instances.
 
@@ -92,7 +92,7 @@ Custom XCom Backends
 
 The XCom system has interchangeable backends, and you can set which backend is being used via the ``xcom_backend`` configuration option.
 
-If you want to implement your own backend, you should subclass :class:`~airflow.models.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
+If you want to implement your own backend, you should subclass :class:`~airflow.sdk.bases.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
 
 The base class for custom XCom backends is now :class:`~airflow.sdk.execution_time.xcom.XCom`
 from the airflow.sdk namespace.

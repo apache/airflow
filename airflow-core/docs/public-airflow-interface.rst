@@ -37,6 +37,7 @@ Public Interface can be useful for building custom tools and integrations with o
 and for automating certain aspects of the Airflow workflow.
 
 The primary public interface for DAG Authors and task execution is using task SDK
+Airflow task SDK is the primary public interface for DAG Authors and for task execution
 :doc:`airflow.sdk namespace <core-concepts/taskflow>`. Direct access to the metadata database
 from task code is no longer allowed. Instead, use the :doc:`Stable REST API <stable-rest-api-ref>`,
 `Python Client <https://github.com/apache/airflow-client-python>`_, or Task Context methods.
@@ -221,7 +222,7 @@ Example of accessing task instance information through Task Context:
         try_number = ti.try_number
         map_index = ti.map_index
 
-        print(f"Task: {dag_id}.{task_id}, Run: {run_id}, Try: {try_number}, Map: {map_index}")
+        print(f"Task: {dag_id}.{task_id}, Run: {run_id}, Try: {try_number}, Map Index: {map_index}")
 
 .. note::
    The :class:`~airflow.models.taskinstancekey.TaskInstanceKey` class is used internally by Airflow
@@ -263,7 +264,7 @@ Connection and Variable operations should be performed through the Task Context 
 Direct database access to :class:`~airflow.models.connection.Connection` and :class:`~airflow.models.variable.Variable`
 models is no longer allowed from task code.
 
-Example of accessing connections and variables through Task Context:
+Example of accessing Connections and Variables through Task Context:
 
 .. code-block:: python
 
@@ -285,7 +286,7 @@ Example of using airflow.sdk namespace directly:
 
     from airflow.sdk import Connection, Variable
 
-    conn = Connection.get_connection("my_connection_id")
+    conn = Connection.get("my_connection_id")
     var = Variable.get("my_variable_name")
 
 You can read more about the public Airflow utilities in :doc:`howto/connection`,
