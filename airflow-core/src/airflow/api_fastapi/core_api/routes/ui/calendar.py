@@ -25,7 +25,7 @@ from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import RangeFilter, datetime_range_filter_factory
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.calendar import CalendarTimeRangeResult
+from airflow.api_fastapi.core_api.datamodels.ui.calendar import CalendarTimeRangeDagRunsResponse
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.calendar import CalendarService
 from airflow.models.dagrun import DagRun
@@ -56,7 +56,7 @@ def get_calendar(
     dag_bag: DagBagDep,
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     granularity: Literal["hourly", "daily"] = "daily",
-) -> list[CalendarTimeRangeResult]:
+) -> CalendarTimeRangeDagRunsResponse:
     """
     Get calendar data for a DAG including historical and planned runs.
 

@@ -24,10 +24,10 @@ from pydantic import BaseModel
 from airflow.utils.state import DagRunState
 
 
-class CalendarTimeRangeResult(BaseModel):
-    """Task Instance Summary model for the Grid UI."""
+class CalendarTimeRangeDagRuns(BaseModel):
+    """Represents a summary of DAG runs for a specific calendar time range."""
 
-    datetime: datetime
+    date: datetime
     state: Literal[
         DagRunState.QUEUED,
         DagRunState.RUNNING,
@@ -36,3 +36,10 @@ class CalendarTimeRangeResult(BaseModel):
         "planned",
     ]
     count: int
+
+
+class CalendarTimeRangeDagRunsResponse(BaseModel):
+    """Response model for calendar time range results."""
+
+    total_entries: int
+    dag_runs: list[CalendarTimeRangeDagRuns]

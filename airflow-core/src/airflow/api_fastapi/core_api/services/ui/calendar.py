@@ -29,7 +29,10 @@ from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.parameters import RangeFilter
-from airflow.api_fastapi.core_api.datamodels.ui.calendar import CalendarTimeRangeResult
+from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
+    CalendarTimeRangeDagRuns,
+    CalendarTimeRangeDagRunsResponse,
+)
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.timetables._cron import CronMixin
@@ -52,7 +55,7 @@ class CalendarService:
         dag: DAG,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"] = "daily",
-    ) -> list[CalendarTimeRangeResult]:
+    ) -> CalendarTimeRangeDagRunsResponse:
         """
         Get calendar data for a DAG including historical and planned runs.
 
@@ -75,7 +78,11 @@ class CalendarService:
 
         planned_data = self._get_planned_dag_runs(dag, raw_dag_states, logical_date, granularity)
 
-        return historical_data + planned_data
+        all_data = historical_data + planned_data
+        return CalendarTimeRangeDagRunsResponse(
+            total_entries=len(all_data),
+            dag_runs=all_data,
+        )
 
     def _get_historical_dag_runs(
         self,
@@ -83,7 +90,7 @@ class CalendarService:
         session: Session,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> tuple[list[CalendarTimeRangeResult], list[Row]]:
+    ) -> tuple[list[CalendarTimeRangeDagRuns], list[Row]]:
         """Get historical DAG runs from the database."""
         dialect = session.bind.dialect.name
 
@@ -106,9 +113,9 @@ class CalendarService:
         dag_states = session.execute(select_stmt).all()
 
         calendar_results = [
-            CalendarTimeRangeResult(
+            CalendarTimeRangeDagRuns(
                 # ds.datetime in sqlite and mysql is a string, in postgresql it is a datetime
-                datetime=ds.datetime.replace(tzinfo=None)
+                date=ds.datetime.replace(tzinfo=None)
                 if isinstance(ds.datetime, datetime.datetime)
                 else ds.datetime,
                 state=ds.state,
@@ -125,7 +132,7 @@ class CalendarService:
         raw_dag_states: list[Row],
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeResult]:
+    ) -> list[CalendarTimeRangeDagRuns]:
         """Get planned DAG runs based on the DAG's timetable."""
         if not self._should_calculate_planned_runs(dag, raw_dag_states):
             return []
@@ -177,7 +184,7 @@ class CalendarService:
         year: int,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeResult]:
+    ) -> list[CalendarTimeRangeDagRuns]:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime.datetime, int] = collections.Counter()
 
@@ -199,7 +206,7 @@ class CalendarService:
 
         log.debug("Calculated cron planned runs", dag_id=dag.dag_id, count=len(dates))
         return [
-            CalendarTimeRangeResult(datetime=dt, state="planned", count=count) for dt, count in dates.items()
+            CalendarTimeRangeDagRuns(date=dt, state="planned", count=count) for dt, count in dates.items()
         ]
 
     def _calculate_timetable_planned_runs(
@@ -210,7 +217,7 @@ class CalendarService:
         restriction: TimeRestriction,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeResult]:
+    ) -> list[CalendarTimeRangeDagRuns]:
         """Calculate planned runs for generic timetables."""
         dates: dict[datetime.datetime, int] = collections.Counter()
         prev_logical_date = DateTime.min
@@ -242,7 +249,7 @@ class CalendarService:
             total_planned += 1
 
         return [
-            CalendarTimeRangeResult(datetime=dt, state="planned", count=count) for dt, count in dates.items()
+            CalendarTimeRangeDagRuns(date=dt, state="planned", count=count) for dt, count in dates.items()
         ]
 
     def _get_time_truncation_expression(

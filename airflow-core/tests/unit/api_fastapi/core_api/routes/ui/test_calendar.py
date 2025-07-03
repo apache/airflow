@@ -69,27 +69,36 @@ class TestCalendar:
         [
             (
                 {},
-                [
-                    {"datetime": "2025-01-01T00:00:00", "state": "failed", "count": 1},
-                    {"datetime": "2025-01-01T00:00:00", "state": "success", "count": 1},
-                    {"datetime": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                    {"datetime": "2025-01-02T00:00:00", "state": "planned", "count": 1},
-                    {"datetime": "2025-01-03T00:00:00", "state": "planned", "count": 2},
-                ],
+                {
+                    "total_entries": 5,
+                    "dag_runs": [
+                        {"date": "2025-01-01T00:00:00", "state": "failed", "count": 1},
+                        {"date": "2025-01-01T00:00:00", "state": "success", "count": 1},
+                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
+                        {"date": "2025-01-02T00:00:00", "state": "planned", "count": 1},
+                        {"date": "2025-01-03T00:00:00", "state": "planned", "count": 2},
+                    ],
+                },
             ),
             (
                 {"logical_date_gte": "2025-01-01T00:00:00Z", "logical_date_lte": "2025-01-01T23:23:59Z"},
-                [
-                    {"datetime": "2025-01-01T00:00:00", "state": "failed", "count": 1},
-                    {"datetime": "2025-01-01T00:00:00", "state": "success", "count": 1},
-                ],
+                {
+                    "total_entries": 2,
+                    "dag_runs": [
+                        {"date": "2025-01-01T00:00:00", "state": "failed", "count": 1},
+                        {"date": "2025-01-01T00:00:00", "state": "success", "count": 1},
+                    ],
+                },
             ),
             (
                 {"logical_date_gte": "2025-01-02T00:00:00Z", "logical_date_lte": "2025-01-02T23:23:59Z"},
-                [
-                    {"datetime": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                    {"datetime": "2025-01-02T00:00:00", "state": "planned", "count": 1},
-                ],
+                {
+                    "total_entries": 2,
+                    "dag_runs": [
+                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
+                        {"date": "2025-01-02T00:00:00", "state": "planned", "count": 1},
+                    ],
+                },
             ),
         ],
     )
@@ -105,14 +114,17 @@ class TestCalendar:
         [
             (
                 {"granularity": "hourly"},
-                [
-                    {"datetime": "2025-01-01T00:00:00", "state": "failed", "count": 1},
-                    {"datetime": "2025-01-01T01:00:00", "state": "success", "count": 1},
-                    {"datetime": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                    {"datetime": "2025-01-02T01:00:00", "state": "planned", "count": 1},
-                    {"datetime": "2025-01-03T00:00:00", "state": "planned", "count": 1},
-                    {"datetime": "2025-01-03T01:00:00", "state": "planned", "count": 1},
-                ],
+                {
+                    "total_entries": 6,
+                    "dag_runs": [
+                        {"date": "2025-01-01T00:00:00", "state": "failed", "count": 1},
+                        {"date": "2025-01-01T01:00:00", "state": "success", "count": 1},
+                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
+                        {"date": "2025-01-02T01:00:00", "state": "planned", "count": 1},
+                        {"date": "2025-01-03T00:00:00", "state": "planned", "count": 1},
+                        {"date": "2025-01-03T01:00:00", "state": "planned", "count": 1},
+                    ],
+                },
             ),
             (
                 {
@@ -120,10 +132,13 @@ class TestCalendar:
                     "logical_date_gte": "2025-01-02T00:00:00Z",
                     "logical_date_lte": "2025-01-02T23:23:59Z",
                 },
-                [
-                    {"datetime": "2025-01-02T00:00:00", "state": "running", "count": 1},
-                    {"datetime": "2025-01-02T01:00:00", "state": "planned", "count": 1},
-                ],
+                {
+                    "total_entries": 2,
+                    "dag_runs": [
+                        {"date": "2025-01-02T00:00:00", "state": "running", "count": 1},
+                        {"date": "2025-01-02T01:00:00", "state": "planned", "count": 1},
+                    ],
+                },
             ),
         ],
     )
