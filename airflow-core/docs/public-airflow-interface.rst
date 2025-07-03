@@ -176,7 +176,7 @@ Operators
 
 The base classes :class:`~airflow.sdk.BaseOperator` and :class:`~airflow.sdk.BaseSensorOperator` are public and may be extended to make new operators.
 
-The recommended base class for new operators is :class:`~airflow.sdk.BaseOperator`
+The base class for new operators is :class:`~airflow.sdk.BaseOperator`
 from the airflow.sdk namespace.
 
 Subclasses of BaseOperator which are published in Apache Airflow are public in *behavior* but not in *structure*.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.
@@ -275,10 +275,10 @@ Example of accessing Connections and Variables through Task Context:
         context = get_current_context()
 
         conn = context["conn"]
-        my_connection = conn.get_connection("my_connection_id")
+        my_connection = conn.get("my_connection_id")
 
         var = context["var"]
-        my_variable = var.get("my_variable_name")
+        my_variable = var.value.get("my_variable_name")
 
 Example of using airflow.sdk namespace directly:
 
@@ -588,9 +588,3 @@ Example of using Task Context instead of direct database access:
 
 
     example_dag()
-
-.. note::
-
-   **For Airflow 2.x users**: If you are using Airflow 2.x, please refer to the
-   `Airflow 2.11 Public Interface Documentation <https://airflow.apache.org/docs/apache-airflow/2.11.0/public-airflow-interface.html>`_
-   for the legacy interface.
