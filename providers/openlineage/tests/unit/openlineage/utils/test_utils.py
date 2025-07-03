@@ -31,6 +31,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
+    _MAX_DOC_BYTES,
     DagInfo,
     DagRunInfo,
     TaskGroupInfo,
@@ -39,12 +40,15 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInstanceInfo,
     _get_task_groups_details,
     _get_tasks_details,
+    _truncate_string_to_byte_size,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_dag_documentation,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
     get_operator_provider_version,
+    get_task_documentation,
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -282,6 +286,165 @@ def test_get_fully_qualified_class_name_bash_operator():
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="echo 0;"))
     expected_result = f"{BASH_OPERATOR_PATH}.BashOperator"
     assert result == expected_result
+
+
+def test_truncate_string_to_byte_size_ascii_below_limit():
+    s = "A" * (_MAX_DOC_BYTES - 500)
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES - 500
+
+
+def test_truncate_string_to_byte_size_ascii_exact_limit():
+    s = "A" * _MAX_DOC_BYTES
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES
+
+
+def test_truncate_string_to_byte_size_ascii_over_limit():
+    s = "A" * (_MAX_DOC_BYTES + 10)
+    result = _truncate_string_to_byte_size(s)
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES
+    assert result == s[:_MAX_DOC_BYTES]  # Each ASCII char = 1 byte
+
+
+def test_truncate_string_to_byte_size_utf8_multibyte_under_limit():
+    emoji = "🧠"
+    s = emoji * 1000  # Each emoji is 4 bytes, total 4000 bytes
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) <= _MAX_DOC_BYTES
+
+
+def test_truncate_string_to_byte_size_utf8_multibyte_truncation():
+    emoji = "🧠"
+    full = emoji * (_MAX_DOC_BYTES // 4 + 10)
+    result = _truncate_string_to_byte_size(full)
+    result_bytes = result.encode("utf-8")
+    assert len(result_bytes) <= _MAX_DOC_BYTES
+    assert result_bytes.decode("utf-8") == result  # still valid UTF-8
+    # Ensure we didn't include partial emoji
+    assert result.endswith(emoji)
+
+
+def test_truncate_string_to_byte_size_split_multibyte_character():
+    s = "A" * 10 + "🧠"
+    encoded = s.encode("utf-8")
+    # Chop in the middle of the emoji (🧠 = 4 bytes)
+    partial = encoded[:-2]
+    result = _truncate_string_to_byte_size(s, max_size=len(partial))
+    assert "🧠" not in result
+    assert result == "A" * 10  # emoji should be dropped
+
+
+def test_truncate_string_to_byte_size_empty_string():
+    result = _truncate_string_to_byte_size("")
+    assert result == ""
+
+
+def test_truncate_string_to_byte_size_exact_multibyte_fit():
+    emoji = "🚀"
+    num = _MAX_DOC_BYTES // len(emoji.encode("utf-8"))
+    s = emoji * num
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) <= _MAX_DOC_BYTES
+
+
+def test_truncate_string_to_byte_size_null_characters():
+    s = "\x00" * (_MAX_DOC_BYTES + 10)
+    result = _truncate_string_to_byte_size(s)
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES
+    assert all(c == "\x00" for c in result)
+
+
+def test_truncate_string_to_byte_size_non_bmp_characters():
+    # Characters like '𝄞' (U+1D11E) are >2 bytes in UTF-8
+    s = "𝄞" * 1000
+    result = _truncate_string_to_byte_size(s)
+    assert len(result.encode("utf-8")) <= _MAX_DOC_BYTES
+    assert result.encode("utf-8").decode("utf-8") == result
+
+
+@pytest.mark.parametrize(
+    "operator, expected_doc, expected_mime_type",
+    [
+        (None, None, None),
+        (MagicMock(doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None), None, None),
+        (MagicMock(doc="Test doc"), "Test doc", "text/plain"),
+        (MagicMock(doc_md="test.md", doc=None), "test.md", "text/markdown"),
+        (
+            MagicMock(doc_json='{"key": "value"}', doc=None, doc_md=None),
+            '{"key": "value"}',
+            "application/json",
+        ),
+        (
+            MagicMock(doc_yaml="key: value", doc_json=None, doc=None, doc_md=None),
+            "key: value",
+            "application/x-yaml",
+        ),
+        (
+            MagicMock(doc_rst="Test RST", doc_yaml=None, doc_json=None, doc=None, doc_md=None),
+            "Test RST",
+            "text/x-rst",
+        ),
+    ],
+)
+def test_get_task_documentation(operator, expected_doc, expected_mime_type):
+    result_doc, result_mime_type = get_task_documentation(operator)
+    assert result_doc == expected_doc
+    assert result_mime_type == expected_mime_type
+
+
+def test_get_task_documentation_serialized_operator():
+    op = BashOperator(task_id="test", bash_command="echo 1", doc="some_doc")
+    op_doc_before_serialization = get_task_documentation(op)
+    assert op_doc_before_serialization == ("some_doc", "text/plain")
+
+    serialized = SerializedBaseOperator.serialize_operator(op)
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+
+    op_doc_after_deserialization = get_task_documentation(deserialized)
+    assert op_doc_after_deserialization == ("some_doc", "text/plain")
+
+
+def test_get_task_documentation_mapped_operator():
+    mapped = MockOperator.partial(task_id="task_2", doc_md="some_doc").expand(arg2=["a", "b", "c"])
+    mapped_op_doc = get_task_documentation(mapped)
+    assert mapped_op_doc == ("some_doc", "text/markdown")
+
+
+def test_get_task_documentation_longer_than_allowed():
+    doc = "A" * (_MAX_DOC_BYTES + 10)
+    operator = MagicMock(doc=doc)
+    result_doc, result_mime_type = get_task_documentation(operator)
+    assert result_doc == "A" * _MAX_DOC_BYTES
+    assert result_mime_type == "text/plain"
+
+
+@pytest.mark.parametrize(
+    "dag, expected_doc, expected_mime_type",
+    [
+        (None, None, None),
+        (MagicMock(doc_md=None, description=None), None, None),
+        (MagicMock(doc_md="test.md", description=None), "test.md", "text/markdown"),
+        (MagicMock(doc_md="test.md", description="Description text"), "test.md", "text/markdown"),
+        (MagicMock(description="Description text", doc_md=None), "Description text", "text/plain"),
+    ],
+)
+def test_get_dag_documentation(dag, expected_doc, expected_mime_type):
+    result_doc, result_mime_type = get_dag_documentation(dag)
+    assert result_doc == expected_doc
+    assert result_mime_type == expected_mime_type
+
+
+def test_get_dag_documentation_longer_than_allowed():
+    doc = "A" * (_MAX_DOC_BYTES + 10)
+    dag = MagicMock(doc_md=doc, description=None)
+    result_doc, result_mime_type = get_dag_documentation(dag)
+    assert result_doc == "A" * _MAX_DOC_BYTES
+    assert result_mime_type == "text/markdown"
 
 
 def test_get_job_name():
