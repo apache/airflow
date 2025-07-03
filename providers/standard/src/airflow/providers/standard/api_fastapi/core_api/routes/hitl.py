@@ -24,15 +24,16 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
-    AddHITLResponsePayload,
     HITLResponseContentDetail,
     HITLResponseDetail,
     HITLResponseDetailCollection,
+    UpdateHITLResponsePayload,
 )
 from airflow.providers.standard.models import HITLResponseModel
 
@@ -53,13 +54,13 @@ log = structlog.get_logger(__name__)
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
 )
-def write_hitl_response_content(
+def update_hitl_response(
     task_instance_id: UUID,
-    add_response_payload: AddHITLResponsePayload,
+    update_hitl_response_payload: UpdateHITLResponsePayload,
     user: GetUserDep,
     session: SessionDep,
 ) -> HITLResponseContentDetail:
-    """Add response content to a HITLResponse."""
+    """Update a Human-in-the-loop response."""
     ti_id_str = str(task_instance_id)
     hitl_response_model = session.scalar(
         select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
@@ -67,16 +68,17 @@ def write_hitl_response_content(
     if not hitl_response_model:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"Human-in-the-loop Input Request does not exist for Task Instance with id {ti_id_str}",
+            f"Human-in-the-loop Response does not exist for Task Instance with id {ti_id_str}",
         )
 
     if hitl_response_model.response_received:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop Response exists for Task Instance with id {ti_id_str}",
+            f"Human-in-the-loop Response has already been updated for Task Instance with id {ti_id_str} "
+            "and is not allowed to write again.",
         )
 
-    hitl_response_model.response_content = add_response_payload.response_content
+    hitl_response_model.response_content = update_hitl_response_payload.response_content
     hitl_response_model.user_id = user.get_id()
     hitl_response_model.response_at = datetime.now(timezone.utc)
     session.add(hitl_response_model)
@@ -124,11 +126,21 @@ def get_hitl_response(
     ],
 )
 def get_hitl_responses(
+    readable_ti_filter: ReadableTIFilterDep,
     session: SessionDep,
 ) -> HITLResponseDetailCollection:
-    """Get Human-in-the-loop Response."""
-    hitl_responses = session.scalars(select(HITLResponseModel)).all()
+    """Get Human-in-the-loop Responses."""
+    query = select(HITLResponseModel).join(
+        TI,
+        HITLResponseModel.ti_id == TI.id,
+    )
+    hitl_response_select, total_entries = paginated_select(
+        statement=query,
+        filters=[readable_ti_filter],
+        session=session,
+    )
+    hitl_responses = session.scalars(hitl_response_select)
     return HITLResponseDetailCollection(
         hitl_responses=hitl_responses,
-        total_entries=len(hitl_responses),
+        total_entries=total_entries,
     )

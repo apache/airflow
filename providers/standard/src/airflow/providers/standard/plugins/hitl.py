@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 
+from airflow.api_fastapi.app import create_auth_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -46,7 +47,6 @@ if AIRFLOW_V_3_1_PLUS:
 
         hitl_api_app = FastAPI(
             title="Airflow Human-in-the-loop API",
-            # TODO: update description
             description=(
                 "This is Airflow Human-in-the-loop API - which allow human interactions."
                 "You can find more information in AIP-90 "
@@ -54,6 +54,9 @@ if AIRFLOW_V_3_1_PLUS:
             ),
         )
         hitl_api_app.include_router(hitl_router)
+        am = create_auth_manager()
+        am.init()
+        hitl_api_app.state.auth_manager = am
 
         return {
             "app": hitl_api_app,
