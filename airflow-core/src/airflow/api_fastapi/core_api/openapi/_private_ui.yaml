@@ -945,10 +945,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CalendarTimeRangeResult'
-                title: Response Get Calendar
+                $ref: '#/components/schemas/CalendarTimeRangeDagRunsResponse'
         '422':
           description: Validation Error
           content:
@@ -1096,12 +1093,12 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
-    CalendarTimeRangeResult:
+    CalendarTimeRangeDagRuns:
       properties:
-        datetime:
+        date:
           type: string
           format: date-time
-          title: Datetime
+          title: Date
         state:
           type: string
           enum:
@@ -1116,11 +1113,27 @@ components:
           title: Count
       type: object
       required:
-      - datetime
+      - date
       - state
       - count
-      title: CalendarTimeRangeResult
-      description: Task Instance Summary model for the Grid UI.
+      title: CalendarTimeRangeDagRuns
+      description: Represents a summary of DAG runs for a specific calendar time range.
+    CalendarTimeRangeDagRunsResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/CalendarTimeRangeDagRuns'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - total_entries
+      - dag_runs
+      title: CalendarTimeRangeDagRunsResponse
+      description: Response model for calendar time range results.
     ConfigResponse:
       properties:
         page_size:
