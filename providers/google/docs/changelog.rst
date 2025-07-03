@@ -57,6 +57,7 @@ Misc
 * ``Exclude ray in google provider for Python 3.13 (#51994)``
 * ``Change the Link implementation in Google Provider to make it cleand and compatible with Airflow 3 (#51576)``
 * ``Bump min version of google-cloud-spanner to 3.50 (#51837)``
+* ``Update Google Ads API version to v20 (#51683)``
 
 Doc-only
 ~~~~~~~~
