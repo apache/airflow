@@ -50,8 +50,12 @@ from tenacity import (
 
 from airflow import __version__
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -135,7 +139,7 @@ class BaseDatabricksHook(BaseHook):
 
     @cached_property
     def databricks_conn(self) -> Connection:
-        return self.get_connection(self.databricks_conn_id)
+        return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
@@ -637,8 +641,9 @@ class BaseDatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        # TODO: get rid of explicit 'api/' in the endpoint specification
-        url = self._endpoint_url(endpoint)
+        # Automatically prepend 'api/' prefix to all endpoint paths
+        full_endpoint = f"api/{endpoint}"
+        url = self._endpoint_url(full_endpoint)
 
         aad_headers = self._get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -704,7 +709,8 @@ class BaseDatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        url = self._endpoint_url(endpoint)
+        full_endpoint = f"api/{endpoint}"
+        url = self._endpoint_url(full_endpoint)
 
         aad_headers = await self._a_get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -766,7 +772,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _retryable_error(exception: BaseException) -> bool:
         if isinstance(exception, requests_exceptions.RequestException):
-            if isinstance(exception, requests_exceptions.ConnectionError | requests_exceptions.Timeout) or (
+            if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
                 exception.response is not None
                 and (
                     exception.response.status_code >= 500
@@ -783,7 +789,7 @@ class BaseDatabricksHook(BaseHook):
             if exception.status >= 500 or exception.status == 429:
                 return True
 
-        if isinstance(exception, ClientConnectorError | TimeoutError):
+        if isinstance(exception, (ClientConnectorError, TimeoutError)):
             return True
 
         return False

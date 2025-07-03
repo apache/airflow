@@ -29,6 +29,15 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 TEST_GCP_PROJECT = "test-project"
 TEST_GCP_REGION = "global"
 TEST_GCP_CONN_ID = "test_conn_id"
@@ -58,7 +67,7 @@ HOOK_PATH = "airflow.providers.google.cloud.hooks.alloy_db.{}"
 
 class TestAlloyDbHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection"):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection"):
             self.hook = AlloyDbHook(
                 gcp_conn_id=TEST_GCP_CONN_ID,
             )

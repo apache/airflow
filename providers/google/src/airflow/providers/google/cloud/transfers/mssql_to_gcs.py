@@ -114,7 +114,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         """
         if isinstance(value, decimal.Decimal):
             return float(value)
-        if isinstance(value, datetime.date | datetime.time):
+        if isinstance(value, (datetime.date, datetime.time)):
             return value.isoformat()
         return value
 

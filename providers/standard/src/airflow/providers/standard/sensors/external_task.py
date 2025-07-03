@@ -39,14 +39,16 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+    BaseSensorOperator,
+)
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.state import State, TaskInstanceState
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type:ignore[no-redef]
+if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -55,17 +57,9 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.context import Context
     else:
-        from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
         from airflow.utils.context import Context  # type: ignore[no-redef]
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -79,7 +73,7 @@ class ExternalDagLink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, ExternalTaskMarker | ExternalTaskSensor)
+            assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
 
         external_dag_id = operator.external_dag_id
 

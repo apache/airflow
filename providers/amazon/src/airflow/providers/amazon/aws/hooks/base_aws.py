@@ -57,12 +57,16 @@ from airflow.exceptions import (
     AirflowNotFoundException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers_manager import ProvidersManager
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -639,7 +643,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                     raise
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
+            conn=connection,  # type: ignore[arg-type]
+            region_name=self._region_name,
+            botocore_config=self._config,
+            verify=self._verify,
         )
 
     def _resolve_service_name(self, is_resource_type: bool = False) -> str:
