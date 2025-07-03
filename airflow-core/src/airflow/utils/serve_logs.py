@@ -73,7 +73,7 @@ class JWTAuthStaticFiles(StaticFiles):
             request_filename = request.url.path.lstrip("/log/")
             if token_filename is None:
                 logger.warning("The payload does not contain 'filename' key: %s.", payload)
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token payload")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
             if token_filename != request_filename:
                 logger.warning(
                     "The payload log_relative_path key is different than the one in token:"
@@ -81,18 +81,18 @@ class JWTAuthStaticFiles(StaticFiles):
                     request_filename,
                     token_filename,
                 )
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token filename mismatch")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
         except HTTPException:
             raise
         except InvalidAudienceError:
             logger.warning("Invalid audience for the request", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid audience")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
         except InvalidSignatureError:
             logger.warning("The signature of the request was wrong", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
         except ImmatureSignatureError:
             logger.warning("The signature of the request was sent from the future", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signature from future")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
         except ExpiredSignatureError:
             logger.warning(
                 "The signature of the request has expired. Make sure that all components "
@@ -101,7 +101,7 @@ class JWTAuthStaticFiles(StaticFiles):
                 get_docs_url("configurations-ref.html#secret-key"),
                 exc_info=True,
             )
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Expired signature")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
         except InvalidIssuedAtError:
             logger.warning(
                 "The request was issued in the future. Make sure that all components "
@@ -110,10 +110,10 @@ class JWTAuthStaticFiles(StaticFiles):
                 get_docs_url("configurations-ref.html#secret-key"),
                 exc_info=True,
             )
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token issued in future")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
         except Exception:
             logger.warning("Unknown error", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Authentication failed")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
 def create_app():
