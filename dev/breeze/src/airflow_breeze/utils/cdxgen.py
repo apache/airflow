@@ -383,6 +383,7 @@ class SbomCoreJob(SbomApplicationJob):
                 reference=self.airflow_version,
                 path=lock_file_relative_path,
                 output_file=source_dir_with_file,
+                github_token=github_token,
             )
         else:
             source_dir_with_file.unlink(missing_ok=True)
