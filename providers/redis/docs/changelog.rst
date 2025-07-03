@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Update Redis for Airflow 3.0 compatibility (#52597)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removed usage of pytest.mark.db_test from the redis provider (#52065)``
+
 4.1.0
 .....
 
