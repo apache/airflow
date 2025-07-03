@@ -170,6 +170,7 @@ class IntermediateTIState(str, Enum):
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
+    RUNNING = "running"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
