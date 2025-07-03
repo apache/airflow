@@ -483,6 +483,7 @@ def core_jobs(
                     f"[warning]The {destination_dir} already exists and generation is not forced. "
                     f"Skipping for airflow version {airflow_v}"
                 )
+            destination_dir.mkdir(parents=True, exist_ok=True)
         if not destination_dirs:
             get_console().print(
                 f"[warning]All directories already exist and generation is not forced. Skipping {airflow_v}"
