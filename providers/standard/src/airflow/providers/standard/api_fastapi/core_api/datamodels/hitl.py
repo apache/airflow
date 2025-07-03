@@ -27,7 +27,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 class AddHITLResponsePayload(BaseModel):
     """Schema for adding a Human-in-the-loop response content detail for a specific Task Instance."""
 
-    content: str
+    response_content: str
 
 
 class HITLResponseContentDetail(BaseModel):

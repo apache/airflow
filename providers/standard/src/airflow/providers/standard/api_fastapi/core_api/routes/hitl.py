@@ -76,7 +76,7 @@ def write_hitl_response_content(
             f"Human-in-the-loop Response exists for Task Instance with id {ti_id_str}",
         )
 
-    hitl_response_model.response_content = add_response_payload.content
+    hitl_response_model.response_content = add_response_payload.response_content
     hitl_response_model.user_id = user.get_id()
     hitl_response_model.response_at = datetime.now(timezone.utc)
     session.add(hitl_response_model)
