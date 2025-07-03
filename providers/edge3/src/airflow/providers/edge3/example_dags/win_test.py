@@ -34,15 +34,10 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
-from airflow.models import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
+from airflow.providers.edge3.version_compat import BaseHook, BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.sdk import Param
 from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.utils.trigger_rule import TriggerRule

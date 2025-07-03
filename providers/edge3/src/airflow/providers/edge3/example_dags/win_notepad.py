@@ -32,8 +32,8 @@ from subprocess import check_call
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.models.dag import DAG
+from airflow.providers.edge3.version_compat import BaseOperator
 from airflow.sdk import Param
 
 if TYPE_CHECKING:
