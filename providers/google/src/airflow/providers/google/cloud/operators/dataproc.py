@@ -1353,7 +1353,11 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             self.log.info("Job %s submitted successfully.", job_id)
             # Save data required for extra links no matter what the job status will be
             DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_JOB_LINK_DEPRECATED, resource=job_id
+                context=context,
+                url=DATAPROC_JOB_LINK_DEPRECATED,
+                resource=job_id,
+                region=self.region,
+                project_id=self.project_id,
             )
 
             if self.deferrable:
@@ -2484,13 +2488,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, batch_id=batch_id)
         if state == Batch.State.FAILED:
             raise AirflowException(
-                f"Batch job {batch_id} failed with error: {state_message}\nDriver Logs: {link}"
+                f"Batch job {batch_id} failed with error: {state_message}.\nDriver logs: {link}"
             )
         if state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
-            raise AirflowException(f"Batch job {batch_id} was cancelled. Driver logs: {link}")
+            raise AirflowException(f"Batch job {batch_id} was cancelled.\nDriver logs: {link}")
         if state == Batch.State.STATE_UNSPECIFIED:
-            raise AirflowException(f"Batch job {batch_id} unspecified. Driver logs: {link}")
-        self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
+            raise AirflowException(f"Batch job {batch_id} unspecified.\nDriver logs: {link}")
+        self.log.info("Batch job %s completed.\nDriver logs: %s", batch_id, link)
 
     def retry_batch_creation(
         self,

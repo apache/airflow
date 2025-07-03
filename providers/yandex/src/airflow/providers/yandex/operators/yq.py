@@ -20,16 +20,12 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yq import YQHook
 from airflow.providers.yandex.links.yq import YQLink
+from airflow.providers.yandex.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.yandex.version_compat import Context
 
 
 class YQExecuteQueryOperator(BaseOperator):
@@ -84,7 +80,7 @@ class YQExecuteQueryOperator(BaseOperator):
 
         # pass to YQLink
         web_link = self.hook.compose_query_web_link(self.query_id)
-        YQLink.persist(context, self, web_link)
+        YQLink.persist(context, web_link)
 
         results = self.hook.wait_results(self.query_id)
         # forget query to avoid 'stop_query' in on_kill

@@ -26,11 +26,11 @@ import re
 import subprocess
 import sys
 import warnings
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from unittest import mock
 
 import pytest
@@ -100,6 +100,7 @@ if not keep_env_variables:
         # Keep per enabled integrations
         "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
         "kerberos": {"kerberos": {"*"}},
+        "redis": {"redis": {"*"}},
     }
     _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
     _KEEP_CONFIGS: dict[str, set[str]] = {}
@@ -302,7 +303,7 @@ def pytest_addoption(parser: pytest.Parser):
         dest="integration",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino,redis]. ",
     )
     group.addoption(
         "--keep-env-variables",
