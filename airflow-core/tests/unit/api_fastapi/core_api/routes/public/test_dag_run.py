@@ -468,8 +468,9 @@ class TestGetDagRuns:
             (DAG2_ID, {"run_id": DAG2_RUN1_ID}, [DAG2_RUN1_ID]),
             ("~", {"run_id": DAG1_RUN1_ID}, [DAG1_RUN1_ID]),
             ("~", {"run_id": "non_existent_run_id"}, []),
-            (DAG1_ID, {"run_id": "%run_1%"}, [DAG1_RUN1_ID]),
-            ("~", {"run_id": "%dag_run_%"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            (DAG1_ID, {"run_id": "run_1"}, [DAG1_RUN1_ID]),
+            (DAG1_ID, {"run_id": "dag_%_1"}, [DAG1_RUN1_ID]),
+            ("~", {"run_id": "dag_run_"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
             (
                 DAG1_ID,
                 {
