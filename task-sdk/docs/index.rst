@@ -77,6 +77,7 @@ Why use ``airflow.sdk``?
 **Classes**
 
 - :class:`airflow.sdk.Asset`
+- :class:`airflow.sdk.BaseHook`
 - :class:`airflow.sdk.BaseNotifier`
 - :class:`airflow.sdk.BaseOperator`
 - :class:`airflow.sdk.BaseOperatorLink`
