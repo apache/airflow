@@ -33,11 +33,12 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkCreateAction,
     BulkDeleteAction,
+    BulkDeleteWithEntityAction,
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
 from airflow.api_fastapi.core_api.security import GetUserDep
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, add_not_supported_error
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI
@@ -195,12 +196,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
-        results.errors.append(
-            {
-                "error": "Task instances bulk create is not supported",
-                "status_code": status.HTTP_405_METHOD_NOT_ALLOWED,
-            }
-        )
+        add_not_supported_error(results, action.action, "Task instances")
 
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
@@ -277,6 +273,44 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
             for task_id, _ in matched_task_keys:
                 existing_task_instance = self.session.scalar(select(TI).where(TI.task_id == task_id).limit(1))
+                if existing_task_instance:
+                    self.session.delete(existing_task_instance)
+                    results.success.append(task_id)
+
+        except HTTPException as e:
+            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+
+    def handle_bulk_delete_with_entity(
+        self,
+        action: BulkDeleteWithEntityAction[BulkTaskInstanceBody],
+        results: BulkActionResponse,
+    ) -> None:
+        """Bulk delete task instances."""
+        to_delete_task_keys = set(
+            (task_instance.task_id, task_instance.map_index if task_instance.map_index is not None else -1)
+            for task_instance in action.entities
+        )
+        _, matched_task_keys, not_found_task_keys = self.categorize_task_instances(to_delete_task_keys)
+        not_found_task_ids = [task_id for task_id, _ in not_found_task_keys]
+
+        try:
+            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
+                )
+
+            for task_id, map_index in matched_task_keys:
+                existing_task_instance = self.session.scalar(
+                    select(TI)
+                    .where(
+                        TI.task_id == task_id,
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.dag_run_id,
+                        TI.map_index == map_index,
+                    )
+                    .limit(1)
+                )
                 if existing_task_instance:
                     self.session.delete(existing_task_instance)
                     results.success.append(task_id)

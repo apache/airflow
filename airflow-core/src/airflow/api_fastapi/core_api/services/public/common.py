@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from fastapi import status
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -28,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkCreateAction,
     BulkDeleteAction,
+    BulkDeleteWithEntityAction,
     BulkResponse,
     BulkUpdateAction,
     T,
@@ -55,6 +57,8 @@ class BulkService(Generic[T], ABC):
                 self.handle_bulk_update(action, results[action.action.value])  # type: ignore
             elif action.action == BulkAction.DELETE:
                 self.handle_bulk_delete(action, results[action.action.value])  # type: ignore
+            elif action.action == BulkAction.DELETE_WITH_ENTITY:
+                self.handle_bulk_delete_with_entity(action, results[action.action.value])  # type: ignore
 
         return BulkResponse(**results)
 
@@ -72,3 +76,21 @@ class BulkService(Generic[T], ABC):
     def handle_bulk_delete(self, action: BulkDeleteAction[T], results: BulkActionResponse) -> None:
         """Bulk delete entities."""
         raise NotImplementedError
+
+    @abstractmethod
+    def handle_bulk_delete_with_entity(
+        self, action: BulkDeleteWithEntityAction[T], results: BulkActionResponse
+    ) -> None:
+        """Bulk delete entities with entity."""
+        raise NotImplementedError
+
+
+def add_not_supported_error(
+    results: BulkActionResponse,
+    operation: BulkAction,
+    entity_type: str,
+) -> None:
+    error_message = f"{entity_type} bulk {operation.value} is not supported"
+    status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+
+    results.errors.append({"error": error_message, "status_code": status_code})
