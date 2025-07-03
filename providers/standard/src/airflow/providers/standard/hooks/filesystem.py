@@ -20,10 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.standard.version_compat import BaseHook
 
 
 class FSHook(BaseHook):
