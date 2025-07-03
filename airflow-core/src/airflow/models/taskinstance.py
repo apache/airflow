@@ -124,8 +124,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import Operator, TaskStateChangeCallback
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.typing_compat import Literal
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
@@ -618,7 +620,7 @@ class TaskInstance(Base, LoggingMixin):
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
 
-    task: Operator | None = None
+    task: Operator | SerializedBaseOperator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
     run_as_user: str | None = None
@@ -631,7 +633,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def __init__(
         self,
-        task: Operator,
+        task: Operator | SerializedBaseOperator,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
@@ -881,7 +883,11 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
+    def refresh_from_task(
+        self,
+        task: Operator | SerializedBaseOperator,
+        pool_override: str | None = None,
+    ) -> None:
         """
         Copy common attributes from the given task.
 
@@ -1688,8 +1694,7 @@ class TaskInstance(Base, LoggingMixin):
     def dry_run(self) -> None:
         """Only Renders Templates for the TI."""
         if TYPE_CHECKING:
-            assert self.task
-
+            assert isinstance(self.task, (BaseOperator, MappedOperator))
         self.task = self.task.prepare_for_execution()
         self.render_templates()
         if TYPE_CHECKING:
@@ -1889,13 +1894,14 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
         """
-        if TYPE_CHECKING:
-            assert self.task
-            assert isinstance(self.task.dag, SchedulerDAG)
-
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
             session = settings.Session()
+
+        if TYPE_CHECKING:
+            assert session
+            assert isinstance(self.task, (BaseOperator, MappedOperator))
+            assert self.task.dag
 
         from airflow import macros
         from airflow.models.abstractoperator import NotMapped
@@ -1915,13 +1921,6 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        task = self.task
-        if TYPE_CHECKING:
-            assert self.task
-            assert task
-            assert task.dag
-            assert session
-
         def _get_dagrun(session: Session) -> DagRun:
             dag_run = self.get_dagrun(session)
             if dag_run in session:
@@ -1939,11 +1938,11 @@ class TaskInstance(Base, LoggingMixin):
                 return dag_run
             return session.merge(dag_run, load=False)
 
+        task = self.task
+        dag = self.task.dag
         dag_run = _get_dagrun(session)
 
-        validated_params = process_params(
-            self.task.dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions
-        )
+        validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
         ti_context_from_server = TIRunContext(
             dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
             max_tries=self.max_tries,
@@ -2049,9 +2048,9 @@ class TaskInstance(Base, LoggingMixin):
         ti = context["ti"]
 
         if TYPE_CHECKING:
-            assert original_task
-            assert self.task
-            assert ti.task
+            assert isinstance(original_task, (BaseOperator, MappedOperator))
+            assert isinstance(self.task, (BaseOperator, MappedOperator))
+            assert isinstance(ti.task, (BaseOperator, MappedOperator))
 
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
@@ -2372,7 +2371,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.mappedoperator import get_mapped_ti_count
 
         if TYPE_CHECKING:
-            assert self.task
+            assert isinstance(self.task, (BaseOperator, MappedOperator))
 
         # This value should never be None since we already know the current task
         # is in a mapped task group, and should have been expanded, despite that,

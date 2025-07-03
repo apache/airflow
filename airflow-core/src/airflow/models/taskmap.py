@@ -135,9 +135,10 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, (BaseOperator, MappedOperator)):
+        if not isinstance(task, (BaseOperator, MappedOperator, SerializedBaseOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )

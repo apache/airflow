@@ -1174,8 +1174,17 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     }
 
     _needs_expansion: bool
+    execution_timeout: datetime.timedelta | None
+    executor: str | None
+    executor_config: dict | None
+    pool: str
+    pool_slots: int
+    queue: str
+    retries: int | None
+    run_as_user: str | None
     start_from_trigger: bool
     start_trigger_args: StartTriggerArgs
+    weight_rule: PriorityWeightStrategy
 
     # TODO: Figure out a better way to supply these defaults.
     inherits_from_empty_operator: bool = False
@@ -1288,6 +1297,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     @on_failure_fail_dagrun.setter
     def on_failure_fail_dagrun(self, value):
         self._on_failure_fail_dagrun = value
+
+    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
+        return self.start_trigger_args
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
@@ -2368,16 +2380,20 @@ class XComOperatorLink(LoggingMixin):
 
 
 @overload
-def create_scheduler_operator(op: BaseOperator) -> SerializedBaseOperator: ...
+def create_scheduler_operator(op: BaseOperator | SerializedBaseOperator) -> SerializedBaseOperator: ...
 
 
 @overload
-def create_scheduler_operator(op: MappedOperator) -> SchedulerMappedOperator: ...
+def create_scheduler_operator(op: MappedOperator | SchedulerMappedOperator) -> SchedulerMappedOperator: ...
 
 
 def create_scheduler_operator(
-    op: BaseOperator | MappedOperator,
+    op: BaseOperator | MappedOperator | SerializedBaseOperator | SchedulerMappedOperator,
 ) -> SerializedBaseOperator | SchedulerMappedOperator:
+    from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
+
+    if isinstance(op, (SchedulerMappedOperator, SerializedBaseOperator)):
+        return op
     if isinstance(op, BaseOperator):
         d = SerializedBaseOperator.serialize_operator(op)
     elif isinstance(op, MappedOperator):

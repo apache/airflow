@@ -24,6 +24,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
+from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.dag_edges import dag_edges
@@ -69,7 +70,7 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: MappedOperator | SerializedBaseOperator,
+    task: BaseOperator | MappedOperator | SerializedBaseOperator,
     parent_graph: graphviz.Digraph,
     states_by_task_id: dict[Any, Any] | None,
 ) -> None:
@@ -136,7 +137,7 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, (SerializedBaseOperator, MappedOperator)):
+    if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator)):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):

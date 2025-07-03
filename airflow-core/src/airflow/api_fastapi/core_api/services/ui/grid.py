@@ -44,7 +44,7 @@ from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import get_task_group_children_getter, task_group_to_dict
 
@@ -109,7 +109,7 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
                 _fill_task_group_map(task_node=child, parent_node=task_node)
             return
 
-        if isinstance(task_node, BaseOperator):
+        if isinstance(task_node, (BaseOperator, SerializedBaseOperator)):
             task_nodes[task_node.task_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,
@@ -345,8 +345,8 @@ def _get_aggs_for_node(detail):
 
 
 def _find_aggregates(
-    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap,
-    parent_node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
+    node: TaskGroup | BaseOperator | MappedTaskGroup | SerializedBaseOperator | TaskMap,
+    parent_node: TaskGroup | BaseOperator | MappedTaskGroup | SerializedBaseOperator | TaskMap | None,
     ti_details: dict[str, list],
 ) -> Iterable[dict]:
     """Recursively fill the Task Group Map."""
@@ -386,7 +386,7 @@ def _find_aggregates(
                 **_get_aggs_for_node(children),
             }
         return
-    if isinstance(node, BaseOperator):
+    if isinstance(node, (BaseOperator, SerializedBaseOperator)):
         yield {
             "task_id": node_id,
             "type": "task",
