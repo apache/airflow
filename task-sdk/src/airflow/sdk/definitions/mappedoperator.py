@@ -21,6 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
+from itertools import islice
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
@@ -694,7 +695,15 @@ class MappedOperator(AbstractOperator):
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
         """
-        return self._get_specified_expand_input().resolve(context)
+        if not enable_lazy_task_expansion:
+            return self._get_specified_expand_input().resolve(context)
+
+        map_index = context["ti"].map_index
+        self.log.debug("map_index: %s", map_index)
+        iterator = self._get_specified_expand_input().resolve(context)
+        kwargs = next(iterator) if map_index == 0 else next(islice(iterator, map_index, map_index + 1))
+        self.log.debug("kwargs: %s", kwargs)
+        return kwargs, {id(kwargs)}
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         """

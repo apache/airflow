@@ -85,6 +85,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XComModel
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -2036,7 +2037,7 @@ class TaskInstance(Base, LoggingMixin):
                         for upstream in task.upstream_list
                     },
                 )
-        except NotMapped:
+        except (NotMapped, NotFullyPopulated):
             pass
 
         return context

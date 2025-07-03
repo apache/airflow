@@ -373,15 +373,13 @@ class PlainXComArg(XComArg):
 
         self.log.debug("value: %s", value)
 
-        # TODO: check why this is needed?
+        # TODO: check why this is needed when resolving from TaskExpansionJobRunner?
         if isinstance(value, str):
-            deserialized_value = XCom.deserialize_value(
+            value = XCom.deserialize_value(
                 XComResult(key=self.operator.output.key, value=value)
             )
-            self.log.debug("deserialized_value: %s", deserialized_value)
-            if isinstance(deserialized_value, ResolveMixin):
-                deserialized_value = deserialized_value.resolve(context)
-            return deserialized_value
+        if isinstance(value, ResolveMixin):
+            value = value.resolve(context)
         return value
 
 

@@ -98,15 +98,12 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         task_instances_batch = []
 
         context = unmapped_ti.get_template_context(session=session)
-        expand_input = unmapped_ti.task.expand_input.values()
+        expand_input = unmapped_ti.task.expand_input.resolve(context)
 
         self.log.info("expand_input: %s", expand_input)
 
-        if isinstance(expand_input, XComArg):
-            expand_input = expand_input.resolve(context)
-
         for map_index, _ in enumerate(expand_input):
-            # if map_index > 40:
+            # if map_index > 200:
             #     self.log.warning("Stop expanding tasks over %s!", map_index)
             #     break
 
