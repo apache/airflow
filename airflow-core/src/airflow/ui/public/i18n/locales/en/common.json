@@ -103,6 +103,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Home",
+    "legacyFabViews": "Legacy Views",
     "plugins": "Plugins",
     "security": "Security"
   },
@@ -270,6 +271,7 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
