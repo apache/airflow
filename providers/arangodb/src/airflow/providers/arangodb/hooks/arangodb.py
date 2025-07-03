@@ -32,7 +32,11 @@ from arango.exceptions import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from arango.database import StandardDatabase
@@ -70,7 +74,7 @@ class ArangoDBHook(BaseHook):
 
     @cached_property
     def _conn(self) -> Connection:
-        return self.get_connection(self.arangodb_conn_id)
+        return self.get_connection(self.arangodb_conn_id)  # type: ignore[return-value]
 
     @property
     def hosts(self) -> list[str]:

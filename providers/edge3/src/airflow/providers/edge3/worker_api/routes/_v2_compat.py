@@ -34,8 +34,8 @@ if AIRFLOW_V_3_0_PLUS:
     def parse_command(command: str) -> ExecuteTask:
         return ExecuteTask.model_validate_json(command)
 else:
-    # Mock the external dependnecies
-    from typing import Callable
+    # Mock the external dependencies
+    from collections.abc import Callable
 
     from connexion import ProblemException
 

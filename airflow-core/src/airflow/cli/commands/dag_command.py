@@ -36,7 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
@@ -45,6 +45,7 @@ from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -67,11 +68,17 @@ def dag_trigger(args) -> None:
     """Create a dag run for the specified dag."""
     api_client = get_current_api_client()
     try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
+    try:
         message = api_client.trigger_dag(
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
             logical_date=args.logical_date,
+            triggering_user_name=user,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
@@ -252,6 +259,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_data_interval_end": None,
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
+        "deadline": None,
     }
 
 

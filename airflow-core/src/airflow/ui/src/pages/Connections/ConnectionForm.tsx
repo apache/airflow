@@ -57,7 +57,7 @@ const ConnectionForm = ({
   const { conf: extra, setConf } = useParamStore();
   const {
     control,
-    formState: { isValid },
+    formState: { isDirty, isValid },
     handleSubmit,
     reset,
     watch,
@@ -66,7 +66,7 @@ const ConnectionForm = ({
     mode: "onBlur",
   });
 
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const selectedConnType = watch("conn_type"); // Get the selected connection type
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
@@ -94,6 +94,14 @@ const ConnectionForm = ({
     mutateConnection(data);
   };
 
+  const hasChanges = () => {
+    if (isDirty) {
+      return true;
+    }
+
+    return JSON.stringify(JSON.parse(extra)) !== JSON.stringify(JSON.parse(initialConnection.extra));
+  };
+
   const validateAndPrettifyJson = (value: string) => {
     try {
       const parsedJson = JSON.parse(value) as JSON;
@@ -107,7 +115,7 @@ const ConnectionForm = ({
 
       return formattedJson;
     } catch (error_) {
-      const errorMessage = error_ instanceof Error ? error_.message : "Unknown error occurred.";
+      const errorMessage = error_ instanceof Error ? error_.message : translate("common:error.unknown");
 
       setErrors((prev) => ({
         ...prev,
@@ -234,7 +242,7 @@ const ConnectionForm = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
+            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !hasChanges()}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

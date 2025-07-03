@@ -22,6 +22,7 @@ from unittest import mock
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.translate_v3.types import (
     BatchTranslateDocumentResponse,
+    Dataset,
     TranslateDocumentResponse,
     automl_translation,
     translation_service,
@@ -207,7 +208,6 @@ class TestTranslateTextBatchOperator:
 
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
@@ -215,9 +215,8 @@ class TestTranslateTextBatchOperator:
 
 class TestTranslateDatasetCreate:
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslationNativeDatasetLink.persist")
-    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateCreateDatasetOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
-    def test_minimal_green_path(self, mock_hook, mock_xcom_push, mock_link_persist):
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
         DS_CREATION_RESULT_SAMPLE = {
             "display_name": "",
             "example_count": 0,
@@ -250,8 +249,9 @@ class TestTranslateDatasetCreate:
             timeout=TIMEOUT_VALUE,
             retry=None,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        result = op.execute(context=mock_context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -264,11 +264,11 @@ class TestTranslateDatasetCreate:
             retry=None,
             metadata=(),
         )
-        mock_xcom_push.assert_called_once_with(context, key="dataset_id", value=DATASET_ID)
+        mock_ti.xcom_push.assert_any_call(key="dataset_id", value=DATASET_ID)
         mock_link_persist.assert_called_once_with(
-            context=context,
+            context=mock_context,
             dataset_id=DATASET_ID,
-            task_instance=op,
+            location=LOCATION,
             project_id=PROJECT_ID,
         )
         assert result == DS_CREATION_RESULT_SAMPLE
@@ -319,7 +319,6 @@ class TestTranslateListDatasets:
         )
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
         )
         assert result == [DS_ID_1, DS_ID_2]
@@ -333,6 +332,19 @@ class TestTranslateImportData:
             "input_files": [{"usage": "UNASSIGNED", "gcs_source": {"input_uri": "import data gcs path"}}]
         }
         mock_hook.return_value.import_dataset_data.return_value = mock.MagicMock()
+
+        SAMPLE_DATASET = {
+            "name": "sample_translation_dataset",
+            "example_count": None,
+            "source_language_code": "en",
+            "target_language_code": "es",
+        }
+        INITIAL_DS_SIZE = 1
+        FINAL_DS_SIZE = 101
+        INITIAL_DS = {**SAMPLE_DATASET, "example_count": INITIAL_DS_SIZE}
+        FINAL_DS = {**SAMPLE_DATASET, "example_count": FINAL_DS_SIZE}
+
+        mock_hook.return_value.get_dataset.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
         op = TranslateImportDataOperator(
             task_id="task_id",
             dataset_id=DATASET_ID,
@@ -345,7 +357,7 @@ class TestTranslateImportData:
             retry=DEFAULT,
         )
         context = mock.MagicMock()
-        op.execute(context=context)
+        res = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -362,9 +374,10 @@ class TestTranslateImportData:
         mock_link_persist.assert_called_once_with(
             context=context,
             dataset_id=DATASET_ID,
-            task_instance=op,
+            location=LOCATION,
             project_id=PROJECT_ID,
         )
+        assert res["total_imported"] == FINAL_DS_SIZE - INITIAL_DS_SIZE
 
 
 class TestTranslateDeleteData:
@@ -404,9 +417,8 @@ class TestTranslateDeleteData:
 
 class TestTranslateModelCreate:
     @mock.patch("airflow.providers.google.cloud.links.translate.TranslationModelLink.persist")
-    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateCreateModelOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
-    def test_minimal_green_path(self, mock_hook, mock_xcom_push, mock_link_persist):
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
         MODEL_DISPLAY_NAME = "model_display_name_01"
         MODEL_CREATION_RESULT_SAMPLE = {
             "display_name": MODEL_DISPLAY_NAME,
@@ -437,8 +449,9 @@ class TestTranslateModelCreate:
             timeout=TIMEOUT_VALUE,
             retry=None,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        result = op.execute(context=mock_context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -452,13 +465,13 @@ class TestTranslateModelCreate:
             retry=None,
             metadata=(),
         )
-        mock_xcom_push.assert_called_once_with(context, key="model_id", value=MODEL_ID)
+        mock_ti.xcom_push.assert_any_call(key="model_id", value=MODEL_ID)
         mock_link_persist.assert_called_once_with(
-            context=context,
-            task_instance=op,
+            context=mock_context,
             model_id=MODEL_ID,
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
+            location=LOCATION,
         )
         assert result == MODEL_CREATION_RESULT_SAMPLE
 
@@ -515,7 +528,6 @@ class TestTranslateListModels:
         assert result == [MODEL_ID_1, MODEL_ID_2]
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
         )
 
@@ -634,7 +646,6 @@ class TestTranslateDocumentBatchOperator:
         assert result == BATCH_DOC_TRANSLATION_RESULT
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
@@ -709,18 +720,14 @@ class TestTranslateDocumentOperator:
         assert result == DOC_TRANSLATION_RESULT
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
 
 
 class TestTranslateGlossaryCreate:
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.translate.TranslateCreateGlossaryOperator.xcom_push"
-    )
     @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
-    def test_minimal_green_path(self, mock_hook, mock_xcom_push):
+    def test_minimal_green_path(self, mock_hook):
         GLOSSARY_CREATION_RESULT = {
             "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID}",
             "display_name": f"{GLOSSARY_ID}",
@@ -751,8 +758,9 @@ class TestTranslateGlossaryCreate:
             timeout=TIMEOUT_VALUE,
             retry=None,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        result = op.execute(context=mock_context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -769,7 +777,7 @@ class TestTranslateGlossaryCreate:
             retry=None,
             metadata=(),
         )
-        mock_xcom_push.assert_called_once_with(context, key="glossary_id", value=GLOSSARY_ID)
+        mock_ti.xcom_push.assert_any_call(key="glossary_id", value=GLOSSARY_ID)
         assert result == GLOSSARY_CREATION_RESULT
 
 
@@ -884,7 +892,6 @@ class TestTranslateListGlossaries:
         assert result == [GLOSSARY_ID_1, GLOSSARY_ID_2]
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
         )
 

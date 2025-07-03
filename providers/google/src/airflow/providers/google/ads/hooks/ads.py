@@ -28,14 +28,18 @@ from google.ads.googleads.errors import GoogleAdsException
 from google.auth.exceptions import GoogleAuthError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+
 if TYPE_CHECKING:
-    from google.ads.googleads.v19.services.services.customer_service import CustomerServiceClient
-    from google.ads.googleads.v19.services.services.google_ads_service import GoogleAdsServiceClient
-    from google.ads.googleads.v19.services.services.google_ads_service.pagers import SearchPager
-    from google.ads.googleads.v19.services.types.google_ads_service import GoogleAdsRow
+    from google.ads.googleads.v20.services.services.customer_service import CustomerServiceClient
+    from google.ads.googleads.v20.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v20.services.services.google_ads_service.pagers import SearchPager
+    from google.ads.googleads.v20.services.types.google_ads_service import GoogleAdsRow
 
 
 class GoogleAdsHook(BaseHook):

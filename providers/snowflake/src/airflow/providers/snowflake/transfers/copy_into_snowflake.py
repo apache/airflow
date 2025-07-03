@@ -22,9 +22,18 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.common import enclose_param
+from airflow.providers.snowflake.version_compat import BaseOperator
+
+
+def _validate_parameter(param_name: str, value: str | None) -> str | None:
+    """Validate that the parameter doesn't contain any invalid pattern."""
+    if value is None:
+        return None
+    if ";" in value:
+        raise ValueError(f"Invalid {param_name}: semicolons (;) not allowed.")
+    return value
 
 
 class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
@@ -91,8 +100,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.files = files
-        self.table = table
-        self.stage = stage
+        self.table = _validate_parameter("table", table)
+        self.stage = _validate_parameter("stage", stage)
         self.prefix = prefix
         self.file_format = file_format
         self.schema = schema
@@ -126,7 +135,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         if self.schema:
             into = f"{self.schema}.{self.table}"
         else:
-            into = self.table
+            into = self.table  # type: ignore[assignment]
 
         if self.columns_array:
             into = f"{into}({', '.join(self.columns_array)})"

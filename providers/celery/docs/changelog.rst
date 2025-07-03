@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+3.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51760)``
+
+Misc
+~~~~
+
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Remove unused import Sequence from the celery_executor.py (#52290)``
+* ``Move type-ignores up one line (#52195)``
+* ``Ignore mypy errors for deprecated executors (#52187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused pytestmark = pytest.mark.db_test (#52067)``
+
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Enhance Celery CLI with Worker and Queue Management Features (#51257)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery executor subprocess to stream stdout/stderr using subprocess.run (#50682)``
+
+Misc
+~~~~
+
+* ``Add worker_umask to celery provider.yaml (#51218)``
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update the executor and provider doc to highlight the two statically coded hybrid executors are no longer supported in Airflow 3.0.0+ (#51715)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.11.0
 ......
 

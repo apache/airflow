@@ -27,6 +27,63 @@
 Changelog
 ---------
 
+1.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix UnboundLocalError for 'edge_job_command_len' (#52328)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Force the definition of 'execution_api_server_url' based on 'api_url' (#52184)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Remove FAB dependency from Edge3 Provider (#51995)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clean some leftovers of Python 3.9 removal - All the rest (#52432)``
+* ``Update documentation for forcing core execution_api_server_url (#52447)``
+* ``Fix spelling in edge provider (#52169)``
+* ``Add docs for edge execution_api_server_url (#52082)``
+* ``Include docs for Windows (#52004)``
+* ``Document EdgeExecutor migration from 'internal_api_secret_key' to 'jwt_secret' (#51905)``
+* ``Fix Edge State Model Link (#51860)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Revert "Remove FAB dependency from Edge3 Provider (#51995)"" (#52000)``
+   * ``Revert "Remove FAB dependency from Edge3 Provider (#51995)" (#51998)``
+
+1.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Edge Worker Remove when in unknown state (#50717)``
+
+Misc
+~~~~
+
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Refactor Edge Worker CLI for smaller module (#50738)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+* ``Edge list worker cli command to list active job metrics (#51720)``
+* ``Extend command column in the edge_job table to accomodate more chars (#51716)``
+
+Doc-only
+~~~~~~~~
+
+* ``Move example_dags in standard provider to example_dags in sources (#51260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.1.0
 .....
 

@@ -29,10 +29,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.airbyte.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.airbyte.version_compat import Context
 
 
 class AirbyteJobSensor(BaseSensorOperator):

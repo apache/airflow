@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+import copy
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -31,8 +33,12 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -48,37 +54,50 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     return (base_url or "") + (endpoint or "")
 
 
-def _process_extra_options_from_connection(conn: Connection, extra_options: dict[str, Any]) -> dict:
-    extra = conn.extra_dejson
-    stream = extra.pop("stream", None)
-    cert = extra.pop("cert", None)
-    proxies = extra.pop("proxies", extra.pop("proxy", None))
-    timeout = extra.pop("timeout", None)
-    verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
-    allow_redirects = extra.pop("allow_redirects", None)
-    max_redirects = extra.pop("max_redirects", None)
-    trust_env = extra.pop("trust_env", None)
-    check_response = extra.pop("check_response", None)
+def _process_extra_options_from_connection(
+    conn, extra_options: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """
+    Return the updated extra options from the connection, as well as those passed.
 
-    if stream is not None and "stream" not in extra_options:
-        extra_options["stream"] = stream
-    if cert is not None and "cert" not in extra_options:
-        extra_options["cert"] = cert
-    if proxies is not None and "proxy" not in extra_options:
-        extra_options["proxy"] = proxies
-    if timeout is not None and "timeout" not in extra_options:
-        extra_options["timeout"] = timeout
-    if verify_ssl is not None and "verify_ssl" not in extra_options:
-        extra_options["verify_ssl"] = verify_ssl
-    if allow_redirects is not None and "allow_redirects" not in extra_options:
-        extra_options["allow_redirects"] = allow_redirects
-    if max_redirects is not None and "max_redirects" not in extra_options:
-        extra_options["max_redirects"] = max_redirects
-    if trust_env is not None and "trust_env" not in extra_options:
-        extra_options["trust_env"] = trust_env
-    if check_response is not None and "check_response" not in extra_options:
-        extra_options["check_response"] = check_response
-    return extra
+    :param conn: The HTTP Connection object passed to the Hook
+    :param extra_options: Use-defined extra options
+    :return: (tuple)
+    """
+    # Copy, to prevent changing conn.extra_dejson and extra_options
+    conn_extra_options: dict = copy.copy(conn.extra_dejson)
+    passed_extra_options: dict = copy.copy(extra_options)
+
+    stream = conn_extra_options.pop("stream", None)
+    cert = conn_extra_options.pop("cert", None)
+    proxies = conn_extra_options.pop("proxies", conn_extra_options.pop("proxy", None))
+    timeout = conn_extra_options.pop("timeout", None)
+    verify_ssl = conn_extra_options.pop("verify", conn_extra_options.pop("verify_ssl", None))
+    allow_redirects = conn_extra_options.pop("allow_redirects", None)
+    max_redirects = conn_extra_options.pop("max_redirects", None)
+    trust_env = conn_extra_options.pop("trust_env", None)
+    check_response = conn_extra_options.pop("check_response", None)
+
+    if stream is not None and "stream" not in passed_extra_options:
+        passed_extra_options["stream"] = stream
+    if cert is not None and "cert" not in passed_extra_options:
+        passed_extra_options["cert"] = cert
+    if proxies is not None and "proxy" not in passed_extra_options:
+        passed_extra_options["proxy"] = proxies
+    if timeout is not None and "timeout" not in passed_extra_options:
+        passed_extra_options["timeout"] = timeout
+    if verify_ssl is not None and "verify_ssl" not in passed_extra_options:
+        passed_extra_options["verify_ssl"] = verify_ssl
+    if allow_redirects is not None and "allow_redirects" not in passed_extra_options:
+        passed_extra_options["allow_redirects"] = allow_redirects
+    if max_redirects is not None and "max_redirects" not in passed_extra_options:
+        passed_extra_options["max_redirects"] = max_redirects
+    if trust_env is not None and "trust_env" not in passed_extra_options:
+        passed_extra_options["trust_env"] = trust_env
+    if check_response is not None and "check_response" not in passed_extra_options:
+        passed_extra_options["check_response"] = check_response
+
+    return conn_extra_options, passed_extra_options
 
 
 class HttpHook(BaseHook):
@@ -96,7 +115,6 @@ class HttpHook(BaseHook):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
-    :param auth_args: extra arguments used to initialize the auth_type if different than default HTTPBasicAuth
     """
 
     conn_name_attr = "http_conn_id"
@@ -135,6 +153,8 @@ class HttpHook(BaseHook):
         else:
             self.keep_alive_adapter = None
 
+        self.merged_extra: dict = {}
+
     @property
     def auth_type(self):
         return self._auth_type or HTTPBasicAuth
@@ -158,9 +178,15 @@ class HttpHook(BaseHook):
         session = Session()
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
-        session = self._configure_session_from_auth(session, connection)
-        if connection.extra:
+        session = self._configure_session_from_auth(session, connection)  # type: ignore[arg-type]
+
+        # Since get_conn can be called outside of run, we'll check this again
+        extra_options = extra_options or {}
+
+        if connection.extra or extra_options:
+            # These are being passed from to _configure_session_from_extra, no manipulation has been done yet
             session = self._configure_session_from_extra(session, connection, extra_options)
+
         session = self._configure_session_from_mount_adapters(session)
         if self.default_headers:
             session.headers.update(self.default_headers)
@@ -168,7 +194,7 @@ class HttpHook(BaseHook):
             session.headers.update(headers)
         return session
 
-    def _set_base_url(self, connection: Connection) -> None:
+    def _set_base_url(self, connection) -> None:
         host = connection.host or self.default_host
         schema = connection.schema or "http"
         # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
@@ -194,21 +220,33 @@ class HttpHook(BaseHook):
         return None
 
     def _configure_session_from_extra(
-        self, session: Session, connection: Connection, extra_options: dict[str, Any] | None = None
+        self, session: Session, connection, extra_options: dict[str, Any]
     ) -> Session:
-        if extra_options is None:
-            extra_options = {}
-        headers = _process_extra_options_from_connection(connection, extra_options)
-        session.proxies = extra_options.pop("proxies", extra_options.pop("proxy", {}))
-        session.stream = extra_options.pop("stream", False)
-        session.verify = extra_options.pop("verify", extra_options.pop("verify_ssl", True))
-        session.cert = extra_options.pop("cert", None)
-        session.max_redirects = extra_options.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-        session.trust_env = extra_options.pop("trust_env", True)
+        """
+        Configure the session using both the extra field from the Connection and passed in extra_options.
+
+        :param session: (Session)
+        :param connection: HTTP Connection passed into Hook
+        :param extra_options: (dict)
+        :return: (Session)
+        """
+        # This is going to update self.merged_extra, which will be used below
+        conn_extra_options, self.merged_extra = _process_extra_options_from_connection(
+            connection, extra_options
+        )
+
+        session.proxies = self.merged_extra.get("proxies", self.merged_extra.get("proxy", {}))
+        session.stream = self.merged_extra.get("stream", False)
+        session.verify = self.merged_extra.get("verify", self.merged_extra.get("verify_ssl", True))
+        session.cert = self.merged_extra.get("cert", None)
+        session.max_redirects = self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.trust_env = self.merged_extra.get("trust_env", True)
+
         try:
-            session.headers.update(headers)
+            session.headers.update(conn_extra_options)
         except TypeError:
             self.log.warning("Connection to %s has invalid extra field.", connection.host)
+
         return session
 
     def _configure_session_from_mount_adapters(self, session: Session) -> Session:
@@ -245,9 +283,7 @@ class HttpHook(BaseHook):
             For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
         """
         extra_options = extra_options or {}
-
-        session = self.get_conn(headers, extra_options)
-
+        session = self.get_conn(headers, extra_options)  # This sets self.merged_extra, which is used later
         url = self.url_from_endpoint(endpoint)
 
         if self.method == "GET":
@@ -262,7 +298,9 @@ class HttpHook(BaseHook):
 
         prepped_request = session.prepare_request(req)
         self.log.debug("Sending '%s' to url: %s", self.method, url)
-        return self.run_and_check(session, prepped_request, extra_options)
+
+        # This is referencing self.merged_extra, which is update by _process ...
+        return self.run_and_check(session, prepped_request, self.merged_extra)
 
     def check_response(self, response: Response) -> None:
         """
@@ -294,14 +332,12 @@ class HttpHook(BaseHook):
             i.e. ``{'check_response': False}`` to avoid checking raising exceptions on non 2XX
             or 3XX status codes
         """
-        extra_options = extra_options or {}
-
         settings = session.merge_environment_settings(
             prepped_request.url,
-            proxies=extra_options.get("proxies", {}),
-            stream=extra_options.get("stream", False),
-            verify=extra_options.get("verify"),
-            cert=extra_options.get("cert"),
+            proxies=session.proxies,
+            stream=session.stream,
+            verify=session.verify,
+            cert=session.cert,
         )
 
         # Send the request.
@@ -439,10 +475,12 @@ class HttpAsyncHook(BaseHook):
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
-                extra = _process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+                conn_extra_options, extra_options = _process_extra_options_from_connection(
+                    conn=conn, extra_options=extra_options
+                )
 
                 try:
-                    _headers.update(extra)
+                    _headers.update(conn_extra_options)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:

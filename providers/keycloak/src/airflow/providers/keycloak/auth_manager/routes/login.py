@@ -20,13 +20,13 @@ from __future__ import annotations
 import logging
 
 from fastapi import Request  # noqa: TC002
-from keycloak import KeycloakOpenID
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
 @login_router.get("/login")
 def login(request: Request) -> RedirectResponse:
     """Initiate the authentication."""
-    client = _get_keycloak_client()
+    client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
     auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid")
     return RedirectResponse(auth_url)
@@ -49,7 +49,7 @@ def login_callback(request: Request):
     if not code:
         return HTMLResponse("Missing code", status_code=400)
 
-    client = _get_keycloak_client()
+    client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
 
     tokens = client.token(
@@ -70,17 +70,3 @@ def login_callback(request: Request):
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
-
-
-def _get_keycloak_client() -> KeycloakOpenID:
-    client_id = conf.get("keycloak_auth_manager", "client_id")
-    client_secret = conf.get("keycloak_auth_manager", "client_secret")
-    realm = conf.get("keycloak_auth_manager", "realm")
-    server_url = conf.get("keycloak_auth_manager", "server_url")
-
-    return KeycloakOpenID(
-        server_url=server_url,
-        client_id=client_id,
-        client_secret_key=client_secret,
-        realm_name=realm,
-    )

@@ -758,7 +758,7 @@ may help with verifying installation of the packages.
 
 ```shell script
 # Copy the list of packages (pypi urls) into `packages.txt` then run:
-python check_files.py providers -p {PATH_TO_SVN}
+uv run check_files.py providers -p {PATH_TO_SVN}
 ```
 
 After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
@@ -1002,7 +1002,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.9 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.10 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 

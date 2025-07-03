@@ -105,7 +105,8 @@ export const Code = () => {
             // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
             dagVersion !== undefined && dagVersion.bundle_version !== null ? (
               <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
-                {translate("code.bundleVersion")}{" "}
+                {translate("dagDetails.bundleVersion")}
+                {": "}
                 {dagVersion.bundle_url === null ? (
                   dagVersion.bundle_version
                 ) : (
@@ -128,7 +129,11 @@ export const Code = () => {
           <ClipboardRoot value={code?.content ?? ""}>
             <ClipboardButton />
           </ClipboardRoot>
-          <Tooltip closeDelay={100} content={translate("common:wrap.tooltip")} openDelay={100}>
+          <Tooltip
+            closeDelay={100}
+            content={translate("common:wrap.tooltip", { hotkey: "w" })}
+            openDelay={100}
+          >
             <Button
               aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
               bg="bg.panel"

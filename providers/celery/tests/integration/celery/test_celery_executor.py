@@ -36,6 +36,7 @@ from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from kubernetes.client import models as k8s
+from uuid6 import uuid7
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
@@ -160,6 +161,7 @@ class TestCeleryExecutor:
 
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
                 ti = workloads.TaskInstance.model_construct(
+                    id=uuid7(),
                     task_id="success",
                     dag_id="id",
                     run_id="abc",

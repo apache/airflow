@@ -83,12 +83,12 @@ def log_github_rate_limit_error(response: Response) -> None:
 
 
 def download_file_from_github(
-    tag: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
+    reference: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
 ) -> bool:
     """
     Downloads a file from the GitHub repository of Apache Airflow using the GitHub API.
 
-    :param tag: tag to download from
+    :param reference: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
     :param github_token: GitHub token to use for authentication
@@ -97,7 +97,7 @@ def download_file_from_github(
     """
     import requests
 
-    url = f"https://api.github.com/repos/apache/airflow/contents/{path}?ref={tag}"
+    url = f"https://api.github.com/repos/apache/airflow/contents/{path}?ref={reference}"
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
         headers = {"Accept": "application/vnd.github.v3.raw"}
@@ -176,10 +176,10 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
             get_console().print("[error]Error fetching tag date for Airflow {version}")
             sys.exit(1)
         airflow_release_dates[version] = date
-    get_console().print("[info]All Airflow 2 versions")
-    for version in airflow_versions:
-        get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
+    get_console().print("[info]All Airflow 2/3 versions")
     if confirm:
+        for version in airflow_versions:
+            get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
         answer = user_confirm(
             "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
         )
@@ -190,29 +190,25 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
 
 
 def download_constraints_file(
-    airflow_version: str,
+    constraints_reference: str,
     python_version: str,
     github_token: str | None,
-    include_provider_dependencies: bool,
+    airflow_constraints_mode: str,
     output_file: Path,
 ) -> bool:
     """
     Downloads constraints file from GitHub repository of Apache Airflow
 
-    :param airflow_version: airflow version
+    :param constraints_reference: airflow version
     :param python_version: python version
     :param github_token: GitHub token
-    :param include_provider_dependencies: whether to include provider dependencies
+    :param airflow_constraints_mode: constraints mode
     :param output_file: the file where to store the constraint file
     :return: true if the file was successfully downloaded
     """
-    if include_provider_dependencies:
-        constraints_file_path = f"constraints-{python_version}.txt"
-    else:
-        constraints_file_path = f"constraints-no-providers-{python_version}.txt"
-    constraints_tag = f"constraints-{airflow_version}"
+    constraints_file_path = f"{airflow_constraints_mode}-{python_version}.txt"
     return download_file_from_github(
-        tag=constraints_tag,
+        reference=constraints_reference,
         path=constraints_file_path,
         github_token=github_token,
         output_file=output_file,

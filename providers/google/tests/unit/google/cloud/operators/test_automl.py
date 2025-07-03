@@ -91,8 +91,8 @@ class TestAutoMLTrainModelOperator:
                 project_id=GCP_PROJECT_ID,
                 task_id=TASK_ID,
             )
-
         op.execute(context=mock.MagicMock())
+
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
             location=GCP_LOCATION,
@@ -153,9 +153,9 @@ class TestAutoMLPredictOperator:
         )
         mock_link_persist.assert_called_once_with(
             context=mock_context,
-            task_instance=op,
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
             dataset_id=DATASET_ID,
         )
 
@@ -194,7 +194,9 @@ class TestAutoMLPredictOperator:
                 task_id=TASK_ID,
                 operation_params={"TEST_KEY": "TEST_VALUE"},
             )
+        with pytest.warns(AirflowProviderDeprecationWarning):
             assert isinstance(op.hook, CloudAutoMLHook)
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = AutoMLPredictOperator(
                 endpoint_id="endpoint_id",
                 location=GCP_LOCATION,
@@ -203,7 +205,7 @@ class TestAutoMLPredictOperator:
                 task_id=TASK_ID,
                 operation_params={"TEST_KEY": "TEST_VALUE"},
             )
-            assert isinstance(op.hook, PredictionServiceHook)
+        assert isinstance(op.hook, PredictionServiceHook)
 
 
 class TestAutoMLCreateImportOperator:
@@ -219,6 +221,7 @@ class TestAutoMLCreateImportOperator:
                 task_id=TASK_ID,
             )
         op.execute(context=mock.MagicMock())
+
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
             location=GCP_LOCATION,
@@ -335,7 +338,9 @@ class TestAutoMLGetModelOperator:
                 project_id=GCP_PROJECT_ID,
                 task_id=TASK_ID,
             )
+
         op.execute(context=mock.MagicMock())
+
         mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -456,7 +461,9 @@ class TestAutoMLDatasetImportOperator:
                 input_config=INPUT_CONFIG,
                 task_id=TASK_ID,
             )
+
         op.execute(context=mock.MagicMock())
+
         mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
@@ -532,7 +539,9 @@ class TestAutoMLDatasetListOperator:
     def test_execute(self, mock_hook):
         with pytest.warns(AirflowProviderDeprecationWarning):
             op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
+
         op.execute(context=mock.MagicMock())
+
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),

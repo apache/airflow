@@ -27,11 +27,11 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
 import tenacity
@@ -46,7 +46,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     TaskDeferred,
 )
-from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -81,6 +80,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     get_container_termination_message,
 )
+from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -630,7 +630,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("xcom result file is empty.")
             return None
 
-        self.log.info("xcom result: \n%s", result)
+        self.log.debug("xcom result: \n%s", result)
         return json.loads(result)
 
     def execute(self, context: Context):
@@ -796,11 +796,13 @@ class KubernetesPodOperator(BaseOperator):
         del self.pod_manager
 
     def execute_async(self, context: Context) -> None:
-        self.pod_request_obj = self.build_pod_request_obj(context)
-        self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-            pod_request_obj=self.pod_request_obj,
-            context=context,
-        )
+        if self.pod_request_obj is None:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+        if self.pod is None:
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
         if self.callbacks:
             pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:

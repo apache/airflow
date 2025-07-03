@@ -25,6 +25,7 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
@@ -56,6 +57,7 @@ export const TaskLogHeader = ({
   tryNumber,
   wrap,
 }: Props) => {
+  const { t: translate } = useTranslation(["common", "dag"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -72,7 +74,7 @@ export const TaskLogHeader = ({
     value: string;
   }>({
     items: [
-      { label: "All Sources", value: "all" },
+      { label: translate("dag:logs.allSources"), value: "all" },
       ...(sourceOptions ?? []).map((source) => ({ label: source, value: source })),
     ],
   });
@@ -141,7 +143,7 @@ export const TaskLogHeader = ({
                     ))}
                   </HStack>
                 ) : (
-                  "All Log Levels"
+                  translate("dag:logs.allLevels")
                 )
               }
             </Select.ValueText>
@@ -150,9 +152,11 @@ export const TaskLogHeader = ({
             {logLevelOptions.items.map((option) => (
               <Select.Item item={option} key={option.label}>
                 {option.value === "all" ? (
-                  option.label
+                  translate(option.label)
                 ) : (
-                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>{option.label}</Badge>
+                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>
+                    {translate(option.label)}
+                  </Badge>
                 )}
               </Select.Item>
             ))}
@@ -167,7 +171,7 @@ export const TaskLogHeader = ({
             value={sources}
           >
             <Select.Trigger clearable>
-              <Select.ValueText placeholder="All Sources" />
+              <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
             <Select.Content>
               {sourceOptionList.items.map((option) => (
@@ -179,19 +183,28 @@ export const TaskLogHeader = ({
           </Select.Root>
         ) : undefined}
         <HStack>
-          <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
+          <Tooltip closeDelay={100} content={translate("wrap.tooltip", { hotkey: "w" })} openDelay={100}>
             <Button
-              aria-label={wrap ? "Unwrap" : "Wrap"}
+              aria-label={wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
               bg="bg.panel"
               onClick={toggleWrap}
               variant="outline"
             >
-              {wrap ? "Unwrap" : "Wrap"}
+              {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
             </Button>
           </Tooltip>
           {!isFullscreen && (
-            <Tooltip closeDelay={100} content="Press f for fullscreen" openDelay={100}>
-              <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
+            <Tooltip
+              closeDelay={100}
+              content={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
+              openDelay={100}
+            >
+              <IconButton
+                aria-label={translate("dag:logs.fullscreen.button")}
+                bg="bg.panel"
+                onClick={toggleFullscreen}
+                variant="outline"
+              >
                 <MdOutlineOpenInFull />
               </IconButton>
             </Tooltip>

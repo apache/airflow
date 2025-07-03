@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+12.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: added 'request_body' support in the 'PowerBIDatasetRefreshOperator' (enables support for enhanced dataset refreshes) (#51397)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(provider): Fix kwargs handling in Azure Data Lake Storage V2 Hook methods (#51847)``
+* ``fix 'conn_name_attr' in AzureBaseHook (#51948)``
+* ``fix(azure): check account_key before DefaultAzureCredential (#51999)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Update azure for Airflow 3.0 compatibility (#52618)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Bump microsoft kiota packages to 1.9.4 and update tests (#52367)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: clarify remote logging configuration for Azure Blob Storage (#51988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Remove pytest db markers from microsoft azure provider (#52107)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+
+12.4.1
+......
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.4.0
 ......
 

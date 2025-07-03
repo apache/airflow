@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+9.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK one for Slack Provider (#52347)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add automatic 429‑retry to channel‑lookup logic (#51265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.1.0
 .....
 

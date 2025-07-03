@@ -24,8 +24,8 @@ import argparse
 import json
 import os
 import textwrap
-from collections.abc import Iterable
-from typing import Callable, NamedTuple, Union
+from collections.abc import Callable, Iterable
+from typing import NamedTuple
 
 import lazy_object_proxy
 
@@ -932,7 +932,7 @@ class GroupCommand(NamedTuple):
     epilog: str | None = None
 
 
-CLICommand = Union[ActionCommand, GroupCommand]
+CLICommand = ActionCommand | GroupCommand
 
 ASSETS_COMMANDS = (
     ActionCommand(

@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 BIGQUERY_BASE_LINK = "/bigquery/transfers"
 BIGQUERY_DTS_LINK = BIGQUERY_BASE_LINK + "/locations/{region}/configs/{config_id}/runs?project={project_id}"
@@ -37,17 +31,3 @@ class BigQueryDataTransferConfigLink(BaseGoogleLink):
     name = "BigQuery Data Transfer Config"
     key = "bigquery_dts_config"
     format_str = BIGQUERY_DTS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        region: str,
-        config_id: str,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=BigQueryDataTransferConfigLink.key,
-            value={"project_id": project_id, "region": region, "config_id": config_id},
-        )

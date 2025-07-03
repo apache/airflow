@@ -21,8 +21,9 @@ import inspect
 import pathlib
 import sys
 import textwrap
+from collections.abc import Callable
 from socket import socketpair
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -37,12 +38,13 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     _parse_file,
+    _pre_import_airflow_modules,
 )
 from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.api.client import Client
-from airflow.sdk.execution_time.task_runner import CommsDecoder
+from airflow.sdk.execution_time import comms
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -87,7 +89,6 @@ class TestDagFileProcessor:
             DagFileParseRequest(
                 file=file_path,
                 bundle_path=TEST_DAG_FOLDER,
-                requests_fd=1,
                 callback_requests=callback_requests or [],
             ),
             log=structlog.get_logger(),
@@ -141,8 +142,13 @@ class TestDagFileProcessor:
         assert "a.py" in resp.import_errors
 
     def test_top_level_variable_access(
-        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
+        self,
+        spy_agency: SpyAgency,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        inprocess_client,
     ):
+        logger = MagicMock()
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -159,6 +165,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -172,8 +179,13 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_abc"
 
     def test_top_level_variable_access_not_found(
-        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
+        self,
+        spy_agency: SpyAgency,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        inprocess_client,
     ):
+        logger = MagicMock()
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -188,6 +200,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -204,6 +217,7 @@ class TestDagFileProcessor:
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
+        logger = MagicMock()
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -219,6 +233,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -239,6 +254,7 @@ class TestDagFileProcessor:
     def test_top_level_variable_delete(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
+        logger = MagicMock()
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -260,6 +276,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -279,11 +296,11 @@ class TestDagFileProcessor:
     def test_top_level_connection_access(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
     ):
+        logger = MagicMock()
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
-            from airflow.hooks.base import BaseHook
-            from airflow.sdk import DAG
+            from airflow.sdk import DAG, BaseHook
 
             with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
                 ...
@@ -296,6 +313,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -309,11 +327,11 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_my_conn"
 
     def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path, inprocess_client):
+        logger = MagicMock()
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
-            from airflow.hooks.base import BaseHook
-            from airflow.sdk import DAG
+            from airflow.sdk import DAG, BaseHook
 
             with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
                 ...
@@ -324,6 +342,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -356,6 +375,7 @@ class TestDagFileProcessor:
             path=dag1_path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=MagicMock(),
             logger_filehandle=MagicMock(),
             client=inprocess_client,
         )
@@ -366,6 +386,65 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "dag_name"
+
+    def test__pre_import_airflow_modules_when_disabled(self):
+        logger = MagicMock()
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "false"}),
+            patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter,
+        ):
+            _pre_import_airflow_modules("test.py", logger)
+
+        mock_iter.assert_not_called()
+        logger.warning.assert_not_called()
+
+    def test__pre_import_airflow_modules_when_enabled(self):
+        logger = MagicMock()
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
+            patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
+            patch("airflow.dag_processing.processor.importlib.import_module") as mock_import,
+        ):
+            _pre_import_airflow_modules("test.py", logger)
+
+        mock_import.assert_called_once_with("airflow.models")
+        logger.warning.assert_not_called()
+
+    def test__pre_import_airflow_modules_warns_on_missing_module(self):
+        logger = MagicMock()
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
+            patch(
+                "airflow.dag_processing.processor.iter_airflow_imports", return_value=["non_existent_module"]
+            ),
+            patch(
+                "airflow.dag_processing.processor.importlib.import_module", side_effect=ModuleNotFoundError()
+            ),
+        ):
+            _pre_import_airflow_modules("test.py", logger)
+
+        logger.warning.assert_called_once()
+        warning_args = logger.warning.call_args[0]
+        assert "Error when trying to pre-import module" in warning_args[0]
+        assert "non_existent_module" in warning_args[1]
+        assert "test.py" in warning_args[2]
+
+    def test__pre_import_airflow_modules_partial_success_and_warning(self):
+        logger = MagicMock()
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
+            patch(
+                "airflow.dag_processing.processor.iter_airflow_imports",
+                return_value=["airflow.models", "non_existent_module"],
+            ),
+            patch(
+                "airflow.dag_processing.processor.importlib.import_module",
+                side_effect=[None, ModuleNotFoundError()],
+            ),
+        ):
+            _pre_import_airflow_modules("test.py", logger)
+
+        assert logger.warning.call_count == 1
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
@@ -393,26 +472,38 @@ def disable_capturing():
 
 @pytest.mark.usefixtures("testing_dag_bundle")
 @pytest.mark.usefixtures("disable_capturing")
-def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
+def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
     r, w = socketpair()
-    # Create a valid FD for the decoder to open
-    _, w2 = socketpair()
 
-    w.makefile("wb").write(
-        b'{"file":"/files/dags/wait.py","bundle_path":"/files/dags","requests_fd":'
-        + str(w2.fileno()).encode("ascii")
-        + b',"callback_requests": [{"filepath": "wait.py", "bundle_name": "testing", "bundle_version": null, '
-        b'"msg": "task_failure", "dag_id": "wait_to_fail", "run_id": '
-        b'"manual__2024-12-30T21:02:55.203691+00:00", '
-        b'"is_failure_callback": true, "type": "DagCallbackRequest"}], "type": "DagFileParseRequest"}\n'
+    frame = comms._ResponseFrame(
+        id=1,
+        body={
+            "file": "/files/dags/wait.py",
+            "bundle_path": "/files/dags",
+            "callback_requests": [
+                {
+                    "filepath": "wait.py",
+                    "bundle_name": "testing",
+                    "bundle_version": None,
+                    "msg": "task_failure",
+                    "dag_id": "wait_to_fail",
+                    "run_id": "manual__2024-12-30T21:02:55.203691+00:00",
+                    "is_failure_callback": True,
+                    "type": "DagCallbackRequest",
+                }
+            ],
+            "type": "DagFileParseRequest",
+        },
+    )
+    bytes = frame.as_bytes()
+    w.sendall(bytes)
+
+    decoder = comms.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
+        socket=r,
+        body_decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
     )
 
-    decoder = CommsDecoder[DagFileParseRequest, DagFileParsingResult](
-        input=r.makefile("r"),
-        decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
-    )
-
-    msg = decoder.get_message()
+    msg = decoder._get_response()
     assert isinstance(msg, DagFileParseRequest)
     assert msg.file == "/files/dags/wait.py"
     assert msg.callback_requests == [
@@ -455,7 +546,7 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", bundle_path="no matter", requests_fd=1, callback_requests=requests),
+        DagFileParseRequest(file="A", bundle_path="no matter", callback_requests=requests),
         log=structlog.get_logger(),
     )
 
@@ -489,8 +580,6 @@ def test_parse_file_with_task_callbacks(spy_agency):
             bundle_version=None,
         )
     ]
-    _parse_file(
-        DagFileParseRequest(file="A", requests_fd=1, callback_requests=requests), log=structlog.get_logger()
-    )
+    _parse_file(DagFileParseRequest(file="A", callback_requests=requests), log=structlog.get_logger())
 
     assert called is True

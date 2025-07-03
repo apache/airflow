@@ -27,10 +27,10 @@ import inspect
 import os
 import textwrap
 from argparse import Namespace
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, Union
+from typing import Any, NamedTuple
 
 import rich
 
@@ -164,6 +164,14 @@ class Password(argparse.Action):
         setattr(namespace, self.dest, values)
 
 
+# Common Positional Arguments
+ARG_FILE = Arg(
+    flags=("file",),
+    metavar="FILEPATH",
+    help="File path to read from or write to. "
+    "For import commands, it is a file to read from. For export commands, it is a file to write to.",
+)
+
 # Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
@@ -198,6 +206,8 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
+
+# Variable Commands Args
 ARG_VARIABLE_IMPORT = Arg(
     flags=("file",),
     metavar="file",
@@ -250,6 +260,41 @@ ARG_POOL_FILE = Arg(
     ),
 )
 
+# Config arguments
+ARG_CONFIG_SECTION = Arg(
+    flags=("--section",),
+    type=str,
+    dest="section",
+    help="The section of the configuration",
+)
+ARG_CONFIG_OPTION = Arg(
+    flags=("--option",),
+    type=str,
+    dest="option",
+    help="The option of the configuration",
+)
+ARG_CONFIG_IGNORE_SECTION = Arg(
+    flags=("--ignore-section",),
+    type=str,
+    dest="ignore_section",
+    help="The configuration section being ignored",
+)
+ARG_CONFIG_IGNORE_OPTION = Arg(
+    flags=("--ignore-option",),
+    type=str,
+    dest="ignore_option",
+    help="The configuration option being ignored",
+)
+ARG_CONFIG_VERBOSE = Arg(
+    flags=(
+        "-v",
+        "--verbose",
+    ),
+    help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -295,7 +340,7 @@ class GroupCommandParser(NamedTuple):
         )
 
 
-CLICommand = Union[ActionCommand, GroupCommand, GroupCommandParser]
+CLICommand = ActionCommand | GroupCommand | GroupCommandParser
 
 
 class CommandFactory:
@@ -352,7 +397,7 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations"]
+        exclude_operation_names = ["LoginOperations", "VersionOperations"]
         exclude_method_names = [
             "error",
             "__init__",
@@ -574,10 +619,12 @@ def merge_commands(
         List of merged commands.
     """
     merge_command_map = {}
+    new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
+        if isinstance(command, ActionCommand):
+            new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
-    new_commands: list[CLICommand] = []
     merged_commands = []
     # Common commands
     for command in base_commands:
@@ -625,6 +672,37 @@ AUTH_COMMANDS = (
     ),
 )
 
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name="lint",
+        help="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        description="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        func=lazy_load_command("airflowctl.ctl.commands.config_command.lint"),
+        args=(
+            ARG_CONFIG_SECTION,
+            ARG_CONFIG_OPTION,
+            ARG_CONFIG_IGNORE_SECTION,
+            ARG_CONFIG_IGNORE_OPTION,
+            ARG_CONFIG_VERBOSE,
+        ),
+    ),
+)
+
+CONNECTION_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import connections",
+        func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
+        args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+    ),
+    ActionCommand(
+        name="export",
+        help="Export all connections",
+        func=lazy_load_command("airflowctl.ctl.commands.connection_command.export"),
+        args=(ARG_FILE,),
+    ),
+)
+
 POOL_COMMANDS = (
     ActionCommand(
         name="import",
@@ -666,9 +744,26 @@ core_commands: list[CLICommand] = [
         subcommands=AUTH_COMMANDS,
     ),
     GroupCommand(
+        name="config",
+        help="View, lint and update configurations.",
+        subcommands=CONFIG_COMMANDS,
+    ),
+    GroupCommand(
+        name="connections",
+        help="Manage Airflow connections",
+        subcommands=CONNECTION_COMMANDS,
+    ),
+    GroupCommand(
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    ActionCommand(
+        name="version",
+        help="Show version information",
+        description="Show version information",
+        func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
+        args=(),
     ),
     GroupCommand(
         name="variables",

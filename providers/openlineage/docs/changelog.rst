@@ -26,6 +26,73 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[OpenLineage] Added operator_provider_version to task event (#52468)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix non existing 'ti.dag_run' access in openlineage provider (#51932)``
+* ``Fix type import to AbstractOperator (#51773)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Add a bunch of no-redef ignores so Mypy is happy (#52507)``
+* ``chore: use task_instance as source for all airflow identifiers used in listener (#52339)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``nit: bump openlineage libraries requirement to 1.34 (#52075)``
+* ``Fixing ruff static check failures on main (#51937)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Remove db_tests from openlineage provider (#52239)``
+   * ``Fix compatibility test for Open Lineage (#51931)``
+   * ``Fix failing openlineage test (#51928)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add NominalTimeRunFacet to all OL events (#51404)``
+* ``feat: Add TagsJobFacet to DAGRun OpenLineage events (#51303)``
+* ``feat: Add Airflow-specific OL system tests validation and more tests (#51084)``
+* ``feat: merge TimeDeltaSensorAsync to TimeDeltaSensor (#51133)``
+* ``expose OpenLineage's lineage_root_* macros in plugin (#50532)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Use task owner for TASK level Ownership facet (#51305)``
+* ``Fix openlineage doc error (#51356)``
+* ``Fix OpenLineage macro _get_logical_date (#51210)``
+* ``Fix failing static checks (#51197)``
+* ``Fix simple grammar mistakes in doc (#51138)``
+* ``Fixes issue RuntimeTaskInstance does not contain log_url | added during taskrunner startup (#50376)``
+
+Misc
+~~~~
+
+* ``nit: task-level facets should not overwrite integration-level facets (#51690)``
+* ``Make duration in 'List Dag Run' page sortable (#51495)``
+* ``import MappedOperator from airflow.sdk.definitions.mappedoperator (#51492)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Adjust OL system test after ownership facet changes (#51394)``
+
 2.3.0
 .....
 
