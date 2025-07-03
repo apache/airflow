@@ -166,8 +166,11 @@ class Variable(Base, LoggingMixin):
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
+                log.debug("Variable %s not found. Using default.", key)
                 return default_var
+            log.error("Variable %s not found", key)
             raise KeyError(f"Variable {key} does not exist")
+        
         if deserialize_json:
             obj = json.loads(var_val)
             mask_secret(obj, key)
