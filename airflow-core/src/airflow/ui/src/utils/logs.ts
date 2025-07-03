@@ -43,11 +43,11 @@ export const logLevelOptions = createListCollection<{
   value: string;
 }>({
   items: [
-    { label: "All Levels", value: "all" },
-    { label: LogLevel.DEBUG.toUpperCase(), value: LogLevel.DEBUG },
-    { label: LogLevel.INFO.toUpperCase(), value: LogLevel.INFO },
-    { label: LogLevel.WARNING.toUpperCase(), value: LogLevel.WARNING },
-    { label: LogLevel.ERROR.toUpperCase(), value: LogLevel.ERROR },
-    { label: LogLevel.CRITICAL.toUpperCase(), value: LogLevel.CRITICAL },
+    { label: "dag:logs.allLevels", value: "all" },
+    { label: "dag:logs.debug", value: LogLevel.DEBUG },
+    { label: "dag:logs.info", value: LogLevel.INFO },
+    { label: "dag:logs.warning", value: LogLevel.WARNING },
+    { label: "dag:logs.error", value: LogLevel.ERROR },
+    { label: "dag:logs.critical", value: LogLevel.CRITICAL },
   ],
 });
