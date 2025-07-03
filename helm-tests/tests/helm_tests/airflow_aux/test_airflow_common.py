@@ -323,6 +323,7 @@ class TestAirflowCommon:
                 "enableBuiltInSecretEnvVars": {
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
+                    "AIRFLOW__API__SECRET_KEY": False,
                     "AIRFLOW__API_AUTH__JWT_SECRET": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
                     # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
@@ -370,7 +371,7 @@ class TestAirflowCommon:
             "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
-            "AIRFLOW__WEBSERVER__SECRET_KEY",
+            "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
