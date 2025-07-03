@@ -109,6 +109,7 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import TypeAlias
 
     import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
@@ -121,7 +122,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.sdk import BaseOperator
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions._internal.abstractoperator import Operator, TaskStateChangeCallback
+    from airflow.sdk.definitions._internal.abstractoperator import TaskStateChangeCallback
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -131,6 +132,8 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
+
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 
 PAST_DEPENDS_MET = "past_depends_met"

@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-    from airflow.sdk.types import Operator
 
 TaskStateChangeCallback = Callable[[Context], None]
 
@@ -241,50 +240,6 @@ class AbstractOperator(Templater, DAGNode):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
-
-    def get_upstreams_follow_setups(self) -> Iterable[Operator]:
-        """All upstreams and, for each upstream setup, its respective teardowns."""
-        for task in self.get_flat_relatives(upstream=True):
-            yield task
-            if task.is_setup:
-                for t in task.downstream_list:
-                    if t.is_teardown and t != self:
-                        yield t
-
-    def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
-        """
-        Only *relevant* upstream setups and their teardowns.
-
-        This method is meant to be used when we are clearing the task (non-upstream) and we need
-        to add in the *relevant* setups and their teardowns.
-
-        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
-        or the setup has no teardowns.
-        """
-        downstream_teardown_ids = {
-            x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
-        }
-        for task in self.get_flat_relatives(upstream=True):
-            if not task.is_setup:
-                continue
-            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
-            # if task has no teardowns or has teardowns downstream of self
-            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
-                yield task
-                for t in task.downstream_list:
-                    if t.is_teardown and t != self:
-                        yield t
-
-    def get_upstreams_only_setups(self) -> Iterable[Operator]:
-        """
-        Return relevant upstream setups.
-
-        This method is meant to be used when we are checking task dependencies where we need
-        to wait for all the upstream setups to complete before we can run the task.
-        """
-        for task in self.get_upstreams_only_setups_and_teardowns():
-            if task.is_setup:
-                yield task
 
     # TODO: Task-SDK -- Should the following methods removed?
     #   get_template_env

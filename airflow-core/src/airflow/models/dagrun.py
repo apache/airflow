@@ -1816,7 +1816,9 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
+    def _revise_map_indexes_if_mapped(
+        self, task: Operator | BaseOperator, *, session: Session
+    ) -> Iterator[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 

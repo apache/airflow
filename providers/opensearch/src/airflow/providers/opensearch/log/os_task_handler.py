@@ -46,7 +46,6 @@ from airflow.utils.session import create_session
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
-
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
@@ -304,7 +303,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             if TYPE_CHECKING:
                 assert dag is not None
             # TODO: Task-SDK: Where should this function be?
-            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
+            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined,union-attr]
 
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])

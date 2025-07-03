@@ -108,6 +108,7 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
     from airflow.typing_compat import Self
+    from airflow.utils.trigger_rule import TriggerRule
 
     HAS_KUBERNETES: bool
     try:
@@ -1174,17 +1175,30 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     }
 
     _needs_expansion: bool
+    depends_on_past: bool
     execution_timeout: datetime.timedelta | None
     executor: str | None
     executor_config: dict | None
+    ignore_first_depends_on_past: bool
+    inlets: Sequence
+    is_setup: bool
+    is_teardown: bool
+    on_execute_callback: Sequence
+    on_success_callback: Sequence
+    outlets: Sequence
     pool: str
     pool_slots: int
+    priority_weight: int
     queue: str
     retries: int | None
     run_as_user: str | None
     start_from_trigger: bool
     start_trigger_args: StartTriggerArgs
+    trigger_rule: TriggerRule
+    wait_for_downstream: bool
     weight_rule: PriorityWeightStrategy
+
+    is_mapped = False
 
     # TODO: Figure out a better way to supply these defaults.
     inherits_from_empty_operator: bool = False
