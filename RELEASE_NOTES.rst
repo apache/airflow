@@ -67,7 +67,7 @@ Bug Fixes
 - UI: Enable iframe script execution (#52568)
 - UI: Fix DAG tags filter not showing all tags in UI when tags are greater than 50 (#52714)
 - UI: Add real-time clock updates to timezone selector (#52414)
-- Improve Grid view performance and responsiveness with optimized data loading (#52718)
+- Improve Grid view performance and responsiveness with optimized data loading (#52718)(#52822))
 - Fix editing connection with sensitive extra field (#52445)
 - Fix archival for cascading deletes by archiving dependent tables first (#51952)
 - Fix whitespace handling in DAG owners parsing for multiple owners (#52221)
@@ -76,6 +76,7 @@ Bug Fixes
 - Fix Starting from Trigger when using ``MappedOperator`` (#52681)
 - Add ti information to re-queue logs (#49995)
 - Task SDK: Fix ``AssetEventOperations.get`` to use ``alias_name`` when specified (#52324)
+- Ensure trigger kwargs are properly deserialized during trigger execution (#52721)
 
 Miscellaneous
 """""""""""""
