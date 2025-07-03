@@ -154,21 +154,13 @@ The ``triggering_asset_events`` is a dictionary that looks like this:
 
     {
         Asset("s3://asset-bucket/example.csv"): [
-            AssetEvent(
-                uri="s3://asset-bucket/example.csv",
-                source_dag_run=DagRun(...),
-                ...
-            ),
-            ...
+            AssetEvent(uri="s3://asset-bucket/example.csv", source_dag_run=DagRun(...), ...),
+            ...,
         ],
         Asset("s3://another-bucket/another.csv"): [
-            AssetEvent(
-                uri="s3://another-bucket/another.csv",
-                source_dag_run=DagRun(...),
-                ...
-            ),
-            ...
-        ]
+            AssetEvent(uri="s3://another-bucket/another.csv", source_dag_run=DagRun(...), ...),
+            ...,
+        ],
     }
 
 You can access this information in your tasks using Jinja templating or directly in Python functions.
@@ -198,10 +190,10 @@ If your DAG is triggered by a single asset, you can access its information like 
             """,
         )
 
-In this example, `triggering_asset_events.values() | first | first` does the following:
-1. `triggering_asset_events.values()`: Gets a list of all lists of asset events.
-2. `| first`: Gets the first list of asset events (since we only have one triggering asset).
-3. `| first`: Gets the first `AssetEvent` from that list.
+In this example, ``triggering_asset_events.values() | first | first`` does the following:
+1. ``triggering_asset_events.values()``: Gets a list of all lists of asset events.
+2. ``| first``: Gets the first list of asset events (since we only have one triggering asset).
+3. ``| first``: Gets the first ``AssetEvent`` from that list.
 
 **Example: Multiple Triggering Assets**
 
@@ -239,9 +231,12 @@ You can also access the ``triggering_asset_events`` directly in a Python functio
                 print(f"Asset: {asset.uri}")
                 for event in asset_events:
                     print(f"  - Triggered by DAG run: {event.source_dag_run.dag_id}")
-                    print(f"    Data interval: {event.source_dag_run.data_interval_start} to {event.source_dag_run.data_interval_end}")
+                    print(
+                        f"    Data interval: {event.source_dag_run.data_interval_start} to {event.source_dag_run.data_interval_end}"
+                    )
                     print(f"    Run ID: {event.source_dag_run.run_id}")
                     print(f"    Timestamp: {event.timestamp}")
+
 
     print_triggering_asset_events()
 
