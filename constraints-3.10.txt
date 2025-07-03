@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-02T19:45:56.420871
+# This constraints file was automatically generated on 2025-07-03T02:25:54.088070
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -217,7 +217,7 @@ aws-xray-sdk==2.14.0
 awswrangler==3.11.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.34.0
+azure-core==1.35.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.23.0
@@ -225,7 +225,7 @@ azure-keyvault-secrets==4.10.0
 azure-kusto-data==5.0.4
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
-azure-mgmt-core==1.5.0
+azure-mgmt-core==1.6.0
 azure-mgmt-cosmosdb==9.8.0
 azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
@@ -798,7 +798,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.0
-uv==0.7.18
+uv==0.7.19
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.34.0
