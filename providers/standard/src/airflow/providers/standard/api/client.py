@@ -91,7 +91,7 @@ class HITLOperations:
         )
         return HITLResponseContentDetail.model_validate_json(resp.read())
 
-    def get_response(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
-        """Get the Human-in-the-loop response of a specific Task Instance."""
+    def get_response_content_detail(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
+        """Get content part of a Human-in-the-loop response for a specific Task Instance."""
         resp = self.client.get(f"/hitl-responses/{ti_id}")
         return HITLResponseContentDetail.model_validate_json(resp.read())

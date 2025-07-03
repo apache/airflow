@@ -481,7 +481,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         ):
             if TYPE_CHECKING:
                 assert HITLResponseContentDetailResult is not None
-            api_resp = self.client.hitl.get_response(ti_id=msg.ti_id)
+            api_resp = self.client.hitl.get_response_content_detail(ti_id=msg.ti_id)
             resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")

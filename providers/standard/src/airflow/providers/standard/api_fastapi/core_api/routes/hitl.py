@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 import structlog
@@ -36,6 +35,7 @@ from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     UpdateHITLResponsePayload,
 )
 from airflow.providers.standard.models import HITLResponseModel
+from airflow.utils import timezone
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
 
@@ -80,7 +80,7 @@ def update_hitl_response(
 
     hitl_response_model.response_content = update_hitl_response_payload.response_content
     hitl_response_model.user_id = user.get_id()
-    hitl_response_model.response_at = datetime.now(timezone.utc)
+    hitl_response_model.response_at = timezone.utcnow()
     session.add(hitl_response_model)
     session.commit()
     return HITLResponseContentDetail.model_validate(hitl_response_model)
