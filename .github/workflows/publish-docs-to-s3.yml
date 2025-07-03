@@ -171,6 +171,7 @@ jobs:
       - name: "Build SBOMS"
         env:
           AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           breeze sbom update-sbom-information --airflow-version ${AIRFLOW_VERSION} \
           --force --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
