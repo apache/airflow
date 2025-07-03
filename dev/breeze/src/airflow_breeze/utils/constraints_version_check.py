@@ -130,22 +130,33 @@ def get_first_newer_release_date_str(releases, current_version):
 
     try:
         current = version.parse(current_version)
-        newer_versions = [
-            version.parse(v)
-            for v in releases
-            if version.parse(v) > current and releases[v] and not version.parse(v).is_prerelease
-        ]
+
+        # Filter and parse versions, excluding pre-releases and invalid versions
+        valid_versions = []
+        for v in releases:
+            try:
+                parsed_v = version.parse(v)
+                if not parsed_v.is_prerelease and releases[v]:  # Check if release data exists
+                    valid_versions.append(parsed_v)
+            except version.InvalidVersion:
+                continue
+
+        # Find newer versions
+        newer_versions = [v for v in valid_versions if v > current]
+
         if not newer_versions:
             return None
-    except version.InvalidVersion:
+
+        # Get the immediate next version
+        first_newer_version = str(min(newer_versions))
+        upload_time_str = releases[first_newer_version][0]["upload_time_iso_8601"]
+        return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+
+    except version.InvalidVersion as e:
         get_console().print(
-            f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check.[/]"
+            f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check. Error: {str(e)}[/]"
         )
         return None
-
-    first_newer_version = min(newer_versions)
-    upload_time_str = releases[str(first_newer_version)][0]["upload_time_iso_8601"]
-    return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
 
 def constraints_version_check(
