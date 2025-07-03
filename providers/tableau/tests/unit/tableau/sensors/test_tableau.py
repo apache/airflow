@@ -22,6 +22,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.tableau.sensors.tableau import (
+    TableauJobFailedException,
     TableauJobFinishCode,
     TableauJobStatusSensor,
 )
@@ -68,3 +69,35 @@ class TestTableauJobStatusSensor:
         with pytest.raises(AirflowException):
             sensor.poke({})
         mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)
+
+    @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
+    def test_poke_succeeds_on_last_try(self, mock_tableau_hook_class):
+        mock_tableau_hook = Mock()
+        mock_tableau_hook.get_job_status.side_effect = [
+            TableauJobFinishCode.ERROR,
+            TableauJobFinishCode.CANCELED,
+            TableauJobFinishCode.SUCCESS,
+        ]
+        mock_tableau_hook_class.return_value.__enter__.return_value = mock_tableau_hook
+        sensor = TableauJobStatusSensor(**self.kwargs, retries_on_failure=2)
+
+        assert not sensor.poke({})
+        assert not sensor.poke({})
+        assert sensor.poke({})
+        assert mock_tableau_hook.get_job_status.call_count == 3
+
+    @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
+    def test_poke_failed_on_last_try(self, mock_tableau_hook_class):
+        mock_tableau_hook = Mock()
+        mock_tableau_hook.get_job_status.side_effect = [
+            TableauJobFinishCode.ERROR,
+            TableauJobFinishCode.CANCELED,
+            TableauJobFinishCode.ERROR,
+        ]
+        mock_tableau_hook_class.return_value.__enter__.return_value = mock_tableau_hook
+        sensor = TableauJobStatusSensor(**self.kwargs, retries_on_failure=2, poke_interval=10.0)
+        assert not sensor.poke({})
+        assert not sensor.poke({})
+        with pytest.raises(TableauJobFailedException, match="The Tableau Refresh Workbook Job failed!"):
+            sensor.poke({})
+        assert mock_tableau_hook.get_job_status.call_count == 3
