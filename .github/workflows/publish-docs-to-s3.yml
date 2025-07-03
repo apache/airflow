@@ -116,11 +116,10 @@ jobs:
              echo "destination-location=s3://staging-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
           fi
           if [[ " ${INCLUDE_DOCS} " =~ " apache-airflow " ]]; then
-             # get version from the ref
-              AIRFLOW_VERSION=$(echo "${REF}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-              echo "airflow-version=${AIRFLOW_VERSION}" >> ${GITHUB_OUTPUT}
+             AIRFLOW_VERSION=$(echo "${REF}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+             echo "airflow-version=${AIRFLOW_VERSION}" >> ${GITHUB_OUTPUT}
           else
-                echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
+             echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
 
   build-docs:
