@@ -24,14 +24,14 @@ from pydantic import field_validator
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class AddHITLResponsePayload(BaseModel):
-    """Schema for adding a Human-in-the-loop response content detail for a specific Task Instance."""
+class UpdateHITLResponsePayload(BaseModel):
+    """Schema for updating the content of a Human-in-the-loop response."""
 
     response_content: str
 
 
 class HITLResponseContentDetail(BaseModel):
-    """Response of adding a Human-in-the-loop response content detail."""
+    """Response of updating a Human-in-the-loop response."""
 
     response_content: str
     response_at: datetime
@@ -69,7 +69,7 @@ class HITLResponseDetail(BaseModel):
 
 
 class HITLResponseDetailCollection(BaseModel):
-    """Schema for a collection of Human-in-the-loop response.."""
+    """Schema for a collection of Human-in-the-loop responses."""
 
     hitl_responses: list[HITLResponseDetail]
     total_entries: int

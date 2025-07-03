@@ -79,7 +79,7 @@ class HITLOperations:
         response_content: str,
         params_input: MutableMapping | None = None,
     ) -> HITLResponseContentDetail:
-        """Add the Human-in-the-loop response content detail part of a specific Task Instance."""
+        """Update an existing Human-in-the-loop response."""
         payload = UpdateHITLResponse(
             ti_id=ti_id,
             response_content=response_content,
