@@ -47,6 +47,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: false
         type: boolean
+      build-sboms:
+        description: "Build SBOMs"
+        required: false
+        default: 'false'
+        type: string
 
 permissions:
   contents: read
@@ -63,11 +68,13 @@ jobs:
       EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
       DESTINATION: ${{ inputs.destination }}
       SKIP_WRITE_TO_STABLE_FOLDER: ${{ inputs.skip-write-to-stable-folder }}
+      BUILD_SBOMS: ${{ inputs.build-sboms }}
     outputs:
       include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
       destination-location: ${{ steps.parameters.outputs.destination-location }}
       destination: ${{ steps.parameters.outputs.destination }}
       extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
+      airflow-version: ${{ steps.parameters.outputs.airflow-version }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
     if: contains(fromJSON('[
@@ -92,6 +99,7 @@ jobs:
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination: '${DESTINATION}'"
           echo "Skip write to stable folder: '${SKIP_WRITE_TO_STABLE_FOLDER}'"
+          echo "Build SBOMs: '${BUILD_SBOMS}'"
           if [[ "${DESTINATION}" == "auto" ]]; then
              if [[ "${REF}" =~ ^.*[0-9]*\.[0-9]*\.[0-9]*$ ]]; then
                 echo "${REF} looks like final release, using live destination"
@@ -106,6 +114,12 @@ jobs:
              echo "destination-location=s3://live-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
           else
              echo "destination-location=s3://staging-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
+          fi
+          if [[ " ${INCLUDE_DOCS} " =~ " apache-airflow " ]]; then
+             AIRFLOW_VERSION=$(echo "${REF}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+             echo "airflow-version=${AIRFLOW_VERSION}" >> ${GITHUB_OUTPUT}
+          else
+             echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
 
   build-docs:
@@ -154,6 +168,17 @@ jobs:
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only
+      - name: "Build SBOMS"
+        env:
+          AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHON_VERSION: ${{ needs.build-info.outputs.default-python-version }}
+          FORCE: "true"
+        run: >
+          breeze sbom update-sbom-information --airflow-version ${AIRFLOW_VERSION}
+          --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
+        if: inputs.build-sboms == 'true'
+
       - name: Check disk space available
         run: df -H
       # Here we will create temp airflow-site dir to publish docs

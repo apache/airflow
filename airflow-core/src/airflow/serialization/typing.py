@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,27 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  gremlin:
-    hostname: gremlin
-    container_name: gremlin
-    image: tinkerpop/gremlin-server:3.4.2
-    labels:
-      breeze.description: "Integration required for gremlin operator and hook."
-    volumes:
-      - ./gremlin:/opt/gremlin-server/conf
-      - graph-data:/opt/gremlin-server/data
-      - ./gremlin/gremlin-entrypoint.sh:/opt/gremlin-server/gremlin-entrypoint.sh  # New entrypoint script
-    ports:
-      - "${GREMLIN_HOST_PORT}:8182"
-    entrypoint: /opt/gremlin-server/gremlin-entrypoint.sh  # Use custom entrypoint
-    user: "0:0"  # Run as root
-  airflow:
-    depends_on:
-      - gremlin
-    environment:
-      - INTEGRATION_TINKERPOP=true
-    stdin_open: true
-volumes:
-  graph-data:
+from __future__ import annotations
+
+from typing import Any
+
+
+def is_pydantic_model(cls: Any) -> bool:
+    """
+    Return True if the class is a pydantic.main.BaseModel.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
+    # __pydantic_validator__ is an internal validator object, always set after model build
+    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
