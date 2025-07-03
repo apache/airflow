@@ -45,7 +45,7 @@ from airflow.providers.elasticsearch.log.es_json_formatter import (
     ElasticsearchJSONFormatter,
 )
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, EsLogMsgType
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -56,13 +56,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-    EsLogMsgType = list[StructuredLogMessage] | str
-else:
-    EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}

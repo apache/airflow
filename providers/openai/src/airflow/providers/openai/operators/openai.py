@@ -75,7 +75,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> list[float]:
-        if not self.input_text or not isinstance(self.input_text, str | list):
+        if not self.input_text or not isinstance(self.input_text, (str, list)):
             raise ValueError(
                 "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
             )

@@ -469,4 +469,29 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze release-management constraints-version-check": [
+        {
+            "name": "Constraints options.",
+            "options": [
+                "--python",
+                "--airflow-constraints-mode",
+                "--github-repository",
+                "--github-token",
+            ],
+        },
+        {
+            "name": "Comparison mode.",
+            "options": [
+                "--diff-mode",
+                "--package",
+                "--explain-why",
+            ],
+        },
+        {
+            "name": "Build options.",
+            "options": [
+                "--builder",
+            ],
+        },
+    ],
 }
