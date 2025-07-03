@@ -1237,7 +1237,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 from airflow.providers.standard.execution_time.comms import CreateHITLInputRequestPayload
 
                 if isinstance(msg, CreateHITLInputRequestPayload):
-                    resp = self.client.hitl.add_input_request(
+                    resp = self.client.hitl.add_response(
                         ti_id=msg.ti_id,
                         options=msg.options,
                         subject=msg.subject,

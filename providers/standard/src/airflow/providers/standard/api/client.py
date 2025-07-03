@@ -45,7 +45,7 @@ class HITLOperations:
     def __init__(self, client: Client) -> None:
         self.client = client
 
-    def add_input_request(
+    def add_response(
         self,
         *,
         ti_id: uuid.UUID,
