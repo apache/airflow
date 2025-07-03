@@ -26,7 +26,7 @@ import { ProgressBar } from "src/components/ui";
 import { ErrorPage } from "./Error";
 
 export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
