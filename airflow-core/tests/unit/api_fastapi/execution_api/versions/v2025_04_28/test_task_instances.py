@@ -63,8 +63,15 @@ class TestTIUpdateState:
                 id="list of ints",
             ),
             pytest.param(
+                [
+                    ("task_a", None),
+                ],
+                {"task_a": None},
+                id="task has no upstreams",
+            ),
+            pytest.param(
                 [("task_a", None), ("task_b", [6, 7]), ("task_c", 2)],
-                {"task_a": -1, "task_b": 6, "task_c": 2},
+                {"task_a": None, "task_b": 6, "task_c": 2},
                 id="mixed types",
             ),
         ],
