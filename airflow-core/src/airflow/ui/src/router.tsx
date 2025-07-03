@@ -160,6 +160,15 @@ export const routerConfig = [
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagDetails />, path: "details" },
+          {
+            // The following iframe sandbox setting is intentionally less restrictive.
+            // This is considered safe because the framed content originates from the Plugins,
+            // which is part of the deployment of Airflow and trusted as per our security policy.
+            // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+            // They are not user provided plugins.
+            element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+            path: "plugin/:page",
+          },
         ],
         element: <Dag />,
         path: "dags/:dagId",
@@ -171,12 +180,32 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          {
+            // The following iframe sandbox setting is intentionally less restrictive.
+            // This is considered safe because the framed content originates from the Plugins,
+            // which is part of the deployment of Airflow and trusted as per our security policy.
+            // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+            // They are not user provided plugins.
+            element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+            path: "plugin/:page",
+          },
         ],
         element: <Run />,
         path: "dags/:dagId/runs/:runId",
       },
       {
-        children: taskInstanceRoutes,
+        children: [
+          ...taskInstanceRoutes,
+          {
+            // The following iframe sandbox setting is intentionally less restrictive.
+            // This is considered safe because the framed content originates from the Plugins,
+            // which is part of the deployment of Airflow and trusted as per our security policy.
+            // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+            // They are not user provided plugins.
+            element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+            path: "plugin/:page",
+          },
+        ],
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
       },
@@ -194,12 +223,32 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          {
+            // The following iframe sandbox setting is intentionally less restrictive.
+            // This is considered safe because the framed content originates from the Plugins,
+            // which is part of the deployment of Airflow and trusted as per our security policy.
+            // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+            // They are not user provided plugins.
+            element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+            path: "plugin/:page",
+          },
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/group/:groupId",
       },
       {
-        children: taskInstanceRoutes,
+        children: [
+          ...taskInstanceRoutes,
+          {
+            // The following iframe sandbox setting is intentionally less restrictive.
+            // This is considered safe because the framed content originates from the Plugins,
+            // which is part of the deployment of Airflow and trusted as per our security policy.
+            // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+            // They are not user provided plugins.
+            element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+            path: "plugin/:page",
+          },
+        ],
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
       },
@@ -208,6 +257,15 @@ export const routerConfig = [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
           { element: <Events />, path: "events" },
+          {
+            // The following iframe sandbox setting is intentionally less restrictive.
+            // This is considered safe because the framed content originates from the Plugins,
+            // which is part of the deployment of Airflow and trusted as per our security policy.
+            // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+            // They are not user provided plugins.
+            element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+            path: "plugin/:page",
+          },
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",
