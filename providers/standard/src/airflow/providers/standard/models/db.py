@@ -32,7 +32,6 @@ log = logging.getLogger(__name__)
 
 if not AIRFLOW_V_3_1_PLUS:
     log.warning("Human in the loop functionality needs Airflow 3.1+. Skip loadding HITLDBManager.")
-    HITLDBManager = BaseDBManager
 else:
 
     class HITLDBManager(BaseDBManager):
