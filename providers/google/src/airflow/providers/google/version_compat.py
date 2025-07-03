@@ -44,8 +44,8 @@ if AIRFLOW_V_3_1_PLUS:
         BaseOperator,
     )
 else:
-    from airflow.models import BaseOperator
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+    from airflow.models import BaseOperator
 
 # Other SDK components: Available since 3.0+
 if AIRFLOW_V_3_0_PLUS:
