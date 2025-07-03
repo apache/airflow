@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.mark.db_test: apache iceberg (#52063)``
+
 1.3.0
 .....
 
