@@ -64,7 +64,7 @@ from airflow.models.errors import ParseImportError
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace
+from airflow.traces.tracer import DebugTrace
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1080,7 +1080,7 @@ class DagFileProcessorManager(LoggingMixin):
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.
         """
-        with Trace.start_span(span_name="emit_metrics", component="DagFileProcessorManager") as span:
+        with DebugTrace.start_span(span_name="emit_metrics", component="DagFileProcessorManager") as span:
             parse_time = time.perf_counter() - self._parsing_start_time
             Stats.gauge("dag_processing.total_parse_time", parse_time)
             Stats.gauge("dagbag_size", sum(stat.num_dags for stat in self._file_stats.values()))
