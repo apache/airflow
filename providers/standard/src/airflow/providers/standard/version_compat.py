@@ -44,9 +44,10 @@ else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk import BaseHook, BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
 else:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
     from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
 
@@ -55,6 +56,7 @@ __all__ = [
     "AIRFLOW_V_3_1_PLUS",
     "BaseOperator",
     "BaseOperatorLink",
+    "BaseHook",
     "BaseSensorOperator",
     "PokeReturnValue",
 ]
