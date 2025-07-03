@@ -25,11 +25,7 @@ from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
 
 from airflow.exceptions import AirflowException
 from airflow.utils.helpers import exactly_one
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.tableau.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from tableauserverclient.server import Auth
