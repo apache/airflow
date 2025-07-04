@@ -30,7 +30,7 @@ from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
 PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 
-NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow"]
+NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow", "task-sdk"]
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
