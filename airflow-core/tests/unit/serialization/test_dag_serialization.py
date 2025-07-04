@@ -187,6 +187,7 @@ serialized_simple_dag_ground_truth = {
                     "bash_command": "echo {{ task.task_id }}",
                     "task_type": "BashOperator",
                     "_task_module": "airflow.providers.standard.operators.bash",
+                    "owner": "airflow",
                     "pool": "default_pool",
                     "is_setup": False,
                     "is_teardown": False,
@@ -3163,6 +3164,7 @@ def test_handle_v1_serdag():
                         "_task_type": "BashOperator",
                         # Slightly difference from v2-10-stable here, we manually changed this path
                         "_task_module": "airflow.providers.standard.operators.bash",
+                        "owner": "airflow",
                         "pool": "default_pool",
                         "is_setup": False,
                         "is_teardown": False,

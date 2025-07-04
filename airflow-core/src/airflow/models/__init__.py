@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
 # Do not add new models to this -- this is for compat only
 __all__ = [
     "DAG",
@@ -141,3 +143,22 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.execution_time.xcom import XCom
+
+__deprecated_classes = {
+    "abstractoperator": {
+        "AbstractOperator": "airflow.sdk.definitions._internal.abstractoperator.AbstractOperator",
+        "NotMapped": "airflow.sdk.definitions._internal.abstractoperator.NotMapped",
+        "TaskStateChangeCallback": "airflow.sdk.definitions._internal.abstractoperator.TaskStateChangeCallback",
+        "DEFAULT_OWNER": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_OWNER",
+        "DEFAULT_QUEUE": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_QUEUE",
+        "DEFAULT_TASK_EXECUTION_TIMEOUT": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_TASK_EXECUTION_TIMEOUT",
+    },
+    "param": {
+        "Param": "airflow.sdk.definitions.param.Param",
+        "ParamsDict": "airflow.sdk.definitions.param.ParamsDict",
+    },
+    "baseoperatorlink": {
+        "BaseOperatorLink": "airflow.sdk.bases.operatorlink.BaseOperatorLink",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)
