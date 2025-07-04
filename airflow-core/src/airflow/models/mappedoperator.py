@@ -70,7 +70,7 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
             )
             return False
         # start_from_trigger only makes sense when start_trigger_args exists.
-        if not self.start_trigger_args:
+        if self.start_trigger_args is not None:
             return False
 
         mapped_kwargs, _ = self._expand_mapped_kwargs(context)
