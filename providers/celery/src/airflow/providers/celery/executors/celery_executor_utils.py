@@ -371,7 +371,7 @@ class BulkStateFetcher(LoggingMixin):
             task_result = task_results_by_task_id.get(task_id)
             if task_result:
                 state = task_result["status"]
-                info = None if not hasattr(task_result, "info") else task_result["info"]
+                info = task_result.get("info")
             else:
                 state = celery_states.PENDING
                 info = None
