@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.models.base import COLLATION_ARGS
+
 revision = "ffdb0566c7c0"
 down_revision = "66a7743fe20e"
 branch_labels = None
@@ -42,7 +44,7 @@ def upgrade():
     op.create_table(
         "dag_favorite",
         sa.Column("user_id", sa.String(length=250), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", sa.String(length=250, **COLLATION_ARGS), nullable=False),
         sa.ForeignKeyConstraint(
             ["dag_id"], ["dag.dag_id"], name=op.f("dag_favorite_dag_id_fkey"), ondelete="CASCADE"
         ),
