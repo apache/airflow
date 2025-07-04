@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import methodtools
 
+from airflow.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
@@ -61,7 +62,7 @@ DEFAULT_PRIORITY_WEIGHT: int = 1
 MINIMUM_PRIORITY_WEIGHT: int = -2147483648
 MAXIMUM_PRIORITY_WEIGHT: int = 2147483647
 DEFAULT_EXECUTOR: str | None = None
-DEFAULT_QUEUE: str = "default"
+DEFAULT_QUEUE: str = conf.get("operators", "default_queue", "default")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = False
 DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING: bool = False
 DEFAULT_RETRIES: int = 0
