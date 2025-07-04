@@ -71,7 +71,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
@@ -201,7 +200,7 @@ class OperatorPartial:
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.utils.skipmixin import SkipMixin
-        from airflow.sensors.base import BaseSensorOperator
+        from airflow.sdk import BaseSensorOperator
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
@@ -280,7 +279,6 @@ class MappedOperator(AbstractOperator):
     # Needed for serialization.
     task_id: str
     params: ParamsDict | dict
-    deps: frozenset[BaseTIDep] = attrs.field(init=False)
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
@@ -320,12 +318,6 @@ class MappedOperator(AbstractOperator):
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
-
-    @deps.default
-    def _deps(self):
-        from airflow.models.baseoperator import BaseOperator
-
-        return BaseOperator.deps
 
     def __hash__(self):
         return id(self)
@@ -762,15 +754,17 @@ class MappedOperator(AbstractOperator):
         # unmap it since we've lost access to the underlying operator class.
         # This tries its best to simply "forward" all the attributes on this
         # mapped operator to a new SerializedBaseOperator instance.
+        from typing import cast
+
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-        op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
+        sop = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
         for partial_attr, value in self.partial_kwargs.items():
-            setattr(op, partial_attr, value)
-        SerializedBaseOperator.populate_operator(op, self.operator_class)
+            setattr(sop, partial_attr, value)
+        SerializedBaseOperator.populate_operator(sop, self.operator_class)
         if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
-            SerializedBaseOperator.set_task_dag_references(op, self.dag)  # type: ignore[arg-type]
-        return op
+            SerializedBaseOperator.set_task_dag_references(sop, self.dag)  # type: ignore[arg-type]
+        return cast("BaseOperator", sop)
 
     def _get_specified_expand_input(self) -> ExpandInput:
         """Input received from the expand call on the operator."""
@@ -833,4 +827,43 @@ class MappedOperator(AbstractOperator):
             context=context,
             jinja_env=jinja_env,
             seen_oids=seen_oids,
+        )
+
+    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
+        """
+        Get the kwargs to create the unmapped start_trigger_args.
+
+        This method is for allowing mapped operator to start execution from triggerer.
+        """
+        from airflow.triggers.base import StartTriggerArgs
+
+        if not self.start_trigger_args:
+            return None
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        trigger_kwargs = mapped_kwargs.get(
+            "trigger_kwargs",
+            self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
+        )
+        next_kwargs = mapped_kwargs.get(
+            "next_kwargs",
+            self.partial_kwargs.get("next_kwargs", self.start_trigger_args.next_kwargs),
+        )
+        timeout = mapped_kwargs.get(
+            "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
+        )
+        return StartTriggerArgs(
+            trigger_cls=self.start_trigger_args.trigger_cls,
+            trigger_kwargs=trigger_kwargs,
+            next_method=self.start_trigger_args.next_method,
+            next_kwargs=next_kwargs,
+            timeout=timeout,
         )

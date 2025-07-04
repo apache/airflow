@@ -49,9 +49,10 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.sdk.types import Operator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
-def get_serialized_template_fields(task: Operator):
+def get_serialized_template_fields(task: Operator | SerializedBaseOperator):
     """
     Get and serialize the template fields for a task.
 

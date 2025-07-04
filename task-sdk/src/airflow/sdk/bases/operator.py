@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -77,6 +77,7 @@ if TYPE_CHECKING:
 
     import jinja2
 
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -198,27 +199,32 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
-_PARTIAL_DEFAULTS: dict[str, Any] = {
-    "map_index_template": None,
-    "owner": DEFAULT_OWNER,
-    "trigger_rule": DEFAULT_TRIGGER_RULE,
+OPERATOR_DEFAULTS: dict[str, Any] = {
+    "allow_nested_operators": True,
     "depends_on_past": False,
-    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-    "wait_for_downstream": False,
-    "retries": DEFAULT_RETRIES,
-    # "executor": DEFAULT_EXECUTOR,
-    "queue": DEFAULT_QUEUE,
-    "pool_slots": DEFAULT_POOL_SLOTS,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+    # "executor": DEFAULT_EXECUTOR,
+    "executor_config": {},
+    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    "inlets": [],
+    "map_index_template": None,
+    "on_execute_callback": [],
+    "on_failure_callback": [],
+    "on_retry_callback": [],
+    "on_skipped_callback": [],
+    "on_success_callback": [],
+    "outlets": [],
+    "owner": DEFAULT_OWNER,
+    "pool_slots": DEFAULT_POOL_SLOTS,
+    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "queue": DEFAULT_QUEUE,
+    "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": False,
-    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "trigger_rule": DEFAULT_TRIGGER_RULE,
+    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "wait_for_downstream": False,
     "weight_rule": DEFAULT_WEIGHT_RULE,
-    "inlets": [],
-    "outlets": [],
-    "allow_nested_operators": True,
-    "executor_config": {},
 }
 
 
@@ -324,7 +330,7 @@ else:
         )
 
         # Fill fields not provided by the user with default values.
-        partial_kwargs.update((k, v) for k, v in _PARTIAL_DEFAULTS.items() if k not in partial_kwargs)
+        partial_kwargs.update((k, v) for k, v in OPERATOR_DEFAULTS.items() if k not in partial_kwargs)
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
         if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -346,7 +352,7 @@ else:
         )
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
-            partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
+            partial_kwargs[attr] = _collect_from_input(partial_kwargs.get(attr := f"on_{k}_callback"))
 
         return OperatorPartial(
             operator_class=operator_class,
@@ -406,12 +412,12 @@ if "airflow.configuration" in sys.modules:
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
 
-def _collect_callbacks(callbacks: None | C | Collection[C]) -> list[C]:
-    if not callbacks:
+def _collect_from_input(value_or_values: None | C | Collection[C]) -> list[C]:
+    if not value_or_values:
         return []
-    if isinstance(callbacks, Collection):
-        return list(callbacks)
-    return [callbacks]
+    if isinstance(value_or_values, Collection):
+        return list(value_or_values)
+    return [value_or_values]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -867,6 +873,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
 
+    operator_extra_links: Collection[BaseOperatorLink] = ()
+
     # Defines the color in the UI
     ui_color: str = "#fff"
     ui_fgcolor: str = "#000"
@@ -1059,19 +1067,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.execution_timeout = execution_timeout
 
-        self.on_execute_callback = _collect_callbacks(on_execute_callback)
-        self.on_failure_callback = _collect_callbacks(on_failure_callback)
-        self.on_success_callback = _collect_callbacks(on_success_callback)
-        self.on_retry_callback = _collect_callbacks(on_retry_callback)
-        self.on_skipped_callback = _collect_callbacks(on_skipped_callback)
+        self.on_execute_callback = _collect_from_input(on_execute_callback)
+        self.on_failure_callback = _collect_from_input(on_failure_callback)
+        self.on_success_callback = _collect_from_input(on_success_callback)
+        self.on_retry_callback = _collect_from_input(on_retry_callback)
+        self.on_skipped_callback = _collect_from_input(on_skipped_callback)
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
-        if start_date:
-            self.start_date = timezone.convert_to_utc(start_date)
-
-        if end_date:
-            self.end_date = timezone.convert_to_utc(end_date)
+        self.start_date = timezone.convert_to_utc(start_date)
+        self.end_date = timezone.convert_to_utc(end_date)
 
         if executor:
             warnings.warn(
@@ -1144,27 +1149,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._logger_name = logger_name
 
         # Lineage
-        if inlets:
-            self.inlets = (
-                inlets
-                if isinstance(inlets, list)
-                else [
-                    inlets,
-                ]
-            )
-        else:
-            self.inlets = []
-
-        if outlets:
-            self.outlets = (
-                outlets
-                if isinstance(outlets, list)
-                else [
-                    outlets,
-                ]
-            )
-        else:
-            self.outlets = []
+        self.inlets = _collect_from_input(inlets)
+        self.outlets = _collect_from_input(outlets)
 
         if isinstance(self.template_fields, str):
             warnings.warn(
@@ -1528,6 +1514,28 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
 
+    def unmap(self, resolve: None | Mapping[str, Any]) -> Self:
+        """
+        Get the "normal" operator from the current operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original operator.
+
+        :meta private:
+        """
+        return self
+
+    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
+
     def render_template_fields(
         self,
         context: Context,
@@ -1606,6 +1614,216 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)
+
+    def dry_run(self) -> None:
+        """Perform dry run for the operator - just render template fields."""
+        self.log.info("Dry run")
+        for f in self.template_fields:
+            try:
+                content = getattr(self, f)
+            except AttributeError:
+                raise AttributeError(
+                    f"{f!r} is configured as a template field "
+                    f"but {self.task_type} does not have this attribute."
+                )
+
+            if content and isinstance(content, str):
+                self.log.info("Rendering template for %s", f)
+                self.log.info(content)
+
+    # TODO (GH-52141): Either port this, or somehow fix the tests to remove this from the sdk.
+    @staticmethod
+    def xcom_push(
+        context: Any,
+        key: str,
+        value: Any,
+    ) -> None:
+        """
+        Make an XCom available for tasks to pull.
+
+        :param context: Execution Context Dictionary
+        :param key: A key for the XCom
+        :param value: A value for the XCom. The value is pickled and stored
+            in the database.
+        """
+        context["ti"].xcom_push(key=key, value=value)
+
+    # TODO (GH-52141): Either port this, or somehow fix the tests to remove this from the sdk.
+    @staticmethod
+    def xcom_pull(
+        context: Any,
+        task_ids: str | list[str] | None = None,
+        dag_id: str | None = None,
+        key: str = "return_value",
+        include_prior_dates: bool | None = None,
+        session=None,
+    ) -> Any:
+        """
+        Pull XComs that optionally meet certain criteria.
+
+        The default value for `key` limits the search to XComs
+        that were returned by other tasks (as opposed to those that were pushed
+        manually). To remove this filter, pass key=None (or any desired value).
+
+        If a single task_id string is provided, the result is the value of the
+        most recent matching XCom from that task_id. If multiple task_ids are
+        provided, a tuple of matching values is returned. None is returned
+        whenever no matches are found.
+
+        :param context: Execution Context Dictionary
+        :param key: A key for the XCom. If provided, only XComs with matching
+            keys will be returned. The default key is 'return_value', also
+            available as a constant XCOM_RETURN_KEY. This key is automatically
+            given to XComs returned by tasks (as opposed to being pushed
+            manually). To remove the filter, pass key=None.
+        :param task_ids: Only XComs from tasks with matching ids will be
+            pulled. Can pass None to remove the filter.
+        :param dag_id: If provided, only pulls XComs from this DAG.
+            If None (default), the DAG of the calling task is used.
+        :param include_prior_dates: If False, only XComs from the current
+            logical_date are returned. If True, XComs from previous dates
+            are returned as well.
+        """
+        from airflow.settings import Session
+
+        if session is None:
+            session = Session()
+        return context["ti"].xcom_pull(
+            key=key,
+            task_ids=task_ids,
+            dag_id=dag_id,
+            include_prior_dates=include_prior_dates,
+            session=session,
+        )
+
+    # TODO (GH-52141): Either port this, or somehow fix the tests to remove this from the sdk.
+    def run(
+        self,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        ignore_first_depends_on_past: bool = True,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_ti_state: bool = False,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        session=None,
+    ) -> None:
+        """Run a set of task instances for a date range."""
+        import pendulum
+        from sqlalchemy import select
+        from sqlalchemy.exc import NoResultFound
+
+        from airflow.models.dagrun import DagRun
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.settings import Session
+        from airflow.utils.state import DagRunState
+        from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+        if session is None:
+            session = Session()
+
+        # Assertions for typing -- we need a dag, for this function, and when we have a DAG we are
+        # _guaranteed_ to have start_date (else we couldn't have been added to a DAG)
+        if TYPE_CHECKING:
+            from airflow.models.dag import DAG as SchedulerDAG
+
+            assert session
+            assert self.start_date
+
+            # TODO: Task-SDK: We need to set this to the scheduler DAG until we fully separate scheduling and
+            # definition code
+            assert isinstance(self.dag, SchedulerDAG)
+
+        start_date = pendulum.instance(start_date or self.start_date)
+        end_date = pendulum.instance(end_date or self.end_date or timezone.utcnow())
+
+        for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
+            ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
+            try:
+                dag_run = session.scalars(
+                    select(DagRun).where(
+                        DagRun.dag_id == self.dag_id,
+                        DagRun.logical_date == info.logical_date,
+                    )
+                ).one()
+                ti = TaskInstance(self, run_id=dag_run.run_id)
+            except NoResultFound:
+                # This is _mostly_ only used in tests
+                dr = DagRun(
+                    dag_id=self.dag_id,
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.MANUAL,
+                        logical_date=info.logical_date,
+                        run_after=info.run_after,
+                    ),
+                    run_type=DagRunType.MANUAL,
+                    logical_date=info.logical_date,
+                    data_interval=info.data_interval,
+                    run_after=info.run_after,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                    state=DagRunState.RUNNING,
+                )
+                ti = TaskInstance(self, run_id=dr.run_id)
+                ti.dag_run = dr
+                session.add(dr)
+                session.flush()
+
+            ti.run(
+                mark_success=mark_success,
+                ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+                ignore_ti_state=ignore_ti_state,
+                test_mode=test_mode,
+                session=session,
+            )
+
+    # TODO (GH-52141): Either port this, or somehow fix the tests to remove this from the sdk.
+    def clear(
+        self,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        upstream: bool = False,
+        downstream: bool = False,
+        session=None,
+    ):
+        """Clear the state of task instances associated with the task, following the parameters specified."""
+        from sqlalchemy import select
+
+        from airflow.models.taskinstance import TaskInstance, clear_task_instances
+        from airflow.settings import Session
+
+        if session is None:
+            session = Session()
+
+        qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
+
+        if start_date:
+            qry = qry.where(TaskInstance.logical_date >= start_date)
+        if end_date:
+            qry = qry.where(TaskInstance.logical_date <= end_date)
+
+        tasks = [self.task_id]
+
+        if upstream:
+            tasks += [t.task_id for t in self.get_flat_relatives(upstream=True)]
+
+        if downstream:
+            tasks += [t.task_id for t in self.get_flat_relatives(upstream=False)]
+
+        qry = qry.where(TaskInstance.task_id.in_(tasks))
+        results = session.scalars(qry).all()
+        count = len(results)
+
+        if TYPE_CHECKING:
+            from airflow.models.dag import DAG as SchedulerDAG
+
+            # TODO: Task-SDK: We need to set this to the scheduler DAG until we
+            # fully separate scheduling and definition code.
+            assert isinstance(self.dag, SchedulerDAG)
+
+        clear_task_instances(results, session)
+        session.commit()
+        return count
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

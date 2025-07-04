@@ -2586,6 +2586,7 @@ def test_operator_expand_xcomarg_serde():
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_literal_serde(strict):
+    from airflow.models.abstractoperator import DEFAULT_OPERATOR_DEPS
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.serialized_objects import _XComRef
 
@@ -2632,7 +2633,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
     }
 
     op = BaseSerialization.deserialize(serialized)
-    assert op.deps == mapped.deps
+    assert op.deps == DEFAULT_OPERATOR_DEPS
     assert op._disallow_kwargs_override == strict
 
     # The XComArg can't be deserialized before the DAG is.

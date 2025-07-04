@@ -74,7 +74,6 @@ from airflow.models.asset import (
     AssetModel,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
@@ -110,7 +109,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagbag import DagBag
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Literal
 
@@ -1219,9 +1218,10 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param session: new session
         """
         from airflow.api.common.mark_tasks import set_state
+        from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
 
-        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
-        task_ids: list[str] = []
+        tasks_to_set_state: list
+        task_ids: list[str]
 
         task_group_dict = self.task_group.get_task_group_dict()
         task_group = task_group_dict.get(group_id)
