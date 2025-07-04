@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+6.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Provider Migration: Update beam for Airflow 3.0 compatibility (#52607)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Remove pytest.mark.db_test: apache beam (#52059)``
+
 6.1.1
 .....
 

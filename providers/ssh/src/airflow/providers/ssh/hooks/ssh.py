@@ -33,7 +33,7 @@ from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.ssh.version_compat import BaseHook
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -155,7 +155,8 @@ class SSHHook(BaseHook):
             if self.password is None:
                 self.password = conn.password
             if not self.remote_host:
-                self.remote_host = conn.host
+                if conn.host:
+                    self.remote_host = conn.host
             if self.port is None:
                 self.port = conn.port
 

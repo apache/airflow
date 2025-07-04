@@ -29,8 +29,7 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.hooks.base import BaseHook
-    from airflow.sdk import ObjectStoragePath
+    from airflow.sdk import BaseHook, ObjectStoragePath
 
     # Store context what sent lineage.
     LineageContext: TypeAlias = BaseHook | ObjectStoragePath
