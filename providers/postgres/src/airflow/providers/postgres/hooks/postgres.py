@@ -21,14 +21,13 @@ import os
 from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Literal, Union, overload
 
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
-from typing_extensions import Literal
 
 from airflow.exceptions import (
     AirflowException,
@@ -180,6 +179,28 @@ class PostgresHook(DbApiHook):
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = ...,
+        *,
+        df_type: Literal["pandas"] = ...,
+        **kwargs: Any,
+    ) -> PandasDataFrame:
+        ...
+
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = ...,
+        *,
+        df_type: Literal["polars"],
+        **kwargs: Any,
+    ) -> PolarsDataFrame:
+        ...
+
     def get_df(
         self,
         sqls: str | list[str],
@@ -195,8 +216,8 @@ class PostgresHook(DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         :param df_type: Type of dataframe to return, either "pandas" or "polars"
         :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        :return: A pandas or polars DataFrame containing the query results.
         """
-
         if df_type == "pandas":
             try:
                 from pandas.io import sql as psql
