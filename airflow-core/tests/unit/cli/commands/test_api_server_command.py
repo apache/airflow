@@ -24,13 +24,13 @@ from rich.console import Console
 from airflow.cli.commands import api_server_command
 from airflow.exceptions import AirflowConfigException
 
-from unit.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
+from unit.cli.commands._common_cli_classes import _CommonCLIUvicornTestClass
 
 console = Console(width=400, color_system="standard")
 
 
 @pytest.mark.db_test
-class TestCliApiServer(_CommonCLIGunicornTestClass):
+class TestCliApiServer(_CommonCLIUvicornTestClass):
     main_process_regexp = r"airflow api-server"
 
     @pytest.mark.parametrize(
@@ -152,6 +152,92 @@ class TestCliApiServer(_CommonCLIGunicornTestClass):
                 access_log="-",
                 proxy_headers=False,
             )
+
+    @pytest.mark.parametrize(
+        "demonize",
+        [True, False],
+    )
+    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.api_server_command.uvicorn")
+    def test_run_command_daemon(
+        self, mock_uvicorn, mock_daemon, mock_setup_locations, mock_pid_file, demonize
+    ):
+        mock_setup_locations.return_value = (
+            mock.MagicMock(name="pidfile"),
+            mock.MagicMock(name="stdout"),
+            mock.MagicMock(name="stderr"),
+            mock.MagicMock(name="INVALID"),
+        )
+        args = self.parser.parse_args(
+            [
+                "api-server",
+                "--host",
+                "my-hostname",
+                "--port",
+                "9090",
+                "--workers",
+                "2",
+                "--worker-timeout",
+                "60",
+            ]
+            + (["--daemon"] if demonize else [])
+        )
+        mock_open = mock.mock_open()
+        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
+            api_server_command.api_server(args)
+
+        mock_uvicorn.run.assert_called_once_with(
+            "airflow.api_fastapi.main:app",
+            host="my-hostname",
+            port=9090,
+            workers=2,
+            timeout_keep_alive=60,
+            timeout_graceful_shutdown=60,
+            ssl_keyfile=None,
+            ssl_certfile=None,
+            access_log="-",
+            proxy_headers=False,
+        )
+
+        if demonize:
+            assert mock_daemon.mock_calls[:3] == [
+                mock.call.DaemonContext(
+                    pidfile=mock_pid_file.return_value,
+                    files_preserve=None,
+                    stdout=mock_open.return_value,
+                    stderr=mock_open.return_value,
+                    umask=0o077,
+                ),
+                mock.call.DaemonContext().__enter__(),
+                mock.call.DaemonContext().__exit__(None, None, None),
+            ]
+            assert mock_setup_locations.mock_calls == [
+                mock.call(
+                    process="api_server",
+                    pid=None,
+                    stdout=None,
+                    stderr=None,
+                    log=None,
+                )
+            ]
+            mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
+            assert mock_open.mock_calls == [
+                mock.call(mock_setup_locations.return_value[1], "a"),
+                mock.call().__enter__(),
+                mock.call(mock_setup_locations.return_value[2], "a"),
+                mock.call().__enter__(),
+                mock.call().truncate(0),
+                mock.call().truncate(0),
+                mock.call().__exit__(None, None, None),
+                mock.call().__exit__(None, None, None),
+            ]
+        else:
+            assert mock_daemon.mock_calls == []
+            mock_setup_locations.mock_calls == []
+            mock_pid_file.assert_not_called()
+            mock_open.assert_not_called()
 
     @pytest.mark.parametrize(
         "ssl_arguments, error_pattern",
