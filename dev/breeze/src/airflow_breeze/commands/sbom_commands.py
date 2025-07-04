@@ -31,7 +31,7 @@ from airflow_breeze.commands.common_options import (
     option_debug_resources,
     option_dry_run,
     option_github_token,
-    option_historical_python_version,
+    option_historical_python_versions,
     option_include_success_outputs,
     option_parallelism,
     option_python,
@@ -68,7 +68,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console, get_theme
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
@@ -147,7 +147,7 @@ SBOM_INDEX_TEMPLATE = """
     envvar="AIRFLOW_VERSION",
     help="Version of airflow to update sbom from. (defaulted to all active airflow versions)",
 )
-@option_historical_python_version
+@option_historical_python_versions
 @click.option(
     "--include-provider-dependencies",
     is_flag=True,
@@ -180,6 +180,13 @@ SBOM_INDEX_TEMPLATE = """
     is_flag=True,
     help="Produces all combinations of airflow sbom npm/python(airflow/full). Ignores --include flags",
 )
+@click.option(
+    "--remote-name",
+    type=NotVerifiedBetterChoice(["apache", "origin"]),
+    default="apache",
+    show_default=True,
+    help="Remote name to use when pulling the constraints.",
+)
 @option_github_token
 @option_verbose
 @option_dry_run
@@ -194,22 +201,23 @@ SBOM_INDEX_TEMPLATE = """
     default="apache-airflow",
 )
 def update_sbom_information(
-    airflow_site_archive_path: Path | None,
     airflow_root_path: Path | None,
+    airflow_site_archive_path: Path | None,
     airflow_version: str | None,
-    python: str | None,
+    all_combinations: bool,
+    debug_resources: bool,
+    force: bool,
+    github_token: str | None,
+    include_npm: bool,
     include_provider_dependencies: bool,
     include_python: bool,
-    include_npm: bool,
-    run_in_parallel: bool,
-    parallelism: int,
-    debug_resources: bool,
     include_success_outputs: bool,
-    skip_cleanup: bool,
-    force: bool,
-    all_combinations: bool,
-    github_token: str | None,
     package_filter: tuple[str, ...],
+    parallelism: int,
+    python_versions: str | None,
+    remote_name: str,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
 ):
     import jinja2
     from jinja2 import StrictUndefined
@@ -221,15 +229,15 @@ def update_sbom_information(
     from airflow_breeze.utils.github import get_active_airflow_versions
 
     if airflow_version is None:
-        airflow_versions, _ = get_active_airflow_versions()
+        airflow_versions, _ = get_active_airflow_versions(confirm=True, remote_name=remote_name)
         all_airflow_versions = airflow_versions.copy()
     else:
         airflow_versions = [airflow_version]
-        all_airflow_versions = get_active_airflow_versions(confirm=False)
-    if python is None:
-        python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+        all_airflow_versions = get_active_airflow_versions(confirm=False, remote_name=remote_name)
+    if python_versions:
+        python_versions_list = python_versions.split(",")
     else:
-        python_versions = [python]
+        python_versions_list = ALL_HISTORICAL_PYTHON_VERSIONS
     application_root_path = FILES_SBOM_PATH
     start_cdxgen_server(application_root_path, run_in_parallel, parallelism)
 
@@ -267,9 +275,9 @@ def update_sbom_information(
                 (False, True, False),
                 (False, True, True),
             ]:
-                use_python_versions: list[str | None] = python_versions
+                use_python_versions = python_versions_list
                 if not include_python:
-                    use_python_versions = [None]
+                    use_python_versions = []
                 core_jobs(
                     all_airflow_versions,
                     _dir_exists_warn_and_should_skip,
@@ -285,9 +293,9 @@ def update_sbom_information(
                     python_versions=use_python_versions,
                 )
         else:
-            use_python_versions = python_versions
+            use_python_versions = python_versions_list
             if not include_python:
-                use_python_versions = [None]
+                use_python_versions = []
             core_jobs(
                 all_airflow_versions,
                 _dir_exists_warn_and_should_skip,
@@ -324,12 +332,14 @@ def update_sbom_information(
                 f"[info]Attempting to update sbom for {provider_id} version {provider_version}."
             )
 
-            python_versions = set(
-                dir_name.replace("python", "")
-                for dir_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH / node_name)
+            python_versions_list = sorted(
+                set(
+                    dir_name.replace("python", "")
+                    for dir_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH / node_name)
+                )
             )
 
-            for python_version in python_versions:
+            for python_version in python_versions_list:
                 target_sbom_file_name = (
                     f"apache-airflow-sbom-{provider_id}-{provider_version}-python{python_version}.json"
                 )
@@ -343,7 +353,6 @@ def update_sbom_information(
                         provider_id=provider_id,
                         provider_version=provider_version,
                         python_version=python_version,
-                        target_path=target_sbom_path,
                         folder_name=node_name,
                     )
                 )
@@ -444,7 +453,7 @@ def core_jobs(
     include_provider_dependencies: bool,
     include_python: bool,
     jobs_to_run: list[SbomApplicationJob],
-    python_versions: list[str | None],
+    python_versions: list[str],
 ):
     latest_airflow_version = all_airflow_versions[-1]
     # Create core jobs
@@ -525,7 +534,7 @@ def core_jobs(
 
 
 @sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")
-@option_historical_python_version
+@option_historical_python_versions
 @option_verbose
 @option_dry_run
 @option_answer
@@ -535,25 +544,25 @@ def core_jobs(
 @option_include_success_outputs
 @option_skip_cleanup
 def build_all_airflow_images(
-    python: str,
+    python_versions: str,
     run_in_parallel: bool,
     parallelism: int,
     debug_resources: bool,
     include_success_outputs: bool,
     skip_cleanup: bool,
 ):
-    if python is None:
-        python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+    if not python_versions:
+        python_versions_list = ALL_HISTORICAL_PYTHON_VERSIONS
     else:
-        python_versions = [python]
+        python_versions_list = python_versions.split(",")
 
     if run_in_parallel:
-        parallelism = min(parallelism, len(python_versions))
-        get_console().print(f"[info]Running {len(python_versions)} jobs in parallel")
-        with ci_group(f"Building all airflow base images for python: {python_versions}"):
+        parallelism = min(parallelism, len(python_versions_list))
+        get_console().print(f"[info]Running {len(python_versions_list)} jobs in parallel")
+        with ci_group(f"Building all airflow base images for python: {python_versions_list}"):
             all_params = [
-                f"Building all airflow base image for python: {python_version}"
-                for python_version in python_versions
+                f"Building all airflow base image for python versions: {python_versions_list}"
+                for python_version in python_versions_list
             ]
             with run_with_pool(
                 parallelism=parallelism,
@@ -579,7 +588,7 @@ def build_all_airflow_images(
             skip_cleanup=skip_cleanup,
         )
     else:
-        for python_version in python_versions:
+        for python_version in python_versions_list:
             build_all_airflow_versions_base_image(
                 python_version=python_version,
                 output=None,
@@ -587,7 +596,7 @@ def build_all_airflow_images(
 
 
 @sbom.command(name="generate-providers-requirements", help="Generate requirements for selected provider.")
-@option_historical_python_version
+@option_historical_python_versions
 @click.option(
     "--provider-id",
     type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
@@ -615,7 +624,7 @@ def build_all_airflow_images(
     help="Force update providers requirements even if they already exist.",
 )
 def generate_providers_requirements(
-    python: str,
+    python_versions: str,
     provider_id: str | None,
     provider_version: str | None,
     run_in_parallel: bool,
@@ -627,10 +636,10 @@ def generate_providers_requirements(
 ):
     perform_environment_checks()
 
-    if python is None:
-        python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+    if not python_versions:
+        python_versions_list = ALL_HISTORICAL_PYTHON_VERSIONS
     else:
-        python_versions = [python]
+        python_versions_list = python_versions.split(",")
 
     with open(PROVIDER_METADATA_JSON_PATH) as f:
         provider_metadata = json.load(f)
@@ -672,7 +681,7 @@ def generate_providers_requirements(
             providers_info += [
                 (provider_id, p_version, python_version, airflow_version)
                 for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[airflow_version]
-                if python_version in python_versions
+                if python_version in python_versions_list
             ]
         else:
             # All historical providers' versions
@@ -685,7 +694,7 @@ def generate_providers_requirements(
                 )
                 for (p_version, info) in provider_metadata[provider_id].items()
                 for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[info["associated_airflow_version"]]
-                if python_version in python_versions
+                if python_version in python_versions_list
             ]
 
     if run_in_parallel:
