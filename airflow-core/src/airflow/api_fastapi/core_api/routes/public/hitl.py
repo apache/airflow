@@ -25,19 +25,19 @@ from sqlalchemy import select
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
-from airflow.models import HITLResponseModel
-from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
+from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLResponseContentDetail,
     HITLResponseDetail,
     HITLResponseDetailCollection,
     UpdateHITLResponsePayload,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.models.hitl import HITLResponseModel
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.utils import timezone
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"])
+hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-responses")
 
 log = structlog.get_logger(__name__)
 
