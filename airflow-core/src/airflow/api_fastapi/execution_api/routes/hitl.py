@@ -24,15 +24,12 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import (
+from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLInputRequestResponse,
-)
-from airflow.providers.standard.execution_time.comms import (
-    CreateHITLResponsePayload,
     HITLResponseContentDetail,
-    UpdateHITLResponse,
 )
 from airflow.providers.standard.models import HITLResponseModel
+from airflow.sdk.execution_time.comms import CreateHITLResponsePayload, UpdateHITLResponse
 
 router = APIRouter()
 
@@ -43,7 +40,7 @@ log = structlog.get_logger(__name__)
     "/{task_instance_id}",
     status_code=status.HTTP_201_CREATED,
 )
-def add_hitl_input_request(
+def add_hitl_response(
     task_instance_id: UUID,
     payload: CreateHITLResponsePayload,
     session: SessionDep,

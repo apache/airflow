@@ -14,30 +14,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from airflow.providers.standard.execution_time.comms import (
+from airflow.sdk.execution_time.comms import (
     CreateHITLResponsePayload,
     GetHITLResponseContentDetail,
     UpdateHITLResponse,
 )
 
 if TYPE_CHECKING:
-    from airflow.providers.standard.api_fastapi.execution_api.datamodels.hitl import HITLResponseContentDetail
+    from airflow.api_fastapi.execution_api.datamodels.hitl import HITLResponseContentDetail
 
 
-def add_hitl_input_request(
+def add_hitl_response(
     ti_id: UUID,
     options: list[str],
     subject: str,
     body: str | None = None,
     default: list[str] | None = None,
     multiple: bool = False,
-    params: MutableMapping | None = None,
+    params: dict[str, Any] | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 

@@ -63,6 +63,10 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
+from airflow.api_fastapi.execution_api.datamodels.hitl import (
+    GetHITLResponseContentDetailPayload,
+    UpdateHITLResponsePayload,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
     AssetEventResponse,
@@ -71,6 +75,7 @@ from airflow.sdk.api.datamodels._generated import (
     BundleInfo,
     ConnectionResponse,
     DagRunStateResponse,
+    HITLInputRequestResponse,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
@@ -95,20 +100,6 @@ try:
 except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
-
-# TODO: Remove this block once we can make the execution API pluggable.
-try:
-    from airflow.providers.standard.execution_time.comms import (
-        CreateHITLResponsePayload,
-        GetHITLResponseContentDetail,
-        HITLInputRequestResponseResult,
-        UpdateHITLResponse,
-    )
-except ModuleNotFoundError:
-    GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
-    CreateHITLResponsePayload = object  # type: ignore[misc, assignment]
-    HITLInputRequestResponseResult = object  # type: ignore[misc, assignment]
-    UpdateHITLResponse = object  # type: ignore[misc, assignment]
 
 
 if TYPE_CHECKING:
@@ -572,6 +563,18 @@ class SentFDs(BaseModel):
     fds: list[int]
 
 
+class CreateHITLResponsePayload(HITLInputRequestResponse):
+    """Add the input request part of a Human-in-the-loop response."""
+
+    type: Literal["CreateHITLResponsePayload"] = "CreateHITLResponsePayload"
+
+
+class HITLInputRequestResponseResult(HITLInputRequestResponse):
+    """Response to CreateHITLResponsePayload request."""
+
+    type: Literal["HITLInputRequestResponseResult"] = "HITLInputRequestResponseResult"
+
+
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
@@ -855,6 +858,18 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
+class GetHITLResponseContentDetail(GetHITLResponseContentDetailPayload):
+    """Get the response content part of a Human-in-the-loop response."""
+
+    type: Literal["GetHITLResponseContentDetail"] = "GetHITLResponseContentDetail"
+
+
+class UpdateHITLResponse(UpdateHITLResponsePayload):
+    """Update the response content part of an existing Human-in-the-loop response."""
+
+    type: Literal["UpdateHITLResponse"] = "UpdateHITLResponse"
+
+
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
@@ -886,7 +901,6 @@ ToSupervisor = Annotated[
     | TriggerDagRun
     | DeleteVariable
     | ResendLoggingFD
-    # HITL response from standard provider
     | CreateHITLResponsePayload
     | UpdateHITLResponse
     | GetHITLResponseContentDetail,

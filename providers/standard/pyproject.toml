@@ -105,8 +105,5 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.standard.get_provider_info:get_provider_info"
 
-[project.entry-points."airflow.plugins"]
-standard_hitl = "airflow.providers.standard.plugins.hitl:HumanInTheLoopPlugin"
-
 [tool.flit.module]
 name = "airflow.providers.standard"
