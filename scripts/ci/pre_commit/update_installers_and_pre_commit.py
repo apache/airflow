@@ -83,6 +83,14 @@ def get_latest_python_version(python_major_minor: str) -> str | None:
     return latest_version
 
 
+def get_latest_golang_version() -> str:
+    response = requests.get("https://go.dev/dl/?mode=json")
+    response.raise_for_status()  # Ensure we got a successful response
+    versions = response.json()
+    stable_versions = [release["version"] for release in versions if release["stable"]]
+    return sorted(stable_versions, key=Version, reverse=True)[0]
+
+
 def get_latest_lts_node_version() -> str:
     response = requests.get("https://nodejs.org/dist/index.json")
     response.raise_for_status()  # Ensure we got a successful response
@@ -113,6 +121,11 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(v[0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(\| *`AIRFLOW_PYTHON_VERSION` *\| *)(`v[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+]
+
+GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
 ]
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -191,6 +204,7 @@ def get_replacement(value: str, quoting: Quoting) -> str:
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", "true").lower() == "true"
+UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", "true").lower() == "true"
 UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
@@ -228,6 +242,7 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 if __name__ == "__main__":
     changed = False
     python_version = get_latest_python_version(PYTHON_VERSION)
+    golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
     setuptools_version = get_latest_pypi_version("setuptools")
@@ -249,6 +264,12 @@ if __name__ == "__main__":
             for line_pattern, quoting in PYTHON_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(python_version, quoting), new_content, keep_length
+                )
+        if UPGRADE_GOLANG:
+            console.print(f"[bright_blue]Latest golang version: {golang_version}")
+            for line_pattern, quoting in GOLANG_PATTERNS:
+                new_content = replace_version(
+                    line_pattern, get_replacement(golang_version, quoting), new_content, keep_length
                 )
         if UPGRADE_SETUPTOOLS:
             console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
