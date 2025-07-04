@@ -29,7 +29,10 @@ from teradatasql import TeradataConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 PARAM_TYPES = {bool, float, int, str}
 
@@ -176,7 +179,7 @@ class TeradataHook(DbApiHook):
 
         if conn.extra_dejson.get("sslmode", False):
             conn_config["sslmode"] = conn.extra_dejson["sslmode"]
-            if "verify" in conn_config["sslmode"]:
+            if "verify" in str(conn_config["sslmode"]):
                 if conn.extra_dejson.get("sslca", False):
                     conn_config["sslca"] = conn.extra_dejson["sslca"]
                 if conn.extra_dejson.get("sslcapath", False):

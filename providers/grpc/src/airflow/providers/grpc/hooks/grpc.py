@@ -30,7 +30,7 @@ from google.auth.transport import (
 )
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.providers.grpc.version_compat import BaseHook
 
 
 class GrpcHook(BaseHook):
@@ -82,7 +82,7 @@ class GrpcHook(BaseHook):
         self.custom_connection_func = custom_connection_func
 
     def get_conn(self) -> grpc.Channel:
-        base_url = self.conn.host
+        base_url = self.conn.host or ""
 
         if self.conn.port:
             base_url += f":{self.conn.port}"
