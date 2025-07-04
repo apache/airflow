@@ -35,7 +35,6 @@ from airflow.providers.standard.api_fastapi.core_api.datamodels.hitl import (
     HITLResponseDetailCollection,
     UpdateHITLResponsePayload,
 )
-from airflow.providers.standard.models import HITLResponseModel
 from airflow.utils import timezone
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"])

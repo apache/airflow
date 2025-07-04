@@ -28,7 +28,7 @@ from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLInputRequestResponse,
     HITLResponseContentDetail,
 )
-from airflow.providers.standard.models import HITLResponseModel
+from airflow.models.hitl import HITLResponseModel
 from airflow.sdk.execution_time.comms import CreateHITLResponsePayload, UpdateHITLResponse
 
 router = APIRouter()
