@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import gzip as gz
 import inspect
-import logging
 import os
 import re
 from datetime import datetime as std_datetime, timezone
@@ -44,6 +43,16 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     unify_bucket_name_and_key,
 )
 from airflow.utils.timezone import datetime
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 @pytest.fixture
@@ -1734,12 +1743,9 @@ class TestAwsS3Hook:
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
-    def test_sync_to_local_dir_behaviour(self, s3_bucket, s3_client, caplog, cap_structlog, tmp_path):
-        caplog.set_level(logging.ERROR)
-        caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
-        caplog.set_level(
-            logging.DEBUG, logger="airflow.task.hooks.airflow.providers.amazon.aws.hooks.s3.S3Hook"
-        )
+    def test_sync_to_local_dir_behaviour(self, s3_bucket, s3_client, tmp_path):
+        def get_logs_string(call_args_list):
+            return "".join([args[0][0] % args[0][1:] for args in call_args_list])
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_01.py", Body=b"test data")
         s3_client.put_object(Bucket=s3_bucket, Key="dag_02.py", Body=b"test data")
@@ -1748,27 +1754,28 @@ class TestAwsS3Hook:
 
         sync_local_dir = tmp_path / "s3_sync_dir"
         hook = S3Hook()
+        hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
-        assert caplog.text.count(f"Downloading data from s3://{s3_bucket}") == 1
-        #
-        assert caplog.text.count(f"does not exist. Downloaded dag_01.py to {sync_local_dir}/dag_01.py") == 1
-        assert caplog.text.count("does not exist. Downloaded dag_01.py to") == 1
-        assert caplog.text.count(f"does not exist. Downloaded subproject1/dag_a.py to {sync_local_dir}") == 1
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Downloading data from s3://{s3_bucket}" in logs_string
+        assert f"does not exist. Downloaded dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
+        assert "does not exist. Downloaded dag_01.py to" in logs_string
+        assert f"does not exist. Downloaded subproject1/dag_a.py to {sync_local_dir}" in logs_string
+
         # add new file to bucket and sync
+        hook.log.debug = MagicMock()
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data")
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
-        print(caplog)
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert (
-            caplog.text.count(
-                "subproject1/dag_b.py is up-to-date with S3 object subproject1/dag_b.py. Skipping download"
-            )
-            == 1
+            "subproject1/dag_b.py is up-to-date with S3 object subproject1/dag_b.py. Skipping download"
+            in logs_string
         )
-        assert caplog.text.count(f"does not exist. Downloaded dag_03.py to {sync_local_dir}/dag_03.py") == 1
+        assert f"does not exist. Downloaded dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
         # read that file is donloaded and has same content
         assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data"
 
@@ -1776,24 +1783,23 @@ class TestAwsS3Hook:
         local_file_that_should_be_deleted.write_text("test dag")
         local_folder_should_be_deleted = Path(sync_local_dir).joinpath("local_folder_should_be_deleted")
         local_folder_should_be_deleted.mkdir(exist_ok=True)
+        hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
-        assert (
-            caplog.text.count(f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}")
-            == 1
-        )
-        assert (
-            caplog.text.count(f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}")
-            == 1
-        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+
+        assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
+        hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
-        assert caplog.text.count("S3 object size") == 1
-        assert caplog.text.count("differ. Downloaded dag_03.py to") == 1
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "S3 object size" in logs_string
+        assert "differ. Downloaded dag_03.py to" in logs_string
 
 
 @pytest.mark.parametrize(
@@ -1817,7 +1823,7 @@ class TestAwsS3Hook:
         ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
     ],
 )
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_unify_and_provide_bucket_name_combination(
     mock_base, key_kind, has_conn, has_bucket, precedence, expected, caplog
 ):
@@ -1880,7 +1886,7 @@ def test_unify_and_provide_bucket_name_combination(
         ("rel_key", "with_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
     ],
 )
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
     if has_conn == "with_conn":
         c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
