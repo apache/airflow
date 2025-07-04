@@ -27,5 +27,5 @@ library is affecting you.
 
 By default, Apache Airflow SBOM files are generated for Airflow core with all providers. In the near future we aim at generating SBOM files per provider and also provide them for docker standard images.
 
-Each airflow version has its own SBOM files, one for each supported python version.
-You can find them `here <https://airflow.apache.org/docs/apache-airflow/|version|/sbom/>`_.
+Each Airflow version has its own SBOM files, one for each supported python version.
+You can find them `here <../sbom/>`_.
