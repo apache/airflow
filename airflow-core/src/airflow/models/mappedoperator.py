@@ -62,11 +62,6 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
 
         :meta private:
         """
-        print(f"self.start_from_trigger {self.start_from_trigger}")
-        print(f"valis is {self.partial_kwargs.get('start_from_trigger', self.start_from_trigger)}")
-        print(f"type is {type(self.start_from_trigger)}")
-        print(f"type is {type(self.partial_kwargs.get('start_from_trigger', self.start_from_trigger))}")
-
         if not self.partial_kwargs.get("start_from_trigger", self.start_from_trigger):
             log.warning(
                 "Starting a mapped task from triggerer is currently unsupported",
