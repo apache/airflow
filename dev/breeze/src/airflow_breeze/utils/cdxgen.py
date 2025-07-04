@@ -371,15 +371,22 @@ class SbomCoreJob(SbomApplicationJob):
     def download_dependency_files(self, output: Output | None, github_token: str | None) -> bool:
         source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
-        lock_file_relative_path = "airflow/www/yarn.lock"
+        version_number = int(self.airflow_version.split(".")[0])
+        lock_file_relative_path = (
+            "airflow-core/src/airflow/ui/package.json" if version_number >= 3 else "airflow/www/yarn.lock"
+        )
+        source_dir_with_file = (
+            (source_dir / "package.json") if version_number >= 3 else (source_dir / "yarn.lock")
+        )
         if self.include_npm:
             download_file_from_github(
                 reference=self.airflow_version,
                 path=lock_file_relative_path,
-                output_file=source_dir / "yarn.lock",
+                output_file=source_dir_with_file,
+                github_token=github_token,
             )
         else:
-            (source_dir / "yarn.lock").unlink(missing_ok=True)
+            source_dir_with_file.unlink(missing_ok=True)
         if self.include_python:
             if not download_constraints_file(
                 constraints_reference=f"constraints-{self.airflow_version}",
