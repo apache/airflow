@@ -39,7 +39,7 @@ Task SDK
 
 For Airflow Task SDK, see the standalone reference & tutorial site:
 
-   https://airflow.apache.org/docs/task-sdk/stable/
+:doc:`task-sdk:index`
 
 Dags
 -----------------------------------------
