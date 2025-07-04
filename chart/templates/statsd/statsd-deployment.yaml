@@ -98,7 +98,6 @@ spec:
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.statsd.args }}
           args:
           {{- if .Values.statsd.args }}
             {{- range $arg := .Values.statsd.args }}
