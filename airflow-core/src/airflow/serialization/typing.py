@@ -15,30 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Version compatibility for Apache Beam provider."""
-
 from __future__ import annotations
 
-
-def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
-    from airflow import __version__
-
-    airflow_version = Version(__version__)
-    return airflow_version.major, airflow_version.minor, airflow_version.micro
+from typing import Any
 
 
-AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+def is_pydantic_model(cls: Any) -> bool:
+    """
+    Return True if the class is a pydantic.main.BaseModel.
 
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseHook, BaseOperator
-else:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-    from airflow.models import BaseOperator
-
-__all__ = [
-    "AIRFLOW_V_3_1_PLUS",
-    "BaseHook",
-    "BaseOperator",
-]
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
+    # __pydantic_validator__ is an internal validator object, always set after model build
+    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
