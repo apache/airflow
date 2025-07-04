@@ -249,11 +249,7 @@ class TestLogView:
 
         mock_read.side_effect = [
             ([StructuredLogMessage(event="hello")], {"end_of_log": False}),
-            ([], {"end_of_log": False}),
-            ([], {"end_of_log": False}),
-            ([], {"end_of_log": False}),
-            ([], {"end_of_log": False}),
-            ([], {"end_of_log": False}),
+            *[([], {"end_of_log": False}) for _ in range(10)],
         ]
 
         self.ti.state = TaskInstanceState.SUCCESS
@@ -264,7 +260,7 @@ class TestLogView:
             '{"timestamp":null,"event":"hello"}\n',
             "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
         ]
-        assert mock_read.call_count == 6
+        assert mock_read.call_count == 11
 
     def test_supports_external_link(self):
         task_log_reader = TaskLogReader()

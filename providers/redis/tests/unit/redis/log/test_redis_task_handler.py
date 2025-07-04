@@ -33,8 +33,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.file_task_handler import extract_events
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 
-pytestmark = pytest.mark.db_test
-
 
 class TestRedisTaskHandler:
     @pytest.fixture
@@ -75,6 +73,7 @@ class TestRedisTaskHandler:
         with create_session() as session:
             session.query(DagRun).delete()
 
+    @pytest.mark.db_test
     @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
     def test_write(self, ti):
         handler = RedisTaskHandler("any", max_lines=5, ttl_seconds=2)
@@ -95,6 +94,7 @@ class TestRedisTaskHandler:
         pipeline.return_value.expire.assert_called_once_with(key, time=2)
         pipeline.return_value.execute.assert_called_once_with()
 
+    @pytest.mark.db_test
     @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
     def test_read(self, ti):
         handler = RedisTaskHandler("any")

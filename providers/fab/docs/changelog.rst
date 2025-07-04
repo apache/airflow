@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[AIP-68] Support pluginv2 views (#52582)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set prefix to generate correctly the FAB Auth Manager API ref (#52329)``
+* ``Fix airflow pin for fab provider (#52351)``
+* ``Sanitize Username (#52419)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#52108)``
+
+Doc-only
+~~~~~~~~
+
+* ``Enable LDAP users to generate an Airflow token with 'FabAuthManager' (#52295)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove pytest db_test marker where unnecessary (#52171)``
+
 2.2.1
 .....
 
@@ -28,6 +58,7 @@ Bug Fixes
 
 * ``Fix: allow users with specific DAG permissions to access DAGs when no pecific DAG is requested (#51462)``
 * ``Fix fab asset compilation hashing script (#51446)``
+* ``Fix default setting for hash algorithm for FAB password hash (#51858)``
 
 Misc
 ~~~~
@@ -35,8 +66,14 @@ Misc
 * ``Add back security api in FAB auth manager (#51578)``
 * ``Bump @babel/eslint-parser from 7.27.1 to 7.27.5 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#51375)``
 
+Doc-only
+~~~~~~~~
+
+* ``Fix docstring in 'FabAuthManager' (#51892)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for June 2025 provider wave (#51724)``
 
 2.2.0
 .....

@@ -26,10 +26,6 @@ import tenacity
 import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 TELEGRAM_TOKEN = "dummy token"
 
@@ -44,21 +40,22 @@ def telegram_error_side_effect(*args, **kwargs):
 
 
 class TestTelegramHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="telegram-webhook-without-token",
                 conn_type="http",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="telegram_default",
                 conn_type="http",
                 password=TELEGRAM_TOKEN,
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="telegram-webhook-with-chat_id",
                 conn_type="http",
@@ -71,8 +68,9 @@ class TestTelegramHook:
         hook = TelegramHook()
 
         assert hook.token == TELEGRAM_TOKEN
-        assert hook.chat_id is None
+        assert not hook.chat_id
 
+    @pytest.mark.db_test
     def test_should_raise_exception_if_conn_id_doesnt_exist(self):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-non-existent")

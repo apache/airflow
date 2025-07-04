@@ -28,11 +28,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.smtp.hooks.smtp import SmtpHook
-from airflow.utils import db
-from airflow.utils.session import create_session
-
-pytestmark = pytest.mark.db_test
-
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
@@ -53,8 +48,9 @@ def _create_fake_smtp(mock_smtplib, use_ssl=True):
 
 
 class TestSmtpHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="smtp_default",
                 conn_type="smtp",
@@ -65,7 +61,7 @@ class TestSmtpHook:
                 extra=json.dumps(dict(from_email="from")),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="smtp_nonssl",
                 conn_type="smtp",
@@ -221,7 +217,9 @@ class TestSmtpHook:
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_ssl_extra_none_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_ssl_extra_none_context(
+        self, create_default_context, mock_smtp, mock_smtp_ssl, create_connection_without_db
+    ):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
             conn_id="smtp_ssl_extra",
@@ -232,7 +230,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(use_ssl=True, ssl_context="none", from_email="from")),
         )
-        db.merge_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook(smtp_conn_id="smtp_ssl_extra") as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
@@ -242,7 +240,9 @@ class TestSmtpHook:
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_ssl_extra_default_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_ssl_extra_default_context(
+        self, create_default_context, mock_smtp, mock_smtp_ssl, create_connection_without_db
+    ):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
             conn_id="smtp_ssl_extra",
@@ -253,7 +253,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(use_ssl=True, ssl_context="default", from_email="from")),
         )
-        db.merge_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook() as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
@@ -265,7 +265,9 @@ class TestSmtpHook:
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_default_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_default_context(
+        self, create_default_context, mock_smtp, mock_smtp_ssl, create_connection_without_db
+    ):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
             conn_id="smtp_ssl_extra",
@@ -276,7 +278,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(use_ssl=True, from_email="from")),
         )
-        db.merge_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook() as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
@@ -295,7 +297,7 @@ class TestSmtpHook:
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
 
     @patch("smtplib.SMTP")
-    def test_send_mime_noauth(self, mock_smtp):
+    def test_send_mime_noauth(self, mock_smtp, create_connection_without_db):
         mock_smtp.return_value = Mock()
         conn = Connection(
             conn_id="smtp_noauth",
@@ -306,13 +308,11 @@ class TestSmtpHook:
             port=587,
             extra=json.dumps(dict(disable_ssl=True, from_email="from")),
         )
-        db.merge_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook(smtp_conn_id="smtp_noauth") as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
         assert not mock_smtp.login.called
-        with create_session() as session:
-            session.query(Connection).filter(Connection.id == conn.id).delete()
 
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")

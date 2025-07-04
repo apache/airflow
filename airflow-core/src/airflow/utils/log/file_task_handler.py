@@ -23,14 +23,14 @@ import heapq
 import io
 import logging
 import os
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from itertools import chain, islice
 from pathlib import Path
 from types import GeneratorType
-from typing import IO, TYPE_CHECKING, Callable, Optional, TypedDict, Union, cast
+from typing import IO, TYPE_CHECKING, TypedDict, cast
 from urllib.parse import urljoin
 
 import pendulum
@@ -79,14 +79,14 @@ LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
 """Log response, containing source information, stream of log lines, and total log size."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
-LogHandlerOutputStream: TypeAlias = Union[
-    StructuredLogStream, Iterator["StructuredLogMessage"], chain["StructuredLogMessage"]
-]
+LogHandlerOutputStream: TypeAlias = (
+    StructuredLogStream | Iterator["StructuredLogMessage"] | chain["StructuredLogMessage"]
+)
 """Output stream, containing structured log messages or a chain of them."""
-ParsedLog: TypeAlias = tuple[Optional[datetime], int, "StructuredLogMessage"]
+ParsedLog: TypeAlias = tuple[datetime | None, int, "StructuredLogMessage"]
 """Parsed log record, containing timestamp, line_num and the structured log message."""
 ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
-LegacyProvidersLogType: TypeAlias = Union[list["StructuredLogMessage"], str, list[str]]
+LegacyProvidersLogType: TypeAlias = list["StructuredLogMessage"] | str | list[str]
 """Return type used by legacy `_read` methods for Alibaba Cloud, Elasticsearch, OpenSearch, and Redis log handlers.
 
 - For Elasticsearch and OpenSearch: returns either a list of structured log messages.

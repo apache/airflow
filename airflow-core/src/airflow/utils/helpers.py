@@ -21,9 +21,9 @@ import copy
 import itertools
 import re
 import signal
-from collections.abc import Generator, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy

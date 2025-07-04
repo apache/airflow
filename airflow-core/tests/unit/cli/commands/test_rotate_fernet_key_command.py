@@ -23,8 +23,8 @@ from cryptography.fernet import Fernet
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import rotate_fernet_key_command
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection, Variable
+from airflow.sdk import BaseHook
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.config import conf_vars
@@ -84,7 +84,7 @@ class TestRotateFernetKeyCommand:
             assert Variable.get(key=var2_key) == "value"
 
     @provide_session
-    def test_should_rotate_connection(self, session):
+    def test_should_rotate_connection(self, session, mock_supervisor_comms):
         fernet_key1 = Fernet.generate_key()
         fernet_key2 = Fernet.generate_key()
         var1_key = f"{__file__}_var1"
@@ -111,6 +111,26 @@ class TestRotateFernetKeyCommand:
             args = self.parser.parse_args(["rotate-fernet-key"])
             rotate_fernet_key_command.rotate_fernet_key(args)
 
+        def mock_get_connection(conn_id):
+            conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+            if conn:
+                from airflow.sdk.execution_time.comms import ConnectionResult
+
+                return ConnectionResult(
+                    conn_id=conn.conn_id,
+                    conn_type=conn.conn_type or "mysql",  # Provide a default conn_type
+                    host=conn.host,
+                    login=conn.login,
+                    password=conn.password,
+                    schema_=conn.schema,
+                    port=conn.port,
+                    extra=conn.extra,
+                )
+            raise Exception(f"Connection {conn_id} not found")
+
+        # Mock the send method to return our connection data
+        mock_supervisor_comms.send.return_value = mock_get_connection(var1_key)
+
         # Assert correctness using a new fernet key
         with (
             conf_vars({("core", "fernet_key"): fernet_key2.decode()}),
@@ -119,5 +139,7 @@ class TestRotateFernetKeyCommand:
             # Unencrypted variable should be unchanged
             conn1: Connection = BaseHook.get_connection(var1_key)
             assert conn1.password == "pass"
-            assert conn1._password == "pass"
+
+            # Mock for the second connection
+            mock_supervisor_comms.send.return_value = mock_get_connection(var2_key)
             assert BaseHook.get_connection(var2_key).password == "pass"
