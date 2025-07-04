@@ -172,13 +172,12 @@ jobs:
         env:
           AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: ${{ needs.build-info.outputs.default-python-version }}
+          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
           FORCE: "true"
         run: >
           breeze sbom update-sbom-information --airflow-version ${AIRFLOW_VERSION}
           --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
         if: inputs.build-sboms == 'true'
-
       - name: Check disk space available
         run: df -H
       # Here we will create temp airflow-site dir to publish docs
