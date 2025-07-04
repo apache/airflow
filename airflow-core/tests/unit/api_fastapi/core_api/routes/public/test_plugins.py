@@ -33,7 +33,7 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                14,
+                13,
                 [
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
@@ -46,17 +46,16 @@ class TestGetPlugins:
                     "plugin-c",
                     "postload",
                     "priority_weight_strategy_plugin",
-                    "standard_hitl",
                     "test_plugin",
                     "workday_timetable_plugin",
                 ],
             ),
             (
                 {"limit": 3, "offset": 2},
-                14,
+                13,
                 ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
             ),
-            ({"limit": 1}, 14, ["MetadataCollectionPlugin"]),
+            ({"limit": 1}, 13, ["MetadataCollectionPlugin"]),
         ],
     )
     def test_should_respond_200(

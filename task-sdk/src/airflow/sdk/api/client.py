@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import sys
 import uuid
@@ -39,8 +38,10 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    CreateHITLResponsePayload,
     DagRunStateResponse,
     DagRunType,
+    HITLResponseContentDetail,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
@@ -56,6 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TITerminalStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLResponse,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
@@ -67,6 +69,7 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
+    HITLInputRequestResponseResult,
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
@@ -619,6 +622,70 @@ class DagRunOperations:
         return DRCount(count=resp.json())
 
 
+class HITLOperations:
+    """
+    Operations related to Human in the loop. Require Airflow 3.1+.
+
+    :meta: private
+    """
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def add_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        options: list[str],
+        subject: str,
+        body: str | None = None,
+        default: list[str] | None = None,
+        multiple: bool = False,
+        params: dict[str, Any] | None = None,
+    ) -> HITLInputRequestResponseResult:
+        """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
+        payload = CreateHITLResponsePayload(
+            ti_id=ti_id,
+            options=options,
+            subject=subject,
+            body=body,
+            default=default,
+            multiple=multiple,
+            params=params,
+        )
+        resp = self.client.post(
+            f"/hitl-responses/{ti_id}",
+            content=payload.model_dump_json(),
+        )
+        return HITLInputRequestResponseResult.model_validate_json(resp.read())
+
+    def update_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        response_content: str,
+        params_input: dict[str, Any] | None = None,
+    ) -> HITLResponseContentDetail:
+        """Update an existing Human-in-the-loop response."""
+        payload = UpdateHITLResponse(
+            ti_id=ti_id,
+            response_content=response_content,
+            params_input=params_input,
+        )
+        resp = self.client.patch(
+            f"/hitl-responses/{ti_id}",
+            content=payload.model_dump_json(),
+        )
+        return HITLResponseContentDetail.model_validate_json(resp.read())
+
+    def get_response_content_detail(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
+        """Get content part of a Human-in-the-loop response for a specific Task Instance."""
+        resp = self.client.get(f"/hitl-responses/{ti_id}")
+        return HITLResponseContentDetail.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -752,16 +819,11 @@ class Client(httpx.Client):
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
 
-    # TODO: Remove this block once we can make the execution API pluggable.
-    with contextlib.suppress(ModuleNotFoundError):
-
-        @lru_cache()  # type: ignore[misc]
-        @property
-        def hitl(self):
-            from airflow.providers.standard.api.client import HITLOperations
-
-            """Operations related to HITL Responses."""
-            return HITLOperations(self)
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def hitl(self):
+        """Operations related to HITL Responses."""
+        return HITLOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead
