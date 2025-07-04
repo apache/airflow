@@ -25,12 +25,17 @@
   "logs": {
     "allLevels": "Alle Protokoll-Stufen",
     "allSources": "Alle Quellen",
+    "critical": "KRITISCH",
+    "debug": "DEBUG",
+    "error": "FEHLER",
     "fullscreen": {
       "button": "Vollbild",
       "tooltip": "Taste {{hotkey}} für Vollbildmodus"
     },
+    "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
-    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen"
+    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
+    "warning": "WARNUNG"
   },
   "overview": {
     "buttons": {
