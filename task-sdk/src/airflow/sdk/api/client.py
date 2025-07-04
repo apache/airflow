@@ -305,18 +305,29 @@ class ConnectionOperations:
 
 class VariableOperations:
     __slots__ = ("client",)
+    __NO_DEFAULT_SENTINEL = object()
 
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, key: str) -> VariableResponse | ErrorResponse:
+    def get(self, key: str, default_var: Any = __NO_DEFAULT_SENTINEL) -> VariableResponse | ErrorResponse:
         """Get a variable from the API server."""
         try:
             resp = self.client.get(f"variables/{key}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
+                if default_var is not self.__NO_DEFAULT_SENTINEL:
+                    log.debug(
+                        "Variable %s not found. Using default",
+                        key,
+                        key=key,
+                        detail=e.detail,
+                        status_code=e.response.status_code,
+                    )
+                    return VariableResponse(key=key, value=default_var)
                 log.error(
-                    "Variable not found",
+                    "Variable %s not found",
+                    key,
                     key=key,
                     detail=e.detail,
                     status_code=e.response.status_code,
