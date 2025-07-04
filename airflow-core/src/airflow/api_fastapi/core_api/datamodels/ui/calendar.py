@@ -38,7 +38,7 @@ class CalendarTimeRangeResponse(BaseModel):
     count: int
 
 
-class CalendarTimeRangeDagRunsResponse(BaseModel):
+class CalendarTimeRangeCollectionResponse(BaseModel):
     """Response model for calendar time range results."""
 
     total_entries: int
