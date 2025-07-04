@@ -93,7 +93,13 @@ def _is_outdated(path: str):
     return delta > datetime.timedelta(hours=12)
 
 
-def fetch_inventories(clean_build: bool) -> list[str]:
+def should_be_refreshed(pkg_name: str, refresh_airflow_inventories: bool) -> bool:
+    if pkg_name in ["helm-chart", "docker-stack", "task-sdk"] or pkg_name.startswith("apache-airflow"):
+        return refresh_airflow_inventories
+    return False
+
+
+def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = False) -> list[str]:
     """Fetch all inventories for Airflow documentation packages and store in cache."""
     if clean_build:
         shutil.rmtree(CACHE_PATH)
@@ -111,7 +117,7 @@ def fetch_inventories(clean_build: bool) -> list[str]:
                 (CACHE_PATH / pkg_name / "objects.inv").as_posix(),
             )
         )
-    for pkg_name in ["apache-airflow", "helm-chart"]:
+    for pkg_name in ["apache-airflow", "helm-chart", "task-sdk"]:
         to_download.append(
             (
                 pkg_name,
@@ -136,7 +142,11 @@ def fetch_inventories(clean_build: bool) -> list[str]:
         for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
     )
 
-    to_download = [(pkg_name, url, path) for pkg_name, url, path in to_download if _is_outdated(path)]
+    to_download = [
+        (pkg_name, url, path)
+        for pkg_name, url, path in to_download
+        if _is_outdated(path) or should_be_refreshed(pkg_name, refresh_airflow_inventories)
+    ]
     if not to_download:
         print("Nothing to do")
         return []
