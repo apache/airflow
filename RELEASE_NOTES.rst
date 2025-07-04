@@ -78,6 +78,7 @@ Bug Fixes
 - Task SDK: Fix ``AssetEventOperations.get`` to use ``alias_name`` when specified (#52324)
 - Ensure trigger kwargs are properly deserialized during trigger execution (#52721)
 - Fixing bad cadwyn migration for upstream map indexes (#52797)
+- Run trigger expansion logic only when ``start_from_trigger`` is True (#52873)
 
 Miscellaneous
 """""""""""""
