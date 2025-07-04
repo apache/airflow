@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useReducer } from "react";
 import {
   Flex,
   Button,
@@ -40,6 +40,38 @@ const dagId = getMetaValue("dag_id");
 interface Props extends MenuButtonProps {
   runId: string;
 }
+
+interface State {
+  showConfirmationModal: boolean;
+  confirmingAction: "existing" | "failed" | "queue" | null;
+}
+
+type Action =
+  | {
+      type: "SHOW_CONFIRMATION_MODAL";
+      payload: "existing" | "failed" | "queue";
+    }
+  | { type: "HIDE_CONFIRMATION_MODAL" };
+
+const initialState = {
+  showConfirmationModal: false,
+  confirmingAction: null,
+};
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case "SHOW_CONFIRMATION_MODAL":
+      return {
+        ...state,
+        showConfirmationModal: true,
+        confirmingAction: action.payload,
+      };
+    case "HIDE_CONFIRMATION_MODAL":
+      return { ...state, showConfirmationModal: false, confirmingAction: null };
+    default:
+      return state;
+  }
+};
 
 const ClearRun = ({ runId, ...otherProps }: Props) => {
   const { mutateAsync: onClear, isLoading: isClearLoading } = useClearRun(
@@ -64,27 +96,47 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
     onQueue({ confirmed: true });
   };
 
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [stateReducer, dispatch] = useReducer(reducer, initialState);
 
   const storedValue = localStorage.getItem("doNotShowClearRunModal");
   const [doNotShowAgain, setDoNotShowAgain] = useState(
     storedValue ? JSON.parse(storedValue) : false
   );
 
+  const confirmClearExisting = () => {
+    if (!doNotShowAgain) {
+      dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "existing" });
+    } else clearExistingTasks();
+  };
+
+  const confirmClearFailed = () => {
+    if (!doNotShowAgain) {
+      dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "failed" });
+    } else clearFailedTasks();
+  };
+
+  const confirmQueued = () => {
+    if (!doNotShowAgain) {
+      dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "queue" });
+    } else queueNewTasks();
+  };
+
   const confirmAction = () => {
     localStorage.setItem(
       "doNotShowClearRunModal",
       JSON.stringify(doNotShowAgain)
     );
-    clearExistingTasks();
-    setShowConfirmationModal(false);
+    if (stateReducer.confirmingAction === "failed") {
+      clearFailedTasks();
+    } else if (stateReducer.confirmingAction === "existing") {
+      clearExistingTasks();
+    } else if (stateReducer.confirmingAction === "queue") {
+      queueNewTasks();
+    }
+    dispatch({ type: "HIDE_CONFIRMATION_MODAL" });
   };
 
-  useKeysPress(keyboardShortcutIdentifier.dagRunClear, () => {
-    if (!doNotShowAgain) {
-      setShowConfirmationModal(true);
-    } else clearExistingTasks();
-  });
+  useKeysPress(keyboardShortcutIdentifier.dagRunClear, confirmClearExisting);
 
   const clearLabel = "Clear tasks or add new tasks";
   return (
@@ -106,16 +158,18 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
           </Flex>
         </MenuButton>
         <MenuList>
-          <MenuItem onClick={clearExistingTasks}>Clear existing tasks</MenuItem>
-          <MenuItem onClick={clearFailedTasks}>
+          <MenuItem onClick={confirmClearExisting}>
+            Clear existing tasks
+          </MenuItem>
+          <MenuItem onClick={confirmClearFailed}>
             Clear only failed tasks
           </MenuItem>
-          <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
+          <MenuItem onClick={confirmQueued}>Queue up new tasks</MenuItem>
         </MenuList>
       </Menu>
       <ConfirmationModal
-        isOpen={showConfirmationModal}
-        onClose={() => setShowConfirmationModal(false)}
+        isOpen={stateReducer.showConfirmationModal}
+        onClose={() => dispatch({ type: "HIDE_CONFIRMATION_MODAL" })}
         header="Confirmation"
         submitButton={
           <Button onClick={confirmAction} colorScheme="blue">

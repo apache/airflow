@@ -95,6 +95,22 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     markSuccess({ confirmed: true });
   };
 
+  const confirmMarkAsFailed = () => {
+    if (state !== "failed") {
+      if (!doNotShowAgain) {
+        dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "failed" });
+      } else markAsFailed();
+    }
+  };
+
+  const confirmMarkAsSuccess = () => {
+    if (state !== "success") {
+      if (!doNotShowAgain) {
+        dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "success" });
+      } else markAsSuccess();
+    }
+  };
+
   const confirmAction = () => {
     localStorage.setItem(
       "doNotShowMarkRunModal",
@@ -108,20 +124,8 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     dispatch({ type: "HIDE_CONFIRMATION_MODAL" });
   };
 
-  useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, () => {
-    if (state !== "success") {
-      if (!doNotShowAgain) {
-        dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "success" });
-      } else markAsSuccess();
-    }
-  });
-  useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, () => {
-    if (state !== "failed") {
-      if (!doNotShowAgain) {
-        dispatch({ type: "SHOW_CONFIRMATION_MODAL", payload: "failed" });
-      } else markAsFailed();
-    }
-  });
+  useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, confirmMarkAsSuccess);
+  useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, confirmMarkAsFailed);
 
   const markLabel = "Manually set dag run state";
   return (
@@ -138,16 +142,22 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
           mt={2}
         >
           <Flex>
-            Mark state as...
+            Mark run as...
             <MdArrowDropDown size="16px" />
           </Flex>
         </MenuButton>
         <MenuList>
-          <MenuItem onClick={markAsFailed} isDisabled={state === "failed"}>
+          <MenuItem
+            onClick={confirmMarkAsFailed}
+            isDisabled={state === "failed"}
+          >
             <SimpleStatus state="failed" mr={2} />
             failed
           </MenuItem>
-          <MenuItem onClick={markAsSuccess} isDisabled={state === "success"}>
+          <MenuItem
+            onClick={confirmMarkAsSuccess}
+            isDisabled={state === "success"}
+          >
             <SimpleStatus state="success" mr={2} />
             success
           </MenuItem>
