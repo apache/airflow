@@ -123,7 +123,7 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
     :param bundle_name: The name of the bundle (used in the payload)
     :return: The signed URL token
     """
-    serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
+    serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
     payload = {
         "url": url,
         "bundle_name": bundle_name,
