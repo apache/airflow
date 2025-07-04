@@ -24,11 +24,7 @@ from typing import Any, cast
 from atlassian import Jira
 
 from airflow.exceptions import AirflowException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.atlassian.jira.version_compat import BaseHook
 
 
 class JiraHook(BaseHook):
