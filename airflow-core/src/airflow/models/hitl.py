@@ -16,25 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, MetaData, String, Text
+from sqlalchemy import Boolean, Column, String, Text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import registry
 
-from airflow.models.base import _get_schema, naming_convention
+from airflow.models.base import Base
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
-
-metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
-mapper_registry = registry(metadata=metadata)
-
-if TYPE_CHECKING:
-    Base = Any  # type: ignore[misc]
-else:
-    Base = mapper_registry.generate_base()
 
 
 class HITLResponseModel(Base):
