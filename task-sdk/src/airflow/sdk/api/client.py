@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 import uuid
@@ -750,6 +751,17 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    # TODO: Remove this block once we can make the execution API pluggable.
+    with contextlib.suppress(ModuleNotFoundError):
+
+        @lru_cache()  # type: ignore[misc]
+        @property
+        def hitl(self):
+            from airflow.providers.standard.api.client import HITLOperations
+
+            """Operations related to HITL Responses."""
+            return HITLOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

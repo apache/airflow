@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+
 from cadwyn import VersionedAPIRouter
 from fastapi import APIRouter
 
@@ -48,5 +50,11 @@ authenticated_router.include_router(
 )
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
+
+# TODO: Remove this block once we can make the execution API pluggable.
+with contextlib.suppress(ModuleNotFoundError):
+    from airflow.providers.standard.api_fastapi.execution_api.routes import hitl
+
+    authenticated_router.include_router(hitl.router, prefix="/hitl-responses", tags=["Human in the Loop"])
 
 execution_api_router.include_router(authenticated_router)

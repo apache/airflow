@@ -96,6 +96,21 @@ except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
 
+# TODO: Remove this block once we can make the execution API pluggable.
+try:
+    from airflow.providers.standard.execution_time.comms import (
+        CreateHITLResponsePayload,
+        GetHITLResponseContentDetail,
+        HITLInputRequestResponseResult,
+        UpdateHITLResponse,
+    )
+except ModuleNotFoundError:
+    GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
+    CreateHITLResponsePayload = object  # type: ignore[misc, assignment]
+    HITLInputRequestResponseResult = object  # type: ignore[misc, assignment]
+    UpdateHITLResponse = object  # type: ignore[misc, assignment]
+
+
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
@@ -576,6 +591,8 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
+    | CreateHITLResponsePayload
+    | HITLInputRequestResponseResult
     | OKResponse,
     Field(discriminator="type"),
 ]
@@ -868,6 +885,10 @@ ToSupervisor = Annotated[
     | TaskState
     | TriggerDagRun
     | DeleteVariable
-    | ResendLoggingFD,
+    | ResendLoggingFD
+    # HITL response from standard provider
+    | CreateHITLResponsePayload
+    | UpdateHITLResponse
+    | GetHITLResponseContentDetail,
     Field(discriminator="type"),
 ]
