@@ -245,6 +245,9 @@ def _create_orm_dagrun(
             select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
         )
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    if not dag_version:
+        raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
+
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -270,7 +273,7 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
+    run.verify_integrity(session=session, dag_version_id=dag_version.id)
     return run
 
 

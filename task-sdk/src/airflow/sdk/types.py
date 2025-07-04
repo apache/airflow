@@ -55,6 +55,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     """Minimal interface for a task instance available during the execution."""
 
     id: uuid.UUID
+    dag_version_id: uuid.UUID
     task: BaseOperator
     task_id: str
     dag_id: str

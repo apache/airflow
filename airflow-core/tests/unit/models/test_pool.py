@@ -21,6 +21,7 @@ import pytest
 
 from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
+from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -178,10 +179,10 @@ class TestPool:
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
 
         dr = dag_maker.create_dagrun()
-
-        ti1 = TI(task=op1, run_id=dr.run_id)
+        dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti1 = TI(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
-        ti2 = TI(task=op2, run_id=dr.run_id)
+        ti2 = TI(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti2.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
@@ -228,10 +229,10 @@ class TestPool:
             op3 = EmptyOperator(task_id="dummy3")
 
         dr = dag_maker.create_dagrun()
-
-        ti1 = TI(task=op1, run_id=dr.run_id)
-        ti2 = TI(task=op2, run_id=dr.run_id)
-        ti3 = TI(task=op3, run_id=dr.run_id)
+        dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti1 = TI(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti2 = TI(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti3 = TI(task=op3, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.refresh_from_db()

@@ -1260,6 +1260,7 @@ export type TaskInstanceResponse = {
     id: string;
     task_id: string;
     dag_id: string;
+    dag_version: DagVersionResponse;
     dag_run_id: string;
     map_index: number;
     logical_date: string | null;
@@ -1291,7 +1292,6 @@ export type TaskInstanceResponse = {
     };
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
-    dag_version: DagVersionResponse | null;
 };
 
 /**
