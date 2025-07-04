@@ -482,7 +482,6 @@ class TestTriggerRuleDep:
             done=2,
             normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
-        ti.task.xcom_pull.return_value = None
         xcom_mock = Mock(return_value=None)
         with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
             _test_trigger_rule(
@@ -516,7 +515,6 @@ class TestTriggerRuleDep:
             done=2,
             normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
-        ti.task.xcom_pull.return_value = None
         xcom_mock = Mock(return_value=True)
         with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
             _test_trigger_rule(
@@ -1569,7 +1567,6 @@ def test_setup_constraint_wait_for_past_depends_before_skipping(
         setup_tasks=["FakeTaskID", "OtherFakeTaskID"],
     )
 
-    ti.task.xcom_pull.return_value = None
     xcom_mock = Mock(return_value=True if past_depends_met else None)
     with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
         _test_trigger_rule(
