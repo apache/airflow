@@ -42,7 +42,6 @@ class HITLResponseModel(Base):
     body = Column(Text, nullable=True)
     default = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     multiple = Column(Boolean, unique=False, default=False)
-
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     # Response Content Detail
