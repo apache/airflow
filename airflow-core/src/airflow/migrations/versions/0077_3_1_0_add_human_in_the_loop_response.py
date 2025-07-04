@@ -20,7 +20,7 @@
 Add Human In the Loop Response table.
 
 Revision ID: 40f7c30a228b
-Revises: 66a7743fe20e
+Revises: 5d3072c51bac
 Create Date: 2025-07-04 15:05:19.459197
 
 """
@@ -37,10 +37,9 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "40f7c30a228b"
-down_revision = "66a7743fe20e"
+down_revision = "5d3072c51bac"
 branch_labels = None
 depends_on = None
-
 airflow_version = "3.1.0"
 
 
