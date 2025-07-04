@@ -134,11 +134,14 @@ def download_file_from_github(
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[str, str]]:
+def get_active_airflow_versions(
+    confirm: bool = True, remote_name: str = "apache"
+) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
 
     :param confirm: if True, will ask the user before proceeding with the versions found
+    :param remote_name: name of the remote to fetch tags from (e.g., 'apache')
     :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
@@ -146,13 +149,13 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
 
     airflow_release_dates: dict[str, str] = {}
     get_console().print(
-        "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
+        f"\n[warning]Make sure you have `{remote_name}` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2/3 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
+        ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
     except GitCommandError as ex:
         get_console().print(
             "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"

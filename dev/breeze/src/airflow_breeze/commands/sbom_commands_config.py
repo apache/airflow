@@ -30,16 +30,14 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze sbom update-sbom-information": [
         {
             "name": "Update SBOM destination flags",
-            "options": [
-                "--airflow-root-path",
-                "--airflow-site-archive-path",
-            ],
+            "options": ["--airflow-root-path", "--airflow-site-archive-path", "--add-stable"],
         },
         {
-            "name": "Update SBOM information flags",
+            "name": "Update SBOM configuration flags",
             "options": [
+                "--remote-name",
                 "--airflow-version",
-                "--python",
+                "--python-versions",
                 "--include-provider-dependencies",
                 "--include-python",
                 "--include-npm",
@@ -64,7 +62,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Generate all airflow images flags",
             "options": [
-                "--python",
+                "--python-versions",
             ],
         },
         {
@@ -82,7 +80,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Generate provider requirements flags",
             "options": [
-                "--python",
+                "--python-versions",
                 "--provider-id",
                 "--provider-version",
                 "--force",
