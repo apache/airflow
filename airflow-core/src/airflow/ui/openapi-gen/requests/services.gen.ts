@@ -3623,7 +3623,7 @@ export class CalendarService {
      * @param data.granularity
      * @param data.logicalDateGte
      * @param data.logicalDateLte
-     * @returns CalendarTimeRangeDagRunsResponse Successful Response
+     * @returns CalendarTimeRangeCollectionResponse Successful Response
      * @throws ApiError
      */
     public static getCalendar(data: GetCalendarData): CancelablePromise<GetCalendarResponse> {

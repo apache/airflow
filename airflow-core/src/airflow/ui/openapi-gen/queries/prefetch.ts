@@ -1346,7 +1346,7 @@ export const prefetchUseGridServiceGetLatestRun = (queryClient: QueryClient, { d
 * @param data.granularity
 * @param data.logicalDateGte
 * @param data.logicalDateLte
-* @returns CalendarTimeRangeDagRunsResponse Successful Response
+* @returns CalendarTimeRangeCollectionResponse Successful Response
 * @throws ApiError
 */
 export const prefetchUseCalendarServiceGetCalendar = (queryClient: QueryClient, { dagId, granularity, logicalDateGte, logicalDateLte }: {

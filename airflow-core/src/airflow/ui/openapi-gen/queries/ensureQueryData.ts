@@ -1346,7 +1346,7 @@ export const ensureUseGridServiceGetLatestRunData = (queryClient: QueryClient, {
 * @param data.granularity
 * @param data.logicalDateGte
 * @param data.logicalDateLte
-* @returns CalendarTimeRangeDagRunsResponse Successful Response
+* @returns CalendarTimeRangeCollectionResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseCalendarServiceGetCalendarData = (queryClient: QueryClient, { dagId, granularity, logicalDateGte, logicalDateLte }: {

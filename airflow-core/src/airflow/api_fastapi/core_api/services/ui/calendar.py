@@ -30,8 +30,8 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
-    CalendarTimeRangeDagRuns,
-    CalendarTimeRangeDagRunsResponse,
+    CalendarTimeRangeCollectionResponse,
+    CalendarTimeRangeResponse,
 )
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -55,7 +55,7 @@ class CalendarService:
         dag: DAG,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"] = "daily",
-    ) -> CalendarTimeRangeDagRunsResponse:
+    ) -> CalendarTimeRangeCollectionResponse:
         """
         Get calendar data for a DAG including historical and planned runs.
 
@@ -79,7 +79,7 @@ class CalendarService:
         planned_data = self._get_planned_dag_runs(dag, raw_dag_states, logical_date, granularity)
 
         all_data = historical_data + planned_data
-        return CalendarTimeRangeDagRunsResponse(
+        return CalendarTimeRangeCollectionResponse(
             total_entries=len(all_data),
             dag_runs=all_data,
         )
@@ -90,7 +90,7 @@ class CalendarService:
         session: Session,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> tuple[list[CalendarTimeRangeDagRuns], list[Row]]:
+    ) -> tuple[list[CalendarTimeRangeResponse], list[Row]]:
         """Get historical DAG runs from the database."""
         dialect = session.bind.dialect.name
 
@@ -113,7 +113,7 @@ class CalendarService:
         dag_states = session.execute(select_stmt).all()
 
         calendar_results = [
-            CalendarTimeRangeDagRuns(
+            CalendarTimeRangeResponse(
                 # ds.datetime in sqlite and mysql is a string, in postgresql it is a datetime
                 date=ds.datetime,
                 state=ds.state,
@@ -130,7 +130,7 @@ class CalendarService:
         raw_dag_states: list[Row],
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeDagRuns]:
+    ) -> list[CalendarTimeRangeResponse]:
         """Get planned DAG runs based on the DAG's timetable."""
         if not self._should_calculate_planned_runs(dag, raw_dag_states):
             return []
@@ -182,7 +182,7 @@ class CalendarService:
         year: int,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeDagRuns]:
+    ) -> list[CalendarTimeRangeResponse]:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime.datetime, int] = collections.Counter()
 
@@ -203,7 +203,7 @@ class CalendarService:
             dates[self._truncate_datetime_for_granularity(dt, granularity)] += 1
 
         return [
-            CalendarTimeRangeDagRuns(date=dt, state="planned", count=count) for dt, count in dates.items()
+            CalendarTimeRangeResponse(date=dt, state="planned", count=count) for dt, count in dates.items()
         ]
 
     def _calculate_timetable_planned_runs(
@@ -214,7 +214,7 @@ class CalendarService:
         restriction: TimeRestriction,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeDagRuns]:
+    ) -> list[CalendarTimeRangeResponse]:
         """Calculate planned runs for generic timetables."""
         dates: dict[datetime.datetime, int] = collections.Counter()
         prev_logical_date = DateTime.min
@@ -246,7 +246,7 @@ class CalendarService:
             total_planned += 1
 
         return [
-            CalendarTimeRangeDagRuns(date=dt, state="planned", count=count) for dt, count in dates.items()
+            CalendarTimeRangeResponse(date=dt, state="planned", count=count) for dt, count in dates.items()
         ]
 
     def _get_time_truncation_expression(

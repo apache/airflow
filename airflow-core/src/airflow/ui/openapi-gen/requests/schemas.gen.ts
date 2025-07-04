@@ -6124,7 +6124,27 @@ export const $BaseNodeResponse = {
     description: 'Base Node serializer for responses.'
 } as const;
 
-export const $CalendarTimeRangeDagRuns = {
+export const $CalendarTimeRangeCollectionResponse = {
+    properties: {
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/CalendarTimeRangeResponse'
+            },
+            type: 'array',
+            title: 'Dag Runs'
+        }
+    },
+    type: 'object',
+    required: ['total_entries', 'dag_runs'],
+    title: 'CalendarTimeRangeCollectionResponse',
+    description: 'Response model for calendar time range results.'
+} as const;
+
+export const $CalendarTimeRangeResponse = {
     properties: {
         date: {
             type: 'string',
@@ -6143,28 +6163,8 @@ export const $CalendarTimeRangeDagRuns = {
     },
     type: 'object',
     required: ['date', 'state', 'count'],
-    title: 'CalendarTimeRangeDagRuns',
+    title: 'CalendarTimeRangeResponse',
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
-} as const;
-
-export const $CalendarTimeRangeDagRunsResponse = {
-    properties: {
-        total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
-        },
-        dag_runs: {
-            items: {
-                '$ref': '#/components/schemas/CalendarTimeRangeDagRuns'
-            },
-            type: 'array',
-            title: 'Dag Runs'
-        }
-    },
-    type: 'object',
-    required: ['total_entries', 'dag_runs'],
-    title: 'CalendarTimeRangeDagRunsResponse',
-    description: 'Response model for calendar time range results.'
 } as const;
 
 export const $ConfigResponse = {

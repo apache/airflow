@@ -42,4 +42,4 @@ class CalendarTimeRangeCollectionResponse(BaseModel):
     """Response model for calendar time range results."""
 
     total_entries: int
-    dag_runs: list[CalendarTimeRangeDagRuns]
+    dag_runs: list[CalendarTimeRangeResponse]

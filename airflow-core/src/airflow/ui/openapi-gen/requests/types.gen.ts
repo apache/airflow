@@ -1567,23 +1567,23 @@ export type BaseNodeResponse = {
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
 
 /**
+ * Response model for calendar time range results.
+ */
+export type CalendarTimeRangeCollectionResponse = {
+    total_entries: number;
+    dag_runs: Array<CalendarTimeRangeResponse>;
+};
+
+/**
  * Represents a summary of DAG runs for a specific calendar time range.
  */
-export type CalendarTimeRangeDagRuns = {
+export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
-
-/**
- * Response model for calendar time range results.
- */
-export type CalendarTimeRangeDagRunsResponse = {
-    total_entries: number;
-    dag_runs: Array<CalendarTimeRangeDagRuns>;
-};
 
 /**
  * configuration serializer.
@@ -2960,7 +2960,7 @@ export type GetCalendarData = {
     logicalDateLte?: string | null;
 };
 
-export type GetCalendarResponse = CalendarTimeRangeDagRunsResponse;
+export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -5992,7 +5992,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: CalendarTimeRangeDagRunsResponse;
+                200: CalendarTimeRangeCollectionResponse;
                 /**
                  * Validation Error
                  */

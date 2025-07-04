@@ -1346,7 +1346,7 @@ export const useGridServiceGetLatestRunSuspense = <TData = Common.GridServiceGet
 * @param data.granularity
 * @param data.logicalDateGte
 * @param data.logicalDateLte
-* @returns CalendarTimeRangeDagRunsResponse Successful Response
+* @returns CalendarTimeRangeCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useCalendarServiceGetCalendarSuspense = <TData = Common.CalendarServiceGetCalendarDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, granularity, logicalDateGte, logicalDateLte }: {
