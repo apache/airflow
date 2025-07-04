@@ -64,7 +64,7 @@ class S3DagBundle(BaseDagBundle):
             prefix=self.prefix,
             aws_conn_id=self.aws_conn_id,
         )
-        self._s3_hook: S3Hook = None
+        self._s3_hook: S3Hook | None = None
 
     def _initialize(self):
         with self.lock():
