@@ -9241,6 +9241,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "subPath": {
+                            "description": "The subpath of the existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
