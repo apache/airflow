@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import os
-import re
+from unittest.mock import MagicMock, call
 
 import boto3
 import pytest
@@ -188,54 +187,41 @@ class TestS3DagBundle:
             client.upload_file(Filename=path, Bucket=bucket, Key=key)
 
     @pytest.mark.db_test
-    def test_refresh(self, s3_bucket, s3_client, caplog, cap_structlog):
-        caplog.set_level(logging.ERROR)
-        caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
+    def test_refresh(self, s3_bucket, s3_client):
         bundle = S3DagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
             prefix=S3_BUCKET_PREFIX,
             bucket_name=S3_BUCKET_NAME,
         )
+        bundle._log.debug = MagicMock()
+        # Create a pytest Call object to compare against the call_args_list of the _log.debug mock
+        download_log_call = call(
+            "Downloading DAGs from s3://%s/%s to %s", S3_BUCKET_NAME, S3_BUCKET_PREFIX, bundle.s3_dags_dir
+        )
         bundle.initialize()
-        # dags are downloaded once by initialize and once with refresh called post initialize
-        assert cap_structlog.text.count("Downloading DAGs from s3") == 1
+        assert bundle._log.debug.call_count == 1
+        assert bundle._log.debug.call_args_list == [download_log_call]
         bundle.refresh()
-        assert cap_structlog.text.count("Downloading DAGs from s3") == 2
+        assert bundle._log.debug.call_count == 2
+        assert bundle._log.debug.call_args_list == [download_log_call, download_log_call]
         bundle.refresh()
-        assert cap_structlog.text.count("Downloading DAGs from s3") == 3
+        assert bundle._log.debug.call_count == 3
+        assert bundle._log.debug.call_args_list == [download_log_call, download_log_call, download_log_call]
 
     @pytest.mark.db_test
-    def test_refresh_without_prefix(self, s3_bucket, s3_client, caplog, cap_structlog):
-        caplog.set_level(logging.ERROR)
-        caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
-        caplog.set_level(
-            logging.DEBUG, logger="airflow.task.hooks.airflow.providers.amazon.aws.hooks.s3.S3Hook"
-        )
+    def test_refresh_without_prefix(self, s3_bucket, s3_client):
         bundle = S3DagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
             bucket_name=S3_BUCKET_NAME,
         )
+        bundle._log.debug = MagicMock()
+        download_log_call = call(
+            "Downloading DAGs from s3://%s/%s to %s", S3_BUCKET_NAME, "", bundle.s3_dags_dir
+        )
         assert bundle.prefix == ""
         bundle.initialize()
         bundle.refresh()
-        assert cap_structlog.text.count("Downloading DAGs from s3") == 2
-
-    def assert_log_matches_regex(self, caplog, level, regex):
-        """Helper function to assert if a log message matches a regex."""
-        matched = False
-        if hasattr(caplog, "entries"):
-            for record in caplog.entries:
-                if record.get("log_level", None) == level.lower() and re.search(
-                    regex, record.get("event", "")
-                ):
-                    matched = True
-                    break  # Stop searching once a match is found
-        else:
-            for record in caplog.records:
-                if record.levelname == level and re.search(regex, record.message):
-                    matched = True
-                    break  # Stop searching once a match is found
-
-        assert matched, f"No log message at level {level} matching regex '{regex}' found."
+        assert bundle._log.debug.call_count == 2
+        assert bundle._log.debug.call_args_list == [download_log_call, download_log_call]
