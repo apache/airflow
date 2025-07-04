@@ -451,11 +451,11 @@ def update_sbom_information(
         for airflow_v in airflow_versions:
             if airflow_site_archive_path:
                 apache_airflow_documentation_directory = (
-                    airflow_site_archive_path / "docs-archive" / "apache-airflow"
+                    airflow_site_archive_path / "docs-archive" / "apache-airflow" / airflow_v
                 )
             elif airflow_root_path:
                 apache_airflow_documentation_directory = (
-                    airflow_root_path / "generated" / "_build" / "docs" / "apache-airflow"
+                    airflow_root_path / "generated" / "_build" / "docs" / "apache-airflow" / "stable"
                 )
             else:
                 get_console().print(
@@ -463,7 +463,7 @@ def update_sbom_information(
                     "Please specify one of them."
                 )
                 sys.exit(1)
-            airflow_version_dir = apache_airflow_documentation_directory / airflow_v
+            airflow_version_dir = apache_airflow_documentation_directory
             destination_dir = airflow_version_dir / "sbom"
             destination_dir.mkdir(parents=True, exist_ok=True)
             _generate_index(destination_dir, None, airflow_v)
