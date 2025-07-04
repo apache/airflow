@@ -47,7 +47,7 @@ class HITLResponseModel(Base):
         nullable=False,
     )
 
-    # Input Request
+    # User Request Detail
     options = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     subject = Column(Text, nullable=False)
     body = Column(Text, nullable=True)
