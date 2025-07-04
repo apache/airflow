@@ -1174,6 +1174,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         if v.default is not v.empty
     }
 
+    _can_skip_downstream: bool
+    _is_empty: bool
     _needs_expansion: bool
     depends_on_past: bool
     execution_timeout: datetime.timedelta | None
@@ -1199,10 +1201,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     weight_rule: PriorityWeightStrategy
 
     is_mapped = False
-
-    # TODO: Figure out a better way to supply these defaults.
-    inherits_from_empty_operator: bool = False
-    inherits_from_skipmixin: bool = False
 
     def __init__(
         self,
@@ -1708,6 +1706,14 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     def serialize_for_task_group(self) -> tuple[DAT, Any]:
         """Serialize; required by DAGNode."""
         return DAT.OP, self.task_id
+
+    @property
+    def inherits_from_empty_operator(self) -> bool:
+        return self._is_empty
+
+    @property
+    def inherits_from_skipmixin(self) -> bool:
+        return self._can_skip_downstream
 
     def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
         """
