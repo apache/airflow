@@ -1177,6 +1177,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
+    _task_display_name: str | None
     depends_on_past: bool
     execution_timeout: datetime.timedelta | None
     executor: str | None
@@ -1300,6 +1301,10 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     @operator_name.setter
     def operator_name(self, operator_name: str):
         self._operator_name = operator_name
+
+    @property
+    def task_display_name(self) -> str:
+        return self._task_display_name or self.task_id
 
     # TODO: For compatibility... can we just rename this?
     @property
