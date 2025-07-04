@@ -23,6 +23,7 @@ from pydantic import AliasPath, Field, computed_field
 from sqlalchemy import select
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 
 
 class DagVersionResponse(BaseModel):
@@ -50,9 +51,12 @@ class DagVersionResponse(BaseModel):
                     select(DagBundleModel).where(DagBundleModel.name == self.bundle_name)
                 )
 
-                if bundle_model:
+                if bundle_model and hasattr(bundle_model, "url_template"):
                     return bundle_model.render_url()
-                return None
+                try:
+                    return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+                except ValueError:
+                    return None
         return None
 
 

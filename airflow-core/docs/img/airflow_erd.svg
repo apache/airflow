@@ -1406,9 +1406,9 @@
 <text text-anchor="start" x="168" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="173" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
 <polygon fill="none" stroke="black" points="42,-1887.5 42,-1912.5 294,-1912.5 294,-1887.5 42,-1887.5"/>
-<text text-anchor="start" x="47" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00">url</text>
-<text text-anchor="start" x="66" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="71" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
+<text text-anchor="start" x="47" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00">url_template</text>
+<text text-anchor="start" x="135" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="140" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
 <polygon fill="none" stroke="black" points="42,-1862.5 42,-1887.5 294,-1887.5 294,-1862.5 42,-1862.5"/>
 <text text-anchor="start" x="47" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00">version</text>
 <text text-anchor="start" x="99" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
