@@ -43,12 +43,11 @@ class DagBundleModel(Base):
     active = Column(Boolean, default=True)
     version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
-    url = Column(String(200), nullable=True)
+    url_template = Column(String(200), nullable=True)
     template_params = Column(JSONType, nullable=True)
 
     def __init__(self, *, name: str):
         self.name = name
-        self.template_params = {}
 
     def _unsign_url(self) -> str | None:
         """
@@ -62,8 +61,8 @@ class DagBundleModel(Base):
 
             from airflow.configuration import conf
 
-            serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
-            payload = serializer.loads(self.url)
+            serializer = URLSafeSerializer(conf.get_mandatory_value("api", "fernet_key"))
+            payload = serializer.loads(self.url_template)
             if isinstance(payload, dict) and "url" in payload and "bundle_name" in payload:
                 if payload["bundle_name"] == self.name:
                     return payload["url"]
@@ -88,7 +87,7 @@ class DagBundleModel(Base):
         url_template = self._unsign_url()
 
         if url_template is None:
-            url_template = self.url
+            url_template = self.url_template
 
         params = dict(self.template_params or {})
         params["version"] = self.version
