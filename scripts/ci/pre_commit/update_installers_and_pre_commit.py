@@ -87,7 +87,7 @@ def get_latest_golang_version() -> str:
     response = requests.get("https://go.dev/dl/?mode=json")
     response.raise_for_status()  # Ensure we got a successful response
     versions = response.json()
-    stable_versions = [release["version"] for release in versions if release["stable"]]
+    stable_versions = [release["version"].replace("go", "") for release in versions if release["stable"]]
     return sorted(stable_versions, key=Version, reverse=True)[0]
 
 
