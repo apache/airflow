@@ -726,7 +726,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
 "airflow-core/src/airflow/api_fastapi/*" = ["TC001", "TC002"]
 "airflow-core/tests/unit/api_fastapi/*" = ["T001", "TC002"]
-"providers/standard/src/airflow/providers/standard/api_fastapi/*" = ["TC001", "TC002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]

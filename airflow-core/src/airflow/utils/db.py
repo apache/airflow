@@ -20,7 +20,6 @@ from __future__ import annotations
 import collections.abc
 import contextlib
 import enum
-import importlib
 import itertools
 import json
 import logging
@@ -1059,24 +1058,14 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
         unitest_mode = conf.getboolean("core", "unit_test_mode")
         if unitest_mode:
-            from packaging.version import Version
+            try:
+                from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-            from airflow import __version__
-
-            external_db_mangers = [("airflow.providers.fab.auth_manager.models.db", "FABDBManager")]
-            if Version(__version__) >= Version("3.1.0"):
-                external_db_mangers.append(("airflow.providers.standard.models.db", "HITLDBManager"))
-
-            for module_path, cls_name in external_db_mangers:
-                try:
-                    mangaer_module = importlib.import_module(module_path)
-                    manager_obj = getattr(mangaer_module, cls_name)
-                    dbm = manager_obj(session)
-                    dbm.initdb()
-                except ImportError:
-                    log.warning("Import error occurred while importing %s. Skipping the check.", cls_name)
-                    return
-
+                dbm = FABDBManager(session)
+                dbm.initdb()
+            except ImportError:
+                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
+                return
         if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
             raise AirflowException(
                 "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
