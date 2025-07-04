@@ -96,7 +96,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
