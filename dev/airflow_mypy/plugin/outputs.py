@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from mypy.plugin import AttributeContext, MethodContext, Plugin
 from mypy.types import AnyType, Type, TypeOfAny

@@ -21,8 +21,8 @@ import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
+from airflow.providers.apache.pig.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

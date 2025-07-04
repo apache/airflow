@@ -221,6 +221,7 @@ manual_substitutions_in_generated_html = [
     "installation/installing-from-sources.html",
     "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
     "howto/docker-compose/index.html",
+    "security/sbom.html",
 ]
 
 html_css_files = ["custom.css"]

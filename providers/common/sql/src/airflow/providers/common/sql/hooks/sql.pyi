@@ -32,9 +32,9 @@ Definition of the public interface for airflow.providers.common.sql.src.airflow.
 isort:skip_file
 """
 
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from functools import cached_property as cached_property
-from typing import Any, Callable, Literal, Protocol, TypeVar, overload
+from typing import Any, Literal, Protocol, TypeVar, overload
 
 from _typeshed import Incomplete as Incomplete
 from pandas import DataFrame as PandasDataFrame

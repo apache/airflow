@@ -562,6 +562,7 @@ DEVELOPER_COMMANDS = [
     "down",
     "exec",
     "shell",
+    "run",
     "compile-ui-assets",
     "cleanup",
     "generate-migration-file",

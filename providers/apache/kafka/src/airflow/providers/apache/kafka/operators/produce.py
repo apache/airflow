@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
+from airflow.providers.apache.kafka.version_compat import BaseOperator
 from airflow.utils.module_loading import import_string
 
 local_logger = logging.getLogger("airflow")

@@ -30,7 +30,7 @@ import pytest
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session
@@ -61,7 +61,8 @@ class TestCliGetConnection:
             stdout = stdout.getvalue()
         assert "google-cloud-platform:///default" in stdout
 
-    def test_cli_connection_get_invalid(self):
+    def test_cli_connection_get_invalid(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = AirflowNotFoundException
         with pytest.raises(SystemExit, match=re.escape("Connection not found.")):
             connection_command.connections_get(self.parser.parse_args(["connections", "get", "INVALID"]))
 

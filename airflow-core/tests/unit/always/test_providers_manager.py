@@ -72,12 +72,12 @@ class TestProviderManager:
             assert self._caplog.records == []
 
     def test_hooks_deprecation_warnings_generated(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict["test-package"] = ProviderInfo(
+            version="0.0.1",
+            data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
+        )
         with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
-            providers_manager = ProvidersManager()
-            providers_manager._provider_dict["test-package"] = ProviderInfo(
-                version="0.0.1",
-                data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
-            )
             providers_manager._discover_hooks()
         assert warning_records
 

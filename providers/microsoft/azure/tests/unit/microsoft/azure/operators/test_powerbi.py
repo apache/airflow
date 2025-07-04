@@ -35,10 +35,26 @@ from tests_common.test_utils.mock_context import mock_context
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
 GROUP_ID = "group_id"
 DATASET_ID = "dataset_id"
+REQUEST_BODY = {
+    "type": "full",
+    "commitMode": "transactional",
+    "objects": [{"table": "Customer", "partition": "Robert"}],
+    "applyRefreshPolicy": "false",
+    "timeout": "05:00:00",
+}
 CONFIG = {
     "task_id": TASK_ID,
     "conn_id": DEFAULT_CONNECTION_CLIENT_SECRET,
@@ -46,6 +62,7 @@ CONFIG = {
     "dataset_id": DATASET_ID,
     "check_interval": 1,
     "timeout": 3,
+    "request_body": REQUEST_BODY,
 }
 NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
@@ -85,7 +102,7 @@ IN_PROGRESS_REFRESH_DETAILS = {
 
 
 class TestPowerBIDatasetRefreshOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection)
     def test_execute_wait_for_termination_with_deferrable(self, connection):
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
@@ -98,7 +115,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
         assert isinstance(exc.value.trigger, PowerBITrigger)
         assert exc.value.trigger.dataset_refresh_id is None
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_refresh_status_success(self, connection):
         """Assert that get_refresh_status log success message"""
         operator = PowerBIDatasetRefreshOperator(

@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.providers.ssh.version_compat import BaseOperator
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:

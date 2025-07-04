@@ -18,13 +18,35 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
+from docs.utils.conf_constants import (
+    AIRFLOW_FAVICON_PATH,
+    SPHINX_DESIGN_STATIC_PATH,
+    get_html_context,
+    get_html_sidebars,
+    get_html_theme_options,
+)
+
+import airflow.sdk
+
 CONF_DIR = Path(__file__).parent.absolute()
 sys.path.insert(0, str(CONF_DIR.parent.parent.joinpath("devel-common", "src", "sphinx_exts").resolve()))
+sys.path.insert(0, str(CONF_DIR.parent.joinpath("src").resolve()))
+
+PACKAGE_NAME = "task-sdk"
+os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
+
+PACKAGE_VERSION = airflow.sdk.__version__
 
 project = "Apache Airflow Task SDK"
+# # The version info for the project you're documenting
+version = PACKAGE_VERSION
+# The full version, including alpha/beta/rc tags.
+release = PACKAGE_VERSION
+
 
 language = "en"
 locale_dirs: list[str] = []
@@ -58,8 +80,17 @@ autodoc_typehints = "description"
 autoapi_file_patterns = ["*.pyi", "*.py"]
 
 html_theme = "sphinx_airflow_theme"
-html_sidebars = {"**": ["localtoc.html", "globaltoc.html", "searchbox.html", "relations.html"]}
-
+html_title = "Apache Airflow Task SDK Documentation"
+html_short_title = "Task SDK"
+html_favicon = AIRFLOW_FAVICON_PATH.as_posix()
+html_static_path = [SPHINX_DESIGN_STATIC_PATH.as_posix()]
+html_css_files = ["custom.css"]
+html_sidebars = get_html_sidebars(PACKAGE_VERSION)
+html_theme_options = get_html_theme_options()
+conf_py_path = "/task-sdk/docs/"
+html_context = get_html_context(conf_py_path)
+html_use_index = True
+html_show_copyright = False
 
 global_substitutions = {
     "experimental": "This is an :ref:`experimental feature <experimental>`.",

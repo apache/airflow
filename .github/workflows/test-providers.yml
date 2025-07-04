@@ -96,7 +96,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
@@ -126,10 +126,6 @@ jobs:
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
         if: matrix.package-format == 'wheel'
-      - name: Remove Python 3.9-incompatible provider distributions
-        run: |
-          echo "Removing Python 3.9-incompatible provider: cloudant"
-          rm -vf dist/*cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
@@ -138,7 +134,8 @@ jobs:
       - name: "Install and verify wheel provider distributions"
         env:
           DISTRIBUTION_FORMAT: ${{ matrix.package-format }}
-          AIRFLOW_SKIP_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies }}"
+          # yamllint disable rule:line-length
+          INSTALL_AIRFLOW_WITH_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies == 'true' && 'false' || 'true' }}"
         run: >
           breeze release-management verify-provider-distributions
           --use-distributions-from-dist

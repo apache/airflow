@@ -120,13 +120,13 @@ To load the image from specific PR, you can use the following command:
 
 .. code-block:: bash
 
-     breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_token>
+     breeze ci-image load --from-pr 12345 --python 3.10 --github-token <your_github_token>
 
 To load the image from specific job run (for example 12538475388), you can use the following command, find the run id from github action runs.
 
 .. code-block:: bash
 
-     breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
+     breeze ci-image load --from-run 12538475388 --python 3.10 --github-token <your_github_token>
 
 After you load the image, you can reproduce the very exact environment that was used in the CI run by
 entering breeze container without mounting your local sources:
@@ -220,10 +220,10 @@ suffix and they need to also be paired with corresponding runtime dependency add
 
 .. code-block:: bash
 
-     breeze prod-image build --python 3.9 --additional-dev-deps "libasound2-dev" \
+     breeze prod-image build --python 3.10 --additional-dev-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-Same as above but uses python 3.9.
+Same as above but uses python 3.10.
 
 Building PROD image
 ...................

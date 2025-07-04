@@ -21,6 +21,15 @@ from unittest import mock
 
 import pytest
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 yandexlcloud = pytest.importorskip("yandexcloud")
 
 from airflow.models import Connection  # noqa: E402
@@ -62,7 +71,7 @@ HAS_CREDENTIALS = OAUTH_TOKEN != "my_oauth_token"
 
 class TestYandexCloudDataprocHook:
     def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as mock_get_connection:
             mock_get_connection.return_value = self.connection
             self.hook = DataprocHook()
 

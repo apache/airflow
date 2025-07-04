@@ -46,7 +46,7 @@ class VariableResponse(BaseModel):
             return self
         except json.JSONDecodeError:
             # value is not a serialized string representation of a dict.
-            self.val = redact(self.val, self.key)
+            self.val = str(redact(self.val, self.key))
             return self
 
 

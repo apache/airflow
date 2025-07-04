@@ -76,14 +76,14 @@ this will change soon.
 To load the image from specific PR, you can use the following command:
 
 ```bash
-breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_token>
+breeze ci-image load --from-pr 12345 --python 3.10 --github-token <your_github_token>
 ```
 
 To load the image from specific run (for example 12538475388),
 you can use the following command, find the run id from GitHub action runs.
 
 ```bash
-breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
+breeze ci-image load --from-run 12538475388 --python 3.10 --github-token <your_github_token>
 ```
 
 After you load the image, you can reproduce the very exact environment that was used in the CI run by

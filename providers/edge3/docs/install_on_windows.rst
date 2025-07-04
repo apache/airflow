@@ -29,7 +29,7 @@ Install Edge Worker on Windows
 The setup was tested on Windows 10 with Python 3.12.8, 64-bit. Backend for tests was Airflow 2.10.5.
 To setup a instance of Edge Worker on Windows, you need to follow the steps below:
 
-1. Install Python 3.9 or higher.
+1. Install Python 3.10 or higher.
 2. Create an empty folder as base to start with. In our example it is ``C:\Airflow``.
 3. Start Shell/Command Line in ``C:\Airflow`` and create a new virtual environment via: ``python -m venv venv``
 4. Activate the virtual environment via: ``venv\Scripts\activate.bat``

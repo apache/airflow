@@ -30,7 +30,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
@@ -56,11 +56,11 @@ INVALID_SESSION_ID_TEST_CASES = [
 class TestLivyDbHook:
     @classmethod
     def setup_class(cls):
-        clear_db_connections(add_default_connections_back=False)
+        clear_test_connections(add_default_connections_back=False)
 
     @classmethod
     def teardown_class(cls):
-        clear_db_connections(add_default_connections_back=True)
+        clear_test_connections(add_default_connections_back=True)
 
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
     @pytest.fixture(autouse=True)

@@ -28,7 +28,6 @@ from airflow.providers.opensearch.operators.opensearch import (
 from airflow.utils.timezone import datetime
 
 opensearchpy = pytest.importorskip("opensearchpy")
-pytestmark = pytest.mark.db_test
 
 
 TEST_DAG_ID = "unit_tests"

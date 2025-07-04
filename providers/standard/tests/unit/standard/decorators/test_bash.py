@@ -412,9 +412,9 @@ class TestBashDecorator:
             ):
                 bash_task = bash()
 
-                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
+            assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-                ti, _ = self.execute_task(bash_task)
+            ti, _ = self.execute_task(bash_task)
 
         assert bash_task.operator.multiple_outputs is False
         self.validate_bash_command_rtif(ti, "echo")

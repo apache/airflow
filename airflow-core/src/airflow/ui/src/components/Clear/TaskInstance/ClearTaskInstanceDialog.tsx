@@ -110,6 +110,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
+              defaultValues={["downstream"]}
               multiple
               onChange={setSelectedOptions}
               options={[

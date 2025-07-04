@@ -26,6 +26,15 @@ from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.samba.hooks.samba import SambaHook
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
 
@@ -36,7 +45,7 @@ class TestSambaHook:
             SambaHook("non-existed-connection-id")
 
     @mock.patch("smbclient.register_session")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_context_manager(self, get_conn_mock, register_session):
         CONNECTION = Connection(
             host="ip",
@@ -92,7 +101,7 @@ class TestSambaHook:
             "walk",
         ],
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_method(self, get_conn_mock, name):
         CONNECTION = Connection(
             host="ip",
@@ -145,7 +154,7 @@ class TestSambaHook:
             ("start/path/without/slash", "//ip/share/start/path/without/slash"),
         ],
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test__join_path(self, get_conn_mock, path, full_path):
         CONNECTION = Connection(
             host="ip",

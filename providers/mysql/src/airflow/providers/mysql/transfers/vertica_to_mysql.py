@@ -33,8 +33,8 @@ except ImportError:
         "installed in case you see compilation error during installation."
     )
 
-from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.mysql.version_compat import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 if TYPE_CHECKING:

@@ -32,6 +32,7 @@ from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
     Integer,
+    String,
     UniqueConstraint,
     desc,
     func,
@@ -132,6 +133,10 @@ class Backfill(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at = Column(UtcDateTime, nullable=True)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    triggering_user_name = Column(
+        String(512),
+        nullable=True,
+    )  # The user that triggered the Backfill, if applicable
 
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
 
@@ -285,6 +290,7 @@ def _create_backfill_dag_run(
     backfill_id,
     dag_run_conf,
     backfill_sort_ordinal,
+    triggering_user_name,
     session,
 ):
     from airflow.models.dagrun import DagRun
@@ -346,6 +352,7 @@ def _create_backfill_dag_run(
                 conf=dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
                 triggered_by=DagRunTriggeredByType.BACKFILL,
+                triggering_user_name=triggering_user_name,
                 state=DagRunState.QUEUED,
                 start_date=timezone.utcnow(),
                 backfill_id=backfill_id,
@@ -438,6 +445,7 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
+    triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
 ) -> Backfill | None:
     from airflow.models import DagModel
@@ -476,6 +484,7 @@ def _create_backfill(
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
             dag_model=dag,
+            triggering_user_name=triggering_user_name,
         )
         session.add(br)
         session.commit()
@@ -500,6 +509,7 @@ def _create_backfill(
                 dag_run_conf=br.dag_run_conf,
                 reprocess_behavior=br.reprocess_behavior,
                 backfill_sort_ordinal=backfill_sort_ordinal,
+                triggering_user_name=br.triggering_user_name,
                 session=session,
             )
             log.info(

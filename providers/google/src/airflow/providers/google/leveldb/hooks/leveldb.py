@@ -21,7 +21,11 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 try:
     import plyvel

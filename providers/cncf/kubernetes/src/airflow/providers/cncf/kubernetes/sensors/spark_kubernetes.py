@@ -25,7 +25,7 @@ from kubernetes import client
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.cncf.kubernetes.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

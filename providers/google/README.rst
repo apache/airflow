@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``16.0.0``
+Release: ``16.1.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/16.1.0/>`_.
 
 Installation
 ------------
@@ -52,14 +52,14 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-google``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12
 
 Requirements
 ------------
 
-===========================================  ======================================
+===========================================  ==================================================================
 PIP package                                  Version required
-===========================================  ======================================
+===========================================  ==================================================================
 ``apache-airflow``                           ``>=2.10.0``
 ``apache-airflow-providers-common-compat``   ``>=1.4.0``
 ``apache-airflow-providers-common-sql``      ``>=1.27.0``
@@ -77,11 +77,11 @@ PIP package                                  Version required
 ``google-auth-httplib2``                     ``>=0.0.1``
 ``google-cloud-aiplatform[evaluation,ray]``  ``>=1.73.0; python_version < "3.12"``
 ``google-cloud-aiplatform[evaluation]``      ``>=1.73.0; python_version >= "3.12"``
-``ray[default]``                             ``>=2.42.0; python_version >= "3.12"``
+``ray[default]``                             ``>=2.42.0; python_version >= "3.12" and python_version < "3.13"``
 ``google-cloud-bigquery-storage``            ``>=2.31.0; python_version >= "3.12"``
 ``google-cloud-alloydb``                     ``>=0.4.0``
 ``google-cloud-automl``                      ``>=2.12.0``
-``google-cloud-bigquery``                    ``!=3.21.*,!=3.22.0,!=3.23.*,>=3.4.0``
+``google-cloud-bigquery``                    ``>=3.24.0``
 ``google-cloud-bigquery-datatransfer``       ``>=3.13.0``
 ``google-cloud-bigtable``                    ``>=2.17.0``
 ``google-cloud-build``                       ``>=3.31.0``
@@ -105,7 +105,7 @@ PIP package                                  Version required
 ``google-cloud-pubsub``                      ``>=2.21.3``
 ``google-cloud-redis``                       ``>=2.12.0``
 ``google-cloud-secret-manager``              ``>=2.16.0``
-``google-cloud-spanner``                     ``>=3.11.1,!=3.49.0``
+``google-cloud-spanner``                     ``>=3.50.0``
 ``google-cloud-speech``                      ``>=2.18.0``
 ``google-cloud-storage``                     ``>=2.7.0``
 ``google-cloud-storage-transfer``            ``>=1.4.1``
@@ -122,7 +122,7 @@ PIP package                                  Version required
 ``looker-sdk``                               ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                               ``>=0.7.0``
 ``proto-plus``                               ``>=1.19.6``
-``pyarrow``                                  ``>=14.0.1``
+``pyarrow``                                  ``>=16.1.0``
 ``python-slugify``                           ``>=7.0.0``
 ``PyOpenSSL``                                ``>=23.0.0``
 ``sqlalchemy-bigquery``                      ``>=1.2.1``
@@ -130,7 +130,7 @@ PIP package                                  Version required
 ``tenacity``                                 ``>=8.3.0``
 ``immutabledict``                            ``>=4.2.0``
 ``types-protobuf``                           ``>=5.27.0,!=5.29.1.20250402``
-===========================================  ======================================
+===========================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -170,4 +170,4 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/16.1.0/changelog.html>`_.

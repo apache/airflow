@@ -24,7 +24,11 @@ from typing import Any
 import pagerduty
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 
 class PagerdutyHook(BaseHook):
@@ -84,7 +88,7 @@ class PagerdutyHook(BaseHook):
 
         if pagerduty_conn_id is not None:
             conn = self.get_connection(pagerduty_conn_id)
-            password = conn.get_password()
+            password = conn.password
             if password is not None:
                 self.token = password
 

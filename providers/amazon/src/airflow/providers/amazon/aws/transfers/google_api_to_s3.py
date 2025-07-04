@@ -24,9 +24,9 @@ import sys
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.version_compat import BaseOperator
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 
 if TYPE_CHECKING:

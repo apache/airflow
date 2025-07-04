@@ -29,10 +29,10 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
-from typing import Any, Callable
+from typing import Any
 
 import jsonschema
 import yaml

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import ServiceRequestError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -25,18 +25,22 @@ from azure.synapse.artifacts import ArtifactsClient
 from azure.synapse.spark import SparkClient
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
 
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+
 if TYPE_CHECKING:
     from azure.synapse.artifacts.models import CreateRunResponse, PipelineRun
     from azure.synapse.spark.models import SparkBatchJobOptions
 
-Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
+Credentials = ClientSecretCredential | DefaultAzureCredential
 
 
 class AzureSynapseSparkBatchRunStatus:

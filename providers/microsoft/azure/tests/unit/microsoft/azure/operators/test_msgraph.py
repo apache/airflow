@@ -63,17 +63,17 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert len(results) == 30
-                assert results == users.get("value") + next_users.get("value")
-                assert len(events) == 2
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(users)
-                assert isinstance(events[1], TriggerEvent)
-                assert events[1].payload["status"] == "success"
-                assert events[1].payload["type"] == "builtins.dict"
-                assert events[1].payload["response"] == json.dumps(next_users)
+            assert len(results) == 30
+            assert results == users.get("value") + next_users.get("value")
+            assert len(events) == 2
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(users)
+            assert isinstance(events[1], TriggerEvent)
+            assert events[1].payload["status"] == "success"
+            assert events[1].payload["type"] == "builtins.dict"
+            assert events[1].payload["response"] == json.dumps(next_users)
 
     def test_execute_with_new_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
@@ -124,17 +124,17 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert len(results) == 30
-                assert results == users.get("value") + next_users.get("value")
-                assert len(events) == 2
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(users)
-                assert isinstance(events[1], TriggerEvent)
-                assert events[1].payload["status"] == "success"
-                assert events[1].payload["type"] == "builtins.dict"
-                assert events[1].payload["response"] == json.dumps(next_users)
+            assert len(results) == 30
+            assert results == users.get("value") + next_users.get("value")
+            assert len(events) == 2
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(users)
+            assert isinstance(events[1], TriggerEvent)
+            assert events[1].payload["status"] == "success"
+            assert events[1].payload["type"] == "builtins.dict"
+            assert events[1].payload["response"] == json.dumps(next_users)
 
     def test_execute_when_do_xcom_push_is_false(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
@@ -193,11 +193,11 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert not results
-                assert len(events) == 1
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "failure"
-                assert events[0].payload["message"] == "An error occurred"
+            assert not results
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "failure"
+            assert events[0].payload["message"] == "An error occurred"
 
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):

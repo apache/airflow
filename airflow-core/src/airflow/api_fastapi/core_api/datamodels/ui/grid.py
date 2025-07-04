@@ -21,7 +21,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -38,6 +37,16 @@ class GridTaskInstanceSummary(BaseModel):
     task_count: int
     state: TaskInstanceState | None
     note: str | None
+
+
+class LightGridTaskInstanceSummary(BaseModel):
+    """Task Instance Summary model for the Grid UI."""
+
+    task_id: str
+    state: TaskInstanceState | None
+    child_states: dict[TaskInstanceState, int] | None
+    min_start_date: datetime | None
+    max_end_date: datetime | None
 
 
 class GridDAGRunwithTIs(BaseModel):
@@ -57,8 +66,15 @@ class GridDAGRunwithTIs(BaseModel):
     task_instances: list[GridTaskInstanceSummary]
 
 
+class GridTISummaries(BaseModel):
+    """DAG Run model for the Grid UI."""
+
+    run_id: str
+    dag_id: str
+    task_instances: list[LightGridTaskInstanceSummary]
+
+
 class GridResponse(BaseModel):
     """Response model for the Grid UI."""
 
     dag_runs: list[GridDAGRunwithTIs]
-    structure: StructureDataResponse

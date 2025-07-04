@@ -28,14 +28,14 @@ from pymongo import MongoClient, ReplaceOne
 from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.providers.mongo.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType
+    from typing import Literal
 
     from pymongo.collection import Collection as MongoCollection
     from pymongo.command_cursor import CommandCursor
-    from typing_extensions import Literal
 
     from airflow.models import Connection
 
@@ -121,7 +121,7 @@ class MongoHook(BaseHook):
         self.mongo_conn_id = mongo_conn_id
 
         conn = self.get_connection(self.mongo_conn_id)
-        self._validate_connection(conn)
+        self._validate_connection(conn)  # type: ignore[arg-type]
         self.connection = conn
 
         self.extras = self.connection.extra_dejson.copy()

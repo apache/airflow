@@ -1249,7 +1249,7 @@ class TestWorkerServiceAccount:
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/workers/worker-service.yaml"],
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])

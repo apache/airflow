@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import BaseSensorOperator
 
 try:
     from airflow.triggers.base import StartTriggerArgs

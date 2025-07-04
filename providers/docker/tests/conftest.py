@@ -40,7 +40,17 @@ def hook_conn(request):
     except AttributeError:
         conn = None
 
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as m:
+    try:
+        import importlib.util
+
+        if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+            raise ImportError
+
+        basehook_pp = "airflow.sdk.bases.hook.BaseHook"
+    except ImportError:
+        basehook_pp = "airflow.hooks.base.BaseHook"
+
+    with mock.patch(f"{basehook_pp}.get_connection") as m:
         if not conn:
             pass  # Don't do anything if param not specified or empty
         elif isinstance(conn, dict):

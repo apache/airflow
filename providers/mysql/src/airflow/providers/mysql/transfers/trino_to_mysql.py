@@ -20,8 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.mysql.version_compat import BaseOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
 if TYPE_CHECKING:

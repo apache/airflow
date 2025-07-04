@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any, Union
+from typing import Any, cast
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
@@ -33,7 +33,6 @@ from azure.storage.filedatalake import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
@@ -41,7 +40,12 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
 )
 
-Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+
+Credentials = ClientSecretCredential | AzureIdentityCredentialAdapter | DefaultAzureCredential
 
 
 class AzureDataLakeHook(BaseHook):
@@ -355,12 +359,13 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             app_id = conn.login
             app_secret = conn.password
             proxies = extra.get("proxies", {})
-
+            app_id = cast("str", app_id)
+            app_secret = cast("str", app_secret)
             credential = ClientSecretCredential(
                 tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
             )
         elif conn.password:
-            credential = conn.password
+            credential = conn.password  # type: ignore[assignment]
         else:
             managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")

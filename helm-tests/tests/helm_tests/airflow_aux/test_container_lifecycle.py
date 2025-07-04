@@ -223,3 +223,6 @@ class TestContainerLifecycleHooks:
             assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
                 f"spec.template.spec.containers[1].lifecycle.{hook_type}", doc
             )
+
+
+# ruff: noqa: PT028

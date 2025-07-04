@@ -27,7 +27,7 @@ from collections.abc import Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 import pendulum
 import tenacity
@@ -36,7 +36,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
-from typing_extensions import Literal
 from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException

@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 import traceback
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -45,6 +47,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
+from airflow.utils.file import iter_airflow_imports
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -88,14 +91,35 @@ class DagFileParsingResult(BaseModel):
 
 
 ToManager = Annotated[
-    Union[DagFileParsingResult, GetConnection, GetVariable, PutVariable, DeleteVariable],
+    DagFileParsingResult | GetConnection | GetVariable | PutVariable | DeleteVariable,
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    Union[DagFileParseRequest, ConnectionResult, VariableResult, ErrorResponse, OKResponse],
+    DagFileParseRequest | ConnectionResult | VariableResult | ErrorResponse | OKResponse,
     Field(discriminator="type"),
 ]
+
+
+def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
+    """
+    Pre-import Airflow modules found in the given file.
+
+    This prevents modules from being re-imported in each processing process,
+    saving CPU time and memory.
+    (The default value of "parsing_pre_import_modules" is set to True)
+
+    :param file_path: Path to the file to scan for imports
+    :param log: Logger instance to use for warnings
+    """
+    if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+        return
+
+    for module in iter_airflow_imports(file_path):
+        try:
+            importlib.import_module(module)
+        except ModuleNotFoundError as e:
+            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
 
 
 def _parse_file_entrypoint():
@@ -127,6 +151,7 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
@@ -250,6 +275,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         client: Client,
         **kwargs,
     ) -> Self:
+        logger = kwargs["logger"]
+
+        _pre_import_airflow_modules(os.fspath(path), logger)
+
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
         return proc

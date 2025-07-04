@@ -24,7 +24,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowFailException
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

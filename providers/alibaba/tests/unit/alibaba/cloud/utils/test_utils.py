@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
 from inspect import signature
-from typing import Callable, TypeVar, cast
+from typing import TypeVar, cast
 
 T = TypeVar("T", bound=Callable)
 

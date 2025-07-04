@@ -21,7 +21,7 @@ import contextlib
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, inspect, text
 from sqlalchemy.exc import NoSuchTableError
@@ -30,7 +30,11 @@ from sqlalchemy.orm import Session
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.abstractoperator import DEFAULT_QUEUE
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_QUEUE
+except (ImportError, AttributeError):
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.edge3.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -52,7 +56,7 @@ if TYPE_CHECKING:
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
     CommandType = Sequence[str]
     # Task tuple to send to be executed
-    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -72,6 +76,7 @@ class EdgeExecutor(BaseExecutor):
         """
         inspector = inspect(engine)
         edge_job_columns = None
+        edge_job_command_len = None
         with contextlib.suppress(NoSuchTableError):
             edge_job_schema = inspector.get_columns("edge_job")
             edge_job_columns = [column["name"] for column in edge_job_schema]

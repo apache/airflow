@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import functools
 import logging
+from collections.abc import Callable
 from inspect import signature
-from typing import Callable, TypeVar, overload
+from typing import TypeVar, overload
 
 from sqlalchemy.exc import DBAPIError
 

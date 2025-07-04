@@ -33,6 +33,15 @@ Decorators
 .. autoapifunction:: airflow.sdk.dag
 .. autoapifunction:: airflow.sdk.task
 
+Task Decorators:
+
+- ``@task.run_if(condition, skip_message=None)``
+  Run the task only if the given condition is met; otherwise the task is skipped.  The condition is a callable
+  that receives the task execution context and returns either a boolean or a tuple ``(bool, message)``.
+- ``@task.skip_if(condition, skip_message=None)``
+  Skip the task if the given condition is met, raising a skip exception with an optional message.
+- Provider-specific task decorators under ``@task.<provider>``, e.g. ``@task.python``, ``@task.docker``, etc., dynamically loaded from registered providers.
+
 .. autoapifunction:: airflow.sdk.task_group
 
 .. autoapifunction:: airflow.sdk.setup
@@ -60,6 +69,8 @@ Bases
 .. autoapiclass:: airflow.sdk.XComArg
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue
+
+.. autoapiclass:: airflow.sdk.BaseHook
 
 Connections & Variables
 -----------------------

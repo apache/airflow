@@ -45,6 +45,6 @@ Typical command to install Airflow from PyPI looks like below (you need to use t
 
 .. code-block::
 
-    pip install "apache-airflow-providers-celery" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.9.txt"
+    pip install "apache-airflow-providers-celery" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.10.txt"
 
 This is an example, see :doc:`apache-airflow:installation/installing-from-pypi` for more examples, including how to upgrade the providers.

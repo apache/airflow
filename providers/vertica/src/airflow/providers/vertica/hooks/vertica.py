@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import Any, Callable, overload
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, overload
 
 from vertica_python import connect
 
@@ -68,7 +68,7 @@ class VerticaHook(DbApiHook):
     def get_conn(self) -> connect:
         """Return vertica connection object."""
         conn = self.get_connection(self.vertica_conn_id)  # type: ignore
-        conn_config = {
+        conn_config: dict[str, Any] = {
             "user": conn.login,
             "password": conn.password or "",
             "database": conn.schema,

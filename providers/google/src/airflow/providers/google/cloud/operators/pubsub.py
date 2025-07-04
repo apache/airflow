@@ -25,8 +25,8 @@ This module contains Google PubSub operators.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.pubsub_v1.types import (

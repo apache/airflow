@@ -20,9 +20,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
+from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

@@ -60,7 +60,6 @@ class TestMaxComputeSQLOperator:
 
         mock_log_view_link.persist.assert_called_once_with(
             context=mock.ANY,
-            task_instance=op,
             log_view_url=instance_mock.get_logview_address.return_value,
         )
 

@@ -24,8 +24,9 @@ from typing import cast
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
-from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import ObjectStoragePath

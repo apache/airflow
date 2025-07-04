@@ -24,7 +24,11 @@ from typing import TYPE_CHECKING, Any
 import pagerduty
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -66,7 +70,7 @@ class PagerdutyEventsHook(BaseHook):
 
         if pagerduty_events_conn_id is not None:
             conn = self.get_connection(pagerduty_events_conn_id)
-            password = conn.get_password()
+            password = conn.password
             if password is not None:
                 self.integration_key = password
 

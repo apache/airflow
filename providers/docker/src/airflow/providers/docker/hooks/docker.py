@@ -27,7 +27,7 @@ from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError, DockerException
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+from airflow.providers.docker.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -150,7 +150,7 @@ class DockerHook(BaseHook):
                     raise AirflowException(msg)
                 if self.docker_conn_id:
                     # Obtain connection and try to login to Container Registry only if ``docker_conn_id`` set.
-                    self.__login(client, self.get_connection(self.docker_conn_id))
+                    self.__login(client, self.get_connection(self.docker_conn_id))  # type: ignore[arg-type]
             except APIError:
                 raise
             except DockerException as e:

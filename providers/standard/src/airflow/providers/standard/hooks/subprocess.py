@@ -24,7 +24,7 @@ from collections.abc import Iterator
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.standard.version_compat import BaseHook
 
 SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
 

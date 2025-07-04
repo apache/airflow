@@ -545,7 +545,7 @@ class AssetEventOperations:
         if name or uri:
             resp = self.client.get("asset-events/by-asset", params={"name": name, "uri": uri})
         elif alias_name:
-            resp = self.client.get("asset-events/by-asset-alias", params={"name": name})
+            resp = self.client.get("asset-events/by-asset-alias", params={"name": alias_name})
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
 

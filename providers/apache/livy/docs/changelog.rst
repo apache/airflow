@@ -28,6 +28,24 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Replace models.BaseOperator to Task SDK for apache/livy (#52499)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+   * ``Remove pytest db markers from apache livy provider (#52099)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 4.4.0
 .....
 

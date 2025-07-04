@@ -17,8 +17,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Callable, ClassVar
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 

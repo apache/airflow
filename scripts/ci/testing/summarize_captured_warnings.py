@@ -23,11 +23,11 @@ import functools
 import json
 import os
 import shutil
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import asdict, dataclass, fields
 from itertools import groupby
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from uuid import NAMESPACE_OID, uuid5
 
 if __name__ not in ("__main__", "__mp_main__"):

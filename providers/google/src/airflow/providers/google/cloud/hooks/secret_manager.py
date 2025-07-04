@@ -47,6 +47,10 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
     See https://cloud.google.com/secret-manager
     """
 
+    def __init__(self, location: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.location = location
+
     @cached_property
     def client(self):
         """
@@ -54,7 +58,16 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
 
         :return: Secret Manager client.
         """
-        return SecretManagerServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        if self.location is not None:
+            return SecretManagerServiceClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options={"api_endpoint": f"secretmanager.{self.location}.rep.googleapis.com"},
+            )
+        return SecretManagerServiceClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+        )
 
     def get_conn(self) -> SecretManagerServiceClient:
         """
@@ -63,6 +76,60 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         :return: Secret Manager client.
         """
         return self.client
+
+    def _get_parent(self, project_id: str, location: str | None = None) -> str:
+        """
+        Return parent path.
+
+        :param project_id: Required. ID of the GCP project that owns the job.
+        :param location: Optional. Target location.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
+
+        :return: Parent path.
+        """
+        _location = location or self.location
+        if _location is not None:
+            return self.client.common_location_path(project_id, _location)
+        return self.client.common_project_path(project_id)
+
+    def _get_secret_path(self, project_id: str, secret_id: str, location: str | None = None) -> str:
+        """
+        Return secret path.
+
+        :param project_id: Required. ID of the GCP project that owns the job.
+        :param secret_id: Required. Secret ID for which path is required.
+        :param location: Optional. Target location.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
+
+        :return: Parent path.
+        """
+        _location = location or self.location
+        if _location is not None:
+            # Google's client library does not provide a method to construct regional secret paths, so constructing manually.
+            return f"projects/{project_id}/locations/{_location}/secrets/{secret_id}"
+        return self.client.secret_path(project_id, secret_id)
+
+    def _get_secret_version_path(
+        self, project_id: str, secret_id: str, secret_version: str, location: str | None = None
+    ) -> str:
+        """
+        Return secret version path.
+
+        :param project_id: Required. ID of the GCP project that owns the job.
+        :param secret_id: Required. Secret ID for which path is required.
+        :param secret_version: Required. Secret version for which path is required.
+        :param location: Optional. Target location.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
+
+        :return: Parent path.
+        """
+        _location = location or self.location
+        if _location is not None:
+            # Google's client library does not provide a method to construct regional secret version paths, so constructing manually.
+            return (
+                f"projects/{project_id}/locations/{_location}/secrets/{secret_id}/versions/{secret_version}"
+            )
+        return self.client.secret_version_path(project_id, secret_id, secret_version)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_secret(
@@ -73,6 +140,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
     ) -> Secret:
         """
         Create a secret.
@@ -88,12 +156,20 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         :param retry: Optional. Designation of what errors, if any, should be retried.
         :param timeout: Optional. The timeout for this request.
         :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        :param location: Optional. Location where secret should be created. Used for creating regional secret.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
         :return: Secret object.
         """
-        _secret = secret or {"replication": {"automatic": {}}}
+        if not secret:
+            _secret: dict | Secret = {}
+            if (location or self.location) is None:
+                _secret["replication"] = {"automatic": {}}
+        else:
+            _secret = secret
+
         response = self.client.create_secret(
             request={
-                "parent": f"projects/{project_id}",
+                "parent": self._get_parent(project_id, location),
                 "secret_id": secret_id,
                 "secret": _secret,
             },
@@ -113,6 +189,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
     ) -> SecretVersion:
         """
         Add a version to the secret.
@@ -128,11 +205,13 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         :param retry: Optional. Designation of what errors, if any, should be retried.
         :param timeout: Optional. The timeout for this request.
         :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        :param location: Optional. Location where secret is located. Used for adding version to regional secret.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
         :return: Secret version object.
         """
         response = self.client.add_secret_version(
             request={
-                "parent": f"projects/{project_id}/secrets/{secret_id}",
+                "parent": self._get_secret_path(project_id, secret_id, location),
                 "payload": secret_payload,
             },
             retry=retry,
@@ -152,6 +231,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
     ) -> ListSecretsPager:
         """
         List secrets.
@@ -168,11 +248,13 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         :param retry: Optional. Designation of what errors, if any, should be retried.
         :param timeout: Optional. The timeout for this request.
         :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        :param location: Optional. The regional secrets stored in the provided location will be listed.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
         :return: Secret List object.
         """
         response = self.client.list_secrets(
             request={
-                "parent": f"projects/{project_id}",
+                "parent": self._get_parent(project_id, location),
                 "page_size": page_size,
                 "page_token": page_token,
                 "filter": secret_filter,
@@ -185,18 +267,22 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         return response
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def secret_exists(self, project_id: str, secret_id: str) -> bool:
+    def secret_exists(self, project_id: str, secret_id: str, location: str | None = None) -> bool:
         """
         Check whether secret exists.
 
         :param project_id: Required. ID of the GCP project that owns the job.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
         :param secret_id: Required. ID of the secret to find.
+        :param location: Optional. Location where secret is expected to be stored regionally.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
         :return: True if the secret exists, False otherwise.
         """
         secret_filter = f"name:{secret_id}"
-        secret_name = self.client.secret_path(project_id, secret_id)
-        for secret in self.list_secrets(project_id=project_id, page_size=100, secret_filter=secret_filter):
+        secret_name = self._get_secret_path(project_id, secret_id, location)
+        for secret in self.list_secrets(
+            project_id=project_id, page_size=100, secret_filter=secret_filter, location=location
+        ):
             if secret.name.split("/")[-1] == secret_id:
                 self.log.info("Secret %s exists.", secret_name)
                 return True
@@ -212,6 +298,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
     ) -> AccessSecretVersionResponse:
         """
         Access a secret version.
@@ -227,11 +314,13 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         :param retry: Optional. Designation of what errors, if any, should be retried.
         :param timeout: Optional. The timeout for this request.
         :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        :param location: Optional. Location where secret is stored regionally.  If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used
+            For more details : https://cloud.google.com/secret-manager/docs/locations
         :return: Access secret version response object.
         """
         response = self.client.access_secret_version(
             request={
-                "name": self.client.secret_version_path(project_id, secret_id, secret_version),
+                "name": self._get_secret_version_path(project_id, secret_id, secret_version, location),
             },
             retry=retry,
             timeout=timeout,
@@ -248,6 +337,7 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
     ) -> None:
         """
         Delete a secret.
@@ -262,9 +352,11 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         :param retry: Optional. Designation of what errors, if any, should be retried.
         :param timeout: Optional. The timeout for this request.
         :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        :param location: Optional. Location where secret is stored regionally. If set to ``None`` or missing, the location provided for GoogleCloudSecretHook instantiation is used.
+            For more details : https://cloud.google.com/secret-manager/docs/locations
         :return: Access secret version response object.
         """
-        name = self.client.secret_path(project_id, secret_id)
+        name = self._get_secret_path(project_id, secret_id, location)
         self.client.delete_secret(
             request={"name": name},
             retry=retry,
