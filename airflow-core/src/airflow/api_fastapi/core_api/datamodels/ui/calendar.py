@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from airflow.utils.state import DagRunState
 
 
-class CalendarTimeRangeDagRuns(BaseModel):
+class CalendarTimeRangeResponse(BaseModel):
     """Represents a summary of DAG runs for a specific calendar time range."""
 
     date: datetime
