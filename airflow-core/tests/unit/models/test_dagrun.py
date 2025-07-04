@@ -907,6 +907,172 @@ class TestDagRun:
             first_ti.refresh_from_db()
             assert first_ti.state is None
 
+    def test_dag_callback_context_with_task_metadata(self, dag_maker, session):
+        """Test that DAG-level on_success_callback receives the correct context including task metadata."""
+
+        callback_invoked = {"flag": False}  # Use mutable object to modify inside nested function
+
+        def on_success_callable(context):
+            callback_invoked["flag"] = True
+
+            # Base context assertions
+            assert context["dag_run"].dag_id == "test_dag_callback_context_with_task_metadata"
+            assert context["reason"] == "success"
+            assert "dag" in context
+            assert "run_id" in context
+            assert "execution_date" in context
+            assert "data_interval_start" in context
+            assert "data_interval_end" in context
+            assert "dag_run_url" in context
+
+            # Task-level metadata
+            assert "task_instance" in context
+            assert "try_number" in context
+            assert "max_tries" in context
+            assert "log_url" in context
+            assert "mark_success_url" in context
+
+            # Verify task instance content
+            ti = context["task_instance"]
+            assert ti.task_id == "task3"
+            assert ti.state == TaskInstanceState.SUCCESS
+            assert context["try_number"] == ti.try_number
+            assert context["max_tries"] == ti.max_tries
+            assert context["log_url"] == ti.log_url
+            assert context["mark_success_url"] == ti.mark_success_url
+
+        # Define DAG with success callback
+        with dag_maker(
+            dag_id="test_dag_callback_context_with_task_metadata",
+            on_success_callback=on_success_callable,
+        ) as dag:
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+            task1 >> task2 >> task3
+
+        initial_task_states = {
+            "task1": TaskInstanceState.RUNNING,
+            "task2": TaskInstanceState.RUNNING,
+            "task3": TaskInstanceState.RUNNING,
+        }
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        session.commit()
+
+        # Create DAG run
+        dagrun = self.create_dag_run(
+            dag=dag,
+            task_states=initial_task_states,
+            state=DagRunState.RUNNING,
+            session=session,
+        )
+
+        # Simulate task completions
+        ti1 = dagrun.get_task_instance("task1", session)
+        ti2 = dagrun.get_task_instance("task2", session)
+        ti3 = dagrun.get_task_instance("task3", session)
+
+        now = timezone.utcnow()
+        ti1.set_state(TaskInstanceState.SUCCESS, session=session)
+        ti1.end_date = now
+
+        ti2.set_state(TaskInstanceState.SUCCESS, session=session)
+        ti2.end_date = now + datetime.timedelta(minutes=1)
+
+        ti3.set_state(TaskInstanceState.SUCCESS, session=session)
+        ti3.end_date = now + datetime.timedelta(minutes=2)
+
+        # Reattach callback if it was stripped (safeguard against test infra / DagBag side effects)
+        dag.on_success_callback = on_success_callable
+
+        # Finalize DAG run and trigger callback
+        dagrun.update_state(session=session, execute_callbacks=True)
+
+        # Ensure callback was actually invoked
+        assert callback_invoked["flag"], "DAG on_success_callback was not triggered"
+
+    def test_dag_callback_context_with_task_metadata_failure(self, dag_maker, session):
+        """Test that DAG-level on_failure_callback receives the last failed task instance in the context."""
+        callback_invoked = {"flag": False}
+
+        def on_failure_callable(context):
+            callback_invoked["flag"] = True
+
+            # Base context assertions
+            assert context["dag_run"].dag_id == "test_dag_callback_context_failure"
+            assert context["reason"] == "failure"
+            assert "dag" in context
+            assert "run_id" in context
+            assert "execution_date" in context
+            assert "data_interval_start" in context
+            assert "data_interval_end" in context
+            assert "dag_run_url" in context
+
+            # Task-level metadata
+            assert "task_instance" in context
+            assert "try_number" in context
+            assert "max_tries" in context
+            assert "log_url" in context
+            assert "mark_success_url" in context
+
+            # Verify task instance content
+            ti = context["task_instance"]
+            assert ti.task_id == "task3"
+            assert ti.state == TaskInstanceState.FAILED
+            assert context["try_number"] == ti.try_number
+            assert context["max_tries"] == ti.max_tries
+            assert context["log_url"] == ti.log_url
+            assert context["mark_success_url"] == ti.mark_success_url
+
+        # Define DAG with failure callback
+        with dag_maker(
+            dag_id="test_dag_callback_context_failure",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        ) as dag:
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+            task1 >> task2 >> task3
+
+        initial_task_states = {
+            "task1": TaskInstanceState.RUNNING,
+            "task2": TaskInstanceState.RUNNING,
+            "task3": TaskInstanceState.RUNNING,
+        }
+
+        session.commit()
+
+        dagrun = self.create_dag_run(
+            dag=dag,
+            task_states=initial_task_states,
+            state=DagRunState.RUNNING,
+            session=session,
+        )
+
+        now = timezone.utcnow()
+        ti1 = dagrun.get_task_instance("task1", session)
+        ti2 = dagrun.get_task_instance("task2", session)
+        ti3 = dagrun.get_task_instance("task3", session)
+
+        ti1.set_state(TaskInstanceState.SUCCESS, session=session)
+        ti1.end_date = now
+
+        ti2.set_state(TaskInstanceState.SUCCESS, session=session)
+        ti2.end_date = now + datetime.timedelta(minutes=1)
+
+        ti3.set_state(TaskInstanceState.FAILED, session=session)
+        ti3.end_date = now + datetime.timedelta(minutes=2)
+
+        # Reattach callback (required due to potential DAG context loss)
+        dag.on_failure_callback = on_failure_callable
+
+        dagrun.update_state(session=session, execute_callbacks=True)
+        assert dagrun.state == DagRunState.FAILED
+        assert callback_invoked["flag"], "DAG on_failure_callback was not triggered"
+
     @pytest.mark.parametrize("state", State.task_states)
     @mock.patch.object(settings, "task_instance_mutation_hook", autospec=True)
     def test_task_instance_mutation_hook(self, mock_hook, dag_maker, session, state):

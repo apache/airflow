@@ -79,6 +79,13 @@ class Context(TypedDict, total=False):
     ts_nodash_with_tz: str
     var: Any
 
+    # --- Added for enriched DAG-level callback context ---
+    end_date: DateTime | None
+    dag_run_url: str | None
+    max_tries: int | None
+    log_url: str | None
+    mark_success_url: str | None
+
 
 def get_current_context() -> Context:
     """

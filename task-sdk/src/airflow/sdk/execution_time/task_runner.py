@@ -193,6 +193,11 @@ class RuntimeTaskInstance(TaskInstance):
                 "value": VariableAccessor(deserialize_json=False),
             },
             "conn": ConnectionAccessor(),
+            "dag_run_url": None,  # Will be populated in callbacks
+            "end_date": None,  # Will be populated in callbacks
+            "log_url": None,  # Will be populated in callbacks
+            "mark_success_url": None,  # Will be populated in callbacks
+            "max_tries": None,  # Will be populated in callbacks
         }
         if from_server:
             dag_run = from_server.dag_run
