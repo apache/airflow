@@ -147,6 +147,12 @@ class KubernetesJobOperator(KubernetesPodOperator):
 
         return job_request_obj
 
+    def get_or_create_pod(self, pod_request_obj, context):
+        pod = None
+        while pod is None:
+            pod = self.find_pod(self.namespace or self.pod_request_obj.metadata.namespace, context=context)
+        return pod_request_obj
+
     def execute(self, context: Context):
         if self.deferrable and not self.wait_until_job_complete:
             self.log.warning(
