@@ -22,7 +22,7 @@ from collections.abc import Callable
 from functools import cached_property, lru_cache
 from multiprocessing import Process
 from time import sleep
-from typing import TYPE_CHECKING, Callable, NoReturn, Union
+from typing import TYPE_CHECKING, NoReturn, Union
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
@@ -354,19 +354,17 @@ def run_job(
     """
     job.prepare_for_execution(session=session)
     try:
-        return execute_job(job, execute_callable=execute_callable, session=session)
+        return execute_job(job, execute_callable=execute_callable)
     finally:
         job.complete_execution(session=session)
 
 
-def run_job_async(
-    job: Job, execute_callable: Union[Callable[[], int | None], Callable[[Session], int | None]]
-) -> int | None:
+def run_job_async(job: Job, execute_callable: Callable[[], int | None]) -> int | None:
     """
     Run the job asynchronously.
 
     The Job is always an ORM object and setting the state is happening within the
-    same DB session and the session is kept open throughout the whole asynchronous execution.
+    same DB session and the session is kept open throughout the whole execution.
 
     :meta private:
     """
@@ -374,21 +372,13 @@ def run_job_async(
         asyncio.set_event_loop(asyncio.new_event_loop())
 
         with create_session(scoped=False) as session:
-            job.prepare_for_execution(session=session)
-            try:
-                return execute_job(job, execute_callable=execute_callable, session=session)
-            finally:
-                job.complete_execution(session=session)
+            run_job(job=job, execute_callable=execute_callable, session=session)
 
     process = Process(target=execute_async_job)
     process.start()
 
 
-def execute_job(
-    job: Job,
-    execute_callable: Union[Callable[[], int | None], Callable[[Session], int | None]],
-    session: Session | None = None,
-) -> int | None:
+def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | None:
     """
     Execute the job.
 
@@ -408,13 +398,11 @@ def execute_job(
 
     :param execute_callable: callable to execute when running the job.
 
-    :param session: Optional session to use (new since AIP-88).
-
     :meta private:
     """
     ret = None
     try:
-        ret = execute_callable(session) if session else execute_callable()
+        ret = execute_callable()
         # In case of max runs or max duration
         job.state = JobState.SUCCESS
     except SystemExit:

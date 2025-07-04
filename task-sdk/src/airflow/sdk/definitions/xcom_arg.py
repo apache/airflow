@@ -25,6 +25,7 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
+from airflow.models.xcom import XComModel
 from airflow.sdk.definitions.mappedoperator import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
@@ -371,15 +372,20 @@ class PlainXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self._resolve(context)
 
-        self.log.debug("value: %s", value)
+        self.log.debug("value (%s): %s", type(value), value)
 
         # TODO: check why this is needed when resolving from TaskExpansionJobRunner?
         if isinstance(value, str):
-            value = XCom.deserialize_value(
-                XComResult(key=self.operator.output.key, value=value)
-            )
-        if isinstance(value, ResolveMixin):
+            result = XComResult(key=self.operator.output.key, value=value)
+            value = XCom.deserialize_value(result)
+            if isinstance(value, str):
+                value = XComModel.deserialize_value(result)
+
+        self.log.debug("deserialized value (%s): %s", type(value), value)
+
+        if isinstance(value, ResolveMixin):  # Only needed for DeferredIterable
             value = value.resolve(context)
+
         return value
 
 
@@ -396,7 +402,7 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class _MappableResult(Sequence):
+class _MappableResult(Iterable):
     def __init__(
         self, value: Sequence | dict, callables: FilterCallables | MapCallables
     ) -> None:
@@ -409,14 +415,14 @@ class _MappableResult(Sequence):
     def __len__(self) -> int:
         raise NotImplementedError
 
-    @staticmethod
-    def _convert(value: Sequence | dict) -> list:
+    @classmethod
+    def _convert(cls, value: Sequence | dict) -> list:
         if isinstance(value, (dict, set)):
             return list(value)
         if isinstance(value, list):
             return value
         raise ValueError(
-            f"XCom filter expects sequence or dict, not {type(value).__name__}"
+            f"{cls.__name__} expects sequence or dict, not {type(value).__name__}"
         )
 
     def _apply_callables(self, value) -> Any:
@@ -428,7 +434,7 @@ class _MappableResult(Sequence):
         return f"{self.__class__.__name__}({self.value}, {self.callables})"
 
 
-class _MapResult(_MappableResult):
+class _MapResult(_MappableResult, Sequence):
     def __getitem__(self, index: Any) -> Any:
         value = self._apply_callables(self.value[index])
         return value
