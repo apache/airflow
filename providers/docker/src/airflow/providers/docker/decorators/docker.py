@@ -22,15 +22,14 @@ from collections.abc import Callable, Sequence
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
-else:
-    from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.docker.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    DecoratedOperator,
+    task_decorator_factory,
+)
 
 if TYPE_CHECKING:
     from typing import Literal
