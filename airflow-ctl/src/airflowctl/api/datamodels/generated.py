@@ -573,6 +573,44 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class HITLResponseContentDetail(BaseModel):
+    """
+    Response of updating a Human-in-the-loop response.
+    """
+
+    response_content: Annotated[str, Field(title="Response Content")]
+    response_at: Annotated[datetime, Field(title="Response At")]
+    user_id: Annotated[str, Field(title="User Id")]
+
+
+class HITLResponseDetail(BaseModel):
+    """
+    Schema for Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[str, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    default: Annotated[list[str] | None, Field(title="Default")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    response_at: Annotated[datetime | None, Field(title="Response At")] = None
+    user_id: Annotated[str | None, Field(title="User Id")] = None
+    response_content: Annotated[str | None, Field(title="Response Content")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    response_received: Annotated[bool | None, Field(title="Response Received")] = False
+
+
+class HITLResponseDetailCollection(BaseModel):
+    """
+    Schema for a collection of Human-in-the-loop responses.
+    """
+
+    hitl_responses: Annotated[list[HITLResponseDetail], Field(title="Hitl Responses")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
 class HTTPExceptionResponse(BaseModel):
     """
     HTTPException Model used for error response.
@@ -897,6 +935,14 @@ class TriggererInfoResponse(BaseModel):
 
     status: Annotated[str | None, Field(title="Status")] = None
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")] = None
+
+
+class UpdateHITLResponsePayload(BaseModel):
+    """
+    Schema for updating the content of a Human-in-the-loop response.
+    """
+
+    response_content: Annotated[str, Field(title="Response Content")]
 
 
 class ValidationError(BaseModel):
