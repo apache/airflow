@@ -57,7 +57,6 @@ from airflow_breeze.commands.common_options import (
     option_dry_run,
     option_github_repository,
     option_github_token,
-    option_historical_python_version,
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
@@ -2633,7 +2632,8 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = sorted(pull_requests.keys())
+    # Only include PRs that have corresponding user data to avoid KeyError in template
+    pr_list = sorted([pr for pr in pull_requests.keys() if pr in users])
     user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
     all_users: set[str] = set()
     for user_list in users.values():
@@ -2835,7 +2835,7 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     help="Refresh constraints before generating metadata",
 )
 @option_github_token
-@option_historical_python_version
+@option_python
 @option_dry_run
 @option_verbose
 def generate_providers_metadata(refresh_constraints: bool, github_token: str | None, python: str | None):

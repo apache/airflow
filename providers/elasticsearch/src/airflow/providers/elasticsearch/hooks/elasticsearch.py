@@ -26,11 +26,7 @@ from urllib import parse
 from elasticsearch import Elasticsearch
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.elasticsearch.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse

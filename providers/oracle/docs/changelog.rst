@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Provider Migration: Update Oracle for Airflow 3.0 compatibility (#52382)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix failing static check for Oracle provider (#52436)``
+   * ``Fixes part of #52020 (#52038)``
+   * ``Replacing older 'np.NaN' with 'np.nan' in tests (#52100)``
+
 4.1.1
 .....
 

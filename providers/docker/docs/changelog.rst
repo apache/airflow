@@ -28,6 +28,24 @@ Changelog
 ---------
 
 
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Allow templating of mounts parameter in DockerOperator   (#52451)``
+* ``Provider Migration: Update docker for Airflow 3.0 compatibility (#52465)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Removed pytest.mark_db_test from the docker provider completely (#52027)``
+   * ``Always create serdag in dagmaker fixture (#50359)``
+   * ``Prepare release for June 2025 provider wave (#51724)``
+
 4.4.0
 .....
 
