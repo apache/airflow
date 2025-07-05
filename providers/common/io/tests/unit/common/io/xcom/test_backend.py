@@ -138,7 +138,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = session.execute(
+            res = session.scalars(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
@@ -184,7 +184,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 session=session,
             )
-            assert str(p) == XComModel.deserialize_value(session.execute(qry).first())
+            assert str(p) == XComModel.deserialize_value(session.scalars(qry).first())
         else:
             qry = XCom.get_many(
                 key=XCOM_RETURN_KEY,
@@ -224,7 +224,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = session.execute(
+            res = session.scalars(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
@@ -275,7 +275,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 map_index=task_instance.map_index,
             )
-            value = session.execute(
+            value = session.scalars(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
@@ -325,7 +325,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = session.execute(
+            res = session.scalars(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
