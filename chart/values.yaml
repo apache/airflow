@@ -732,9 +732,10 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
-      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
-      (contains "KubernetesExecutor" .Values.executor) }}
+      {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+      {{- else if contains "KubernetesExecutor" .Values.executor }}
+      AND executor != 'KubernetesExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
