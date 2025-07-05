@@ -757,7 +757,7 @@ script to verify that all expected files are present in SVN. This script will pr
 may help with verifying installation of the packages.
 
 ```shell script
-# Copy the list of packages (pypi urls) into `packages.txt` then run:
+# Copy the list of packages (pypi urls) from email into a `packages.txt` then run:
 uv run check_files.py providers -p {PATH_TO_SVN}
 ```
 
