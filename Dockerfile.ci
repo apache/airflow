@@ -1308,14 +1308,12 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-ARG AIRFLOW_PYTHON_VERSION=v3.10.18
-ARG GOLANG_MAJOR_MINOR_VERSION=1.24.4
+ENV AIRFLOW_PYTHON_VERSION=v3.10.18
+ENV GOLANG_MAJOR_MINOR_VERSION=1.24.4
 
 COPY --from=scripts install_os_dependencies_ci.sh /scripts/docker/
 
-RUN AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION \
-    GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION} \
-    bash /scripts/docker/install_os_dependencies_ci.sh ci
+RUN bash /scripts/docker/install_os_dependencies_ci.sh ci
 
 COPY --from=scripts common.sh /scripts/docker/
 
