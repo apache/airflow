@@ -292,8 +292,6 @@ jobs:
         if: always()
         env:
           UPGRADE_UV: "true"
-          UPGRADE_PYTHON: "false"
-          UPGRADE_GOLANG: "true"
           UPGRADE_PIP: "false"
           UPGRADE_PRE_COMMIT: "false"
           UPGRADE_NODE_LTS: "false"
@@ -305,8 +303,6 @@ jobs:
         if: always()
         env:
           UPGRADE_UV: "false"
-          UPGRADE_PYTHON: "true"
-          UPGRADE_GOLANG: "false"
           UPGRADE_PIP: "true"
           UPGRADE_PRE_COMMIT: "true"
           UPGRADE_NODE_LTS: "true"
