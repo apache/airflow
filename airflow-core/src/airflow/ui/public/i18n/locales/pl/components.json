@@ -16,7 +16,7 @@
     "missingRuns": "Brakujące wykonania",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
-    "selectDescription": "Uruchom ten DAG dla zakresu dat",
+    "selectDescription": "Uruchom ten Dag dla zakresu dat",
     "selectLabel": "Wypełnienie wsteczne",
     "title": "Uruchom uzupełnienie wsteczne",
     "toaster": {
@@ -144,7 +144,7 @@
     "versionId": "Identyfikator wersji"
   },
   "versionSelect": {
-    "dagVersion": "Wersja DAG",
+    "dagVersion": "Wersja Daga",
     "versionCode": "v{{versionCode}}"
   }
 }
