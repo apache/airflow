@@ -66,13 +66,17 @@ def get_latest_pypi_version(package_name: str) -> str:
     return latest_version
 
 
-def get_latest_python_version(python_major_minor: str) -> str | None:
+def get_latest_python_version(python_major_minor: str, github_token: str | None) -> str | None:
     latest_version = None
-    version_match = re.compile(rf"^v{python_major_minor}.*\.\d+$")
+    # Matches versions of vA.B.C and vA.B where C can only be numeric and v is optional
+    version_match = re.compile(rf"^v?{python_major_minor}\.?\d*$")
+    headers = {"User-Agent": "Python requests"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
     for i in range(5):
         response = requests.get(
             f"https://api.github.com/repos/python/cpython/tags?per_page=100&page={i + 1}",
-            headers={"User-Agent": "Python requests"},
+            headers=headers,
         )
         response.raise_for_status()  # Ensure we got a successful response
         data = response.json()
@@ -211,6 +215,8 @@ UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "
 
 PYTHON_VERSION: str = os.environ.get("PYTHON_VERSION", "3.10")
 
+GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
+
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
     # Assume that the pattern has up to 3 replacement groups:
@@ -241,7 +247,7 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 if __name__ == "__main__":
     changed = False
-    python_version = get_latest_python_version(PYTHON_VERSION)
+    python_version = get_latest_python_version(PYTHON_VERSION, GITHUB_TOKEN)
     golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
