@@ -3408,6 +3408,165 @@ export const $FastAPIRootMiddlewareResponse = {
     description: 'Serializer for Plugin FastAPI root middleware responses.'
 } as const;
 
+export const $HITLResponseContentDetail = {
+    properties: {
+        response_content: {
+            type: 'string',
+            title: 'Response Content'
+        },
+        response_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Response At'
+        },
+        user_id: {
+            type: 'string',
+            title: 'User Id'
+        }
+    },
+    type: 'object',
+    required: ['response_content', 'response_at', 'user_id'],
+    title: 'HITLResponseContentDetail',
+    description: 'Response of updating a Human-in-the-loop response.'
+} as const;
+
+export const $HITLResponseDetail = {
+    properties: {
+        ti_id: {
+            type: 'string',
+            title: 'Ti Id'
+        },
+        options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Options'
+        },
+        subject: {
+            type: 'string',
+            title: 'Subject'
+        },
+        body: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Body'
+        },
+        default: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Default'
+        },
+        multiple: {
+            type: 'boolean',
+            title: 'Multiple',
+            default: false
+        },
+        params: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Params'
+        },
+        response_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Response At'
+        },
+        user_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Id'
+        },
+        response_content: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Response Content'
+        },
+        params_input: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Params Input'
+        },
+        response_received: {
+            type: 'boolean',
+            title: 'Response Received',
+            default: false
+        }
+    },
+    type: 'object',
+    required: ['ti_id', 'options', 'subject'],
+    title: 'HITLResponseDetail',
+    description: 'Schema for Human-in-the-loop response.'
+} as const;
+
+export const $HITLResponseDetailCollection = {
+    properties: {
+        hitl_responses: {
+            items: {
+                '$ref': '#/components/schemas/HITLResponseDetail'
+            },
+            type: 'array',
+            title: 'Hitl Responses'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['hitl_responses', 'total_entries'],
+    title: 'HITLResponseDetailCollection',
+    description: 'Schema for a collection of Human-in-the-loop responses.'
+} as const;
+
 export const $HTTPExceptionResponse = {
     properties: {
         detail: {
@@ -5694,6 +5853,19 @@ export const $TriggererInfoResponse = {
     required: ['status', 'latest_triggerer_heartbeat'],
     title: 'TriggererInfoResponse',
     description: 'Triggerer info serializer for responses.'
+} as const;
+
+export const $UpdateHITLResponsePayload = {
+    properties: {
+        response_content: {
+            type: 'string',
+            title: 'Response Content'
+        }
+    },
+    type: 'object',
+    required: ['response_content'],
+    title: 'UpdateHITLResponsePayload',
+    description: 'Schema for updating the content of a Human-in-the-loop response.'
 } as const;
 
 export const $ValidationError = {

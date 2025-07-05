@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -620,6 +620,16 @@ export const UseDagVersionServiceGetDagVersionsKeyFn = ({ bundleName, bundleVers
   orderBy?: string;
   versionNumber?: number;
 }, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionsKey, ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }])];
+export type HumanInTheLoopServiceGetHitlResponseDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlResponse>>;
+export type HumanInTheLoopServiceGetHitlResponseQueryResult<TData = HumanInTheLoopServiceGetHitlResponseDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlResponseKey = "HumanInTheLoopServiceGetHitlResponse";
+export const UseHumanInTheLoopServiceGetHitlResponseKeyFn = ({ taskInstanceId }: {
+  taskInstanceId: string;
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlResponseKey, ...(queryKey ?? [{ taskInstanceId }])];
+export type HumanInTheLoopServiceGetHitlResponsesDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlResponses>>;
+export type HumanInTheLoopServiceGetHitlResponsesQueryResult<TData = HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlResponsesKey = "HumanInTheLoopServiceGetHitlResponses";
+export const UseHumanInTheLoopServiceGetHitlResponsesKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlResponsesKey, ...(queryKey ?? [])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
@@ -752,6 +762,7 @@ export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolS
 export type XcomServiceUpdateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.updateXcomEntry>>;
 export type VariableServicePatchVariableMutationResult = Awaited<ReturnType<typeof VariableService.patchVariable>>;
 export type VariableServiceBulkVariablesMutationResult = Awaited<ReturnType<typeof VariableService.bulkVariables>>;
+export type HumanInTheLoopServiceUpdateHitlResponseMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.updateHitlResponse>>;
 export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>>;
