@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-04T20:52:04.643437
+# This constraints file was automatically generated on 2025-07-05T21:48:15.485204
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -133,7 +133,7 @@ boto3==1.38.27
 botocore==1.38.27
 cachelib==0.13.0
 cachetools==5.5.2
-cadwyn==5.4.2
+cadwyn==5.4.3
 cassandra-driver==3.29.2
 cattrs==25.1.1
 celery==5.5.3
@@ -353,7 +353,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
-litellm==1.73.7
+litellm==1.74.0
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.3.2
@@ -559,7 +559,7 @@ s3transfer==0.13.0
 sagemaker_studio==1.0.16
 scikit-learn==1.7.0
 scipy==1.16.0
-scramp==1.4.5
+scramp==1.4.6
 scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
