@@ -509,6 +509,13 @@ core:
       type: string
       example: ~
       default: ~
+    multi_team_configurations:
+      description: |
+        A comma delimited list of team names and their respective configuration files (separated by a colon).
+      version_added: 3.1.0
+      type: string
+      example: "path/to/team_a/config:team_a,different/path/team_b/configuration:team_b"
+      default: ""
 database:
   description: ~
   options:
