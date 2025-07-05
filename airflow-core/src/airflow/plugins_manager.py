@@ -133,7 +133,7 @@ class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
     def __init__(self, entrypoint: metadata.EntryPoint, dist: metadata.Distribution):
-        self.dist = dist.metadata["Name"]
+        self.dist = dist.metadata["Name"]  # type: ignore[index]
         self.version = dist.version
         self.entrypoint = str(entrypoint)
 

@@ -82,12 +82,7 @@ def get_suspended_providers_folders() -> list[str]:
     for provider_path in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
         if provider_yaml["state"] == "suspended":
-            suspended_providers.append(
-                provider_path.parent.relative_to(AIRFLOW_ROOT_PATH)
-                .as_posix()
-                # TODO(potiuk): check
-                .replace("providers/src/airflow/providers/", "")
-            )
+            suspended_providers.append(provider_path.parent.resolve().as_posix())
     return suspended_providers
 
 
@@ -101,12 +96,7 @@ def get_python_excluded_providers_folders() -> list[str]:
         provider_yaml = yaml.safe_load(provider_path.read_text())
         excluded_python_versions = provider_yaml.get("excluded-python-versions", [])
         if CURRENT_PYTHON_VERSION in excluded_python_versions:
-            excluded_providers.append(
-                provider_path.parent.relative_to(AIRFLOW_ROOT_PATH)
-                .as_posix()
-                # TODO(potiuk): check
-                .replace("providers/src/airflow/providers/", "")
-            )
+            excluded_providers.append(provider_path.parent.resolve().as_posix())
     return excluded_providers
 
 
@@ -122,16 +112,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
 
     suspended_providers_folders = get_suspended_providers_folders()
     current_python_excluded_providers_folders = get_python_excluded_providers_folders()
-    suspended_providers_folders = [
-        AIRFLOW_ROOT_PATH.joinpath(prefix, provider).as_posix()
-        for prefix in PROVIDERS_PREFIXES
-        for provider in suspended_providers_folders
-    ]
-    current_python_excluded_providers_folders = [
-        AIRFLOW_ROOT_PATH.joinpath(prefix, provider).as_posix()
-        for prefix in PROVIDERS_PREFIXES
-        for provider in current_python_excluded_providers_folders
-    ]
     providers_folders = tuple([AIRFLOW_ROOT_PATH.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES])
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_ROOT_PATH.as_posix()}/{example_dir}", recursive=True)
@@ -187,6 +167,12 @@ def test_should_be_importable(example: str):
         dag_folder=example,
         include_examples=False,
     )
+    if len(dagbag.import_errors) == 1 and "AirflowOptionalProviderFeatureException" in str(
+        dagbag.import_errors
+    ):
+        pytest.skip(
+            f"Skipping {example} because it requires an optional provider feature that is not installed."
+        )
     assert len(dagbag.import_errors) == 0, f"import_errors={str(dagbag.import_errors)}"
     assert len(dagbag.dag_ids) >= 1
 

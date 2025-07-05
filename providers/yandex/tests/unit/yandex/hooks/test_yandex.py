@@ -21,6 +21,8 @@ from unittest import mock
 
 import pytest
 
+pytest.importorskip("yandexcloud")
+
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 from tests_common.test_utils.config import conf_vars
@@ -34,7 +36,6 @@ try:
     BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
-yandexcloud = pytest.importorskip("yandexcloud")
 
 
 class TestYandexHook:

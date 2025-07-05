@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
+ray = pytest.importorskip("ray")
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 
