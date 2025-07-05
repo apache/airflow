@@ -32,7 +32,6 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
     return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 if AIRFLOW_V_3_1_PLUS:
@@ -40,10 +39,7 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, BaseSensorOperator, PokeReturnValue
-else:
-    from airflow.models import BaseOperator
-    from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
-
-__all__ = ["AIRFLOW_V_3_0_PLUS", "BaseHook", "BaseOperator", "BaseSensorOperator", "PokeReturnValue"]
+__all__ = [
+    "AIRFLOW_V_3_1_PLUS",
+    "BaseHook",
+]
