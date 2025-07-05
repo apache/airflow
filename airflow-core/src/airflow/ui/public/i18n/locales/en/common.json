@@ -17,6 +17,7 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -54,7 +55,8 @@
     "runAfter": "Run After",
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
-    "triggeredBy": "Triggered By"
+    "triggeredBy": "Triggered By",
+    "triggeringUser": "Triggering User Name"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
@@ -75,6 +77,11 @@
     "home": "Home",
     "notFound": "Page Not Found",
     "title": "Error"
+  },
+  "expand":{
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "tooltip": "Press {{hotkey}} to toggle expand"
   },
   "expression": {
     "all": "All",
@@ -101,6 +108,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Home",
+    "legacyFabViews": "Legacy Views",
     "plugins": "Plugins",
     "security": "Security"
   },
@@ -128,6 +136,13 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "bottom",
+      "top": "top"
+    },
+    "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
+  },
   "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
@@ -137,6 +152,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "showDetailsPanel": "Show Details Panel",
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",
@@ -260,6 +276,7 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",

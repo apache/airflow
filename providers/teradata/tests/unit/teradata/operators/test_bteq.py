@@ -51,7 +51,7 @@ class TestBteqOperator:
 
         # Then
         mock_hook_init.assert_called_once_with(teradata_conn_id=teradata_conn_id, ssh_conn_id=None)
-        mock_execute_bteq.assert_called_once_with(sql + "\n.EXIT", "/tmp", "", 600, None, "", None, "UTF-8")
+        mock_execute_bteq.assert_called_once_with(sql + "\n.EXIT", None, "", 600, None, "", None, "UTF-8")
         assert result == "BTEQ execution result"
 
     @mock.patch.object(BteqHook, "execute_bteq_script")
@@ -81,7 +81,7 @@ class TestBteqOperator:
         mock_hook_init.assert_called_once_with(teradata_conn_id=teradata_conn_id, ssh_conn_id=None)
         mock_execute_bteq.assert_called_once_with(
             sql + "\n.EXIT",  # Assuming the prepare_bteq_script_for_local_execution appends ".EXIT"
-            "/tmp",  # default remote_working_dir
+            None,  # default remote_working_dir
             "",  # bteq_script_encoding (default ASCII => empty string)
             600,  # timeout default
             None,  # timeout_rc
@@ -252,7 +252,7 @@ class TestBteqOperator:
         mock_execute_bteq_script.assert_called_once()
         assert result == 0
 
-    @mock.patch("airflow.models.BaseOperator.render_template")
+    @mock.patch("airflow.providers.teradata.version_compat.BaseOperator.render_template")
     def test_render_template_in_sql(self, mock_render):
         op = BteqOperator(task_id="render_test", sql="SELECT * FROM {{ params.table }};")
         mock_render.return_value = "SELECT * FROM my_table;"

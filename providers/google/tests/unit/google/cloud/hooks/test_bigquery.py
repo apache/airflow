@@ -788,7 +788,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
                 view=view,
                 retry=DEFAULT_RETRY,
             )
-            assert_warning("create_empty_table", warnings)
+        assert_warning("create_empty_table", warnings)
 
         body = {"tableReference": TABLE_REFERENCE_REPR, "view": view}
         mock_table.from_api_repr.assert_called_once_with(body)
@@ -827,7 +827,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
     def test_create_empty_table_succeed(self, mock_bq_client, mock_table):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             self.hook.create_empty_table(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
-            assert_warning("create_empty_table", warnings)
+        assert_warning("create_empty_table", warnings)
 
         body = {
             "tableReference": {
@@ -880,22 +880,22 @@ class TestTableOperations(_BigQueryBaseTestClass):
                 time_partitioning=time_partitioning,
                 cluster_fields=cluster_fields,
             )
-            assert_warning("create_empty_table", warnings)
+        assert_warning("create_empty_table", warnings)
 
-            body = {
-                "tableReference": {
-                    "tableId": TABLE_ID,
-                    "projectId": PROJECT_ID,
-                    "datasetId": DATASET_ID,
-                },
-                "schema": {"fields": schema_fields},
-                "timePartitioning": time_partitioning,
-                "clustering": {"fields": cluster_fields},
-            }
-            mock_table.from_api_repr.assert_called_once_with(body)
-            mock_bq_client.return_value.create_table.assert_called_once_with(
-                table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY
-            )
+        body = {
+            "tableReference": {
+                "tableId": TABLE_ID,
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_ID,
+            },
+            "schema": {"fields": schema_fields},
+            "timePartitioning": time_partitioning,
+            "clustering": {"fields": cluster_fields},
+        }
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY
+        )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")

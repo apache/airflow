@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import base64
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urlparse
 
 import requests
@@ -617,10 +617,9 @@ class SnowflakeHook(DbApiHook):
 
     def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
         """
-        Generate OpenLineage metadata for a Snowflake task instance based on executed query IDs.
+        Emit separate OpenLineage events for each Snowflake query, based on executed query IDs.
 
-        If a single query ID is present, attach an `ExternalQueryRunFacet` to the lineage metadata.
-        If multiple query IDs are present, emits separate OpenLineage events for each query.
+        If a single query ID is present, also add an `ExternalQueryRunFacet` to the returned lineage metadata.
 
         Note that `get_openlineage_database_specific_lineage` is usually called after task's execution,
         so if multiple query IDs are present, both START and COMPLETE event for each query will be emitted
@@ -641,12 +640,21 @@ class SnowflakeHook(DbApiHook):
         )
 
         if not self.query_ids:
-            self.log.debug("openlineage: no snowflake query ids found.")
+            self.log.info("OpenLineage could not find snowflake query ids.")
             return None
 
         self.log.debug("openlineage: getting connection to get database info")
         connection = self.get_connection(self.get_conn_id())
         namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+
+        self.log.info("Separate OpenLineage events will be emitted for each query_id.")
+        emit_openlineage_events_for_snowflake_queries(
+            task_instance=task_instance,
+            hook=self,
+            query_ids=self.query_ids,
+            query_for_extra_metadata=True,
+            query_source_namespace=namespace,
+        )
 
         if len(self.query_ids) == 1:
             self.log.debug("Attaching ExternalQueryRunFacet with single query_id to OpenLineage event.")
@@ -657,21 +665,5 @@ class SnowflakeHook(DbApiHook):
                     )
                 }
             )
-
-        self.log.info("Multiple query_ids found. Separate OpenLineage event will be emitted for each query.")
-        try:
-            from airflow.providers.openlineage.utils.utils import should_use_external_connection
-
-            use_external_connection = should_use_external_connection(self)
-        except ImportError:
-            # OpenLineage provider release < 1.8.0 - we always use connection
-            use_external_connection = True
-
-        emit_openlineage_events_for_snowflake_queries(
-            query_ids=self.query_ids,
-            query_source_namespace=namespace,
-            task_instance=task_instance,
-            hook=self if use_external_connection else None,
-        )
 
         return None

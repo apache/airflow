@@ -18,11 +18,11 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
@@ -32,7 +32,6 @@ from more_itertools import chunked
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
-from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -40,9 +39,9 @@ from airflow.exceptions import (
     AirflowOptionalProviderFeatureException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
+from airflow.providers.common.sql.version_compat import BaseHook
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -50,9 +49,13 @@ if TYPE_CHECKING:
     from polars import DataFrame as PolarsDataFrame
     from sqlalchemy.engine import URL, Engine, Inspector
 
-    from airflow.models import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 T = TypeVar("T")
@@ -270,7 +273,10 @@ class DbApiHook(BaseHook):
         db = self.connection
         if self.connector is None:
             raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
-        return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
+        host = db.host or ""
+        login = db.login or ""
+        schema = db.schema or ""
+        return self.connector.connect(host=host, port=cast("int", db.port), username=login, schema=schema)
 
     def get_uri(self) -> str:
         """

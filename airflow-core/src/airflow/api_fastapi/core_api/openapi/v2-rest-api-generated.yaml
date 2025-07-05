@@ -7029,9 +7029,7 @@ components:
           type: string
           title: Name
         href:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Href
         category:
           anyOf:
@@ -7042,6 +7040,7 @@ components:
       type: object
       required:
       - name
+      - href
       title: AppBuilderMenuItemResponse
       description: Serializer for AppBuilder Menu Item responses.
     AppBuilderViewResponse:
@@ -8667,6 +8666,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
+        triggering_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Triggering User Name
         conf:
           anyOf:
           - additionalProperties: true
@@ -8707,6 +8711,7 @@ components:
       - run_type
       - state
       - triggered_by
+      - triggering_user_name
       - conf
       - note
       - dag_versions
@@ -9293,6 +9298,51 @@ components:
       - url
       title: ExternalLogUrlResponse
       description: Response for the external log URL endpoint.
+    ExternalViewResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
+          title: Destination
+          default: nav
+        href:
+          type: string
+          title: Href
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - href
+      title: ExternalViewResponse
+      description: Serializer for External View Plugin responses.
     ExtraLinkCollectionResponse:
       properties:
         extra_links:
@@ -9386,42 +9436,6 @@ components:
       - triggerer
       title: HealthInfoResponse
       description: Health serializer for responses.
-    IFrameViewsResponse:
-      properties:
-        name:
-          type: string
-          title: Name
-        src:
-          type: string
-          title: Src
-        icon:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Icon
-        url_route:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Url Route
-        destination:
-          anyOf:
-          - type: string
-            enum:
-            - nav
-            - dag
-            - dag_run
-            - task
-            - task_instance
-          - type: 'null'
-          title: Destination
-      additionalProperties: true
-      type: object
-      required:
-      - name
-      - src
-      title: IFrameViewsResponse
-      description: Serializer for IFrame Plugin responses.
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -9676,11 +9690,18 @@ components:
             $ref: '#/components/schemas/FastAPIRootMiddlewareResponse'
           type: array
           title: Fastapi Root Middlewares
-        iframe_views:
+        external_views:
           items:
-            $ref: '#/components/schemas/IFrameViewsResponse'
+            $ref: '#/components/schemas/ExternalViewResponse'
           type: array
-          title: Iframe Views
+          title: External Views
+          description: Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items'
+            are included here.
+        react_apps:
+          items:
+            $ref: '#/components/schemas/ReactAppResponse'
+          type: array
+          title: React Apps
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -9691,6 +9712,7 @@ components:
             $ref: '#/components/schemas/AppBuilderMenuItemResponse'
           type: array
           title: Appbuilder Menu Items
+          deprecated: true
         global_operator_extra_links:
           items:
             type: string
@@ -9721,7 +9743,8 @@ components:
       - flask_blueprints
       - fastapi_apps
       - fastapi_root_middlewares
-      - iframe_views
+      - external_views
+      - react_apps
       - appbuilder_views
       - appbuilder_menu_items
       - global_operator_extra_links
@@ -9919,6 +9942,51 @@ components:
       - dag_display_name
       title: QueuedEventResponse
       description: Queued Event serializer for responses..
+    ReactAppResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
+          title: Destination
+          default: nav
+        bundle_url:
+          type: string
+          title: Bundle Url
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - bundle_url
+      title: ReactAppResponse
+      description: Serializer for React App Plugin responses.
     ReprocessBehavior:
       type: string
       enum:

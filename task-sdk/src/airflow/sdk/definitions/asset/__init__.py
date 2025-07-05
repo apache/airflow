@@ -23,7 +23,8 @@ import operator
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Union, overload
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import attrs
 
@@ -57,8 +58,12 @@ __all__ = [
     "AssetWatcher",
 ]
 
+from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
+
+
+SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
 
 
 @attrs.define(frozen=True)
@@ -117,7 +122,7 @@ class AssetAliasUniqueKey:
         return AssetAlias(name=self.name)
 
 
-BaseAssetUniqueKey = Union[AssetUniqueKey, AssetAliasUniqueKey]
+BaseAssetUniqueKey = AssetUniqueKey | AssetAliasUniqueKey
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -191,7 +196,9 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    if not value.isascii():
+    ## We use latin1_general_cs to store the name (and group, asset values etc) on MySQL.
+    ## relaxing this check for non mysql backend
+    if SQL_ALCHEMY_CONN.startswith("mysql") and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
 

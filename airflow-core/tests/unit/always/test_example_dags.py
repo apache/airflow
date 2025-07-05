@@ -27,8 +27,8 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection, DagBag
+from airflow.sdk import BaseHook
 from airflow.utils import yaml
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -112,7 +112,7 @@ def get_python_excluded_providers_folders() -> list[str]:
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = [
-        "airflow/**/example_dags/example_*.py",
+        "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
         "providers/**/example_*.py",
     ]

@@ -5,7 +5,7 @@
  */
 export type AppBuilderMenuItemResponse = {
     name: string;
-    href?: string | null;
+    href: string;
     category?: string | null;
     [key: string]: unknown | string;
 };
@@ -635,6 +635,7 @@ export type DAGRunResponse = {
     run_type: DagRunType;
     state: DagRunState;
     triggered_by: DagRunTriggeredByType | null;
+    triggering_user_name: string | null;
     conf: {
     [key: string]: unknown;
 } | null;
@@ -872,6 +873,22 @@ export type ExternalLogUrlResponse = {
 };
 
 /**
+ * Serializer for External View Plugin responses.
+ */
+export type ExternalViewResponse = {
+    name: string;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    url_route?: string | null;
+    category?: string | null;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+    href: string;
+    [key: string]: unknown | string;
+};
+
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+
+/**
  * Extra Links Response.
  */
 export type ExtraLinkCollectionResponse = {
@@ -921,18 +938,6 @@ export type HealthInfoResponse = {
     scheduler: SchedulerInfoResponse;
     triggerer: TriggererInfoResponse;
     dag_processor?: DagProcessorInfoResponse | null;
-};
-
-/**
- * Serializer for IFrame Plugin responses.
- */
-export type IFrameViewsResponse = {
-    name: string;
-    src: string;
-    icon?: string | null;
-    url_route?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | null;
-    [key: string]: unknown | string;
 };
 
 /**
@@ -1034,8 +1039,15 @@ export type PluginResponse = {
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
     fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
-    iframe_views: Array<IFrameViewsResponse>;
+    /**
+     * Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.
+     */
+    external_views: Array<ExternalViewResponse>;
+    react_apps: Array<ReactAppResponse>;
     appbuilder_views: Array<AppBuilderViewResponse>;
+    /**
+     * @deprecated
+     */
     appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
     global_operator_extra_links: Array<(string)>;
     operator_extra_links: Array<(string)>;
@@ -1121,6 +1133,20 @@ export type QueuedEventResponse = {
     asset_id: number;
     created_at: string;
     dag_display_name: string;
+};
+
+/**
+ * Serializer for React App Plugin responses.
+ */
+export type ReactAppResponse = {
+    name: string;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    url_route?: string | null;
+    category?: string | null;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+    bundle_url: string;
+    [key: string]: unknown | string;
 };
 
 /**
@@ -1704,11 +1730,45 @@ export type GridDAGRunwithTIs = {
 };
 
 /**
+ * Base Node serializer for responses.
+ */
+export type GridNodeResponse = {
+    id: string;
+    label: string;
+    children?: Array<GridNodeResponse> | null;
+    is_mapped: boolean | null;
+    setup_teardown_type?: 'setup' | 'teardown' | null;
+};
+
+/**
  * Response model for the Grid UI.
  */
 export type GridResponse = {
     dag_runs: Array<GridDAGRunwithTIs>;
-    structure: StructureDataResponse;
+};
+
+/**
+ * Base Node serializer for responses.
+ */
+export type GridRunsResponse = {
+    dag_id: string;
+    run_id: string;
+    queued_at: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    run_after: string;
+    state: TaskInstanceState | null;
+    run_type: DagRunType;
+    readonly duration: number | null;
+};
+
+/**
+ * DAG Run model for the Grid UI.
+ */
+export type GridTISummaries = {
+    run_id: string;
+    dag_id: string;
+    task_instances: Array<LightGridTaskInstanceSummary>;
 };
 
 /**
@@ -1735,6 +1795,29 @@ export type HistoricalMetricDataResponse = {
     dag_run_types: DAGRunTypes;
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
+};
+
+/**
+ * Base Node serializer for responses.
+ */
+export type LatestRunResponse = {
+    id: number;
+    dag_id: string;
+    run_id: string;
+    run_after: string;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type LightGridTaskInstanceSummary = {
+    task_id: string;
+    state: TaskInstanceState | null;
+    child_states: {
+    [key: string]: (number);
+} | null;
+    min_start_date: string | null;
+    max_end_date: string | null;
 };
 
 /**
@@ -2815,6 +2898,41 @@ export type GridDataData = {
 };
 
 export type GridDataResponse = GridResponse;
+
+export type GetDagStructureData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+};
+
+export type GetDagStructureResponse = Array<GridNodeResponse>;
+
+export type GetGridRunsData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+};
+
+export type GetGridRunsResponse = Array<GridRunsResponse>;
+
+export type GetGridTiSummariesData = {
+    dagId: string;
+    runId: string;
+};
+
+export type GetGridTiSummariesResponse = GridTISummaries;
+
+export type GetLatestRunData = {
+    dagId: string;
+};
+
+export type GetLatestRunResponse = LatestRunResponse | null;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -5732,6 +5850,98 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: GridResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/structure/{dag_id}': {
+        get: {
+            req: GetDagStructureData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<GridNodeResponse>;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/runs/{dag_id}': {
+        get: {
+            req: GetGridRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<GridRunsResponse>;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/ti_summaries/{dag_id}/{run_id}': {
+        get: {
+            req: GetGridTiSummariesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: GridTISummaries;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/latest_run/{dag_id}': {
+        get: {
+            req: GetLatestRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LatestRunResponse | null;
                 /**
                  * Bad Request
                  */
