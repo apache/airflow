@@ -23,6 +23,7 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import ParseDag from "src/components/DagActions/ParseDag";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
@@ -106,6 +107,7 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
+            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
           </>
         )
