@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1135,6 +1135,24 @@ export const prefetchUseDagVersionServiceGetDagVersions = (queryClient: QueryCli
   orderBy?: string;
   versionNumber?: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) });
+/**
+* Get Hitl Response
+* Get a Human-in-the-loop Response of a specific task instance.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const prefetchUseHumanInTheLoopServiceGetHitlResponse = (queryClient: QueryClient, { taskInstanceId }: {
+  taskInstanceId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponseKeyFn({ taskInstanceId }), queryFn: () => HumanInTheLoopService.getHitlResponse({ taskInstanceId }) });
+/**
+* Get Hitl Responses
+* Get Human-in-the-loop Responses.
+* @returns HITLResponseDetailCollection Successful Response
+* @throws ApiError
+*/
+export const prefetchUseHumanInTheLoopServiceGetHitlResponses = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(), queryFn: () => HumanInTheLoopService.getHitlResponses() });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLResponsePayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1136,6 +1136,24 @@ export const useDagVersionServiceGetDagVersions = <TData = Common.DagVersionServ
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
 /**
+* Get Hitl Response
+* Get a Human-in-the-loop Response of a specific task instance.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlResponse = <TData = Common.HumanInTheLoopServiceGetHitlResponseDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ taskInstanceId }: {
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponseKeyFn({ taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlResponse({ taskInstanceId }) as TData, ...options });
+/**
+* Get Hitl Responses
+* Get Human-in-the-loop Responses.
+* @returns HITLResponseDetailCollection Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlResponses = <TData = Common.HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlResponses() as TData, ...options });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError
@@ -1987,6 +2005,22 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: BulkBody_VariableBody_;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.bulkVariables({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Update Hitl Response
+* Update a Human-in-the-loop response.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.requestBody
+* @returns HITLResponseContentDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceUpdateHitlResponse = <TData = Common.HumanInTheLoopServiceUpdateHitlResponseMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: UpdateHITLResponsePayload;
+  taskInstanceId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: UpdateHITLResponsePayload;
+  taskInstanceId: string;
+}, TContext>({ mutationFn: ({ requestBody, taskInstanceId }) => HumanInTheLoopService.updateHitlResponse({ requestBody, taskInstanceId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Asset Queued Events
 * Delete queued asset events for an asset.

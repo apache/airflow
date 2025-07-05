@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1135,6 +1135,24 @@ export const useDagVersionServiceGetDagVersionsSuspense = <TData = Common.DagVer
   orderBy?: string;
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
+/**
+* Get Hitl Response
+* Get a Human-in-the-loop Response of a specific task instance.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlResponseSuspense = <TData = Common.HumanInTheLoopServiceGetHitlResponseDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ taskInstanceId }: {
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponseKeyFn({ taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlResponse({ taskInstanceId }) as TData, ...options });
+/**
+* Get Hitl Responses
+* Get Human-in-the-loop Responses.
+* @returns HITLResponseDetailCollection Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlResponsesSuspense = <TData = Common.HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlResponses() as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
