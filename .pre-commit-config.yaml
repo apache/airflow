@@ -1593,4 +1593,11 @@ repos:
         additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.1']
         files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
+      - id: provider-version-compat
+        name: Check for correct version_compat imports in providers
+        entry: python check_provider_version_compat.py
+        language: system
+        types: [python]
+        files: ^providers/.*/src/airflow/providers/.*\.py$
+        require_serial: true
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
