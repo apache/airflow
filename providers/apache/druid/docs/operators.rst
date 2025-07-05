@@ -54,7 +54,7 @@ the connection metadata is structured as follows:
      - Druid broker port (default: 8082)
    * - Extra: JSON
      - Additional connection configuration, such as:
-       ``{"endpoint": "/druid/v2/sql/", "method": "POST"}``
+       ``{"endpoint": "/druid/v2/sql/", "method": "POST", "ssl_verify_cert": false}``
 
 An example usage of the SQLExecuteQueryOperator to connect to Apache Druid is as follows:
 
