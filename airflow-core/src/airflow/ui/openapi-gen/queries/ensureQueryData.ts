@@ -294,6 +294,23 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
   updatedAtLte?: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }) });
 /**
+* Wait Dag Run Until Finished
+* Wait for a dag run until it finishes, and return its return value.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.interval Seconds to wait between dag run state checks
+* @param data.collect Collect return value XCom from task. Can be set multiple times.
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagRunServiceWaitDagRunUntilFinishedData = (queryClient: QueryClient, { collect, dagId, dagRunId, interval }: {
+  collect?: string[];
+  dagId: string;
+  dagRunId: string;
+  interval: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ collect, dagId, dagRunId, interval }), queryFn: () => DagRunService.waitDagRunUntilFinished({ collect, dagId, dagRunId, interval }) });
+/**
 * Get Dag Source
 * Get source code using file token.
 * @param data The data for the request.
