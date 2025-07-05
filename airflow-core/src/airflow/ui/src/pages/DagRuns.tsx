@@ -315,6 +315,7 @@ export const DagRuns = () => {
         <Box flex="1" maxW="200px">
           <SearchBar
             defaultValue={filteredRunIdPattern ?? ""}
+            hideAdvanced={true}
             hotkeyDisabled={false}
             onChange={handleRunIdPatternChange}
             placeHolder={translate("dags:filters.runIdPatternFilter")}
