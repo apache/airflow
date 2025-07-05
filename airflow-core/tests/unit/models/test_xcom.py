@@ -219,7 +219,7 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_one")
     def test_xcom_get_one(self, session, task_instance):
-        stored_value = session.execute(
+        stored_value = session.scalars(
             XComModel.get_many(
                 key="xcom_1",
                 dag_ids=task_instance.dag_id,
@@ -267,7 +267,7 @@ class TestXComGet:
 
     def test_xcom_get_one_from_prior_date(self, session, tis_for_xcom_get_one_from_prior_date):
         _, ti2 = tis_for_xcom_get_one_from_prior_date
-        retrieved_value = session.execute(
+        retrieved_value = session.scalars(
             XComModel.get_many(
                 run_id=ti2.run_id,
                 key="xcom_1",
@@ -283,7 +283,7 @@ class TestXComGet:
         self, session, tis_for_xcom_get_one_from_prior_date_without_logical_date
     ):
         _, ti2 = tis_for_xcom_get_one_from_prior_date_without_logical_date
-        retrieved_value = session.execute(
+        retrieved_value = session.scalars(
             XComModel.get_many(
                 run_id=ti2.run_id,
                 key="xcom_1",
@@ -301,7 +301,7 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
     def test_xcom_get_many_single_argument_value(self, session, task_instance):
-        stored_xcoms = session.execute(
+        stored_xcoms = session.scalars(
             XComModel.get_many(
                 key="xcom_1",
                 dag_ids=task_instance.dag_id,
@@ -489,7 +489,7 @@ class TestXComRoundTrip:
         """Test that XComModel serialization and deserialization work as expected."""
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value=value)
 
-        stored_value = session.execute(
+        stored_value = session.scalars(
             XComModel.get_many(
                 key="xcom_1",
                 dag_ids=task_instance.dag_id,
