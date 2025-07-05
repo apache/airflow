@@ -40,9 +40,7 @@ log = logging.getLogger(__name__)
 # more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
 
 
-def _run_api_server(
-    args, apps: str, access_logfile: str, num_workers: int, worker_timeout: int, proxy_headers: bool
-):
+def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
     """Run the API server."""
     log.info(
         textwrap.dedent(
@@ -52,7 +50,7 @@ def _run_api_server(
             Workers: {num_workers}
             Host: {args.host}:{args.port}
             Timeout: {worker_timeout}
-            Logfiles: {access_logfile}
+            Logfiles: {args.log_file or "-"}
             ================================================================="""
         )
     )
@@ -72,12 +70,13 @@ def _run_api_server(
         "airflow.api_fastapi.main:app",
         host=args.host,
         port=args.port,
+        log_config=args.log_config,
         workers=num_workers,
         timeout_keep_alive=worker_timeout,
         timeout_graceful_shutdown=worker_timeout,
         ssl_keyfile=ssl_key,
         ssl_certfile=ssl_cert,
-        access_log=access_logfile,  # type: ignore[arg-type]
+        access_log=True,
         proxy_headers=proxy_headers,
     )
 
@@ -89,7 +88,6 @@ def api_server(args):
     print(settings.HEADER)
 
     apps = args.apps
-    access_logfile = args.access_logfile or "-"
     num_workers = args.workers
     worker_timeout = args.worker_timeout
     proxy_headers = args.proxy_headers
@@ -137,7 +135,6 @@ def api_server(args):
             callback=lambda: _run_api_server(
                 args=args,
                 apps=apps,
-                access_logfile=access_logfile,
                 num_workers=num_workers,
                 worker_timeout=worker_timeout,
                 proxy_headers=proxy_headers,
