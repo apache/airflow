@@ -24,6 +24,7 @@ from enum import Enum
 from pathlib import Path
 
 import requests
+from packaging.version import Version
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
@@ -65,6 +66,35 @@ def get_latest_pypi_version(package_name: str) -> str:
     return latest_version
 
 
+def get_latest_python_version(python_major_minor: str, github_token: str | None) -> str | None:
+    latest_version = None
+    # Matches versions of vA.B.C and vA.B where C can only be numeric and v is optional
+    version_match = re.compile(rf"^v?{python_major_minor}\.?\d*$")
+    headers = {"User-Agent": "Python requests"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    for i in range(5):
+        response = requests.get(
+            f"https://api.github.com/repos/python/cpython/tags?per_page=100&page={i + 1}",
+            headers=headers,
+        )
+        response.raise_for_status()  # Ensure we got a successful response
+        data = response.json()
+        versions = [str(tag["name"]) for tag in data if version_match.match(tag.get("name", ""))]
+        if versions:
+            latest_version = sorted(versions, key=Version, reverse=True)[0]
+            break
+    return latest_version
+
+
+def get_latest_golang_version() -> str:
+    response = requests.get("https://go.dev/dl/?mode=json")
+    response.raise_for_status()  # Ensure we got a successful response
+    versions = response.json()
+    stable_versions = [release["version"].replace("go", "") for release in versions if release["stable"]]
+    return sorted(stable_versions, key=Version, reverse=True)[0]
+
+
 def get_latest_lts_node_version() -> str:
     response = requests.get("https://nodejs.org/dist/index.json")
     response.raise_for_status()  # Ensure we got a successful response
@@ -90,6 +120,16 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(PIP_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(PIP_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+]
+
+PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(v[0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(\| *`AIRFLOW_PYTHON_VERSION` *\| *)(`v[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+]
+
+GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
 ]
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -167,9 +207,15 @@ def get_replacement(value: str, quoting: Quoting) -> str:
 
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
+UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", "true").lower() == "true"
+UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", "true").lower() == "true"
 UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
+
+PYTHON_VERSION: str = os.environ.get("PYTHON_VERSION", "3.10")
+
+GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
@@ -201,6 +247,8 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 if __name__ == "__main__":
     changed = False
+    python_version = get_latest_python_version(PYTHON_VERSION, GITHUB_TOKEN)
+    golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
     setuptools_version = get_latest_pypi_version("setuptools")
@@ -216,6 +264,18 @@ if __name__ == "__main__":
             for line_pattern, quoting in PIP_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
+                )
+        if UPGRADE_PYTHON and python_version:
+            console.print(f"[bright_blue]Latest python {PYTHON_VERSION} version: {python_version}")
+            for line_pattern, quoting in PYTHON_PATTERNS:
+                new_content = replace_version(
+                    line_pattern, get_replacement(python_version, quoting), new_content, keep_length
+                )
+        if UPGRADE_GOLANG:
+            console.print(f"[bright_blue]Latest golang version: {golang_version}")
+            for line_pattern, quoting in GOLANG_PATTERNS:
+                new_content = replace_version(
+                    line_pattern, get_replacement(golang_version, quoting), new_content, keep_length
                 )
         if UPGRADE_SETUPTOOLS:
             console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")

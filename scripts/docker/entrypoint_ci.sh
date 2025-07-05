@@ -130,7 +130,7 @@ function environment_initialization() {
     CI=${CI:="false"}
 
     # Added to have run-tests on path
-    export PATH=${PATH}:${AIRFLOW_SOURCES}
+    export PATH=${PATH}:${AIRFLOW_SOURCES}:/usr/local/go/bin/
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
