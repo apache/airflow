@@ -63,7 +63,7 @@ def _generate_provider_intersphinx_mapping() -> dict[str, tuple[str, tuple[str, 
             provider_base_url,
             (doc_inventory.as_posix() if doc_inventory.exists() else cache_inventory.as_posix(),),
         )
-    for pkg_name in ["apache-airflow", "helm-chart"]:
+    for pkg_name in ["apache-airflow", "helm-chart", "task-sdk"]:
         if os.environ.get("AIRFLOW_PACKAGE_NAME") == pkg_name:
             continue
         doc_inventory = GENERATED_PATH / "_build" / "docs" / pkg_name / current_version / "objects.inv"

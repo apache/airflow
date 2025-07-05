@@ -20,9 +20,9 @@ from typing import Any
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.version_compat import BaseHook
 from airflow.utils import timezone
 
 TEST_CONN = "aws_test_conn"

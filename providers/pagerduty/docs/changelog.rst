@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace occurences of 'get_password' with 'password' to ease migration (#52333)``
+* ``Bumping min version of pagerduty to 2.3.0 (#52214)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytestmark from Pagerduty test files (#52146)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 5.0.0
 .....
 

@@ -19,12 +19,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from atlassian import Jira
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.atlassian.jira.version_compat import BaseHook
 
 
 class JiraHook(BaseHook):
@@ -62,7 +62,7 @@ class JiraHook(BaseHook):
                 # more can be added ex: timeout, cloud, session
 
             self.client = Jira(
-                url=conn.host,
+                url=cast("str", conn.host),
                 username=conn.login,
                 password=conn.password,
                 verify_ssl=verify,

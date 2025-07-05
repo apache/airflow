@@ -32,7 +32,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection  # Avoid circular imports.
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 @dataclass
@@ -244,6 +247,12 @@ class AwsConnectionWrapper(LoggingMixin):
             if config_kwargs.get("signature_version") == "unsigned":
                 config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
+
+        if "endpoint_url" not in extra:
+            self.log.debug(
+                "Missing endpoint_url in extra config of AWS Connection with id %s. Using default AWS service endpoint",
+                conn.conn_id,
+            )
 
         self.endpoint_url = extra.get("endpoint_url")
 

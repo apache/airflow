@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from github import Github as GithubClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.github.version_compat import BaseHook
 
 
 class GithubHook(BaseHook):
