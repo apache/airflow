@@ -29,11 +29,7 @@ from google.auth.exceptions import GoogleAuthError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import get_field
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.google.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from google.ads.googleads.v20.services.services.customer_service import CustomerServiceClient
