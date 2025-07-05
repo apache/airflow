@@ -55,6 +55,7 @@
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "queueNew": "Queue up new tasks",
+      "runOnLatestVersion": "Run with latest version",
       "upstream": "Upstream"
     }
   },

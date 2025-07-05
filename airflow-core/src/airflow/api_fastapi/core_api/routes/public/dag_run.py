@@ -275,6 +275,7 @@ def clear_dag_run(
             run_id=dag_run_id,
             task_ids=None,
             only_failed=body.only_failed,
+            run_on_latest_version=body.run_on_latest_version,
             dry_run=True,
             session=session,
         )
@@ -287,6 +288,7 @@ def clear_dag_run(
         run_id=dag_run_id,
         task_ids=None,
         only_failed=body.only_failed,
+        run_on_latest_version=body.run_on_latest_version,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
