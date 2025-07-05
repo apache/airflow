@@ -19,9 +19,12 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 
 
+@pytest.mark.db_test
 class TestLogin:
     dummy_login_body = LoginBody(username="dummy", password="dummy")
     dummy_token = LoginResponse(access_token="DUMMY_TOKEN")
