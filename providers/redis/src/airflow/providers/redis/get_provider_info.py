@@ -49,6 +49,12 @@ def get_provider_info():
                 ],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Redis",
+                "python-modules": ["airflow.providers.redis.triggers.redis_await_message"],
+            }
+        ],
         "hooks": [{"integration-name": "Redis", "python-modules": ["airflow.providers.redis.hooks.redis"]}],
         "connection-types": [
             {"hook-class-name": "airflow.providers.redis.hooks.redis.RedisHook", "connection-type": "redis"}
