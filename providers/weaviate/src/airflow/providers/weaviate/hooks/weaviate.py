@@ -33,10 +33,7 @@ from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.weaviate.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Callable

@@ -248,6 +248,12 @@ class AwsConnectionWrapper(LoggingMixin):
                 config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
 
+        if "endpoint_url" not in extra:
+            self.log.debug(
+                "Missing endpoint_url in extra config of AWS Connection with id %s. Using default AWS service endpoint",
+                conn.conn_id,
+            )
+
         self.endpoint_url = extra.get("endpoint_url")
 
         # Retrieve Assume Role Configuration
