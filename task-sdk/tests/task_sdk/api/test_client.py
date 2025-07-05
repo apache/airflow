@@ -573,6 +573,21 @@ class TestVariableOperations:
         assert isinstance(resp, ErrorResponse)
         assert resp.error == ErrorType.VARIABLE_NOT_FOUND
         assert resp.detail == {"key": "non_existent_var"}
+    
+    def test_variable_not_found_with_default_provided(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                status_code=404,
+                json={"detail": {"message": "not found", "reason": "not_found"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.variables.get("missing_key", default_var="default_value")
+
+        assert isinstance(result, VariableResponse)
+        assert result.key == "missing_key"
+        assert result.value == "default_value"
+
 
     @mock.patch("time.sleep", return_value=None)
     def test_variable_get_500_error(self, mock_sleep):
