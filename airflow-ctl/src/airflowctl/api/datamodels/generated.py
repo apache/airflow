@@ -1691,6 +1691,16 @@ class AssetEventCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class AssetGroupResponse(BaseModel):
+    """
+    Asset group serializer for responses.
+    """
+
+    group: Annotated[str, Field(title="Group")]
+    assets: Annotated[list[AssetResponse], Field(title="Assets")]
+    count: Annotated[int, Field(title="Count")]
+
+
 class BackfillCollectionResponse(BaseModel):
     """
     Backfill Collection serializer for responses.
@@ -1814,6 +1824,15 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     """
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetGroupCollectionResponse(BaseModel):
+    """
+    Asset group collection response.
+    """
+
+    groups: Annotated[list[AssetGroupResponse], Field(title="Groups")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

@@ -236,7 +236,8 @@ paths:
       tags:
       - Dependencies
       summary: Get Dependencies
-      description: Dependencies graph.
+      description: Dependencies graph. Supports a single node_id or multiple node_ids
+        as exploded query parameters (node_ids=foo&node_ids=bar).
       operationId: get_dependencies
       security:
       - OAuth2PasswordBearer: []
@@ -249,6 +250,16 @@ paths:
           - type: string
           - type: 'null'
           title: Node Id
+      - name: node_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: List of node ids
+          title: Node Ids
+        description: List of node ids
       responses:
         '200':
           description: Successful Response

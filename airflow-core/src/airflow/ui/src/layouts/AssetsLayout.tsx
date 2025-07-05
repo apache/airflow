@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/consistent-type-definitions */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,11 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box } from "@chakra-ui/react";
+import type { PropsWithChildren } from "react";
 
-/// <reference types="vite/types/importMeta.d.ts" />
-/// <reference types="vite/client" />
-/// <reference types="vite/types/importMeta.d.ts" />
+import { NavTabs } from "./Details/NavTabs";
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
+export const AssetsLayout = ({ children }: PropsWithChildren) => {
+  const tabs = [
+    { label: "Asset List", value: "/assets" },
+    { label: "Grouped by Group", value: "/assets/grouped" },
+  ];
+
+  return (
+    <Box>
+      <NavTabs tabs={tabs} />
+      {children}
+    </Box>
+  );
+};
