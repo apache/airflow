@@ -245,13 +245,13 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.17"
+AIRFLOW_UV_VERSION = "0.7.19"
 AIRFLOW_USE_UV = False
-# TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
-RICH_VERSION = "13.9.4"
+RICH_VERSION = "14.0.0"
 PRE_COMMIT_VERSION = "4.2.0"
-HATCH_VERSION = "1.14.0"
+PRE_COMMIT_UV_VERSION = "4.1.4"
+HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
@@ -264,7 +264,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  pre-commit=={PRE_COMMIT_VERSION}
+  pre-commit=={PRE_COMMIT_VERSION} pre-commit-uv=={PRE_COMMIT_UV_VERSION}
 COPY . /opt/airflow
 """
 
