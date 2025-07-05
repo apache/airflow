@@ -23,10 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from gremlin_python.driver.client import Client
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.apache.tinkerpop.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
