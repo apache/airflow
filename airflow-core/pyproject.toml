@@ -210,6 +210,7 @@ include = [
 exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
 ]
 
 [tool.hatch.build.targets.custom]
@@ -232,6 +233,7 @@ artifacts = [
 exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
 ]
 
 [dependency-groups]
