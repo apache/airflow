@@ -408,7 +408,7 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 201
 
-        stored_value = session.execute(
+        stored_value = session.scalars(
             XComModel.get_many(
                 key="xcom_1",
                 dag_ids=ti.dag_id,

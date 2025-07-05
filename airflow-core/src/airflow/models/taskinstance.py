@@ -1956,7 +1956,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = session.execute(
+            first = session.scalars(
                 query.with_only_columns(
                     XComModel.run_id,
                     XComModel.task_id,
