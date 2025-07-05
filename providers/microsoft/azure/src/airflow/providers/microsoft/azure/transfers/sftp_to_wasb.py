@@ -100,7 +100,7 @@ class SFTPToWasbOperator(BaseOperator):
 
     def dry_run(self) -> None:
         if not AIRFLOW_V_3_0_PLUS:
-            raise NotImplementedError("Not implemented for Airflow 3.")
+            raise NotImplementedError("dry_run() is only supported in Airflow 3.0+.")
         super().dry_run()
         sftp_files: list[SftpFile] = self.get_sftp_files_map()
         for file in sftp_files:
