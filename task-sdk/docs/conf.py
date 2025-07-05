@@ -18,6 +18,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -35,9 +36,17 @@ CONF_DIR = Path(__file__).parent.absolute()
 sys.path.insert(0, str(CONF_DIR.parent.parent.joinpath("devel-common", "src", "sphinx_exts").resolve()))
 sys.path.insert(0, str(CONF_DIR.parent.joinpath("src").resolve()))
 
+PACKAGE_NAME = "task-sdk"
+os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
+
 PACKAGE_VERSION = airflow.sdk.__version__
 
 project = "Apache Airflow Task SDK"
+# # The version info for the project you're documenting
+version = PACKAGE_VERSION
+# The full version, including alpha/beta/rc tags.
+release = PACKAGE_VERSION
+
 
 language = "en"
 locale_dirs: list[str] = []
