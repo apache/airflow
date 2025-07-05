@@ -170,7 +170,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:MwaaTaskSensor`
 
-    :param external_env_name: The external MWAA environment name that contains the DAG Run you want to wait for
+    :param external_env_name: The external MWAA environment name that contains the Task Instance you want to wait for
         (templated)
     :param external_dag_id: The DAG ID in the external MWAA environment that contains the DAG Run you want to wait for
         (templated)
