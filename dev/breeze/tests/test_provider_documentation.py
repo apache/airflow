@@ -395,16 +395,20 @@ def test_get_most_impactful_change(changes, expected):
 
 
 @pytest.mark.parametrize(
-    "changed_files, expected",
+    "provider_id, changed_files, expected",
     [
-        pytest.param(["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
-        pytest.param(["providers/slack/tests/test_slack.py"], "test_or_example_only", id="only_tests"),
+        pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
         pytest.param(
+            "slack", ["providers/slack/tests/test_slack.py"], "test_or_example_only", id="only_tests"
+        ),
+        pytest.param(
+            "slack",
             ["providers/slack/src/airflow/providers/slack/example_dags/example_notify.py"],
             "test_or_example_only",
             id="only_example_dags",
         ),
         pytest.param(
+            "slack",
             [
                 "providers/slack/tests/test_slack.py",
                 "providers/slack/src/airflow/providers/slack/example_dags/example_notify.py",
@@ -413,6 +417,7 @@ def test_get_most_impactful_change(changes, expected):
             id="tests_and_example_dags",
         ),
         pytest.param(
+            "slack",
             [
                 "providers/slack/tests/test_slack.py",
                 "providers/slack/docs/slack.rst",
@@ -421,6 +426,7 @@ def test_get_most_impactful_change(changes, expected):
             id="docs_and_tests",
         ),
         pytest.param(
+            "slack",
             [
                 "providers/slack/src/airflow/providers/slack/hooks/slack.py",
                 "providers/slack/docs/slack.rst",
@@ -429,6 +435,7 @@ def test_get_most_impactful_change(changes, expected):
             id="docs_and_real_code",
         ),
         pytest.param(
+            "slack",
             [
                 "providers/slack/src/airflow/providers/slack/hooks/slack.py",
                 "providers/slack/tests/test_slack.py",
@@ -436,10 +443,28 @@ def test_get_most_impactful_change(changes, expected):
             "other",
             id="real_code_and_tests",
         ),
-        pytest.param(["airflow/utils/db.py"], "other", id="non_provider_file"),
-        pytest.param([], "other", id="empty_commit"),
+        pytest.param(
+            "google",
+            [
+                "providers/google/tests/some_test.py",
+                "providers/amazon/tests/test_something.py",
+            ],
+            "test_or_example_only",
+            id="tests_in_multiple_providers",
+        ),
+        pytest.param(
+            "amazon",
+            [
+                "providers/google/tests/some_test.py",
+                "providers/amazon/tests/test_something.py",
+            ],
+            "test_or_example_only",
+            id="tests_in_multiple_providers",
+        ),
+        pytest.param("slack", ["airflow/utils/db.py"], "other", id="non_provider_file"),
+        pytest.param("slack", [], "other", id="empty_commit"),
     ],
 )
-def test_classify_provider_pr_files_logic(changed_files, expected):
-    result = classification_result(changed_files)
+def test_classify_provider_pr_files_logic(provider_id, changed_files, expected):
+    result = classification_result(provider_id, changed_files)
     assert result == expected
