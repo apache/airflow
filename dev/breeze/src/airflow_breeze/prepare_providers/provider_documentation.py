@@ -195,7 +195,10 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
-def classification_result(changed_files):
+def classification_result(provider_id, changed_files):
+    provider_path = f"providers/{provider_id}/"
+    changed_files = list(filter(lambda f: f.startswith(provider_path), changed_files))
+
     if not changed_files:
         return "other"
 
@@ -214,7 +217,7 @@ def classification_result(changed_files):
     return "other"
 
 
-def classify_provider_pr_files(commit_hash: str) -> str:
+def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
     """
     Classify a provider commit based on changed files.
 
@@ -235,7 +238,7 @@ def classify_provider_pr_files(commit_hash: str) -> str:
         # safe to return other here
         return "other"
 
-    return classification_result(changed_files)
+    return classification_result(provider_id, changed_files)
 
 
 def _get_git_log_command(
@@ -827,7 +830,7 @@ def update_release_notes(
                 )
                 change = list_of_list_of_changes[0][table_iter]
 
-                classification = classify_provider_pr_files(change.full_hash)
+                classification = classify_provider_pr_files(provider_id, change.full_hash)
                 if classification == "documentation":
                     get_console().print(
                         f"[green]Automatically classifying change as DOCUMENTATION since it contains only doc changes:[/]\n"
