@@ -283,7 +283,7 @@ class DbtCloudHook(HttpHook):
         if not _connection.password:
             raise AirflowException("An API token is required to connect to dbt Cloud.")
 
-        return _connection
+        return _connection  # type: ignore[return-value]
 
     def get_conn(self, *args, **kwargs) -> Session:
         tenant = self._get_tenant_domain(self.connection)

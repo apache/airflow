@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51760)``
+
+Misc
+~~~~
+
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Remove unused import Sequence from the celery_executor.py (#52290)``
+* ``Move type-ignores up one line (#52195)``
+* ``Ignore mypy errors for deprecated executors (#52187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused pytestmark = pytest.mark.db_test (#52067)``
+
 3.12.0
 ......
 

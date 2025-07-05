@@ -29,8 +29,8 @@ import sqlalchemy
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
+from airflow.sdk import BaseHook
 
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
@@ -640,8 +640,18 @@ class TestConnection:
         assert conn.port is None
 
     @pytest.mark.db_test
-    def test_env_var_priority(self):
+    def test_env_var_priority(self, mock_supervisor_comms):
         from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+        from airflow.sdk.execution_time.comms import ConnectionResult
+
+        conn = ConnectionResult(
+            conn_id="airflow_db",
+            conn_type="mysql",
+            host="mysql",
+            login="root",
+        )
+
+        mock_supervisor_comms.send.return_value = conn
 
         conn = SqliteHook.get_connection(conn_id="airflow_db")
         assert conn.host != "ec2.compute.com"

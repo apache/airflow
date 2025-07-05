@@ -62,6 +62,16 @@ if TYPE_CHECKING:
         AzureIdentityAccessTokenProvider,
     )
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 class TestKiotaRequestAdapterHook:
     @staticmethod
@@ -81,7 +91,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_conn(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -98,7 +108,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -116,7 +126,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -135,7 +145,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -152,7 +162,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -164,7 +174,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_scopes_when_default(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -173,7 +183,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_scopes_when_passed_as_string(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(
@@ -184,7 +194,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_scopes_when_passed_as_list(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(
@@ -195,7 +205,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_api_version(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -204,7 +214,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_api_version_when_empty_config_dict(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -214,7 +224,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_api_version_when_api_version_in_config_dict(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -224,7 +234,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_api_version_when_custom_api_version_in_config_dict(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api", api_version="v1")
@@ -234,7 +244,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_scheme_and_host(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -245,7 +255,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_no_scheme_or_host(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -256,7 +266,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_tenant_id(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -271,7 +281,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -294,7 +304,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -309,7 +319,7 @@ class TestKiotaRequestAdapterHook:
     @pytest.mark.asyncio
     async def test_throw_failed_responses_with_text_plain_content_type(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -328,7 +338,7 @@ class TestKiotaRequestAdapterHook:
     @pytest.mark.asyncio
     async def test_throw_failed_responses_with_application_json_content_type(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")

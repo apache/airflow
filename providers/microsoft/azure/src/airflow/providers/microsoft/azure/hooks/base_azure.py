@@ -22,11 +22,15 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
 )
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 
 class AzureBaseHook(BaseHook):

@@ -1010,7 +1010,7 @@ class DagRun(Base, LoggingMixin):
 
     def start_dr_spans_if_needed(self, tis: list[TI]):
         # If there is no value in active_spans, then the span hasn't already been started.
-        if self.active_spans is not None and self.active_spans.get(self.run_id) is None:
+        if self.active_spans is not None and self.active_spans.get("dr:" + str(self.id)) is None:
             if self.span_status == SpanStatus.NOT_STARTED or self.span_status == SpanStatus.NEEDS_CONTINUANCE:
                 dr_span = None
                 continue_ti_spans = False
@@ -1043,7 +1043,7 @@ class DagRun(Base, LoggingMixin):
                 self.context_carrier = carrier
                 self.span_status = SpanStatus.ACTIVE
                 # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                self.active_spans.set(self.run_id, dr_span)
+                self.active_spans.set("dr:" + str(self.id), dr_span)
                 self.log.debug(
                     "DagRun span has been started and the injected context_carrier is: %s",
                     self.context_carrier,
@@ -1061,9 +1061,9 @@ class DagRun(Base, LoggingMixin):
                             ti_carrier = Trace.inject()
                             ti.context_carrier = ti_carrier
                             ti.span_status = SpanStatus.ACTIVE
-                            self.active_spans.set(ti.key, ti_span)
+                            self.active_spans.set("ti:" + ti.id, ti_span)
             else:
-                self.log.info(
+                self.log.debug(
                     "Found span_status '%s', while updating state for dag_run '%s'",
                     self.span_status,
                     self.run_id,
@@ -1071,7 +1071,7 @@ class DagRun(Base, LoggingMixin):
 
     def end_dr_span_if_needed(self):
         if self.active_spans is not None:
-            active_span = self.active_spans.get(self.run_id)
+            active_span = self.active_spans.get("dr:" + str(self.id))
             if active_span is not None:
                 self.log.debug(
                     "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
@@ -1084,7 +1084,7 @@ class DagRun(Base, LoggingMixin):
                 self.set_dagrun_span_attrs(span=active_span)
                 active_span.end(end_time=datetime_to_nano(self.end_date))
                 # Remove the span from the dict.
-                self.active_spans.delete(self.run_id)
+                self.active_spans.delete("dr:" + str(self.id))
                 self.span_status = SpanStatus.ENDED
             else:
                 if self.span_status == SpanStatus.ACTIVE:

@@ -20,6 +20,43 @@ Upgrading to Airflow 3
 
 Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking-changes>`. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
 
+Understanding Airflow 3.x Architecture Changes
+-----------------------------------------------
+
+Airflow 3.x introduces significant architectural changes that improve security, scalability, and maintainability. Understanding these changes helps you prepare for the upgrade and adapt your workflows accordingly.
+
+Airflow 2.x Architecture
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. image:: ../img/airflow-2-arch.png
+   :alt: Airflow 2.x architecture diagram showing scheduler, metadata database, and worker
+   :align: center
+
+- All components communicate directly with the Airflow metadata database.
+- Airflow 2 was designed to run all components within the same network space: task code and task execution code (airflow package code that runs user code) run in the same process.
+- Workers communicate directly with the Airflow database and execute all user code.
+- User code could import sessions and perform malicious actions on the Airflow metadata database.
+- The number of connections to the database was excessive, leading to scaling challenges.
+
+Airflow 3.x Architecture
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. image:: ../img/airflow-3-arch.png
+   :alt: Airflow 3.x architecture diagram showing the decoupled Execution API Server and worker subprocesses
+   :align: center
+
+- The API server is currently the sole access point for the metadata DB for tasks and workers.
+- It supports several applications: the Airflow REST API, an internal API for the Airflow UI that hosts static JS, and an API for workers to interact with when executing TIs via the task execution interface.
+- Workers communicate with the API server instead of directly with the database.
+- DAG processor and Triggerer utilize the task execution mechanism for their tasks, especially when they require variables or connections.
+
+Database Access Restrictions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In Airflow 3, direct metadata database access from task code is now restricted. This is a key security and architectural improvement that affects how DAG authors interact with Airflow resources:
+
+- **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
+- **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.
+- **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
+- **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
+
 Step 1: Take care of prerequisites
 ----------------------------------
 
@@ -129,7 +166,8 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
 
 If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
 them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
-Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
+Ideally, you should convert your plugins to the Airflow 3 Plugin interface i.e External Views (``external_views``), Fast API apps (``fastapi_apps``)
+and FastAPI middlewares (``fastapi_root_middlewares``).
 
 Step 7: Changes to your startup scripts
 ---------------------------------------

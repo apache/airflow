@@ -26,7 +26,10 @@ from typing import TYPE_CHECKING, Any
 
 from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
 
-from airflow.hooks.base import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from pinecone import Vector
@@ -127,7 +130,7 @@ class PineconeHook(BaseHook):
 
     @cached_property
     def conn(self) -> Connection:
-        return self.get_connection(self.conn_id)
+        return self.get_connection(self.conn_id)  # type: ignore[return-value]
 
     def test_connection(self) -> tuple[bool, str]:
         try:

@@ -65,7 +65,8 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
-    "triggeredBy": "Uruchomiony przez"
+    "triggeredBy": "Uruchomiony jako",
+    "triggeringUser": "Użytkownik który uruchomił"
   },
   "dagRun_few": "Wykonania Dagów",
   "dagRun_many": "Wykonań Dagów",
@@ -291,6 +292,7 @@
       }
     }
   },
+  "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Profil",

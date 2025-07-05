@@ -199,18 +199,28 @@ def classification_result(changed_files):
     if not changed_files:
         return "other"
 
-    has_docs = any(re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst") for f in changed_files)
+    def is_doc(f):
+        return re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst")
 
-    has_test_or_example_only = all(
-        re.match(r"^providers/[^/]+/tests/", f)
-        or re.match(r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f)
-        for f in changed_files
-    )
+    def is_test_or_example(f):
+        return re.match(r"^providers/[^/]+/tests/", f) or re.match(
+            r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f
+        )
 
-    if has_docs:
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
         return "documentation"
-    if has_test_or_example_only:
+    if all_test_or_example:
         return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
     return "other"
 
 

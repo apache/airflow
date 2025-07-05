@@ -317,19 +317,20 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
+def smart_decode_trigger_kwargs(d):
+    """
+    Slightly clean up kwargs for display or execution.
+
+    This detects one level of BaseSerialization and tries to deserialize the
+    content, removing some __type __var ugliness when the value is displayed
+    in UI to the user and/or while execution.
+    """
+    if not isinstance(d, dict) or Encoding.TYPE not in d:
+        return d
+    return BaseSerialization.deserialize(d)
+
+
 def decode_asset(var: dict[str, Any]):
-    def _smart_decode_trigger_kwargs(d):
-        """
-        Slightly clean up kwargs for display.
-
-        This detects one level of BaseSerialization and tries to deserialize the
-        content, removing some __type __var ugliness when the value is displayed
-        in UI to the user.
-        """
-        if not isinstance(d, dict) or Encoding.TYPE not in d:
-            return d
-        return BaseSerialization.deserialize(d)
-
     watchers = var.get("watchers", [])
     return Asset(
         name=var["name"],
@@ -341,7 +342,7 @@ def decode_asset(var: dict[str, Any]):
                 name=watcher["name"],
                 trigger={
                     "classpath": watcher["trigger"]["classpath"],
-                    "kwargs": _smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
+                    "kwargs": smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
                 },
             )
             for watcher in watchers

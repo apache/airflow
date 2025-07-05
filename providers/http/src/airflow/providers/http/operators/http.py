@@ -27,7 +27,11 @@ from requests import Response
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
 from airflow.providers.http.version_compat import BaseOperator
 from airflow.utils.helpers import merge_dicts

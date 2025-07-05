@@ -38,7 +38,7 @@ from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
 import httpx
@@ -50,7 +50,6 @@ from googleapiclient.errors import HttpError
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.secret_manager import (
     GoogleCloudSecretManagerHook,
@@ -61,6 +60,11 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -847,8 +851,8 @@ class CloudSQLDatabaseHook(BaseHook):
             self.user = self._get_iam_db_login()
             self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
         else:
-            self.user = self.cloudsql_connection.login
-            self.password = self.cloudsql_connection.password
+            self.user = cast("str", self.cloudsql_connection.login)
+            self.password = cast("str", self.cloudsql_connection.password)
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
         self.ssl_cert = ssl_cert

@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.10.1
+......
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace airflow.models.baseoperator to airflow.sdk for Microsoft Winrm (#52657)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest db markers from microsoft winrm provider (#52104)``
+
 3.10.0
 ......
 

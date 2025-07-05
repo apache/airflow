@@ -136,7 +136,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     needs: [update-constraints]
     if: inputs.upgrade-to-newer-dependencies == 'true' && inputs.platform == 'linux/amd64'
-    name: "Dependencies ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
+    name: "Deps ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
     strategy:
       matrix:
         python-version: ${{ fromJson(inputs.python-versions) }}
@@ -157,11 +157,11 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
-      - name: "Dependency upgrade summary"
+      - name: "Deps: ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
         shell: bash
         run: >
-          breeze run uv run /opt/airflow/dev/constraints-updated-version-check.py
-          --python-version "${MATRIX_PYTHON_VERSION}"
+          breeze release-management constraints-version-check
+          --python "${MATRIX_PYTHON_VERSION}"
           --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" --explain-why
         env:
           MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"

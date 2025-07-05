@@ -18,6 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
@@ -32,19 +33,25 @@ export const Header = ({
   readonly isRefreshing?: boolean;
   readonly taskInstance: LightGridTaskInstanceSummary;
 }) => {
+  const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
-    entries.push({ label: `Total ${state}`, value: count });
+    entries.push({ label: translate("total", { state }), value: count });
     taskCount += count;
   });
   const stats = [
     ...entries,
-    { label: "Start", value: <Time datetime={taskInstance.min_start_date} /> },
-    { label: "End", value: <Time datetime={taskInstance.max_end_date} /> },
+    { label: translate("startDate"), value: <Time datetime={taskInstance.min_start_date} /> },
+    { label: translate("endDate"), value: <Time datetime={taskInstance.max_end_date} /> },
     ...(Boolean(taskInstance.max_end_date)
-      ? [{ label: "Duration", value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date) }]
+      ? [
+          {
+            label: translate("duration"),
+            value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date),
+          },
+        ]
       : []),
   ];
 

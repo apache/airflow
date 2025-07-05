@@ -78,6 +78,11 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
+  "expand":{
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "tooltip": "Press {{hotkey}} to toggle expand"
+  },
   "expression": {
     "all": "All",
     "and": "AND",
@@ -103,6 +108,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Home",
+    "legacyFabViews": "Legacy Views",
     "plugins": "Plugins",
     "security": "Security"
   },
@@ -270,6 +276,7 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
