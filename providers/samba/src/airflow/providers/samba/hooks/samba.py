@@ -24,10 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 import smbclient
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.samba.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import smbprotocol.connection
