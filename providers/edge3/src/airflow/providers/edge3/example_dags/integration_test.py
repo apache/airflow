@@ -26,8 +26,6 @@ from __future__ import annotations
 from datetime import datetime
 from time import sleep
 
-from airflow.exceptions import AirflowNotFoundException
-
 try:
     from airflow.sdk import BaseHook
 except ImportError:
@@ -124,6 +122,7 @@ with DAG(
     def connection():
         try:
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+
             try:
                 conn = BaseHook.get_connection("integration_test")
                 print(f"Got connection {conn}")
@@ -132,6 +131,7 @@ with DAG(
                     print("Connection not found... but also OK.")
         except ImportError:
             from airflow.exceptions import AirflowNotFoundException
+
             try:
                 conn = BaseHook.get_connection("integration_test")
                 print(f"Got connection {conn}")
