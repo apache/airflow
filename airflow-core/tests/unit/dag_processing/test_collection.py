@@ -500,7 +500,13 @@ class TestUpdateDagParsingResults:
     )
     @pytest.mark.usefixtures("clean_db")
     def test_import_error_persist_for_invalid_access_control_role(
-        self, mock_full_path, monkeypatch, session, time_machine, dag_import_error_listener, testing_dag_bundle
+        self,
+        mock_full_path,
+        monkeypatch,
+        session,
+        time_machine,
+        dag_import_error_listener,
+        testing_dag_bundle,
     ):
         """
         Test that import errors related to invalid access control role are tracked in the DB until being fixed.
@@ -530,9 +536,10 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db("testing", None, [dag], import_errors, set(), session)
         # expect to get an error with "role does not exist" message.
         err = import_errors.get(("testing", dag.relative_fileloc))
-        assert "AirflowException" in err and "role does not exist" in err
+        assert "AirflowException" in err
+        assert "role does not exist" in err
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
-        # the DAG should contains an import error.
+        # the DAG should contain an import error.
         assert dag_model.has_import_errors is True
 
         prev_import_errors = session.query(ParseImportError).all()
@@ -540,23 +547,26 @@ class TestUpdateDagParsingResults:
         assert len(prev_import_errors) == 1
         prev_import_error = prev_import_errors[0]
         assert prev_import_error.filename == dag.relative_fileloc
-        assert "AirflowException" in prev_import_error.stacktrace and "role does not exist" in prev_import_error.stacktrace
-        
+        assert "AirflowException" in prev_import_error.stacktrace
+        assert "role does not exist" in prev_import_error.stacktrace
+
         # this is a new import error.
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 0
-        assert dag_import_error_listener.new["test_nonexist_access_control.py"] == prev_import_error.stacktrace
+        assert (
+            dag_import_error_listener.new["test_nonexist_access_control.py"] == prev_import_error.stacktrace
+        )
 
         # the DAG is serialized into the DB.
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert serialized_dags_count == 1
 
-        # Run the update again. Even though the DAG is not updated, the processor should raise import error since the access control is not fixed.
+        # run the update again. Even though the DAG is not updated, the processor should raise import error since the access control is not fixed.
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 5), tick=False)
         update_dag_parsing_results_in_db("testing", None, [dag], dict(), set(), session)
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
-        # the DAG should contains an import error.
+        # the DAG should contain an import error.
         assert dag_model.has_import_errors is True
 
         import_errors = session.query(ParseImportError).all()
@@ -564,21 +574,25 @@ class TestUpdateDagParsingResults:
         assert len(import_errors) == 1
         import_error = import_errors[0]
         assert import_error.filename == dag.relative_fileloc
-        assert "AirflowException" in import_error.stacktrace and "role does not exist" in import_error.stacktrace
+        assert "AirflowException" in import_error.stacktrace
+        assert "role does not exist" in import_error.stacktrace
 
-        # the new import error should be the same as previous one
+        # the new import error should be the same as the previous one
         assert len(import_errors) == len(prev_import_errors)
-        assert import_error.filename == prev_import_error.filename and import_error.filename == dag.relative_fileloc
+        assert import_error.filename == prev_import_error.filename
+        assert import_error.filename == dag.relative_fileloc
         assert import_error.stacktrace == prev_import_error.stacktrace
 
-        # this is a new import error.
+        # there is a new error and an existing error.
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 1
-        assert dag_import_error_listener.new["test_nonexist_access_control.py"] == prev_import_error.stacktrace
+        assert (
+            dag_import_error_listener.new["test_nonexist_access_control.py"] == prev_import_error.stacktrace
+        )
 
-        # Run the update again, but the incorrect access control configuration is removed.
+        # run the update again, but the incorrect access control configuration is removed.
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 10), tick=False)
-        dag.access_control=None
+        dag.access_control = None
         update_dag_parsing_results_in_db("testing", None, [dag], dict(), set(), session)
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
@@ -592,7 +606,6 @@ class TestUpdateDagParsingResults:
         # no import error should be introduced.
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 1
-        
 
     @patch.object(ParseImportError, "full_file_path")
     @pytest.mark.usefixtures("clean_db")
