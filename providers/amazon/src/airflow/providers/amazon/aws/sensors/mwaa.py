@@ -132,7 +132,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name}"
+                f"The DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
                 f"failed with state: {state}"
             )
 
@@ -172,7 +172,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
     :param external_env_name: The external MWAA environment name that contains the Task Instance you want to wait for
         (templated)
-    :param external_dag_id: The DAG ID in the external MWAA environment that contains the DAG Run you want to wait for
+    :param external_dag_id: The DAG ID in the external MWAA environment that contains the Task Instance you want to wait for
         (templated)
     :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated)
     :param external_task_id: The Task ID in the external MWAA environment that you want to wait for (templated)
@@ -264,7 +264,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The task {self.external_task_id} of DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name}"
+                f"The task {self.external_task_id} of DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
                 f"failed with state: {state}"
             )
 

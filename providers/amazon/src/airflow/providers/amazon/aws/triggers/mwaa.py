@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -110,9 +110,9 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
     """
     Trigger when an MWAA Task is complete.
 
-    :param external_env_name: The external MWAA environment name that contains the DAG Run you want to wait for
+    :param external_env_name: The external MWAA environment name that contains the Task Instance you want to wait for
         (templated)
-    :param external_dag_id: The DAG ID in the external MWAA environment that contains the DAG Run you want to wait for
+    :param external_dag_id: The DAG ID in the external MWAA environment that contains the Task Instance you want to wait for
         (templated)
     :param external_dag_run_id: The DAG Run ID in the external MWAA environment that you want to wait for (templated).
         If not provided, the latest DAG run is used by default.
@@ -139,13 +139,19 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int = 720,
         **kwargs,
     ) -> None:
-        self.success_states = set(success_states) if success_states else {TaskInstanceState.SUCCESS.value}
-        self.failure_states = set(failure_states) if failure_states else {TaskInstanceState.FAILED.value}
+        self.success_states = (
+            set(success_states) if success_states else {state.value for state in State.success_states}
+        )
+        self.failure_states = (
+            set(failure_states) if failure_states else {state.value for state in State.failed_states}
+        )
 
         if len(self.success_states & self.failure_states):
             raise ValueError("success_states and failure_states must not have any values in common")
 
-        in_progress_states = {s.value for s in TaskInstanceState} - self.success_states - self.failure_states
+        in_progress_states = set(state.value for state in IntermediateTIState).union(
+            {TaskInstanceState.RUNNING.value}
+        )
         super().__init__(
             serialized_fields={
                 "external_env_name": external_env_name,

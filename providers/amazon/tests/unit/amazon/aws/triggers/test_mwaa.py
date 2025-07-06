@@ -131,8 +131,13 @@ class TestMwaaDagRunCompletedTrigger:
 class TestMwaaTaskCompletedTrigger:
     def test_init_states(self):
         trigger = MwaaTaskCompletedTrigger(**TRIGGER_TASK_KWARGS)
-        assert trigger.success_states == {TaskInstanceState.SUCCESS.value}
-        assert trigger.failure_states == {TaskInstanceState.FAILED.value}
+        # Two defensive assertions that should fail if more success or failure states are added to make sure the expected set of success and failure states is kept in sync.
+        assert trigger.success_states == {
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SKIPPED,
+            TaskInstanceState.REMOVED,
+        }
+        assert trigger.failure_states == {TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED}
         acceptors = trigger.waiter_config_overrides["acceptors"]
         expected_acceptors = [
             {
@@ -169,7 +174,7 @@ class TestMwaaTaskCompletedTrigger:
                 "matcher": "path",
                 "argument": "RestApiResponse.state",
                 "expected": TaskInstanceState.REMOVED.value,
-                "state": "retry",
+                "state": "success",
             },
             {
                 "matcher": "path",
@@ -187,7 +192,7 @@ class TestMwaaTaskCompletedTrigger:
                 "matcher": "path",
                 "argument": "RestApiResponse.state",
                 "expected": TaskInstanceState.SKIPPED.value,
-                "state": "retry",
+                "state": "success",
             },
             {
                 "matcher": "path",
@@ -205,9 +210,12 @@ class TestMwaaTaskCompletedTrigger:
                 "matcher": "path",
                 "argument": "RestApiResponse.state",
                 "expected": TaskInstanceState.UPSTREAM_FAILED.value,
-                "state": "retry",
+                "state": "failure",
             },
         ]
+        print(acceptors)
+        print("hello")
+        print({s for s in TaskInstanceState})
         assert len(acceptors) == len(TaskInstanceState)
         assert {tuple(sorted(a.items())) for a in acceptors} == {
             tuple(sorted(a.items())) for a in expected_acceptors
