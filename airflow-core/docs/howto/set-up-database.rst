@@ -200,11 +200,11 @@ in the Postgres documentation to learn more.
 
    Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
 
-We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
+We recommend using the ``psycopg`` driver and specifying it in your SqlAlchemy connection string.
 
 .. code-block:: text
 
-   postgresql+psycopg2://<user>:<password>@<host>/<db>
+   postgresql+psycopg://<user>:<password>@<host>/<db>
 
 Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
 
@@ -239,7 +239,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    For managed Postgres such as Azure Postgresql, CloudSQL, Amazon RDS, you should use
    ``keepalives_idle`` in the connection parameters and set it to less than the idle time because those
    services will close idle connections after some time of inactivity (typically 300 seconds),
-   which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
+   which results with error ``The error: psycopg.OperationalError: SSL SYSCALL error: EOF detected``.
    The ``keepalive`` settings can be changed via ``sql_alchemy_connect_args`` configuration parameter
    :doc:`../configurations-ref` in ``[database]`` section. You can configure the args for example in your
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary

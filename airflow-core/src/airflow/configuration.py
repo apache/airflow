@@ -782,12 +782,12 @@ class AirflowConfigParser(ConfigParser):
         """
         Upgrade SQL schemas.
 
-        As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
+        As of SQLAlchemy 1.4, schemes `postgres+psycopg` and `postgres`
         must be replaced with `postgresql`.
         """
         section, key = "database", "sql_alchemy_conn"
         old_value = self.get(section, key, _extra_stacklevel=1)
-        bad_schemes = ["postgres+psycopg2", "postgres"]
+        bad_schemes = ["postgres+psycopg", "postgres"]
         good_scheme = "postgresql"
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:

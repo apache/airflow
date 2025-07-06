@@ -300,7 +300,7 @@ Create a Job Definition
 
 .. code-block:: bash
 
-   postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
+   postgresql+psycopg://<username>:<password>@<endpoint>/<database_name>
 
 7. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the Batch executor (see :ref:`here <config-options>`) or for remote logging (see :ref:`here <logging>`). Note that any configuration changes should be made across the entire Airflow environment to keep configuration consistent.
 
