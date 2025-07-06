@@ -90,7 +90,7 @@ Next, we'll need to create a DAG object to house our tasks. We'll provide a uniq
 Understanding Operators
 -----------------------
 An operator represents a unit of work in Airflow. They are the building blocks of your workflows, allowing you to
-define what tasks will be executed. While we can use operators for many tasks, Airflow also offers the :doc:`Taskflow API <taskflow>`
+define what tasks will be executed. While we can use operators for many tasks, Airflow also offers the :doc:`TaskFlow API <taskflow>`
 for a more Pythonic way to define workflows, which we'll touch on later.
 
 All operators derive from the ``BaseOperator``, which includes the essential arguments needed to run tasks in Airflow.
