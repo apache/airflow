@@ -218,7 +218,7 @@ class BundleUsageTrackingManager:
         with other processes.
         """
         log.info("checking for stale bundle versions locally")
-        # Import here to avoid circular imports
+
         from airflow.dag_processing.bundles.manager import DagBundlesManager
 
         bundles = list(DagBundlesManager().get_all_dag_bundles())
