@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from asgiref.sync import sync_to_async
+
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -60,8 +62,9 @@ class AwaitMessageTrigger(BaseTrigger):
         hook = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
         hook.subscribe(self.channels)
 
+        async_get_message = sync_to_async(hook.get_message)
         while True:
-            message = hook.get_message()
+            message = await async_get_message()
 
             if message and message["type"] == "message":
                 yield TriggerEvent(message)
