@@ -20,10 +20,11 @@ from sqlalchemy import Boolean, Column, String
 from sqlalchemy_utils import JSONType
 
 from airflow.models.base import Base, StringID
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class DagBundleModel(Base):
+class DagBundleModel(Base, LoggingMixin):
     """
     A table for storing DAG bundle metadata.
 
@@ -33,7 +34,7 @@ class DagBundleModel(Base):
     - active: Is the bundle currently found in configuration?
     - version: The latest version Airflow has seen for the bundle.
     - last_refreshed: When the bundle was last refreshed.
-    - url: URL template for viewing the bundle (e.g., "https://github.com/repo/tree/{version}")
+    - url_template: Signed URL template for viewing the bundle
     - template_params: JSON object containing template parameters (e.g., {"subdir": "dags"})
 
     """
@@ -46,8 +47,9 @@ class DagBundleModel(Base):
     url_template = Column(String(200), nullable=True)
     template_params = Column(JSONType, nullable=True)
 
-    def __init__(self, *, name: str):
+    def __init__(self, *, name: str, version: str | None = None):
         self.name = name
+        self.version = version
 
     def _unsign_url(self) -> str | None:
         """
@@ -61,7 +63,7 @@ class DagBundleModel(Base):
 
             from airflow.configuration import conf
 
-            serializer = URLSafeSerializer(conf.get_mandatory_value("api", "fernet_key"))
+            serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
             payload = serializer.loads(self.url_template)
             if isinstance(payload, dict) and "url" in payload and "bundle_name" in payload:
                 if payload["bundle_name"] == self.name:
@@ -81,7 +83,7 @@ class DagBundleModel(Base):
         :param version: The version to substitute in the template
         :return: The rendered URL or None if no template is available
         """
-        if not self.url:
+        if not self.url_template:
             return None
 
         url_template = self._unsign_url()
@@ -95,9 +97,5 @@ class DagBundleModel(Base):
         try:
             return url_template.format(**params)
         except (KeyError, ValueError) as e:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "Failed to render URL template for bundle %s: %s", self.name, e
-            )
+            self.log.warning("Failed to render URL template for bundle %s: %s", self.name, e)
             return url_template

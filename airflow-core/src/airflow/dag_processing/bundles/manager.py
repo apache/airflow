@@ -196,8 +196,8 @@ class DagBundlesManager(LoggingMixin):
                         new_template = _sign_bundle_url(new_template, name)
                         self.log.debug("Signed URL template for bundle %s", name)
 
-                if new_template != bundle.url:
-                    bundle.url = new_template
+                if new_template != bundle.url_template:
+                    bundle.url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
                 if new_params != bundle.template_params:
                     bundle.template_params = new_params
@@ -221,8 +221,10 @@ class DagBundlesManager(LoggingMixin):
                         new_template = _sign_bundle_url(new_template, name)
                         self.log.debug("Signed URL template for bundle %s", name)
 
-                new_bundle.url = new_template
+                new_bundle.url_template = new_template
                 new_bundle.template_params = new_params
+                new_bundle.version = bundle_instance.get_current_version()
+
                 session.add(new_bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
 
