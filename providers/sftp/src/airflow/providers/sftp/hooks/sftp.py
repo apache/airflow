@@ -414,7 +414,6 @@ class SFTPHook(SSHHook):
             conn.putfo(local_full_path, remote_full_path, confirm=confirm)
         else:
             conn.put(local_full_path, remote_full_path, confirm=confirm)
->>>>>>> a967e9b341 (linted again)
 
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
