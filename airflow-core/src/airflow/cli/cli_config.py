@@ -635,8 +635,8 @@ ARG_API_SERVER_HOSTNAME = Arg(
 )
 ARG_API_SERVER_LOG_CONFIG = Arg(
     ("--log-config",),
-    default=conf.get("api", "log_config"),
-    help="Path to the logging configuration file for the uvicorn server. If not set, the default uvicorn logging configuration will be used.",
+    default=conf.get("api", "log_config", fallback=None),
+    help="(Optional) Path to the logging configuration file for the uvicorn server. If not set, the default uvicorn logging configuration will be used.",
 )
 ARG_API_SERVER_APPS = Arg(
     ("--apps",),

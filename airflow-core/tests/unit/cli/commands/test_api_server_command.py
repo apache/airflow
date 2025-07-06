@@ -36,7 +36,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
     @pytest.mark.parametrize(
         "args, expected_command",
         [
-            (
+            pytest.param(
                 ["api-server", "--port", "9092", "--host", "somehost", "--dev"],
                 [
                     "fastapi",
@@ -47,8 +47,9 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "--host",
                     "somehost",
                 ],
+                id="dev mode with port and host",
             ),
-            (
+            pytest.param(
                 ["api-server", "--port", "9092", "--host", "somehost", "--dev", "--proxy-headers"],
                 [
                     "fastapi",
@@ -60,6 +61,31 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "somehost",
                     "--proxy-headers",
                 ],
+                id="dev mode with port, host and proxy headers",
+            ),
+            pytest.param(
+                [
+                    "api-server",
+                    "--port",
+                    "9092",
+                    "--host",
+                    "somehost",
+                    "--dev",
+                    "--log-config",
+                    "my_log_config.yaml",
+                ],
+                [
+                    "fastapi",
+                    "dev",
+                    "airflow-core/src/airflow/api_fastapi/main.py",
+                    "--port",
+                    "9092",
+                    "--host",
+                    "somehost",
+                    "--log-config",
+                    "my_log_config.yaml",
+                ],
+                id="dev mode with port, host and log config",
             ),
         ],
     )
@@ -119,38 +145,69 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             # Assert that AIRFLOW_API_APPS was unset after subprocess
             mock_environ.pop.assert_called_with("AIRFLOW_API_APPS")
 
-    def test_args_to_uvicorn(self, ssl_cert_and_key):
-        cert_path, key_path = ssl_cert_and_key
-
-        with (
-            mock.patch("uvicorn.run") as mock_run,
-        ):
-            args = self.parser.parse_args(
+    @pytest.mark.parametrize(
+        "cli_args, expected_additional_kwargs",
+        [
+            pytest.param(
                 [
                     "api-server",
                     "--pid",
                     "/tmp/x.pid",
                     "--ssl-cert",
-                    str(cert_path),
+                    "ssl_cert_path_placeholder",
                     "--ssl-key",
-                    str(key_path),
+                    "ssl_key_path_placeholder",
                     "--apps",
                     "core",
-                ]
-            )
+                ],
+                {
+                    "ssl_keyfile": "ssl_key_path_placeholder",
+                    "ssl_certfile": "ssl_cert_path_placeholder",
+                },
+                id="api-server with SSL cert and key",
+            ),
+            pytest.param(
+                [
+                    "api-server",
+                    "--log-config",
+                    "my_log_config.yaml",
+                ],
+                {
+                    "ssl_keyfile": None,
+                    "ssl_certfile": None,
+                    "log_config": "my_log_config.yaml",
+                },
+                id="api-server with log config",
+            ),
+        ],
+    )
+    def test_args_to_uvicorn(self, ssl_cert_and_key, cli_args, expected_additional_kwargs):
+        cert_path, key_path = ssl_cert_and_key
+        if "ssl_cert_path_placeholder" in cli_args:
+            cli_args[cli_args.index("ssl_cert_path_placeholder")] = str(cert_path)
+            expected_additional_kwargs["ssl_certfile"] = str(cert_path)
+        if "ssl_key_path_placeholder" in cli_args:
+            cli_args[cli_args.index("ssl_key_path_placeholder")] = str(key_path)
+            expected_additional_kwargs["ssl_keyfile"] = str(key_path)
+
+        with (
+            mock.patch("uvicorn.run") as mock_run,
+        ):
+            args = self.parser.parse_args(cli_args)
             api_server_command.api_server(args)
 
             mock_run.assert_called_with(
                 "airflow.api_fastapi.main:app",
-                host="0.0.0.0",
-                port=8080,
-                workers=4,
-                timeout_keep_alive=120,
-                timeout_graceful_shutdown=120,
-                ssl_keyfile=str(key_path),
-                ssl_certfile=str(cert_path),
-                access_log="-",
-                proxy_headers=False,
+                **{
+                    "host": args.host,
+                    "port": args.port,
+                    "workers": args.workers,
+                    "timeout_keep_alive": args.worker_timeout,
+                    "timeout_graceful_shutdown": args.worker_timeout,
+                    "access_log": True,
+                    "proxy_headers": args.proxy_headers,
+                    **expected_additional_kwargs,
+                },
             )
 
     @pytest.mark.parametrize(

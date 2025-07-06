@@ -66,18 +66,26 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
 
         setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
 
+    uvicorn_kwargs = {
+        "host": args.host,
+        "port": args.port,
+        "workers": num_workers,
+        "timeout_keep_alive": worker_timeout,
+        "timeout_graceful_shutdown": worker_timeout,
+        "ssl_keyfile": ssl_key,
+        "ssl_certfile": ssl_cert,
+        "access_log": True,
+        "proxy_headers": proxy_headers,
+    }
+    # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
+    if args.log_config and args.log_config != "-":
+        # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
+        # So we need to check if the log_config is set to "-" or not; if it is set to "-", we regard it as not set.
+        uvicorn_kwargs["log_config"] = args.log_config
+
     uvicorn.run(
         "airflow.api_fastapi.main:app",
-        host=args.host,
-        port=args.port,
-        log_config=args.log_config,
-        workers=num_workers,
-        timeout_keep_alive=worker_timeout,
-        timeout_graceful_shutdown=worker_timeout,
-        ssl_keyfile=ssl_key,
-        ssl_certfile=ssl_cert,
-        access_log=True,
-        proxy_headers=proxy_headers,
+        **uvicorn_kwargs,
     )
 
 
@@ -113,6 +121,9 @@ def api_server(args):
 
         if args.proxy_headers:
             run_args.append("--proxy-headers")
+
+        if args.log_config and args.log_config != "-":
+            run_args.extend(["--log-config", args.log_config])
 
         # There is no way to pass the apps to airflow/api_fastapi/main.py in the development mode
         # because fastapi dev command does not accept any additional arguments
