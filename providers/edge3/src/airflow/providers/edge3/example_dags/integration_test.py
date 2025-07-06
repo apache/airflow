@@ -123,10 +123,20 @@ with DAG(
     @task
     def connection():
         try:
-            conn = BaseHook.get_connection("integration_test")
-            print(f"Got connection {conn}")
-        except AirflowNotFoundException:
-            print("Connection not found... but also OK.")
+            from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+            try:
+                conn = BaseHook.get_connection("integration_test")
+                print(f"Got connection {conn}")
+            except AirflowRuntimeError as e:
+                if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
+                    print("Connection not found... but also OK.")
+        except ImportError:
+            from airflow.exceptions import AirflowNotFoundException
+            try:
+                conn = BaseHook.get_connection("integration_test")
+                print(f"Got connection {conn}")
+            except AirflowNotFoundException:
+                print("Connection not found... but also OK.")
 
     @task_group(prefix_group_id=False)
     def standard_tasks_group():
