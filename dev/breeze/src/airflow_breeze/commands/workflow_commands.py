@@ -59,7 +59,7 @@ def workflow_run():
 )
 @click.option(
     "--exclude-docs",
-    help="Comma separated list of docs packages to exclude from the publish.",
+    help="Comma separated short name list of docs packages to exclude from the publish. (example: apache.druid,google)",
     default="no-docs-excluded",
 )
 @click.option(
