@@ -343,7 +343,9 @@ class BulkStateFetcher(LoggingMixin):
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
         task_results = [app.backend.decode_result(v) for v in values if v]
-        task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
+        task_results_by_task_id: dict[str, dict[str, Any]] = {
+            task_result["task_id"]: task_result for task_result in task_results
+        }
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
@@ -358,13 +360,15 @@ class BulkStateFetcher(LoggingMixin):
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         tasks = self._query_task_cls_from_db_backend(task_ids)
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
-        task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
+        task_results_by_task_id: dict[str, dict[str, Any]] = {
+            task_result["task_id"]: task_result for task_result in task_results
+        }
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     @staticmethod
     def _prepare_state_and_info_by_task_dict(
-        task_ids, task_results_by_task_id
+        task_ids, task_results_by_task_id: dict[str, dict[str, Any]]
     ) -> Mapping[str, EventBufferValueType]:
         state_info: MutableMapping[str, EventBufferValueType] = {}
         for task_id in task_ids:
