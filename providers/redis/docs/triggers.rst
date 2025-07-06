@@ -17,7 +17,7 @@
 
 
 Redis Triggers
-=====================
+==============
 
 .. _howto/triggers:AwaitMessageTrigger:
 
