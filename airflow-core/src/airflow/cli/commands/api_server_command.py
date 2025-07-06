@@ -136,10 +136,6 @@ def api_server(args):
             process.wait()
         os.environ.pop("AIRFLOW_API_APPS")
     else:
-        # We leave the logs here intentionally, since run_command_with_daemon_option will first daemonize the process, then run the callback
-        if args.daemon:
-            log.info("Daemonized the API server process PID: %s", os.getpid())
-
         run_command_with_daemon_option(
             args=args,
             process_name="api_server",
@@ -150,7 +146,6 @@ def api_server(args):
                 worker_timeout=worker_timeout,
                 proxy_headers=proxy_headers,
             ),
-            should_setup_logging=False,
         )
 
 
