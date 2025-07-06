@@ -32,6 +32,11 @@ from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
+from urllib3.exceptions import (
+    ConnectionError,
+    IncompleteRead,
+    ProtocolError,
+)
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.connection import Connection
@@ -239,6 +244,8 @@ class TestKubernetesPodOperatorSystem:
         )
         context = create_context(k)
         with pytest.raises(ApiException):
+            k.execute(context)
+        with pytest.raises((ProtocolError, ConnectionError, IncompleteRead)):
             k.execute(context)
 
     @pytest.mark.asyncio
