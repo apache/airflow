@@ -2835,13 +2835,11 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     help="Refresh constraints before generating metadata",
 )
 @option_github_token
-@option_python
 @option_dry_run
 @option_verbose
-def generate_providers_metadata(refresh_constraints: bool, github_token: str | None, python: str | None):
+def generate_providers_metadata(refresh_constraints: bool, github_token: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
-    if python is None:
-        python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     all_airflow_releases, airflow_release_dates = get_all_constraint_files(
         refresh_constraints=refresh_constraints,
         python_version=python,
