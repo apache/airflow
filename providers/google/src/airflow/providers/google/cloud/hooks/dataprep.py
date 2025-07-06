@@ -28,10 +28,7 @@ import requests
 from requests import HTTPError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.google.version_compat import BaseHook
 
 
 def _get_field(extras: dict, field_name: str) -> str | None:
