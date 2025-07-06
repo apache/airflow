@@ -267,6 +267,8 @@ jobs:
           skip-pre-commits: ${{ inputs.skip-pre-commits }}
       - name: "Autoupdate all pre-commits"
         run: pre-commit autoupdate
+      - name: "Autoupdate Lucas-C/pre-commit-hooks to bleeding edge"
+        run: pre-commit autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       - name: "Run automated upgrade for black"
         run: >
           pre-commit run
