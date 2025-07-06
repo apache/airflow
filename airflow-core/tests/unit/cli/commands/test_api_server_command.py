@@ -217,9 +217,10 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
     @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
     @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.check_if_pidfile_process_is_running")
     @mock.patch("airflow.cli.commands.api_server_command.uvicorn")
     def test_run_command_daemon(
-        self, mock_uvicorn, mock_daemon, mock_setup_locations, mock_pid_file, demonize
+        self, mock_uvicorn, _, mock_daemon, mock_setup_locations, mock_pid_file, demonize
     ):
         mock_setup_locations.return_value = (
             mock.MagicMock(name="pidfile"),
@@ -254,7 +255,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             timeout_graceful_shutdown=60,
             ssl_keyfile=None,
             ssl_certfile=None,
-            access_log="-",
+            access_log=True,
             proxy_headers=False,
         )
 
