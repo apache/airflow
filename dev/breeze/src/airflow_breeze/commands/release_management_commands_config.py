@@ -405,7 +405,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management generate-providers-metadata": [
         {
             "name": "Generate providers metadata flags",
-            "options": ["--refresh-constraints", "--github-token", "--python"],
+            "options": ["--refresh-constraints", "--github-token"],
         }
     ],
     "breeze release-management start-rc-process": [
