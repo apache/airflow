@@ -22,7 +22,7 @@ Redis Triggers
 .. _howto/triggers:AwaitMessageTrigger:
 
 AwaitMessageTrigger
-------------------------
+-------------------
 
 The ``AwaitMessageTrigger`` is a trigger that asynchronously waits for a message to arrive on one or more specified Redis PubSub channels.
 
