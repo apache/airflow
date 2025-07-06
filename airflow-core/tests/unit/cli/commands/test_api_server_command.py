@@ -101,49 +101,57 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 close_fds=True,
             )
 
-    def test_apps_env_var_set_unset(self):
+    @pytest.mark.parametrize(
+        "args",
+        [
+            (["api-server"]),
+            (["api-server", "--apps", "all"]),
+            (["api-server", "--apps", "core,execution"]),
+            (["api-server", "--apps", "core"]),
+            (["api-server", "--apps", "execution"]),
+        ],
+        ids=[
+            "default_apps",
+            "all_apps_explicit",
+            "multiple_apps_explicit",
+            "single_app_core",
+            "single_app_execution",
+        ],
+    )
+    @pytest.mark.parametrize("dev_mode", [True, False])
+    @pytest.mark.parametrize(
+        "original_env",
+        [None, "some_value"],
+    )
+    def test_api_apps_env(self, args, dev_mode, original_env):
         """
         Test that AIRFLOW_API_APPS is set and unset in the environment when
         calling the airflow api-server command
         """
-        with (
-            mock.patch("subprocess.Popen") as Popen,
-            mock.patch("os.environ", autospec=True) as mock_environ,
-        ):
-            apps_value = "core,execution"
-            port = "9092"
-            host = "somehost"
 
+        if dev_mode:
+            args.append("--dev")
+
+        with (
+            mock.patch("os.environ", autospec=True) as mock_environ,
+            mock.patch("uvicorn.run"),
+            mock.patch("subprocess.Popen"),
+        ):
             # Parse the command line arguments
-            args = self.parser.parse_args(
-                ["api-server", "--port", port, "--host", host, "--apps", apps_value, "--dev"]
-            )
+            parsed_args = self.parser.parse_args(args)
 
             # Ensure AIRFLOW_API_APPS is not set initially
-            mock_environ.get.return_value = None
+            mock_environ.get.return_value = original_env
 
-            # Call the fastapi_api command
-            api_server_command.api_server(args)
+            # Call the api_server command
+            api_server_command.api_server(parsed_args)
 
-            # Assert that AIRFLOW_API_APPS was set in the environment before subprocess
-            mock_environ.__setitem__.assert_called_with("AIRFLOW_API_APPS", apps_value)
-
-            # Simulate subprocess execution
-            Popen.assert_called_with(
-                [
-                    "fastapi",
-                    "dev",
-                    "airflow-core/src/airflow/api_fastapi/main.py",
-                    "--port",
-                    port,
-                    "--host",
-                    host,
-                ],
-                close_fds=True,
-            )
-
-            # Assert that AIRFLOW_API_APPS was unset after subprocess
-            mock_environ.pop.assert_called_with("AIRFLOW_API_APPS")
+            # Verify AIRFLOW_API_APPS was cleaned up
+            if original_env is not None:
+                # os.environ[AIRFLOW_API_APPS] = original_value
+                mock_environ.__setitem__.assert_any_call(api_server_command.AIRFLOW_API_APPS, original_env)
+            else:
+                mock_environ.pop.assert_called_with(api_server_command.AIRFLOW_API_APPS, None)
 
     @pytest.mark.parametrize(
         "cli_args, expected_additional_kwargs",
