@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
-from tests_common.test_utils.config import conf_vars
+
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.models import (
@@ -57,6 +57,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -90,23 +91,24 @@ def _bootstrap_dagbag():
         # Deactivate the unknown ones
         DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
+
 @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
-    )
+    {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+)
 def initial_db_init():
     from airflow.configuration import conf
     from airflow.utils import db
-
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     db.resetdb()
     if AIRFLOW_V_3_0_PLUS:
-        from tests_common.test_utils.config import env_vars # type: ignore
-        with env_vars( # type: ignore
+        from tests_common.test_utils.config import env_vars  # type: ignore
+
+        with env_vars(  # type: ignore
             {
                 "AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS": "airflow.providers.fab.auth_manager.models.db.FABDBManager"
-            } # type: ignore
+            }  # type: ignore
         ):
             db.downgrade(to_revision="5f2621c13b39")
             db.upgradedb(to_revision="head")
