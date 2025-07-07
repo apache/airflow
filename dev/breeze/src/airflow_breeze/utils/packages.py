@@ -645,8 +645,8 @@ def get_provider_jinja_context(
     ]
     cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
 
+    requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
-    requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     for excluded_python_version in provider_details.excluded_python_versions:
         requires_python_version += f",!={excluded_python_version}"
 

@@ -71,10 +71,13 @@ def rotate_items_in_batches_v2(session, model_class, filter_condition=None, batc
 
     This function is taking advantage of yield_per available in SQLAlchemy 2.x.
     """
-    while True:
-        query = select(model_class)
-        if filter_condition is not None:
-            query = query.where(filter_condition)
+    query = select(model_class)
+    if filter_condition is not None:
+        query = query.where(filter_condition)
+
+    with session.no_autoflush:  # Temporarily disable autoflush while iterating to prevent deadlocks.
         items = session.scalars(query).yield_per(batch_size)
         for item in items:
             item.rotate_fernet_key()
+
+    # The dirty items will be flushed later by the session's transaction management.

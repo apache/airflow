@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import plugins_manager
-from airflow.hooks.base import BaseHook
 from airflow.lineage import hook
 from airflow.lineage.hook import (
     AssetLineageInfo,
@@ -32,6 +31,7 @@ from airflow.lineage.hook import (
     NoOpCollector,
     get_hook_lineage_collector,
 )
+from airflow.sdk import BaseHook
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.mock_plugins import mock_plugin_manager

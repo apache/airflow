@@ -177,7 +177,7 @@ def _base64_auth_header(auth_value):
     and returns a base64-encoded string to be used
     as an HTTP authorization header.
     """
-    if isinstance(auth_value, list | tuple):
+    if isinstance(auth_value, (list, tuple)):
         auth_value = base64.b64encode(to_bytes(":".join(auth_value)))
     return to_str(auth_value)
 
@@ -189,11 +189,11 @@ def _escape(value):
     """
 
     # make sequences into comma-separated strings
-    if isinstance(value, list | tuple):
+    if isinstance(value, (list, tuple)):
         value = ",".join(value)
 
     # dates and datetimes into isoformat
-    elif isinstance(value, date | datetime):
+    elif isinstance(value, (date, datetime)):
         value = value.isoformat()
 
     # make bools into true/false strings

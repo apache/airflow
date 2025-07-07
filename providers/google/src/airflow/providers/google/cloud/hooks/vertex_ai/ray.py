@@ -57,7 +57,7 @@ class RayHook(GoogleBaseHook):
         """Serialize Cluster dataclass to dict."""
 
         def __encode_value(value: Any) -> Any:
-            if isinstance(value, list | Repeated):
+            if isinstance(value, (list, Repeated)):
                 return [__encode_value(nested_value) for nested_value in value]
             if isinstance(value, ScalarMapContainer):
                 return {key: __encode_value(nested_value) for key, nested_value in dict(value).items()}

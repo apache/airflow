@@ -88,7 +88,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         for row in data:
             item_list = []
             for item in row:
-                if isinstance(item, datetime.date | datetime.datetime):
+                if isinstance(item, (datetime.date, datetime.datetime)):
                     item = item.isoformat()
                 elif isinstance(item, int):  # To exclude int from the number check.
                     pass

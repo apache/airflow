@@ -26,6 +26,40 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[OpenLineage] Added operator_provider_version to task event (#52468)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix non existing 'ti.dag_run' access in openlineage provider (#51932)``
+* ``Fix type import to AbstractOperator (#51773)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Add a bunch of no-redef ignores so Mypy is happy (#52507)``
+* ``chore: use task_instance as source for all airflow identifiers used in listener (#52339)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``nit: bump openlineage libraries requirement to 1.34 (#52075)``
+* ``Fixing ruff static check failures on main (#51937)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Remove db_tests from openlineage provider (#52239)``
+   * ``Fix compatibility test for Open Lineage (#51931)``
+   * ``Fix failing openlineage test (#51928)``
+
 2.4.0
 .....
 

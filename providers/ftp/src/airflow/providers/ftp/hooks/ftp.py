@@ -21,9 +21,9 @@ import datetime
 import ftplib  # nosec: B402
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.ftp.version_compat import BaseHook
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +64,13 @@ class FTPHook(BaseHook):
             pasv = params.extra_dejson.get("passive", True)
             self.conn = ftplib.FTP()  # nosec: B321
             if params.host:
-                port = ftplib.FTP_PORT
+                port: int = int(ftplib.FTP_PORT)
                 if params.port is not None:
                     port = params.port
                 logger.info("Connecting via FTP to %s:%d", params.host, port)
                 self.conn.connect(params.host, port)
                 if params.login:
+                    params.password = cast("str", params.password)
                     self.conn.login(params.login, params.password)
             self.conn.set_pasv(pasv)
 
@@ -293,6 +294,9 @@ class FTPSHook(FTPHook):
 
             # Construct FTP_TLS instance with SSL context to allow certificates to be validated by default
             context = ssl.create_default_context()
+            params.host = cast("str", params.host)
+            params.password = cast("str", params.password)
+            params.login = cast("str", params.login)
             self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
             self.conn.set_pasv(pasv)
 

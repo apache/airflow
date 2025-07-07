@@ -20,6 +20,16 @@ from unittest import mock
 
 import pytest
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 
 API_VERSION = "api_version"
@@ -44,7 +54,7 @@ PARAMS = {"level": "ad", "date_preset": "yesterday"}
 
 @pytest.fixture
 def mock_hook():
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+    with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
         hook = FacebookAdsReportingHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = EXTRAS
         yield hook
@@ -52,7 +62,7 @@ def mock_hook():
 
 @pytest.fixture
 def mock_hook_multiple():
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+    with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
         hook = FacebookAdsReportingHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = EXTRAS_MULTIPLE
         yield hook

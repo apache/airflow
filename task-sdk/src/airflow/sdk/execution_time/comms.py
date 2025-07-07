@@ -54,7 +54,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, overload
 from uuid import UUID
 
 import attrs
@@ -558,27 +558,25 @@ class SentFDs(BaseModel):
 
 
 ToTask = Annotated[
-    Union[
-        AssetResult,
-        AssetEventsResult,
-        ConnectionResult,
-        DagRunStateResult,
-        DRCount,
-        ErrorResponse,
-        PrevSuccessfulDagRunResult,
-        SentFDs,
-        StartupDetails,
-        TaskRescheduleStartDate,
-        TICount,
-        TaskStatesResult,
-        VariableResult,
-        XComCountResponse,
-        XComResult,
-        XComSequenceIndexResult,
-        XComSequenceSliceResult,
-        InactiveAssetsResult,
-        OKResponse,
-    ],
+    AssetResult
+    | AssetEventsResult
+    | ConnectionResult
+    | DagRunStateResult
+    | DRCount
+    | ErrorResponse
+    | PrevSuccessfulDagRunResult
+    | SentFDs
+    | StartupDetails
+    | TaskRescheduleStartDate
+    | TICount
+    | TaskStatesResult
+    | VariableResult
+    | XComCountResponse
+    | XComResult
+    | XComSequenceIndexResult
+    | XComSequenceSliceResult
+    | InactiveAssetsResult
+    | OKResponse,
     Field(discriminator="type"),
 ]
 
@@ -841,37 +839,35 @@ class GetDRCount(BaseModel):
 
 
 ToSupervisor = Annotated[
-    Union[
-        DeferTask,
-        DeleteXCom,
-        GetAssetByName,
-        GetAssetByUri,
-        GetAssetEventByAsset,
-        GetAssetEventByAssetAlias,
-        GetConnection,
-        GetDagRunState,
-        GetDRCount,
-        GetPrevSuccessfulDagRun,
-        GetTaskRescheduleStartDate,
-        GetTICount,
-        GetTaskStates,
-        GetVariable,
-        GetXCom,
-        GetXComCount,
-        GetXComSequenceItem,
-        GetXComSequenceSlice,
-        PutVariable,
-        RescheduleTask,
-        RetryTask,
-        SetRenderedFields,
-        SetXCom,
-        SkipDownstreamTasks,
-        SucceedTask,
-        ValidateInletsAndOutlets,
-        TaskState,
-        TriggerDagRun,
-        DeleteVariable,
-        ResendLoggingFD,
-    ],
+    DeferTask
+    | DeleteXCom
+    | GetAssetByName
+    | GetAssetByUri
+    | GetAssetEventByAsset
+    | GetAssetEventByAssetAlias
+    | GetConnection
+    | GetDagRunState
+    | GetDRCount
+    | GetPrevSuccessfulDagRun
+    | GetTaskRescheduleStartDate
+    | GetTICount
+    | GetTaskStates
+    | GetVariable
+    | GetXCom
+    | GetXComCount
+    | GetXComSequenceItem
+    | GetXComSequenceSlice
+    | PutVariable
+    | RescheduleTask
+    | RetryTask
+    | SetRenderedFields
+    | SetXCom
+    | SkipDownstreamTasks
+    | SucceedTask
+    | ValidateInletsAndOutlets
+    | TaskState
+    | TriggerDagRun
+    | DeleteVariable
+    | ResendLoggingFD,
     Field(discriminator="type"),
 ]

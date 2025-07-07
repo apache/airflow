@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from operator import attrgetter
 
 import pendulum
 import pytest
@@ -552,8 +553,14 @@ def setup(dag_maker, session=None):
         data_interval=data_interval,
         **triggered_by_kwargs,
     )
-    for ti in run_4.task_instances:
+    end_date = pendulum.datetime(2025, 3, 2)
+    start_date = end_date.add(seconds=-2)
+    for ti in sorted(run_4.task_instances, key=attrgetter("task_id")):
         ti.state = "success"
+        ti.start_date = start_date
+        ti.end_date = end_date
+        start_date = end_date
+        end_date = start_date.add(seconds=2)
     session.commit()
 
 
@@ -1220,9 +1227,21 @@ class TestGetGridDataEndpoint:
                 {"state": "success", "task_id": "t1"},
                 {"state": "success", "task_id": "t2"},
                 {"state": "success", "task_id": "t7"},
-                {"state": "success", "task_id": "task_group-1"},
+                {
+                    "child_states": {"success": 2},
+                    "max_end_date": "2025-03-02T00:00:12Z",
+                    "min_start_date": "2025-03-02T00:00:04Z",
+                    "state": "success",
+                    "task_id": "task_group-1",
+                },
                 {"state": "success", "task_id": "task_group-1.t6"},
-                {"state": "success", "task_id": "task_group-1.task_group-2"},
+                {
+                    "child_states": {"success": 3},
+                    "max_end_date": "2025-03-02T00:00:12Z",
+                    "min_start_date": "2025-03-02T00:00:06Z",
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2",
+                },
                 {"state": "success", "task_id": "task_group-1.task_group-2.t3"},
                 {"state": "success", "task_id": "task_group-1.task_group-2.t4"},
                 {"state": "success", "task_id": "task_group-1.task_group-2.t5"},
@@ -1250,14 +1269,20 @@ class TestGetGridDataEndpoint:
             return out
 
         expected = [
-            {"task_id": "mapped_task_group", "state": "running"},
-            {"task_id": "task_group.inner_task_group"},
-            {"task_id": "task_group"},
-            {"task_id": "mapped_task_2"},
-            {"task_id": "mapped_task_group.subtask", "state": "running"},
-            {"task_id": "task", "state": "success"},
-            {"task_id": "task_group.inner_task_group.inner_task_group_sub_task"},
-            {"task_id": "task_group.mapped_task"},
+            {"child_states": {}, "task_id": "mapped_task_2"},
+            {
+                "child_states": {"running": 1},
+                "max_end_date": "2024-12-30T01:02:03Z",
+                "min_start_date": "2024-12-30T01:00:00Z",
+                "state": "running",
+                "task_id": "mapped_task_group",
+            },
+            {"state": "running", "task_id": "mapped_task_group.subtask"},
+            {"state": "success", "task_id": "task"},
+            {"child_states": {}, "task_id": "task_group"},
+            {"child_states": {}, "task_id": "task_group.inner_task_group"},
+            {"child_states": {}, "task_id": "task_group.inner_task_group.inner_task_group_sub_task"},
+            {"child_states": {}, "task_id": "task_group.mapped_task"},
         ]
         expected = sort_dict(expected)
         actual = sort_dict(actual)

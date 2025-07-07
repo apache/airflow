@@ -23,8 +23,19 @@
     }
   },
   "logs": {
+    "allLevels": "Alle Protokoll-Stufen",
+    "allSources": "Alle Quellen",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Vollbild",
+      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
+    },
+    "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
-    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen"
+    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
+    "warning": "WARNING"
   },
   "overview": {
     "buttons": {
@@ -98,13 +109,5 @@
   "taskGroups": {
     "collapseAll": "Alle Task-Gruppen einklappen",
     "expandAll": "Alle Task-Gruppen aufklappen"
-  },
-  "taskLogs": {
-    "allLogLevels": "Alle Protokoll-Stufen",
-    "allSources": "Alle Quellen",
-    "fullscreen": {
-      "button": "Vollbild",
-      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
-    }
   }
 }

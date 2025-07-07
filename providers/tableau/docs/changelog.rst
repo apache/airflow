@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Tableau, Telegram, and Teradata (#52642)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Mock 'time.sleep' in tableau test (#52647)``
+   * ``test: remove pytest.mark.db_test from tableau provider (#52044)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 5.1.0
 .....
 

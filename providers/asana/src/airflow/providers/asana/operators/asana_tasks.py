@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.asana.hooks.asana import AsanaHook
+from airflow.providers.asana.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

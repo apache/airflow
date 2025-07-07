@@ -21,7 +21,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -30,7 +30,7 @@ from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.psrp.version_compat import BaseHook
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
     MessageType.DEBUG_RECORD: DEBUG,
@@ -151,6 +151,7 @@ class PsrpHook(BaseHook):
                 "ssl",
             ),
         )
+        conn.host = cast("str", conn.host)
         wsman = WSMan(conn.host, username=conn.login, password=conn.password, **wsman_options)
         runspace_options = apply_extra(self._runspace_options, ("configuration_name",))
 

@@ -29,12 +29,13 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1749897313
+source-date-epoch: 1751473525
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 16.1.0
   - 16.0.0
   - 15.1.0
   - 15.0.1
@@ -450,6 +451,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/looker.rst
     tags: [gcp]
+  - integration-name: Google Cloud Logging Sink
+    external-doc-url: https://cloud.google.com/logging
+    logo: /docs/integration-logos/Cloud-Logging-Sink.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_logging_sink.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -596,6 +603,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
       - airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job
       - airflow.providers.google.cloud.operators.vertex_ai.endpoint_service
+      - airflow.providers.google.cloud.operators.vertex_ai.experiment_service
       - airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
@@ -614,6 +622,9 @@ operators:
   - integration-name: Google Cloud Managed Service for Apache Kafka
     python-modules:
       - airflow.providers.google.cloud.operators.managed_kafka
+  - integration-name: Google Cloud Logging Sink
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_logging_sink
 
 sensors:
   - integration-name: Google BigQuery
@@ -875,6 +886,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
       - airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job
       - airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.experiment_service
       - airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
@@ -894,6 +906,10 @@ hooks:
   - integration-name: Google Cloud Managed Service for Apache Kafka
     python-modules:
       - airflow.providers.google.cloud.hooks.managed_kafka
+  - integration-name: Google Cloud Logging
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_logging
+
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service

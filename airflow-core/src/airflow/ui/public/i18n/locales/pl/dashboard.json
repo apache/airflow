@@ -13,6 +13,8 @@
   },
   "history": "Historia",
   "importErrors": {
+    "dagImportError_few": "Błędy importu Dagów",
+    "dagImportError_many": "Błędów importu Dagów",
     "dagImportError_one": "Błąd importu Daga",
     "dagImportError_other": "Błędy importu Dagów",
     "searchByFile": "Szukaj według plików",

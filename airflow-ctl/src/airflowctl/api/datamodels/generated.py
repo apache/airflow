@@ -1347,6 +1347,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None = None
+    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]

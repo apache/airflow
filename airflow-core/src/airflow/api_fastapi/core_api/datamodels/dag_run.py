@@ -74,6 +74,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None
+    triggering_user_name: str | None
     conf: dict | None
     note: str | None
     dag_versions: list[DagVersionResponse]

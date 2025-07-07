@@ -419,7 +419,7 @@ def set_up(env_id, role_arn):
     _install_aws_cli_if_needed()
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
 
-    from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import get_current_context

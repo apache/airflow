@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 import methodtools
@@ -41,6 +41,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
+    TaskStateChangeCallback,
 )
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -50,7 +51,7 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
-from airflow.typing_compat import Literal
+from airflow.typing_compat import Literal, TypeAlias, TypeGuard
 from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -60,9 +61,6 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     import pendulum
 
-    from airflow.models.abstractoperator import (
-        TaskStateChangeCallback,
-    )
     from airflow.models.expandinput import (
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
@@ -73,18 +71,15 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.sdk.types import Operator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
-    from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
-    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
-
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
+ValidationSource = Literal["expand"] | Literal["partial"]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -786,7 +781,7 @@ class MappedOperator(AbstractOperator):
         # we don't need to create a copy of the MappedOperator here.
         return self
 
-    def iter_mapped_dependencies(self) -> Iterator[Operator]:
+    def iter_mapped_dependencies(self) -> Iterator[AbstractOperator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
         from airflow.sdk.definitions.xcom_arg import XComArg
 

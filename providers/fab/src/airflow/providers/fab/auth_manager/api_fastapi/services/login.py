@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from flask_appbuilder.const import AUTH_LDAP
 from starlette import status
 from starlette.exceptions import HTTPException
 
@@ -44,14 +45,22 @@ class FABAuthManagerLogin:
             )
 
         auth_manager = cast("FabAuthManager", get_auth_manager())
-        user: User = auth_manager.security_manager.find_user(username=body.username)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username")
+        user: User | None = None
 
-        if auth_manager.security_manager.check_password(username=body.username, password=body.password):
-            return LoginResponse(
-                access_token=auth_manager.generate_jwt(
-                    user=user, expiration_time_in_seconds=expiration_time_in_seconds
-                )
+        if auth_manager.security_manager.auth_type == AUTH_LDAP:
+            user = auth_manager.security_manager.auth_user_ldap(
+                body.username, body.password, rotate_session_id=False
             )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        if user is None:
+            user = auth_manager.security_manager.auth_user_db(
+                body.username, body.password, rotate_session_id=False
+            )
+
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+        return LoginResponse(
+            access_token=auth_manager.generate_jwt(
+                user=user, expiration_time_in_seconds=expiration_time_in_seconds
+            )
+        )

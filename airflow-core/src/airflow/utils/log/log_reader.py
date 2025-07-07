@@ -45,7 +45,8 @@ class TaskLogReader:
 
     STREAM_LOOP_SLEEP_SECONDS = 1
     """Time to sleep between loops while waiting for more logs"""
-    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 5
+
+    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 10
     """Number of empty loop iterations before stopping the stream"""
 
     def read_log_chunks(

@@ -36,8 +36,8 @@ except ImportError:
     )
 
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.providers.apache.hive.version_compat import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 if TYPE_CHECKING:

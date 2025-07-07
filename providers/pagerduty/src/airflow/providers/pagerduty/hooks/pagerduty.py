@@ -24,7 +24,7 @@ from typing import Any
 import pagerduty
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.pagerduty.version_compat import BaseHook
 
 
 class PagerdutyHook(BaseHook):

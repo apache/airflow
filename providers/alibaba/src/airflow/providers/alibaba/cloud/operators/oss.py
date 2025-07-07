@@ -22,12 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
-from airflow.providers.alibaba.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models import BaseOperator
+from airflow.providers.alibaba.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

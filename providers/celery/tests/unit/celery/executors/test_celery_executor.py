@@ -260,7 +260,7 @@ class TestCeleryExecutor:
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
-            with pytest.warns(DeprecationWarning):
+            with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
                 executor.cleanup_stuck_queued_tasks(tis=tis)
             executor.sync()
         assert executor.tasks == {}

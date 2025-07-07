@@ -118,6 +118,15 @@ def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
     conf_file.write_text(f"[global]\n{pip_conf_options}")
 
 
+def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str, str]:
+    uv_index_env_vars = {}
+    if index_urls:
+        uv_index_env_vars = {"UV_DEFAULT_INDEX": index_urls[0]}
+        if len(index_urls) > 1:
+            uv_index_env_vars["UV_INDEX"] = " ".join(x for x in index_urls[1:])
+    return uv_index_env_vars
+
+
 def prepare_virtualenv(
     venv_directory: str,
     python_bin: str,
@@ -174,7 +183,7 @@ def prepare_virtualenv(
             )
 
     if pip_cmd:
-        execute_in_subprocess(pip_cmd)
+        execute_in_subprocess(pip_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
 
     return f"{venv_directory}/bin/python"
 

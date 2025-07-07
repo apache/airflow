@@ -58,7 +58,7 @@ def walk(value, path="$"):
     if isinstance(value, dict):
         for k, v in value.items():
             yield from walk(v, path + f"[{k!r}]")
-    elif isinstance(value, list | set | tuple):
+    elif isinstance(value, (list, set, tuple)):
         for no, v in enumerate(value):
             yield from walk(v, path + f"[{no}]")
 

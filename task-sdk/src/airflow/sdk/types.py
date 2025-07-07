@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, Union
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-    Operator = Union[BaseOperator, MappedOperator]
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 
 class DagRunProtocol(Protocol):

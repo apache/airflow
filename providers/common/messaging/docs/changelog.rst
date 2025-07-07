@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+1.0.4
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.0.3
 .....
 

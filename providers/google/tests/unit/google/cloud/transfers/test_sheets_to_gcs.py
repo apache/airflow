@@ -78,14 +78,15 @@ class TestGoogleSheetsToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GSheetsHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator.xcom_push")
     @mock.patch(
         "airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator._upload_data"
     )
-    def test_execute(self, mock_upload_data, mock_xcom, mock_sheet_hook, mock_gcs_hook):
-        context = {}
+    def test_execute(self, mock_upload_data, mock_sheet_hook, mock_gcs_hook):
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
         data = ["data1", "data2"]
         mock_sheet_hook.return_value.get_sheet_titles.return_value = RANGES
+        mock_sheet_hook.return_value.get_values.side_effect = data
         mock_upload_data.side_effect = [PATH, PATH]
 
         op = GoogleSheetsToGCSOperator(
@@ -97,7 +98,7 @@ class TestGoogleSheetsToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context)
+        op.execute(mock_context)
 
         mock_sheet_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -115,9 +116,12 @@ class TestGoogleSheetsToGCSOperator:
         calls = [mock.call(spreadsheet_id=SPREADSHEET_ID, range_=r) for r in RANGES]
         mock_sheet_hook.return_value.get_values.assert_has_calls(calls)
 
-        calls = [mock.call(mock_gcs_hook, mock_sheet_hook, r, v) for r, v in zip(RANGES, data)]
-        mock_upload_data.assert_called()
+        calls = [
+            mock.call(mock_gcs_hook.return_value, mock_sheet_hook.return_value, r, v)
+            for r, v in zip(RANGES, data)
+        ]
+        mock_upload_data.assert_has_calls(calls)
         actual_call_count = mock_upload_data.call_count
         assert len(RANGES) == actual_call_count
 
-        mock_xcom.assert_called_once_with(context, "destination_objects", [PATH, PATH])
+        mock_ti.xcom_push.assert_called_once_with(key="destination_objects", value=[PATH, PATH])

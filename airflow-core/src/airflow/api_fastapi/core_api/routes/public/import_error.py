@@ -22,7 +22,7 @@ from operator import itemgetter
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
@@ -163,8 +163,10 @@ def get_import_errors(
         select(ParseImportError, visible_files_cte.c.dag_id)
         .join(
             visible_files_cte,
-            ParseImportError.filename == visible_files_cte.c.relative_fileloc,
-            ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
+            and_(
+                ParseImportError.filename == visible_files_cte.c.relative_fileloc,
+                ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
+            ),
         )
         .order_by(ParseImportError.id)
     )

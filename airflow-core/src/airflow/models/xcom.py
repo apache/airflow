@@ -50,7 +50,6 @@ from airflow.utils.sqlalchemy import UtcDateTime
 # XCom constants below are needed for providers backward compatibility,
 # which should import the constants directly after apache-airflow>=2.6.0
 from airflow.utils.xcom import (
-    MAX_XCOM_SIZE,  # noqa: F401
     XCOM_RETURN_KEY,
 )
 

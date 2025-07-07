@@ -34,9 +34,9 @@ from packaging.version import parse as parse_version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
+from airflow.providers.apache.beam.version_compat import BaseOperator
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
@@ -214,7 +214,8 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         if all([new_value, not self._dataflow_job_id, self._execute_context]):
             # push job_id as soon as it's ready, to let Sensors work before the job finished
             # and job_id pushed as returned value item.
-            self.xcom_push(context=self._execute_context, key="dataflow_job_id", value=new_value)
+            # Use task instance to push XCom (works for both Airflow 2.x and 3.x)
+            self._execute_context["ti"].xcom_push(key="dataflow_job_id", value=new_value)
         self._dataflow_job_id = new_value
 
     def _cast_dataflow_config(self):

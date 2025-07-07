@@ -38,6 +38,15 @@ from tests_common.test_utils.compat import GenericTransfer
 from tests_common.test_utils.operators.run_deferrable import execute_operator, mock_context
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -55,11 +64,6 @@ counter = 0
 
 @pytest.mark.backend("mysql")
 class TestMySql:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
-        self.dag = dag
-
     def teardown_method(self):
         from airflow.providers.mysql.hooks.mysql import MySqlHook
 
@@ -77,7 +81,7 @@ class TestMySql:
             "mysql-connector-python",
         ],
     )
-    def test_mysql_to_mysql(self, client):
+    def test_mysql_to_mysql(self, client, dag_maker):
         class MySqlContext:
             def __init__(self, client):
                 self.client = client
@@ -92,6 +96,25 @@ class TestMySql:
 
         with MySqlContext(client):
             sql = "SELECT * FROM connection;"
+            with dag_maker(f"TEST_DAG_ID_{client}", start_date=DEFAULT_DATE):
+                op = GenericTransfer(
+                    task_id="test_m2m",
+                    preoperator=[
+                        "DROP TABLE IF EXISTS test_mysql_to_mysql",
+                        "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE connection",
+                    ],
+                    source_conn_id="airflow_db",
+                    destination_conn_id="airflow_db",
+                    destination_table="test_mysql_to_mysql",
+                    sql=sql,
+                )
+
+            dag_maker.run_ti(op.task_id)
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
+    def test_mysql_to_mysql_replace(self, mock_insert, dag_maker):
+        sql = "SELECT * FROM connection LIMIT 10;"
+        with dag_maker("TEST_DAG_ID", start_date=DEFAULT_DATE):
             op = GenericTransfer(
                 task_id="test_m2m",
                 preoperator=[
@@ -102,27 +125,10 @@ class TestMySql:
                 destination_conn_id="airflow_db",
                 destination_table="test_mysql_to_mysql",
                 sql=sql,
-                dag=self.dag,
+                insert_args={"replace": True},
             )
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
-    def test_mysql_to_mysql_replace(self, mock_insert):
-        sql = "SELECT * FROM connection LIMIT 10;"
-        op = GenericTransfer(
-            task_id="test_m2m",
-            preoperator=[
-                "DROP TABLE IF EXISTS test_mysql_to_mysql",
-                "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE connection",
-            ],
-            source_conn_id="airflow_db",
-            destination_conn_id="airflow_db",
-            destination_table="test_mysql_to_mysql",
-            sql=sql,
-            dag=self.dag,
-            insert_args={"replace": True},
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_maker.run_ti(op.task_id)
         assert mock_insert.called
         _, kwargs = mock_insert.call_args
         assert "replace" in kwargs
@@ -140,7 +146,7 @@ class TestPostgres:
     def test_postgres_to_postgres(self, dag_maker):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         with dag_maker(default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True):
-            op = GenericTransfer(
+            _ = GenericTransfer(
                 task_id="test_p2p",
                 preoperator=[
                     "DROP TABLE IF EXISTS test_postgres_to_postgres",
@@ -151,14 +157,14 @@ class TestPostgres:
                 destination_table="test_postgres_to_postgres",
                 sql=sql,
             )
-        dag_maker.create_dagrun()
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("test_p2p", dr)
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
     def test_postgres_to_postgres_replace(self, mock_insert, dag_maker):
         sql = "SELECT id, conn_id, conn_type FROM connection LIMIT 10;"
         with dag_maker(default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True):
-            op = GenericTransfer(
+            _ = GenericTransfer(
                 task_id="test_p2p",
                 preoperator=[
                     "DROP TABLE IF EXISTS test_postgres_to_postgres",
@@ -174,8 +180,8 @@ class TestPostgres:
                     "replace_index": "id",
                 },
             )
-        dag_maker.create_dagrun()
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("test_p2p", dr)
         assert mock_insert.called
         _, kwargs = mock_insert.call_args
         assert "replace" in kwargs
@@ -255,8 +261,8 @@ class TestGenericTransfer:
         assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
 
     def test_non_paginated_read(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=self.get_connection):
-            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",
@@ -283,8 +289,8 @@ class TestGenericTransfer:
         https://medium.com/apache-airflow/transfering-data-from-sap-hana-to-mssql-using-the-airflow-generictransfer-d29f147a9f1f
         """
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=self.get_connection):
-            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",

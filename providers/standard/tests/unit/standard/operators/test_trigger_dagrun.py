@@ -182,9 +182,9 @@ class TestDagRunOperator:
             )
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
-        dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun()
         with pytest.raises(ValueError, match="^conf parameter should be JSON Serializable$"):
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti(task.task_id, dr)
 
     def test_trigger_dagrun_with_no_failed_state(self, dag_maker):
         task = TriggerDagRunOperator(

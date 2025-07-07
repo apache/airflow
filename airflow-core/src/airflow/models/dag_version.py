@@ -108,6 +108,7 @@ class DagVersion(Base):
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
+        session.commit()
         log.debug("DagVersion %s written to the DB", dag_version)
         return dag_version
 

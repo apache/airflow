@@ -114,7 +114,7 @@ class BaseSetupTeardownContext:
         new_task: AbstractOperator | list[AbstractOperator],
         upstream=True,
     ):
-        if isinstance(new_task, list | tuple):
+        if isinstance(new_task, (list, tuple)):
             for task in new_task:
                 cls._set_dependency(task, receiving_task, upstream)
         else:

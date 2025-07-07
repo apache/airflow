@@ -215,3 +215,28 @@ class TestGlueJobSensor:
         assert sensor.poke_interval == 10
         assert sensor.aws_conn_id == "custom_conn"
         assert sensor.max_retries == 20
+
+    def test_defferable_params_passed_to_trigger(self):
+        job_name = "job_name"
+        job_run_id = "job_run_id"
+        sensor = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name=job_name,
+            run_id=job_run_id,
+            verbose=True,
+            deferrable=True,
+            poke_interval=10,
+            region_name="us-west-2",
+            aws_conn_id="custom_conn",
+            max_retries=20,
+        )
+        with pytest.raises(TaskDeferred) as defer:
+            sensor.execute({})
+
+        assert defer.value.trigger.job_name == job_name
+        assert defer.value.trigger.run_id == job_run_id
+        assert defer.value.trigger.region_name == "us-west-2"
+        assert defer.value.trigger.verbose
+        assert defer.value.trigger.waiter_delay == 10
+        assert defer.value.trigger.attempts == 20
+        assert defer.value.trigger.aws_conn_id == "custom_conn"

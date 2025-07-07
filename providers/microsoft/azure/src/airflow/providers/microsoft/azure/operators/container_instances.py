@@ -40,10 +40,10 @@ from azure.mgmt.containerinstance.models import (
 from msrestazure.azure_exceptions import CloudError
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

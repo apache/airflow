@@ -131,14 +131,14 @@ them to the appropriate format and workflow that your tool requires.
 
 ```bash
 pip install 'apache-airflow==3.0.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.9.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
 pip install 'apache-airflow[postgres,google]==3.0.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.9.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check

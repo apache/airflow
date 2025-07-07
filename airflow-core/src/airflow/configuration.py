@@ -372,6 +372,8 @@ class AirflowConfigParser(ConfigParser):
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
+        ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.1.0"),
+        ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
