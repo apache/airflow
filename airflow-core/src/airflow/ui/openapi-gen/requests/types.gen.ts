@@ -1567,6 +1567,25 @@ export type BaseNodeResponse = {
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
 
 /**
+ * Response model for calendar time range results.
+ */
+export type CalendarTimeRangeCollectionResponse = {
+    total_entries: number;
+    dag_runs: Array<CalendarTimeRangeResponse>;
+};
+
+/**
+ * Represents a summary of DAG runs for a specific calendar time range.
+ */
+export type CalendarTimeRangeResponse = {
+    date: string;
+    state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
+    count: number;
+};
+
+export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
+
+/**
  * configuration serializer.
  */
 export type ConfigResponse = {
@@ -2266,6 +2285,7 @@ export type GetDagsData = {
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -2322,6 +2342,18 @@ export type GetDagDetailsData = {
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
 
+export type FavoriteDagData = {
+    dagId: string;
+};
+
+export type FavoriteDagResponse = void;
+
+export type UnfavoriteDagData = {
+    dagId: string;
+};
+
+export type UnfavoriteDagResponse = void;
+
 export type GetDagTagsData = {
     limit?: number;
     offset?: number;
@@ -2346,6 +2378,7 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -2937,6 +2970,15 @@ export type GetLatestRunData = {
 };
 
 export type GetLatestRunResponse = LatestRunResponse | null;
+
+export type GetCalendarData = {
+    dagId: string;
+    granularity?: 'hourly' | 'daily';
+    logicalDateGte?: string | null;
+    logicalDateLte?: string | null;
+};
+
+export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -4321,6 +4363,64 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/favorite': {
+        post: {
+            req: FavoriteDagData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/unfavorite': {
+        post: {
+            req: UnfavoriteDagData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -5954,6 +6054,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/calendar/{dag_id}': {
+        get: {
+            req: GetCalendarData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CalendarTimeRangeCollectionResponse;
                 /**
                  * Validation Error
                  */
