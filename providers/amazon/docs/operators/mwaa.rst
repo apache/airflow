@@ -76,7 +76,7 @@ In the following example, the task ``wait_for_dag_run`` waits for the DAG run cr
     :start-after: [START howto_sensor_mwaa_dag_run]
     :end-before: [END howto_sensor_mwaa_dag_run]
 
-.. _howto/sensor:MwaaDagRunSensor:
+.. _howto/sensor:MwaaTaskSensor:
 
 Wait on the state of an AWS MWAA Task
 ========================================
@@ -91,8 +91,6 @@ In the following example, the task ``wait_for_task`` waits for the DAG run creat
     :dedent: 4
     :start-after: [START howto_sensor_mwaa_task]
     :end-before: [END howto_sensor_mwaa_task]
-
-.. _howto/sensor:MwaaTaskSensor:
 
 References
 ----------
