@@ -29,7 +29,7 @@ from git import Repo
 from git.exc import GitCommandError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
@@ -429,7 +429,8 @@ class TestGitDagBundle:
             tracking_ref="main",
         )
         bundle.initialize = mock.MagicMock()
-        view_url = bundle.view_url("0f0f0f")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
@@ -518,7 +519,8 @@ class TestGitDagBundle:
             git_conn_id="git_default",
         )
         bundle.initialize = mock.MagicMock()
-        view_url = bundle.view_url("0f0f0f")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
@@ -621,7 +623,8 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
-        view_url = bundle.view_url(None)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            view_url = bundle.view_url(None)
         assert view_url is None
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")

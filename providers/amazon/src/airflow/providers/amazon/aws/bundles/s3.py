@@ -138,7 +138,11 @@ class S3DagBundle(BaseDagBundle):
             )
 
     def view_url(self, version: str | None = None) -> str | None:
-        """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
+        """
+        Return a URL for viewing the DAGs in S3. Currently, versioning is not supported.
+
+        This method is deprecated and will be removed in a future release. Use `view_url_template` instead.
+        """
         warnings.warn(
             message="The method 'view_url' is deprecated and will be removed in a future release. Use 'view_url_template' instead.",
             category=AirflowProviderDeprecationWarning,
