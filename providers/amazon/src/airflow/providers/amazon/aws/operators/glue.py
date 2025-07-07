@@ -249,6 +249,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
+                    region_name=self.region_name,
                 ),
                 method_name="execute_complete",
             )
