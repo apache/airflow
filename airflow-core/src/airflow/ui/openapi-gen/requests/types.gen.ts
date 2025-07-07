@@ -635,6 +635,7 @@ export type DAGRunResponse = {
     run_type: DagRunType;
     state: DagRunState;
     triggered_by: DagRunTriggeredByType | null;
+    triggering_user_name: string | null;
     conf: {
     [key: string]: unknown;
 } | null;
@@ -1566,6 +1567,25 @@ export type BaseNodeResponse = {
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
 
 /**
+ * Response model for calendar time range results.
+ */
+export type CalendarTimeRangeCollectionResponse = {
+    total_entries: number;
+    dag_runs: Array<CalendarTimeRangeResponse>;
+};
+
+/**
+ * Represents a summary of DAG runs for a specific calendar time range.
+ */
+export type CalendarTimeRangeResponse = {
+    date: string;
+    state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
+    count: number;
+};
+
+export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
+
+/**
  * configuration serializer.
  */
 export type ConfigResponse = {
@@ -1812,6 +1832,11 @@ export type LatestRunResponse = {
 export type LightGridTaskInstanceSummary = {
     task_id: string;
     state: TaskInstanceState | null;
+    child_states: {
+    [key: string]: (number);
+} | null;
+    min_start_date: string | null;
+    max_end_date: string | null;
 };
 
 /**
@@ -2927,6 +2952,15 @@ export type GetLatestRunData = {
 };
 
 export type GetLatestRunResponse = LatestRunResponse | null;
+
+export type GetCalendarData = {
+    dagId: string;
+    granularity?: 'hourly' | 'daily';
+    logicalDateGte?: string | null;
+    logicalDateLte?: string | null;
+};
+
+export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -5944,6 +5978,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/calendar/{dag_id}': {
+        get: {
+            req: GetCalendarData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CalendarTimeRangeCollectionResponse;
                 /**
                  * Validation Error
                  */

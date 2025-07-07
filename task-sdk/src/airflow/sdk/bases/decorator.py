@@ -21,9 +21,9 @@ import itertools
 import re
 import textwrap
 import warnings
-from collections.abc import Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar, cast, overload
 
 import attr
 import typing_extensions

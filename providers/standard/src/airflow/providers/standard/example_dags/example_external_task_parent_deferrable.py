@@ -56,9 +56,3 @@ with DAG(
     end = EmptyOperator(task_id="end")
 
     start >> [trigger_child_task, external_task_sensor] >> end
-
-    from tests_common.test_utils.watcher import watcher
-
-    # This test needs watcher in order to properly mark success/failure
-    # when "teardown" task with trigger rule is part of the DAG
-    list(dag.tasks) >> watcher()

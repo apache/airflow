@@ -404,7 +404,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, create_task_instance, session=None):
+    def test_ti_updates_with_task(self, create_task_instance, session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -800,12 +800,12 @@ class TestTaskInstance:
         ti.task = task
 
         # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         ti.refresh_from_db()
         assert ti.state is None
 
         # ignore first depends_on_past to allow the run
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -837,7 +837,7 @@ class TestTaskInstance:
         # With catchup=False, depends_on_past behavior is different:
         # The task ignores historical dependencies since catchup=False means
         # "only consider runs from now forward"
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         ti.refresh_from_db()
 
         # The task runs successfully even with depends_on_past=True because
@@ -845,7 +845,7 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
 
         # ignore_first_depends_on_past should still allow the run with catchup=False
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -1269,7 +1269,7 @@ class TestTaskInstance:
     )
     @provide_session
     def test_are_dependents_done(
-        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session=None
+        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session
     ):
         ti = create_task_instance(session=session)
         dag = ti.task.dag
@@ -2288,7 +2288,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
     @provide_session
-    def test_handle_failure(self, dag_maker, session=None):
+    def test_handle_failure(self, dag_maker, session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 

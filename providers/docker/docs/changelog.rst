@@ -28,6 +28,24 @@ Changelog
 ---------
 
 
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Allow templating of mounts parameter in DockerOperator   (#52451)``
+* ``Provider Migration: Update docker for Airflow 3.0 compatibility (#52465)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Removed pytest.mark_db_test from the docker provider completely (#52027)``
+   * ``Always create serdag in dagmaker fixture (#50359)``
+   * ``Prepare release for June 2025 provider wave (#51724)``
+
 4.4.0
 .....
 
@@ -786,7 +804,7 @@ Other
 Features
 ~~~~~~~~
 
-* ``Add a Docker Taskflow decorator (#15330)``
+* ``Add a Docker TaskFlow decorator (#15330)``
 
 This version of Docker Provider has a new feature - TaskFlow decorator that only works in Airflow 2.2.
 If you try to use the decorator in pre-Airflow 2.2 version you will get an error:
@@ -882,7 +900,7 @@ Features
 ~~~~~~~~
 
 * ``Entrypoint support in docker operator (#14642)``
-* ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+* ``Add PythonVirtualenvDecorator to TaskFlow API (#14761)``
 * ``Support all terminus task states in Docker Swarm Operator (#14960)``
 
 

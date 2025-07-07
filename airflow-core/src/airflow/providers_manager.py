@@ -83,7 +83,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
 

@@ -105,7 +105,7 @@ You can create the URL to the file substituting the variables in the template be
 where:
 
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
-- ``PYTHON_VERSION`` Python version e.g. ``3.9``, ``3.10``
+- ``PYTHON_VERSION`` Python version e.g. ``3.10``, ``3.11``
 
 The examples below assume that you want to use install Airflow in a reproducible way with the ``celery`` extra,
 but you can pick your own set of extras and providers to install.
@@ -321,9 +321,9 @@ dependencies compatible with just Airflow core at the moment Airflow was release
 
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    # For example: 3.9
+    # For example: 3.10
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.9.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.10.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 Troubleshooting
@@ -347,7 +347,7 @@ Symbol not found: ``_Py_GetArgcArgv``
 =====================================
 
 If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing ``airflow``, this may mean that you are using an incompatible version of Python.
-For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.9``: ``/usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9``).
+For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.10``: ``/usr/local/opt/python@3.10/Frameworks/Python.framework/Versions/3.10``).
 
 The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
 which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
@@ -356,9 +356,9 @@ An easy fix is just to ensure you use a version of Python that has a dylib of th
 
 .. code-block:: bash
 
-  # Note: these instructions are for python3.9 but can be loosely modified for other versions
-  brew install python@3.9
-  virtualenv -p /usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9/bin/python3 .toy-venv
+  # Note: these instructions are for python3.10 but can be loosely modified for other versions
+  brew install python@3.10
+  virtualenv -p /usr/local/opt/python@3.10/Frameworks/Python.framework/Versions/3.10/bin/python3 .toy-venv
   source .toy-venv/bin/activate
   pip install apache-airflow
   python

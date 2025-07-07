@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 import smbclient
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.samba.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import smbprotocol.connection

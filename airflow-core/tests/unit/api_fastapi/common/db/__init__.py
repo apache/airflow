@@ -14,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  gremlin:
-    hostname: gremlin
-    container_name: gremlin
-    image: tinkerpop/gremlin-server:3.4.2
-    labels:
-      breeze.description: "Integration required for gremlin operator and hook."
-    volumes:
-      - ./gremlin:/opt/gremlin-server/conf
-      - graph-data:/opt/gremlin-server/data
-      - ./gremlin/gremlin-entrypoint.sh:/opt/gremlin-server/gremlin-entrypoint.sh  # New entrypoint script
-    ports:
-      - "${GREMLIN_HOST_PORT}:8182"
-    entrypoint: /opt/gremlin-server/gremlin-entrypoint.sh  # Use custom entrypoint
-    user: "0:0"  # Run as root
-  airflow:
-    depends_on:
-      - gremlin
-    environment:
-      - INTEGRATION_GREMLIN=true
-    stdin_open: true
-volumes:
-  graph-data:

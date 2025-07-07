@@ -36,6 +36,8 @@ from airflow.serialization.enums import Encoding
 from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
@@ -163,13 +165,13 @@ def sanitize_for_serialization(obj: V1Pod):
     """
     if obj is None:
         return None
-    if isinstance(obj, float | bool | bytes | str | int):
+    if isinstance(obj, (float, bool, bytes, str, int)):
         return obj
     if isinstance(obj, list):
         return [sanitize_for_serialization(sub_obj) for sub_obj in obj]
     if isinstance(obj, tuple):
         return tuple(sanitize_for_serialization(sub_obj) for sub_obj in obj)
-    if isinstance(obj, datetime.datetime | datetime.date):
+    if isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
 
     if isinstance(obj, dict):
@@ -448,3 +450,8 @@ def get_orm_mapper():
 
 def is_sqlalchemy_v1() -> bool:
     return version.parse(metadata.version("sqlalchemy")).major == 1
+
+
+def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
+    """Create an SQLAlchemy-version-aware dialect keyword argument."""
+    return {"dialect_name": dialect} if is_sqlalchemy_v1() else {"dialect_names": (dialect,)}

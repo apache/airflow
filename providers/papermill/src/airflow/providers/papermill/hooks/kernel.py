@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import typing
+from typing import cast
 
 from jupyter_client import AsyncKernelManager
 from papermill.clientwrap import PapermillNotebookClient
@@ -24,7 +25,7 @@ from papermill.engines import NBClientEngine
 from papermill.utils import merge_kwargs, remove_args
 from traitlets import Unicode
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.papermill.version_compat import BaseHook
 
 JUPYTER_KERNEL_SHELL_PORT = 60316
 JUPYTER_KERNEL_IOPUB_PORT = 60317
@@ -68,7 +69,7 @@ class KernelHook(BaseHook):
 
     def get_conn(self) -> KernelConnection:
         kernel_connection = KernelConnection()
-        kernel_connection.ip = self.kernel_conn.host
+        kernel_connection.ip = cast("str", self.kernel_conn.host)
         kernel_connection.shell_port = self.kernel_conn.extra_dejson.get(
             "shell_port", JUPYTER_KERNEL_SHELL_PORT
         )
