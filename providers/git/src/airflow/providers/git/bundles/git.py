@@ -25,9 +25,7 @@ import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
 
-from airflow.dag_processing.bundles.base import (
-    BaseDagBundle,
-)
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
@@ -48,6 +46,7 @@ class GitDagBundle(BaseDagBundle):
     """
 
     supports_versioning = True
+    template_fields = ["subdir"]
 
     def __init__(
         self,
@@ -242,5 +241,43 @@ class GitDagBundle(BaseDagBundle):
             host_patterns = {k: f"{v}/{self.subdir}" for k, v in host_patterns.items()}
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
+                return template
+        return None
+
+    def view_url_template(self) -> str | None:
+        if self._view_url_template:
+            return self._view_url_template
+
+        if not self.repo_url:
+            return None
+
+        url = self.repo_url
+        if url.startswith("git@"):
+            url = self._convert_git_ssh_url_to_https(url)
+        if url.endswith(".git"):
+            url = url[:-4]
+
+        parsed_url = urlparse(url)
+        host = parsed_url.hostname
+        if not host:
+            return None
+
+        if parsed_url.username or parsed_url.password:
+            new_netloc = host
+            if parsed_url.port:
+                new_netloc += f":{parsed_url.port}"
+            url = parsed_url._replace(netloc=new_netloc).geturl()
+
+        host_patterns = {
+            "github.com": f"{url}/tree/{{version}}",
+            "gitlab.com": f"{url}/-/tree/{{version}}",
+            "bitbucket.org": f"{url}/src/{{version}}",
+        }
+
+        # Add subdir placeholder if applicable
+        for allowed_host, template in host_patterns.items():
+            if host == allowed_host or host.endswith(f".{allowed_host}"):
+                if self.subdir:
+                    return f"{template}/{self.subdir}"
                 return template
         return None
