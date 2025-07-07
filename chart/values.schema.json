@@ -32,7 +32,10 @@
         },
         "revisionHistoryLimit": {
             "description": "Global number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit",
-            "type": ["integer", "null"],
+            "type": [
+                "integer",
+                "null"
+            ],
             "default": null,
             "x-docsSection": null
         },
@@ -75,19 +78,22 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.2",
+            "default": "3.0.0",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
             "description": "Default airflow digest to deploy. Overrides tag.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "default": null,
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.0.2",
+            "default": "3.0.0",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -204,7 +210,10 @@
         },
         "schedulerName": {
             "description": "Specify kube scheduler name for Pods.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "default": null,
             "x-docsSection": "Common"
         },
@@ -224,7 +233,10 @@
             "properties": {
                 "enabled": {
                     "description": "Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled).",
-                    "type": ["boolean", "null"],
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
                     "default": null
                 },
                 "web": {
@@ -293,7 +305,9 @@
                                                 }
                                             }
                                         },
-                                        "required": ["name"]
+                                        "required": [
+                                            "name"
+                                        ]
                                     },
                                     {
                                         "type": "string",
@@ -403,7 +417,9 @@
                                                 }
                                             }
                                         },
-                                        "required": ["name"]
+                                        "required": [
+                                            "name"
+                                        ]
                                     },
                                     {
                                         "type": "string",
@@ -453,9 +469,9 @@
                             "default": 1000
                         },
                         "cacheType": {
-                            "description": "Cache eviction strategy for metric mappings. 'lru' (Least Recently Used) evicts oldest accessed items, 'random' evicts randomly selected items.",
+                            "description": "Cache eviction strategy for metric mappings. `lru` (Least Recently Used) evicts oldest accessed items, 'random' evicts randomly selected items.",
                             "type": "string",
-                            "default": "lru"
+                            "default": "`lru`"
                         },
                         "ttl": {
                             "description": "Time-to-live for cached metric mappings. Determines how long mappings remain in cache before expiring. Set to '0s' to disable expiration.",
@@ -518,7 +534,9 @@
                                                 }
                                             }
                                         },
-                                        "required": ["name"]
+                                        "required": [
+                                            "name"
+                                        ]
                                     },
                                     {
                                         "type": "string",
@@ -601,7 +619,9 @@
                                                 }
                                             }
                                         },
-                                        "required": ["name"]
+                                        "required": [
+                                            "name"
+                                        ]
                                     },
                                     {
                                         "type": "string",
@@ -653,7 +673,10 @@
         },
         "airflowLocalSettings": {
             "description": "`airflow_local_settings` file as a string (templated). You can bake an `airflow_local_settings.py` into your image instead. In that case, set this value to null.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "x-docsSection": "Common",
             "default": "See values.yaml"
         },
@@ -700,23 +723,36 @@
                     "properties": {
                         "repository": {
                             "description": "The airflow image repository.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "tag": {
                             "description": "The airflow image tag.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "digest": {
                             "description": "The airflow image digest. If set, it will override the tag.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -740,18 +776,28 @@
                     "properties": {
                         "repository": {
                             "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "tag": {
                             "description": "The pod_template image tag. If ``config.kubernetes.worker_container_tag`` is set, k8s executor will use config value instead.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "pullPolicy": {
                             "description": "The pod_template image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -763,18 +809,28 @@
                     "properties": {
                         "repository": {
                             "description": "The flower image repository.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "tag": {
                             "description": "The flower image tag.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "pullPolicy": {
                             "description": "The flower image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -797,7 +853,11 @@
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -820,7 +880,11 @@
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -843,7 +907,11 @@
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -866,7 +934,11 @@
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -889,7 +961,11 @@
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
                             "type": "string",
-                            "enum": ["Always", "Never", "IfNotPresent"],
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
                             "default": "IfNotPresent"
                         }
                     }
@@ -911,7 +987,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "value"],
+                "required": [
+                    "name",
+                    "value"
+                ],
                 "additionalProperties": false
             },
             "examples": [
@@ -961,7 +1040,10 @@
                     }
                 },
                 "additionalProperties": false,
-                "required": ["envName", "secretName"]
+                "required": [
+                    "envName",
+                    "secretName"
+                ]
             },
             "examples": [
                 {
@@ -994,11 +1076,6 @@
                 },
                 "AIRFLOW_CONN_AIRFLOW_DB": {
                     "description": "Enable ``AIRFLOW_CONN_AIRFLOW_DB`` variable to be read from the Metadata Secret",
-                    "type": "boolean",
-                    "default": true
-                },
-                "AIRFLOW__API_AUTH__JWT_SECRET": {
-                    "description": "Enable ``AIRFLOW__API_AUTH__JWT_SECRET`` variable to be read from the JWT Secret",
                     "type": "boolean",
                     "default": true
                 },
@@ -1041,14 +1118,22 @@
         },
         "extraEnv": {
             "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
-            "type": ["null", "string"],
+            "type": [
+                "null",
+                "string"
+            ],
             "x-docsSection": "Airflow",
             "default": null,
-            "examples": ["- name: AIRFLOW__CORE__LOAD_EXAMPLES\n   value: True"]
+            "examples": [
+                "- name: AIRFLOW__CORE__LOAD_EXAMPLES\n   value: True"
+            ]
         },
         "extraEnvFrom": {
             "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
-            "type": ["null", "string"],
+            "type": [
+                "null",
+                "string"
+            ],
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
@@ -1073,7 +1158,9 @@
                         "type": "integer"
                     }
                 },
-                "required": ["value"],
+                "required": [
+                    "value"
+                ],
                 "additionalProperties": false
             },
             "default": [],
@@ -1199,17 +1286,26 @@
             "properties": {
                 "metadataSecretName": {
                     "description": "Metadata connection string secret.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "brokerUrlSecretName": {
                     "description": "Redis broker URL secret.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "x-docsSection": "Redis",
                     "default": null
                 },
@@ -1235,7 +1331,10 @@
                         },
                         "host": {
                             "description": "The database host.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "port": {
@@ -1265,7 +1364,10 @@
                 },
                 "resultBackendConnection": {
                     "description": "Result backend connection configuration.",
-                    "type": ["object", "null"],
+                    "type": [
+                        "object",
+                        "null"
+                    ],
                     "default": null,
                     "additionalProperties": false,
                     "properties": {
@@ -1286,7 +1388,10 @@
                         },
                         "host": {
                             "description": "The database host.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "port": {
@@ -1325,7 +1430,10 @@
                 },
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "x-docsSection": "Redis",
                     "default": null
                 },
@@ -1341,13 +1449,19 @@
         },
         "fernetKey": {
             "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "x-docsSection": "Common",
             "default": null
         },
         "fernetKeySecretName": {
             "description": "The Fernet key secret name.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "x-docsSection": "Airflow",
             "default": null
         },
@@ -1360,30 +1474,12 @@
                 "type": "string"
             }
         },
-        "jwtSecret": {
-            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
-            "type": ["string", "null"],
-            "x-docsSection": "Common",
-            "default": null
-        },
-        "jwtSecretName": {
-            "description": "The JWT secret name.",
-            "type": ["string", "null"],
-            "x-docsSection": "Airflow",
-            "default": null
-        },
-        "jwtSecretAnnotations": {
-            "description": "Annotations to add to the JWT secret.",
-            "type": "object",
-            "x-docsSection": "Common",
-            "default": {},
-            "additionalProperties": {
-                "type": "string"
-            }
-        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "x-docsSection": "Common",
             "default": null
         },
@@ -1398,7 +1494,10 @@
         },
         "webserverSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Webserver.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "x-docsSection": "Airflow",
             "default": null
         },
@@ -1429,7 +1528,10 @@
                 },
                 "keytabBase64Content": {
                     "description": "Kerberos keytab base64 encoded content.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "keytabPath": {
@@ -1467,13 +1569,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -1481,7 +1589,10 @@
                 },
                 "args": {
                     "description": "Args to use when running Airflow Celery workers (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -1523,7 +1634,10 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": ["array", "null"],
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
                                 "type": "string"
                             }
@@ -1532,18 +1646,30 @@
                 },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": null
                 },
                 "podManagementPolicy": {
                     "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
-                    "type": ["null", "string"],
+                    "type": [
+                        "null",
+                        "string"
+                    ],
                     "default": null,
-                    "enum": ["OrderedReady", "Parallel"]
+                    "enum": [
+                        "OrderedReady",
+                        "Parallel"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": {
                         "rollingUpdate": {
                             "maxSurge": "100%",
@@ -1567,7 +1693,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -1719,7 +1848,10 @@
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "fixPermissions": {
@@ -1779,7 +1911,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -1860,7 +1994,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -1941,7 +2077,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -2028,12 +2166,18 @@
                 },
                 "runtimeClassName": {
                     "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "priorityClassName": {
                     "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -2070,11 +2214,15 @@
                     "examples": [
                         {
                             "ip": "127.0.0.2",
-                            "hostnames": ["test.hostname.one"]
+                            "hostnames": [
+                                "test.hostname.one"
+                            ]
                         },
                         {
                             "ip": "127.0.0.3",
-                            "hostnames": ["test.hostname.two"]
+                            "hostnames": [
+                                "test.hostname.two"
+                            ]
                         }
                     ]
                 },
@@ -2177,7 +2325,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -2208,7 +2358,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             }
                         },
@@ -2227,7 +2380,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -2263,21 +2418,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -2294,7 +2459,9 @@
                         {
                             "name": "data-volume-1",
                             "storageClassName": "storage-class-1",
-                            "accessModes": ["ReadWriteOnce"],
+                            "accessModes": [
+                                "ReadWriteOnce"
+                            ],
                             "resources": {
                                 "requests": {
                                     "storage": "10Gi"
@@ -2304,7 +2471,9 @@
                         {
                             "name": "data-volume-2",
                             "storageClassName": "storage-class-2",
-                            "accessModes": ["ReadWriteOnce"],
+                            "accessModes": [
+                                "ReadWriteOnce"
+                            ],
                             "resources": {
                                 "requests": {
                                     "storage": "20Gi"
@@ -2336,11 +2505,15 @@
                     "examples": [
                         {
                             "ip": "127.0.0.1",
-                            "hostnames": ["foo.local"]
+                            "hostnames": [
+                                "foo.local"
+                            ]
                         },
                         {
                             "ip": "10.1.2.3",
-                            "hostnames": ["foo.remote"]
+                            "hostnames": [
+                                "foo.remote"
+                            ]
                         }
                     ]
                 },
@@ -2371,9 +2544,15 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": ["array", "null"],
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
-                                "type": ["string", "null"]
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }
@@ -2405,9 +2584,15 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": ["array", "null"],
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
-                                "type": ["string", "null"]
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }
@@ -2419,13 +2604,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running the Airflow scheduler (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -2433,20 +2624,33 @@
                 },
                 "args": {
                     "description": "Args to use when running the Airflow scheduler (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
-                    "default": ["bash", "-c", "exec airflow scheduler"]
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow scheduler"
+                    ]
                 },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet (when using LocalExecutor and workers.persistence).",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": null
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment (when not using LocalExecutor and workers.persistence).",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": null
                 },
                 "terminationGracePeriodSeconds": {
@@ -2470,7 +2674,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -2500,12 +2707,18 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 },
                                 "minAvailable": {
                                     "description": "Min available pods for scheduler.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -2577,7 +2790,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for scheduler pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -2703,7 +2919,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -2734,7 +2952,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             }
                         },
@@ -2753,7 +2974,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -2789,21 +3012,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -2832,11 +3065,15 @@
                     "examples": [
                         {
                             "ip": "127.0.0.1",
-                            "hostnames": ["foo.local"]
+                            "hostnames": [
+                                "foo.local"
+                            ]
                         },
                         {
                             "ip": "10.1.2.3",
-                            "hostnames": ["foo.remote"]
+                            "hostnames": [
+                                "foo.remote"
+                            ]
                         }
                     ]
                 },
@@ -2867,9 +3104,15 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": ["array", "null"],
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
-                                "type": ["string", "null"]
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }
@@ -2881,13 +3124,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running the Airflow triggerer (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -2895,20 +3144,33 @@
                 },
                 "args": {
                     "description": "Args to use when running the Airflow triggerer (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
-                    "default": ["bash", "-c", "exec airflow triggerer"]
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow triggerer"
+                    ]
                 },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": null
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "$ref": "#/definitions/io.k8s.api.apps.v1.DeploymentStrategy",
                     "default": {
                         "rollingUpdate": {
@@ -2933,7 +3195,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -2967,7 +3232,10 @@
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "fixPermissions": {
@@ -3050,7 +3318,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for triggerer pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -3177,7 +3448,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -3212,7 +3485,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             }
                         },
@@ -3231,7 +3507,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -3267,21 +3545,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -3368,7 +3656,10 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
-                    "type": ["boolean", "null"],
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
                     "default": null
                 },
                 "livenessProbe": {
@@ -3398,9 +3689,15 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": ["array", "null"],
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
-                                "type": ["string", "null"]
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }
@@ -3412,13 +3709,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running the Airflow dag processor (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -3426,15 +3729,25 @@
                 },
                 "args": {
                     "description": "Args to use when running the Airflow dag processor (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
-                    "default": ["bash", "-c", "exec airflow dag-processor"]
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow dag-processor"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "$ref": "#/definitions/io.k8s.api.apps.v1.DeploymentStrategy",
                     "default": {
                         "rollingUpdate": {
@@ -3459,7 +3772,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -3537,7 +3853,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for dag processor pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -3656,7 +3975,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -3691,7 +4012,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             }
                         },
@@ -3710,7 +4034,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -3746,21 +4072,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -3776,7 +4112,10 @@
             "properties": {
                 "command": {
                     "description": "Command to use when running create user job (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -3784,7 +4123,10 @@
                 },
                 "args": {
                     "description": "Args to use when running create user job (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -3848,7 +4190,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -3996,7 +4341,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -4023,7 +4370,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for the create user job pod.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "useHelmHooks": {
@@ -4038,7 +4388,10 @@
                 },
                 "ttlSecondsAfterFinished": {
                     "description": "Limit the lifetime of the job object after it finished execution",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": 300
                 },
                 "env": {
@@ -4068,21 +4421,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -4103,7 +4466,10 @@
                 },
                 "command": {
                     "description": "Command to use when running migrate database job (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -4111,7 +4477,10 @@
                 },
                 "args": {
                     "description": "Args to use when running migrate database job (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -4161,7 +4530,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -4327,7 +4699,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -4336,7 +4710,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for the migrate database job pod.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "useHelmHooks": {
@@ -4351,7 +4728,10 @@
                 },
                 "ttlSecondsAfterFinished": {
                     "description": "Limit the lifetime of the job object after it finished execution",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": 300
                 },
                 "env": {
@@ -4390,11 +4770,15 @@
                     "examples": [
                         {
                             "ip": "127.0.0.1",
-                            "hostnames": ["foo.local"]
+                            "hostnames": [
+                                "foo.local"
+                            ]
                         },
                         {
                             "ip": "10.1.2.3",
-                            "hostnames": ["foo.remote"]
+                            "hostnames": [
+                                "foo.remote"
+                            ]
                         }
                     ]
                 },
@@ -4506,13 +4890,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running the Airflow API server (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -4520,15 +4910,25 @@
                 },
                 "args": {
                     "description": "Args to use when running the Airflow API server (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
-                    "default": ["bash", "-c", "exec airflow api-server"]
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow api-server"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": null
                 },
                 "serviceAccount": {
@@ -4547,7 +4947,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -4577,12 +4980,18 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for API server.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 },
                                 "minAvailable": {
                                     "description": "Min available pods for API server.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -4686,7 +5095,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -4713,7 +5124,10 @@
                 },
                 "apiServerConfig": {
                     "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "x-docsSection": "Common",
                     "default": null,
                     "examples": [
@@ -4722,10 +5136,15 @@
                 },
                 "apiServerConfigConfigMapName": {
                     "description": "The configmap name containing the webserver_config.py.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "x-docsSection": "Common",
                     "default": null,
-                    "examples": ["my-api-server-configmap"]
+                    "examples": [
+                        "my-api-server-configmap"
+                    ]
                 },
                 "defaultUser": {
                     "description": "Optional default Airflow user information",
@@ -4831,13 +5250,22 @@
                                         "type": "string"
                                     },
                                     "port": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "targetPort": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "nodePort": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "protocol": {
                                         "type": "string"
@@ -4865,7 +5293,10 @@
                         },
                         "loadBalancerIP": {
                             "description": "API server Service loadBalancerIP.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "loadBalancerSourceRanges": {
@@ -4875,7 +5306,9 @@
                                 "type": "string"
                             },
                             "default": [],
-                            "examples": ["10.123.0.0/16"]
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
@@ -4889,7 +5322,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for API server pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -4965,7 +5401,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             }
                         },
@@ -4984,7 +5423,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -5005,37 +5446,11 @@
                             },
                             "value": {
                                 "type": "string"
-                            },
-                            "valueFrom": {
-                                "type": "object",
-                                "properties": {
-                                    "configMapKeyRef": {
-                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
-                                        "description": "Selects a key of a ConfigMap."
-                                    },
-                                    "secretKeyRef": {
-                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
-                                        "description": "Selects a key of a secret in the pod's namespace"
-                                    }
-                                },
-                                "anyOf": [
-                                    {
-                                        "required": ["configMapKeyRef"]
-                                    },
-                                    {
-                                        "required": ["secretKeyRef"]
-                                    }
-                                ]
                             }
                         },
-                        "required": ["name"],
-                        "anyOf": [
-                            {
-                                "required": ["value"]
-                            },
-                            {
-                                "required": ["valueFrom"]
-                            }
+                        "required": [
+                            "name",
+                            "value"
                         ],
                         "additionalProperties": false
                     }
@@ -5071,11 +5486,15 @@
                     "examples": [
                         {
                             "ip": "127.0.0.1",
-                            "hostnames": ["foo.local"]
+                            "hostnames": [
+                                "foo.local"
+                            ]
                         },
                         {
                             "ip": "10.1.2.3",
-                            "hostnames": ["foo.remote"]
+                            "hostnames": [
+                                "foo.remote"
+                            ]
                         }
                     ]
                 },
@@ -5187,13 +5606,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running the Airflow webserver (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -5201,15 +5626,25 @@
                 },
                 "args": {
                     "description": "Args to use when running the Airflow webserver (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
-                    "default": ["bash", "-c", "exec airflow webserver"]
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow webserver"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones.",
-                    "type": ["null", "object"],
+                    "type": [
+                        "null",
+                        "object"
+                    ],
                     "default": null
                 },
                 "terminationGracePeriodSeconds": {
@@ -5280,7 +5715,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -5310,12 +5748,18 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for webserver.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 },
                                 "minAvailable": {
                                     "description": "Min available pods for webserver.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -5441,7 +5885,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -5543,7 +5989,10 @@
                 },
                 "webserverConfig": {
                     "description": "This string (templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "x-docsSection": "Common",
                     "default": null,
                     "examples": [
@@ -5552,10 +6001,15 @@
                 },
                 "webserverConfigConfigMapName": {
                     "description": "The configmap name containing the webserver_config.py.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "x-docsSection": "Common",
                     "default": null,
-                    "examples": ["my-webserver-configmap"]
+                    "examples": [
+                        "my-webserver-configmap"
+                    ]
                 },
                 "service": {
                     "description": "Webserver Service configuration.",
@@ -5586,13 +6040,22 @@
                                         "type": "string"
                                     },
                                     "port": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "targetPort": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "nodePort": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "protocol": {
                                         "type": "string"
@@ -5620,7 +6083,10 @@
                         },
                         "loadBalancerIP": {
                             "description": "Webserver Service loadBalancerIP.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "loadBalancerSourceRanges": {
@@ -5630,7 +6096,9 @@
                                 "type": "string"
                             },
                             "default": [],
-                            "examples": ["10.123.0.0/16"]
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
@@ -5644,7 +6112,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for webserver pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -5720,7 +6191,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             }
                         },
@@ -5739,7 +6213,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -5775,21 +6251,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -5891,13 +6377,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running flower (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -5905,7 +6397,10 @@
                 },
                 "args": {
                     "description": "Args to use when running flower (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -5983,7 +6478,10 @@
                 },
                 "secretName": {
                     "description": "A secret containing the user and password pair.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "secretAnnotations": {
@@ -5996,12 +6494,18 @@
                 },
                 "username": {
                     "description": "Username use to access Flower.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "password": {
                     "description": "Password use to access Flower.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "service": {
@@ -6033,10 +6537,16 @@
                                         "type": "string"
                                     },
                                     "port": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "targetPort": {
-                                        "type": ["string", "integer"]
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
                                     },
                                     "protocol": {
                                         "type": "string"
@@ -6059,7 +6569,10 @@
                         },
                         "loadBalancerIP": {
                             "description": "Flower Service loadBalancerIP.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "loadBalancerSourceRanges": {
@@ -6069,7 +6582,9 @@
                                 "type": "string"
                             },
                             "default": [],
-                            "examples": ["10.123.0.0/16"]
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
@@ -6089,7 +6604,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -6136,7 +6654,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for Flower pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -6258,7 +6779,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -6292,21 +6815,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -6335,7 +6868,10 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
@@ -6402,7 +6938,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -6430,7 +6969,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for StatsD pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -6538,7 +7080,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -6563,7 +7107,10 @@
                 },
                 "args": {
                     "description": "Args to use when running statsd-exporter (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -6585,7 +7132,10 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["name", "value"],
+                        "required": [
+                            "name",
+                            "value"
+                        ],
                         "additionalProperties": false
                     }
                 }
@@ -6611,7 +7161,10 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["name", "value"],
+                        "required": [
+                            "name",
+                            "value"
+                        ],
                         "additionalProperties": false
                     }
                 },
@@ -6652,13 +7205,19 @@
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use for PgBouncer (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -6671,7 +7230,10 @@
                 },
                 "args": {
                     "description": "Args to use for PgBouncer (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -6709,7 +7271,10 @@
                 },
                 "configSecretName": {
                     "description": "The PgBouncer config Secret name.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "configSecretAnnotations": {
@@ -6745,12 +7310,18 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 },
                                 "minAvailable": {
                                     "description": "Min available pods for PgBouncer.",
-                                    "type": ["integer", "string"],
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -6843,7 +7414,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -6865,7 +7438,10 @@
                         },
                         "clusterIp": {
                             "description": "Specific ClusterIP for the PgBouncer Service.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         }
                     }
@@ -6919,34 +7495,52 @@
                     "properties": {
                         "ca": {
                             "description": "Certificate Authority for server side",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "cert": {
                             "description": "Server Certificate for server side",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "key": {
                             "description": "Private key used to authenticate with the server",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         }
                     }
                 },
                 "extraIniMetadata": {
                     "description": "Add extra metadata database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "extraIniResultBackend": {
                     "description": "Add extra result backend database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "extraIni": {
                     "description": "Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "extraVolumes": {
@@ -6989,7 +7583,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -7012,7 +7609,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for PgBouncer pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "affinity": {
@@ -7070,12 +7670,18 @@
                         },
                         "statsSecretName": {
                             "description": "Name of an existing Secrets object containing PgBouncer Metrics secrets.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "statsSecretKey": {
                             "description": "Key referencing the PGBouncer Metrics connection URI within an existing Secrets object. Defaults to `connection` if left null.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "statsSecretAnnotations": {
@@ -7141,7 +7747,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -7227,18 +7835,28 @@
                     "properties": {
                         "type": {
                             "description": "Service type.",
-                            "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
                             "type": "string",
                             "default": "ClusterIP"
                         },
                         "clusterIP": {
                             "description": "If using `ClusterIP` service type, custom IP address can be specified.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "nodePort": {
                             "description": "If using `NodePort` service type, custom node port can be specified.",
-                            "type": ["integer", "null"],
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
                             "default": null
                         }
                     }
@@ -7260,7 +7878,10 @@
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -7273,7 +7894,10 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         }
                     }
@@ -7304,12 +7928,18 @@
                 },
                 "passwordSecretName": {
                     "description": "Redis password secret.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "password": {
                     "description": "If password is set, create secret with it, else generate a new one on install (can only be set during install, not upgrade).",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "passwordSecretAnnotations": {
@@ -7359,7 +7989,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for redis pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "serviceAccount": {
@@ -7378,7 +8011,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -7462,7 +8098,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -7500,7 +8138,10 @@
             "properties": {
                 "secretName": {
                     "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "connection": {
@@ -7554,7 +8195,10 @@
                 },
                 "secretName": {
                     "description": "A secret containing the connection string.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "secretAnnotations": {
@@ -7622,7 +8266,10 @@
                 },
                 "secretName": {
                     "description": "A secret containing the connection string.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "connection": {
@@ -7769,7 +8416,10 @@
                 },
                 "command": {
                     "description": "Command to use when running the cleanup cronjob (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -7777,7 +8427,10 @@
                 },
                 "args": {
                     "description": "Args to use when running the cleanup cronjob (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -7829,7 +8482,10 @@
                 },
                 "priorityClassName": {
                     "description": "Specify priority for cleanup pods.",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "podAnnotations": {
@@ -7883,7 +8539,10 @@
                         },
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -7967,7 +8626,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -8001,21 +8662,31 @@
                                 },
                                 "anyOf": [
                                     {
-                                        "required": ["configMapKeyRef"]
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
                                     },
                                     {
-                                        "required": ["secretKeyRef"]
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
                                     }
                                 ]
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "name"
+                        ],
                         "anyOf": [
                             {
-                                "required": ["value"]
+                                "required": [
+                                    "value"
+                                ]
                             },
                             {
-                                "required": ["valueFrom"]
+                                "required": [
+                                    "valueFrom"
+                                ]
                             }
                         ],
                         "additionalProperties": false
@@ -8023,13 +8694,19 @@
                 },
                 "failedJobsHistoryLimit": {
                     "description": "The failed jobs history limit specifies the number of failed jobs to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 },
                 "successfulJobsHistoryLimit": {
                     "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": null,
                     "x-docsSection": null
                 }
@@ -8057,17 +8734,26 @@
                         },
                         "postgresPassword": {
                             "description": "Password for the 'postgres' admin user.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": "postgres"
                         },
                         "username": {
                             "description": "Name for a custom user to create",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": ""
                         },
                         "password": {
                             "description": "Password for the custom user to create.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": ""
                         }
                     }
@@ -8082,7 +8768,12 @@
             "additionalProperties": {
                 "type": "object",
                 "additionalProperties": {
-                    "type": ["boolean", "integer", "number", "string"]
+                    "type": [
+                        "boolean",
+                        "integer",
+                        "number",
+                        "string"
+                    ]
                 }
             }
         },
@@ -8094,7 +8785,10 @@
         },
         "podTemplate": {
             "description": "The content of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
-            "type": ["string", "null"],
+            "type": [
+                "string",
+                "null"
+            ],
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
@@ -8109,7 +8803,10 @@
             "properties": {
                 "mountPath": {
                     "description": "Where dags volume will be mounted. Works for both `persistence` and `gitSync`. If not specified, dags mount path will be set to `$AIRFLOW_HOME/dags`",
-                    "type": ["string", "null"],
+                    "type": [
+                        "string",
+                        "null"
+                    ],
                     "default": null
                 },
                 "persistence": {
@@ -8129,7 +8826,10 @@
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name here (templated).",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "accessMode": {
@@ -8144,7 +8844,10 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -8157,7 +8860,10 @@
                         },
                         "subPath": {
                             "description": "Subpath within the PVC where dags are located.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         }
                     }
@@ -8209,7 +8915,10 @@
                         },
                         "wait": {
                             "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
-                            "type": ["integer", "null"],
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
                             "default": null
                         },
                         "period": {
@@ -8284,7 +8993,9 @@
                                         {
                                             "allowPrivilegeEscalation": false,
                                             "capabilities": {
-                                                "drop": ["ALL"]
+                                                "drop": [
+                                                    "ALL"
+                                                ]
                                             }
                                         }
                                     ]
@@ -8306,22 +9017,34 @@
                         },
                         "credentialsSecret": {
                             "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "sshKey": {
                             "description": "SSH private key",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "sshKeySecret": {
                             "description": "Name of a Secret containing the repo `sshKeySecret`.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "knownHosts": {
                             "description": "When using a ssh private key, the contents of your `known_hosts` file.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null,
                             "examples": [
                                 "<host1>,<ip1> <key1>\n<host2>,<ip2> <key2>",
@@ -8342,7 +9065,10 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["name", "value"],
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
                                 "additionalProperties": false
                             },
                             "examples": [
@@ -8354,7 +9080,10 @@
                         },
                         "envFrom": {
                             "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (templated).",
-                            "type": ["null", "string"],
+                            "type": [
+                                "null",
+                                "string"
+                            ],
                             "default": null,
                             "examples": [
                                 "- secretRef:\n    name: 'proxy-config",
@@ -8406,7 +9135,10 @@
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name here (templated).",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         },
                         "annotations": {
@@ -8419,7 +9151,10 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
-                            "type": ["string", "null"],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "default": null
                         }
                     }
@@ -8480,7 +9215,11 @@
                     "description": "target specifies the target value for the given metric"
                 }
             },
-            "required": ["name", "target", "container"],
+            "required": [
+                "name",
+                "target",
+                "container"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8500,7 +9239,10 @@
                     "type": "string"
                 }
             },
-            "required": ["kind", "name"],
+            "required": [
+                "kind",
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8516,7 +9258,10 @@
                     "description": "target specifies the target value for the given metric"
                 }
             },
-            "required": ["metric", "target"],
+            "required": [
+                "metric",
+                "target"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8538,7 +9283,11 @@
                     "type": "integer"
                 }
             },
-            "required": ["type", "value", "periodSeconds"],
+            "required": [
+                "type",
+                "value",
+                "periodSeconds"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8593,7 +9342,9 @@
                     "description": "selector is the string-encoded form of a standard kubernetes label selector for the given metric When set, it is passed as an additional parameter to the metrics server for more specific metrics scoping. When unset, just the metricName will be used to gather metrics."
                 }
             },
-            "required": ["name"],
+            "required": [
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8625,7 +9376,9 @@
                     "type": "string"
                 }
             },
-            "required": ["type"],
+            "required": [
+                "type"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8650,7 +9403,9 @@
                     "description": "value is the target value of the metric (as a quantity)."
                 }
             },
-            "required": ["type"],
+            "required": [
+                "type"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8670,7 +9425,11 @@
                     "description": "target specifies the target value for the given metric"
                 }
             },
-            "required": ["describedObject", "target", "metric"],
+            "required": [
+                "describedObject",
+                "target",
+                "metric"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8686,7 +9445,10 @@
                     "description": "target specifies the target value for the given metric"
                 }
             },
-            "required": ["metric", "target"],
+            "required": [
+                "metric",
+                "target"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8702,7 +9464,10 @@
                     "description": "target specifies the target value for the given metric"
                 }
             },
-            "required": ["name", "target"],
+            "required": [
+                "name",
+                "target"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8727,7 +9492,9 @@
                     "type": "string"
                 }
             },
-            "required": ["volumeID"],
+            "required": [
+                "volumeID"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8778,7 +9545,10 @@
                     "type": "boolean"
                 }
             },
-            "required": ["diskName", "diskURI"],
+            "required": [
+                "diskName",
+                "diskURI"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8798,7 +9568,10 @@
                     "type": "string"
                 }
             },
-            "required": ["secretName", "shareName"],
+            "required": [
+                "secretName",
+                "shareName"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8829,7 +9602,9 @@
                     "type": "object"
                 }
             },
-            "required": ["driver"],
+            "required": [
+                "driver"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8885,7 +9660,9 @@
                     "type": "string"
                 }
             },
-            "required": ["monitors"],
+            "required": [
+                "monitors"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8909,7 +9686,9 @@
                     "type": "string"
                 }
             },
-            "required": ["volumeID"],
+            "required": [
+                "volumeID"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8937,7 +9716,9 @@
                     "type": "string"
                 }
             },
-            "required": ["path"],
+            "required": [
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -8972,7 +9753,9 @@
                     "type": "boolean"
                 }
             },
-            "required": ["key"],
+            "required": [
+                "key"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -9085,7 +9868,10 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
                     },
                     "type": "array",
-                    "x-kubernetes-list-map-keys": ["containerPort", "protocol"],
+                    "x-kubernetes-list-map-keys": [
+                        "containerPort",
+                        "protocol"
+                    ],
                     "x-kubernetes-list-type": "map",
                     "x-kubernetes-patch-merge-key": "containerPort",
                     "x-kubernetes-patch-strategy": "merge"
@@ -9161,7 +9947,9 @@
                     "type": "string"
                 }
             },
-            "required": ["name"],
+            "required": [
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9191,7 +9979,9 @@
                     "type": "string"
                 }
             },
-            "required": ["containerPort"],
+            "required": [
+                "containerPort"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9207,7 +9997,10 @@
                     "type": "string"
                 }
             },
-            "required": ["resourceName", "restartPolicy"],
+            "required": [
+                "resourceName",
+                "restartPolicy"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9246,7 +10039,9 @@
                     "description": "Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, requests.cpu and requests.memory) are currently supported."
                 }
             },
-            "required": ["path"],
+            "required": [
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9319,7 +10114,9 @@
                     "description": "Source for the environment variable's value. Cannot be used if value is not empty."
                 }
             },
-            "required": ["name"],
+            "required": [
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9432,7 +10229,9 @@
                     "description": "secretRef is Optional: secretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts."
                 }
             },
-            "required": ["driver"],
+            "required": [
+                "driver"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9472,7 +10271,9 @@
                     "type": "boolean"
                 }
             },
-            "required": ["pdName"],
+            "required": [
+                "pdName"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9488,7 +10289,9 @@
                     "type": "string"
                 }
             },
-            "required": ["port"],
+            "required": [
+                "port"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9508,7 +10311,9 @@
                     "type": "string"
                 }
             },
-            "required": ["repository"],
+            "required": [
+                "repository"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9528,7 +10333,10 @@
                     "type": "boolean"
                 }
             },
-            "required": ["endpoints", "path"],
+            "required": [
+                "endpoints",
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9559,7 +10367,9 @@
                     "type": "string"
                 }
             },
-            "required": ["port"],
+            "required": [
+                "port"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9575,7 +10385,10 @@
                     "type": "string"
                 }
             },
-            "required": ["name", "value"],
+            "required": [
+                "name",
+                "value"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9609,7 +10422,9 @@
                     "type": "string"
                 }
             },
-            "required": ["path"],
+            "required": [
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9665,7 +10480,11 @@
                     "type": "string"
                 }
             },
-            "required": ["targetPortal", "iqn", "lun"],
+            "required": [
+                "targetPortal",
+                "iqn",
+                "lun"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9686,7 +10505,10 @@
                     "type": "string"
                 }
             },
-            "required": ["key", "path"],
+            "required": [
+                "key",
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9771,7 +10593,9 @@
                     "type": "string"
                 }
             },
-            "required": ["type"],
+            "required": [
+                "type"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9803,7 +10627,10 @@
                     "type": "string"
                 }
             },
-            "required": ["server", "path"],
+            "required": [
+                "server",
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9836,7 +10663,9 @@
                     "type": "array"
                 }
             },
-            "required": ["nodeSelectorTerms"],
+            "required": [
+                "nodeSelectorTerms"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -9860,7 +10689,10 @@
                     "type": "array"
                 }
             },
-            "required": ["key", "operator"],
+            "required": [
+                "key",
+                "operator"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9898,7 +10730,9 @@
                     "type": "string"
                 }
             },
-            "required": ["fieldPath"],
+            "required": [
+                "fieldPath"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -9961,7 +10795,9 @@
                     "description": "The specification for the PersistentVolumeClaim. The entire content is copied unchanged into the PVC that gets created from this template. The same fields as in a PersistentVolumeClaim are also valid here."
                 }
             },
-            "required": ["spec"],
+            "required": [
+                "spec"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9977,7 +10813,9 @@
                     "type": "boolean"
                 }
             },
-            "required": ["claimName"],
+            "required": [
+                "claimName"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -9993,7 +10831,9 @@
                     "type": "string"
                 }
             },
-            "required": ["pdID"],
+            "required": [
+                "pdID"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10057,7 +10897,9 @@
                     "type": "string"
                 }
             },
-            "required": ["topologyKey"],
+            "required": [
+                "topologyKey"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10155,7 +10997,9 @@
                     "type": "string"
                 }
             },
-            "required": ["volumeID"],
+            "required": [
+                "volumeID"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10172,7 +11016,10 @@
                     "type": "integer"
                 }
             },
-            "required": ["weight", "preference"],
+            "required": [
+                "weight",
+                "preference"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10276,7 +11123,10 @@
                     "type": "string"
                 }
             },
-            "required": ["registry", "volume"],
+            "required": [
+                "registry",
+                "volume"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10319,7 +11169,10 @@
                     "type": "string"
                 }
             },
-            "required": ["monitors", "image"],
+            "required": [
+                "monitors",
+                "image"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10331,7 +11184,9 @@
                     "type": "string"
                 }
             },
-            "required": ["name"],
+            "required": [
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10351,7 +11206,9 @@
                     "type": "string"
                 }
             },
-            "required": ["resource"],
+            "required": [
+                "resource"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -10365,7 +11222,9 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.ResourceClaim"
                     },
                     "type": "array",
-                    "x-kubernetes-list-map-keys": ["name"],
+                    "x-kubernetes-list-map-keys": [
+                        "name"
+                    ],
                     "x-kubernetes-list-type": "map"
                 },
                 "limits": {
@@ -10453,7 +11312,11 @@
                     "type": "string"
                 }
             },
-            "required": ["gateway", "system", "secretRef"],
+            "required": [
+                "gateway",
+                "system",
+                "secretRef"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10469,7 +11332,9 @@
                     "type": "string"
                 }
             },
-            "required": ["type"],
+            "required": [
+                "type"
+            ],
             "type": "object",
             "x-kubernetes-unions": [
                 {
@@ -10512,7 +11377,9 @@
                     "type": "boolean"
                 }
             },
-            "required": ["key"],
+            "required": [
+                "key"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -10636,7 +11503,9 @@
                     "type": "string"
                 }
             },
-            "required": ["path"],
+            "required": [
+                "path"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10649,7 +11518,9 @@
                     "type": "integer"
                 }
             },
-            "required": ["seconds"],
+            "required": [
+                "seconds"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10692,7 +11563,10 @@
                     "type": "string"
                 }
             },
-            "required": ["name", "value"],
+            "required": [
+                "name",
+                "value"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10708,7 +11582,9 @@
                     "description": "Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME."
                 }
             },
-            "required": ["port"],
+            "required": [
+                "port"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10782,7 +11658,11 @@
                     "type": "string"
                 }
             },
-            "required": ["maxSkew", "topologyKey", "whenUnsatisfiable"],
+            "required": [
+                "maxSkew",
+                "topologyKey",
+                "whenUnsatisfiable"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10802,7 +11682,10 @@
                     "type": "string"
                 }
             },
-            "required": ["kind", "name"],
+            "required": [
+                "kind",
+                "name"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -10826,7 +11709,10 @@
                     "type": "string"
                 }
             },
-            "required": ["kind", "name"],
+            "required": [
+                "kind",
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10954,7 +11840,9 @@
                     "description": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine"
                 }
             },
-            "required": ["name"],
+            "required": [
+                "name"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -10970,7 +11858,10 @@
                     "type": "string"
                 }
             },
-            "required": ["name", "devicePath"],
+            "required": [
+                "name",
+                "devicePath"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -11002,7 +11893,10 @@
                     "type": "string"
                 }
             },
-            "required": ["name", "mountPath"],
+            "required": [
+                "name",
+                "mountPath"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -11074,7 +11968,9 @@
                     "type": "string"
                 }
             },
-            "required": ["volumePath"],
+            "required": [
+                "volumePath"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -11091,7 +11987,10 @@
                     "type": "integer"
                 }
             },
-            "required": ["weight", "podAffinityTerm"],
+            "required": [
+                "weight",
+                "podAffinityTerm"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -11133,7 +12032,9 @@
                     "type": "array"
                 }
             },
-            "required": ["cidr"],
+            "required": [
+                "cidr"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -11231,7 +12132,10 @@
                     "type": "array"
                 }
             },
-            "required": ["key", "operator"],
+            "required": [
+                "key",
+                "operator"
+            ],
             "type": "object",
             "additionalProperties": false
         },
@@ -11385,7 +12289,12 @@
                     "type": "string"
                 }
             },
-            "required": ["apiVersion", "kind", "name", "uid"],
+            "required": [
+                "apiVersion",
+                "kind",
+                "name",
+                "uid"
+            ],
             "type": "object",
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
@@ -11417,7 +12326,10 @@
                 },
                 "command": {
                     "description": "Command to use when running the Airflow log groomer sidecar (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
@@ -11425,11 +12337,17 @@
                 },
                 "args": {
                     "description": "Args to use when running the Airflow log groomer sidecar (templated).",
-                    "type": ["array", "null"],
+                    "type": [
+                        "array",
+                        "null"
+                    ],
                     "items": {
                         "type": "string"
                     },
-                    "default": ["bash", "/clean-logs"]
+                    "default": [
+                        "bash",
+                        "/clean-logs"
+                    ]
                 },
                 "retentionDays": {
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
@@ -11513,7 +12431,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -11524,7 +12444,10 @@
         },
         "persistentVolumeClaimRetentionPolicy": {
             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
-            "type": ["object", "null"],
+            "type": [
+                "object",
+                "null"
+            ],
             "default": null,
             "additionalProperties": false,
             "properties": {
