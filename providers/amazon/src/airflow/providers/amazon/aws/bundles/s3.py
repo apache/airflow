@@ -148,7 +148,8 @@ class S3DagBundle(BaseDagBundle):
         """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
         if self.version:
             raise AirflowException("S3 url with version is not supported")
-        if self._view_url_template:
+        if hasattr(self, "_view_url_template") and self._view_url_template:
+            # Backward compatibility for released Airflow versions
             return self._view_url_template
         # https://<bucket-name>.s3.<region>.amazonaws.com/<object-key>
         url = f"https://{self.bucket_name}.s3"

@@ -230,7 +230,8 @@ class GitDagBundle(BaseDagBundle):
         return template.format(version=version)
 
     def view_url_template(self) -> str | None:
-        if self._view_url_template:
+        if hasattr(self, "_view_url_template") and self._view_url_template:
+            # Backward compatibility for released Airflow versions
             return self._view_url_template
 
         if not self.repo_url:
