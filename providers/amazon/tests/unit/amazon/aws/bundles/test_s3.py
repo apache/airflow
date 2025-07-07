@@ -24,7 +24,7 @@ import pytest
 from moto import mock_aws
 
 import airflow.version
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import db
@@ -109,7 +109,16 @@ class TestS3DagBundle:
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
         )
-        url: str = bundle.view_url("test_version")
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            url: str = bundle.view_url("test_version")
+        assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
+
+    @pytest.mark.db_test
+    def test_view_url_template_generates_presigned_url(self):
+        bundle = S3DagBundle(
+            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
+        )
+        url: str = bundle.view_url_template()
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
 
     @pytest.mark.db_test
@@ -124,7 +133,10 @@ class TestS3DagBundle:
 
         with pytest.raises(AirflowException, match="Refreshing a specific version is not supported"):
             bundle.refresh()
-        with pytest.raises(AirflowException, match="S3 url with version is not supported"):
+        with (
+            pytest.raises(AirflowException, match="S3 url with version is not supported"),
+            pytest.warns(AirflowProviderDeprecationWarning),
+        ):
             bundle.view_url("test_version")
 
     @pytest.mark.db_test
