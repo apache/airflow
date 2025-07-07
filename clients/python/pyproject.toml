@@ -25,7 +25,7 @@ dynamic = ["version"]
 description = "Apache Airflow API (Stable)"
 readme = "README.md"
 license-files.globs = ["LICENSE", "NOTICE"]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
