@@ -23,7 +23,7 @@ from unittest import mock
 from airflow.models import Connection
 
 if TYPE_CHECKING:
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk import BaseHook
 
 
 def mock_db_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None):

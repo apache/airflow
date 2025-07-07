@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
-from tableauserverclient import Pager, Server, TableauAuth
+from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.tableau.version_compat import BaseHook
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from tableauserverclient.server import Auth
@@ -109,15 +111,46 @@ class TableauHook(BaseHook):
 
         :return: an authorized Tableau Server Context Manager object.
         """
-        if self.conn.login and self.conn.password:
+        extra = self.conn.extra_dejson
+        password_auth_set = self.conn.login and self.conn.password
+        jwt_auth_set = extra.get("auth") == "jwt"
+
+        if password_auth_set and jwt_auth_set:
+            raise AirflowException(
+                "Username/password authentication and JWT authentication cannot be used simultaneously. Please specify only one authentication method."
+            )
+        if password_auth_set:
             return self._auth_via_password()
+        if jwt_auth_set:
+            if not exactly_one(jwt_file := "jwt_file" in extra, jwt_token := "jwt_token" in extra):
+                msg = (
+                    "When auth set to 'jwt' then expected exactly one parameter 'jwt_file' or 'jwt_token'"
+                    " in connection extra, but "
+                )
+                if jwt_file and jwt_token:
+                    msg += "provided both."
+                else:
+                    msg += "none of them provided."
+                raise ValueError(msg)
+
+            if jwt_file:
+                self.jwt_token = Path(extra["jwt_file"]).read_text()
+            else:
+                self.jwt_token = extra["jwt_token"]
+            return self._auth_via_jwt()
         raise NotImplementedError("No Authentication method found for given Credentials!")
 
     def _auth_via_password(self) -> Auth.contextmgr:
         tableau_auth = TableauAuth(
-            username=self.conn.login, password=self.conn.password, site_id=self.site_id
+            username=cast("str", self.conn.login),
+            password=cast("str", self.conn.password),
+            site_id=self.site_id,
         )
         return self.server.auth.sign_in(tableau_auth)
+
+    def _auth_via_jwt(self) -> Auth.contextmgr:
+        jwt_auth = JWTAuth(jwt=self.jwt_token, site_id=self.site_id)
+        return self.server.auth.sign_in(jwt_auth)
 
     def get_all(self, resource_name: str) -> Pager:
         """

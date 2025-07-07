@@ -50,7 +50,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
 )
-from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -254,7 +254,7 @@ class KiotaRequestAdapterHook(BaseHook):
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
             api_version = self.get_api_version(config)
-            host = self.get_host(connection)
+            host = self.get_host(connection)  # type: ignore[arg-type]
             base_url = config.get("base_url", urljoin(host, api_version))
             authority = config.get("authority")
             proxies = self.get_proxies(config)

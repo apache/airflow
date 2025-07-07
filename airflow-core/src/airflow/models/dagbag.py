@@ -448,7 +448,7 @@ class DagBag(LoggingMixin):
 
         dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
 
-        if not isinstance(dagbag_import_timeout, int | float):
+        if not isinstance(dagbag_import_timeout, (int, float)):
             raise TypeError(
                 f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
             )
@@ -520,7 +520,7 @@ class DagBag(LoggingMixin):
         from airflow.sdk import DAG as SDKDAG
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG | SDKDAG)}
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, (DAG, SDKDAG))}
 
         top_level_dags.update(DagContext.autoregistered_dags)
 

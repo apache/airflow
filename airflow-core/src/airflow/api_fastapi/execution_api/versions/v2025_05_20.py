@@ -28,7 +28,7 @@ class DowngradeUpstreamMapIndexes(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("upstream_map_indexes").had(type=dict[str, int] | None),  # type: ignore
+        schema(TIRunContext).field("upstream_map_indexes").had(type=dict[str, int | None] | None),
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
@@ -40,13 +40,14 @@ class DowngradeUpstreamMapIndexes(VersionChange):
         """
         resp = response.body.get("upstream_map_indexes")
         if isinstance(resp, dict):
-            downgraded = {}
+            downgraded: dict[str, int | list | None] = {}
             for k, v in resp.items():
                 if isinstance(v, int):
                     downgraded[k] = v
                 elif isinstance(v, list) and v and all(isinstance(i, int) for i in v):
                     downgraded[k] = v[0]
                 else:
-                    # for cases like None, make it -1
-                    downgraded[k] = -1
+                    # Keep values like None as is — the Task SDK expects them unchanged during mapped task expansion,
+                    # and modifying them can cause unexpected failures.
+                    downgraded[k] = None
             response.body["upstream_map_indexes"] = downgraded

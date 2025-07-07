@@ -439,8 +439,8 @@ class LivyHook(HttpHook):
         """
         if (
             vals is None
-            or not isinstance(vals, tuple | list)
-            or not all(isinstance(val, str | int | float) for val in vals)
+            or not isinstance(vals, (tuple, list))
+            or not all(isinstance(val, (str, int, float)) for val in vals)
         ):
             raise ValueError("List of strings expected")
         return True
@@ -456,7 +456,7 @@ class LivyHook(HttpHook):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if not all(isinstance(v, str | int) and v != "" for v in conf.values()):
+            if not all(isinstance(v, (str, int)) and v != "" for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True
 
@@ -528,7 +528,7 @@ class LivyAsyncHook(HttpAsyncHook):
         if self.http_conn_id:
             conn = await sync_to_async(self.get_connection)(self.http_conn_id)
 
-            self.base_url = self._generate_base_url(conn)
+            self.base_url = self._generate_base_url(conn)  # type: ignore[arg-type]
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
@@ -825,8 +825,8 @@ class LivyAsyncHook(HttpAsyncHook):
         """
         if (
             vals is None
-            or not isinstance(vals, tuple | list)
-            or not all(isinstance(val, str | int | float) for val in vals)
+            or not isinstance(vals, (tuple, list))
+            or not all(isinstance(val, (str, int, float)) for val in vals)
         ):
             raise ValueError("List of strings expected")
         return True
@@ -842,6 +842,6 @@ class LivyAsyncHook(HttpAsyncHook):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if not all(isinstance(v, str | int) and v != "" for v in conf.values()):
+            if not all(isinstance(v, (str, int)) and v != "" for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True

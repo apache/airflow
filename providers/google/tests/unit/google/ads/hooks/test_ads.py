@@ -21,6 +21,16 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 
@@ -46,7 +56,7 @@ EXTRAS_DEVELOPER_TOKEN = {
     params=[EXTRAS_DEVELOPER_TOKEN, EXTRAS_SERVICE_ACCOUNT], ids=["developer_token", "service_account"]
 )
 def mock_hook(request):
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+    with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
         hook = GoogleAdsHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = request.param
         yield hook
@@ -61,7 +71,7 @@ def mock_hook(request):
     ids=["developer_token", "service_account", "empty"],
 )
 def mock_hook_for_authentication_method(request):
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+    with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
         hook = GoogleAdsHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = request.param["input"]
         yield hook, request.param["expected_result"]
