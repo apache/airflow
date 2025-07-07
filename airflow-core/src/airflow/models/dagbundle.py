@@ -48,6 +48,7 @@ class DagBundleModel(Base, LoggingMixin):
     template_params = Column(JSONType, nullable=True)
 
     def __init__(self, *, name: str, version: str | None = None):
+        super().__init__()
         self.name = name
         self.version = version
 
@@ -73,7 +74,7 @@ class DagBundleModel(Base, LoggingMixin):
         except (BadSignature, Exception):
             return None
 
-    def render_url(self) -> str | None:
+    def render_url(self, version: str | None = None) -> str | None:
         """
         Render the URL template with the given version and stored template parameters.
 
@@ -92,7 +93,7 @@ class DagBundleModel(Base, LoggingMixin):
             url_template = self.url_template
 
         params = dict(self.template_params or {})
-        params["version"] = self.version
+        params["version"] = version
 
         try:
             return url_template.format(**params)
