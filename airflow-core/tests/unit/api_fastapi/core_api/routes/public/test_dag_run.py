@@ -1637,15 +1637,21 @@ class TestWaitDagRun:
         _configure_async_session()
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait?interval=1")
+        response = unauthenticated_test_client.get(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1"},
+        )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait?interval=1")
+        response = unauthorized_test_client.get(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1"},
+        )
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/does-not-exist/wait?interval=1")
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/does-not-exist/wait", params={"interval": "1"})
         assert response.status_code == 404
 
     def test_should_respond_422_without_interval_param(self, test_client):
@@ -1657,13 +1663,15 @@ class TestWaitDagRun:
         [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
     )
     def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/wait?interval=100")
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/wait", params={"interval": "100"})
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": state}
 
     def test_collect_task(self, test_client):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait?interval=100&collect=task_1")
+        response = test_client.get(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1", "collect": "task_1"}
+        )
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS, "returns": {"task_1": '"result_1"'}}
