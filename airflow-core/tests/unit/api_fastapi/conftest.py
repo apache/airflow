@@ -163,11 +163,7 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
     """
     dag_id = "dag_with_multiple_versions"
     for version_number in range(1, 4):
-        with dag_maker(
-            dag_id,
-            session=session,
-            bundle_version=f"some_commit_hash{version_number}",
-        ):
+        with dag_maker(dag_id, session=session, bundle_version=f"some_commit_hash{version_number}"):
             for task_number in range(version_number):
                 EmptyOperator(task_id=f"task{task_number + 1}")
         dag_maker.create_dagrun(
