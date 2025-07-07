@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
 
 import structlog
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
@@ -138,9 +139,20 @@ class S3DagBundle(BaseDagBundle):
 
     def view_url(self, version: str | None = None) -> str | None:
         """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
+        warnings.warn(
+            message="The method 'view_url' is deprecated and will be removed in a future release. Use 'view_url_template' instead.",
+            category=AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.view_url_template()
+
+    def view_url_template(self) -> str | None:
+        """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
         if self.version:
             raise AirflowException("S3 url with version is not supported")
-
+        if self._view_url_template:
+            return self._view_url_template
         # https://<bucket-name>.s3.<region>.amazonaws.com/<object-key>
         url = f"https://{self.bucket_name}.s3"
         if self.s3_hook.region_name:
