@@ -656,7 +656,9 @@ class S3Hook(AwsBaseHook):
             response = paginator.paginate(**params)
             async for page in response:
                 if "Contents" in page:
-                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), int | float))
+                    keys.extend(
+                        k.get("Key") for k in page["Contents"] if isinstance(k.get("Size"), int | float)
+                    )
         return keys
 
     async def _list_keys_async(
