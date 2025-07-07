@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-07T07:50:24.993338
+# This constraints file was automatically generated on 2025-07-07T13:54:32.680421
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -446,8 +446,8 @@ jeepney==0.9.0
 jiter==0.10.0
 jmespath==0.10.0
 joblib==1.5.1
-joserfc==1.1.0
-jpype1==1.5.2
+joserfc==1.2.0
+jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
 jsonpath-python==1.0.6
@@ -740,7 +740,7 @@ sympy==1.14.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.32
+teradatasql==20.0.0.33
 teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
 text-unidecode==1.3
