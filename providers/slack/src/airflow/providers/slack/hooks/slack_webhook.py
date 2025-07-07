@@ -27,11 +27,7 @@ from slack_sdk import WebhookClient
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.slack.utils import ConnectionExtraConfig
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.slack.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

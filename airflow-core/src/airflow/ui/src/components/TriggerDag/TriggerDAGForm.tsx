@@ -157,7 +157,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           onChange={() => setUnpause(!unpause)}
           wordBreak="break-all"
         >
-          {translate("triggerDag.unpause", { dagDisplayName })}
+          {translate("components:triggerDag.unpause", { dagDisplayName })}
         </Checkbox>
       ) : undefined}
       <ErrorAlert error={errors.date ?? errorTrigger} />
