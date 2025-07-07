@@ -16,25 +16,38 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    raise ImportError("Human in the loop functionality needs Airflow 3.1+.")
+
 import asyncio
-import logging
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime
+from typing import Any, TypedDict
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.sdk.execution_time.hitl import (
     get_hitl_response_content_detail,
     update_htil_response_content_detail,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils import timezone
 
-log = logging.getLogger(__name__)
-if not AIRFLOW_V_3_1_PLUS:
-    log.warning("Human in the loop functionality needs Airflow 3.1+..")
+
+class HITLTriggerEventSuccessPayload(TypedDict, total=False):
+    """Minimum required keys for a success Human-in-the-loop TriggerEvent."""
+
+    response_content: list[str]
+    params_input: dict[str, Any]
+
+
+class HITLTriggerEventFailurePayload(TypedDict):
+    """Minimum required keys for a failed Human-in-the-loop TriggerEvent."""
+
+    error: str
 
 
 class HITLTrigger(BaseTrigger):
@@ -45,8 +58,8 @@ class HITLTrigger(BaseTrigger):
         *,
         ti_id: UUID,
         options: list[str],
-        default: list[str] | None = None,
         params: dict[str, Any],
+        default: list[str] | None = None,
         multiple: bool = False,
         timeout_datetime: datetime | None,
         poke_interval: float = 5.0,
@@ -54,12 +67,14 @@ class HITLTrigger(BaseTrigger):
     ):
         super().__init__(**kwargs)
         self.ti_id = ti_id
-        self.options = options
-        self.timeout_datetime = timeout_datetime
-        self.default = default
-        self.params = params
-        self.multiple = multiple
         self.poke_interval = poke_interval
+
+        self.options = options
+        self.multiple = multiple
+        self.default = default
+        self.timeout_datetime = timeout_datetime
+
+        self.params = params
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HITLTrigger arguments and classpath."""
@@ -79,35 +94,37 @@ class HITLTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
-            if self.timeout_datetime and self.timeout_datetime < datetime.now(timezone.utc):
+            if self.timeout_datetime and self.timeout_datetime < timezone.utcnow():
+                # This normally should be checked in the HITLOperator
                 if self.default is None:
                     yield TriggerEvent(
-                        {
-                            "error": 'default" is required when "execution_timeout" is provided.',
-                        }
+                        HITLTriggerEventFailurePayload(
+                            error='default" is required when "execution_timeout" is provided.'
+                        )
                     )
                     return
 
-                default_content: str = self.default[0] if isinstance(self.default, list) else self.default
-                resp = await sync_to_async(update_htil_response_content_detail)(
-                    ti_id=self.ti_id, response_content=default_content
+                await sync_to_async(update_htil_response_content_detail)(
+                    ti_id=self.ti_id,
+                    response_content=self.default,
+                    params_input=self.params,
                 )
                 yield TriggerEvent(
-                    {
-                        "response_content": default_content,
-                        "params_input": self.params,
-                    }
+                    HITLTriggerEventSuccessPayload(
+                        response_content=self.default,
+                        params_input=self.params,
+                    )
                 )
                 return
 
             resp = await sync_to_async(get_hitl_response_content_detail)(ti_id=self.ti_id)
-            if resp.response_received:
+            if resp.response_received and resp.response_content:
                 self.log.info("Responded by %s at %s", resp.user_id, resp.response_at)
                 yield TriggerEvent(
-                    {
-                        "response_content": resp.response_content,
-                        "params_input": resp.params_input,
-                    }
+                    HITLTriggerEventSuccessPayload(
+                        response_content=resp.response_content,
+                        params_input=resp.params_input,
+                    )
                 )
                 return
             await asyncio.sleep(self.poke_interval)

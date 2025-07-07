@@ -78,9 +78,10 @@ def update_hitl_response(
             "and is not allowed to write again.",
         )
 
-    hitl_response_model.response_content = update_hitl_response_payload.response_content
     hitl_response_model.user_id = user.get_id()
     hitl_response_model.response_at = timezone.utcnow()
+    hitl_response_model.response_content = update_hitl_response_payload.response_content
+    hitl_response_model.params_input = update_hitl_response_payload.params_input
     session.add(hitl_response_model)
     session.commit()
     return HITLResponseContentDetail.model_validate(hitl_response_model)
@@ -95,7 +96,9 @@ def update_hitl_response(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 def get_hitl_response(
     task_instance_id: UUID,

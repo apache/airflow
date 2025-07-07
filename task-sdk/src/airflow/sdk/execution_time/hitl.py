@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -56,8 +55,8 @@ def add_hitl_response(
 
 def update_htil_response_content_detail(
     ti_id: UUID,
-    response_content: str,
-    params_input: MutableMapping | None = None,
+    response_content: list[str],
+    params_input: dict[str, Any],
 ) -> HITLResponseContentDetail:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
