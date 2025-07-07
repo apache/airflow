@@ -60,7 +60,7 @@ PIP package                              Version required
 ``aiohttp``                              ``>=3.9.2,<4``
 ``mergedeep``                            ``>=1.3.4``
 ``pandas``                               ``>=2.1.2,<2.2``
-``pyarrow``                              ``>=14.0.1``
+``pyarrow``                              ``>=16.1.0``
 =======================================  ==================
 
 Cross provider package dependencies
