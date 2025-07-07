@@ -1,0 +1,95 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from uuid6 import uuid7
+
+from airflow.sdk.api.datamodels._generated import HITLResponseContentDetail
+from airflow.sdk.execution_time.comms import CreateHITLResponsePayload
+from airflow.sdk.execution_time.hitl import (
+    add_hitl_response,
+    get_hitl_response_content_detail,
+    update_htil_response_content_detail,
+)
+from airflow.utils import timezone
+
+TI_ID = uuid7()
+
+
+def test_add_hitl_response(mock_supervisor_comms) -> None:
+    add_hitl_response(
+        ti_id=TI_ID,
+        options=["Approve", "Reject"],
+        subject="Subject",
+        body="Optional body",
+        default=["Approve", "Reject"],
+        params={"input_1": 1},
+        multiple=False,
+    )
+    mock_supervisor_comms.send.assert_called_with(
+        msg=CreateHITLResponsePayload(
+            ti_id=TI_ID,
+            options=["Approve", "Reject"],
+            subject="Subject",
+            body="Optional body",
+            default=["Approve", "Reject"],
+            params={"input_1": 1},
+            multiple=False,
+        )
+    )
+
+
+def test_update_htil_response_content_detail(mock_supervisor_comms) -> None:
+    timestamp = timezone.utcnow()
+    mock_supervisor_comms.send.return_value = HITLResponseContentDetail(
+        response_received=True,
+        response_content=["Approve"],
+        response_at=timestamp,
+        user_id="admin",
+        params_input={"input_1": 1},
+    )
+    resp = update_htil_response_content_detail(
+        ti_id=TI_ID,
+        response_content=["Approve"],
+        params_input={"input_1": 1},
+    )
+    assert resp == HITLResponseContentDetail(
+        response_received=True,
+        response_content=["Approve"],
+        response_at=timestamp,
+        user_id="admin",
+        params_input={"input_1": 1},
+    )
+
+
+def test_get_hitl_response_content_detail(mock_supervisor_comms) -> None:
+    mock_supervisor_comms.send.return_value = HITLResponseContentDetail(
+        response_received=False,
+        response_content=None,
+        response_at=None,
+        user_id=None,
+        params_input={},
+    )
+    resp = get_hitl_response_content_detail(TI_ID)
+    assert resp == HITLResponseContentDetail(
+        response_received=False,
+        response_content=None,
+        response_at=None,
+        user_id=None,
+        params_input={},
+    )
