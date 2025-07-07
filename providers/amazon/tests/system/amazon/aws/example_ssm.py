@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -33,11 +31,43 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.ec2 import get_latest_ami_id
-from system.amazon.aws.utils.iam import create_iam_role
 
-sys_test_context_task = SystemTestContextBuilder().build()
+ROLE_ARN_KEY = "ROLE_ARN"
+INSTANCE_PROFILE_NAME_KEY = "INSTANCE_PROFILE_NAME"
+
+sys_test_context_task = (
+    SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(INSTANCE_PROFILE_NAME_KEY).build()
+)
 
 DAG_ID = "example_ssm"
+USER_DATA = """
+    #!/bin/bash
+    set -e
+
+    # Update the system
+    if command -v yum &> /dev/null; then
+        PACKAGE_MANAGER="yum"
+    elif command -v dnf &> /dev/null; then
+        PACKAGE_MANAGER="dnf"
+    else
+        exit 1
+    fi
+
+    # Install SSM agent if it's not installed
+    if ! command -v amazon-ssm-agent &> /dev/null; then
+        if [[ "$PACKAGE_MANAGER" == "yum" || "$PACKAGE_MANAGER" == "dnf" ]]; then
+            $PACKAGE_MANAGER install -y amazon-ssm-agent
+        else
+            exit 1
+        fi
+    fi
+
+    # Enable and start the SSM agent
+    systemctl enable amazon-ssm-agent
+    systemctl start amazon-ssm-agent
+
+    shutdown -h +8
+"""
 
 
 @task
@@ -87,45 +117,7 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     instance_name = f"{env_id}-instance"
     image_id = get_latest_ami_id()
-    instance_profile_name = "SSMInstanceProfileForEC2"
-    role_name = "SSMRoleForEC2"
-    trust_policy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}
-        ],
-    }
-    role_description = "Role for EC2 to use SSM"
-    policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-
-    user_data = """
-        #!/bin/bash
-        set -e
-
-        # Update the system
-        if command -v yum &> /dev/null; then
-            PACKAGE_MANAGER="yum"
-        elif command -v dnf &> /dev/null; then
-            PACKAGE_MANAGER="dnf"
-        else
-            exit 1
-        fi
-
-        # Install SSM agent if it's not installed
-        if ! command -v amazon-ssm-agent &> /dev/null; then
-            if [[ "$PACKAGE_MANAGER" == "yum" || "$PACKAGE_MANAGER" == "dnf" ]]; then
-                $PACKAGE_MANAGER install -y amazon-ssm-agent
-            else
-                exit 1
-            fi
-        fi
-
-        # Enable and start the SSM agent
-        systemctl enable amazon-ssm-agent
-        systemctl start amazon-ssm-agent
-
-        shutdown -h +8
-    """
+    instance_profile_name = test_context[INSTANCE_PROFILE_NAME_KEY]
 
     config = {
         "InstanceType": "t2.micro",
@@ -134,7 +126,7 @@ with DAG(
         "TagSpecifications": [
             {"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}
         ],
-        "UserData": user_data,
+        "UserData": USER_DATA,
         # Use IMDSv2 for greater security, see the following doc for more details:
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
         "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
@@ -182,7 +174,6 @@ with DAG(
         # TEST SETUP
         test_context,
         image_id,
-        create_iam_role(role_name, trust_policy, role_description, policy_arn, instance_profile_name),
         create_instance,
         instance_id,
         run_command_kwargs,

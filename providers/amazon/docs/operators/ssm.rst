@@ -47,7 +47,7 @@ Runs commands on one or more managed nodes
 To run SSM run command, you can use
 :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator`.
 
-To monitor the state of the command for a specific instance, you can use the "run_command_instance_complete"
+To monitor the state of the command for a specific instance, you can use the "command_executed"
 Waiter. Additionally, you can use the following components to track the status of the command execution:
 :class:`~airflow.providers.amazon.aws.sensors.ssm.SsmRunCommandCompletedSensor` Sensor,
 or the :class:`~airflow.providers.amazon.aws.triggers.ssm.SsmRunCommandTrigger` Trigger.

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -27,6 +25,20 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
 
+COMMAND_ID = "123e4567-e89b-12d3-a456-426614174000"
+
+
+@pytest.fixture
+def mock_ssm_list_invocations():
+    def _setup(mock_conn: mock.MagicMock, state: str):
+        mock_conn.list_command_invocations.return_value = {
+            "CommandInvocations": [
+                {"CommandId": COMMAND_ID, "InstanceId": "i-1234567890abcdef0", "Status": state}
+            ]
+        }
+
+    return _setup
+
 
 class TestSsmRunCommandCompletedSensor:
     SENSOR = SsmRunCommandCompletedSensor
@@ -34,7 +46,7 @@ class TestSsmRunCommandCompletedSensor:
     def setup_method(self):
         self.default_op_kwarg = dict(
             task_id="test_ssm_run_command_sensor",
-            command_id="123e4567-e89b-12d3-a456-426614174000",
+            command_id=COMMAND_ID,
             poke_interval=5,
             max_retries=1,
         )
@@ -63,36 +75,21 @@ class TestSsmRunCommandCompletedSensor:
 
     @pytest.mark.parametrize("state", SENSOR.SUCCESS_STATES)
     @mock.patch.object(SsmHook, "conn")
-    def test_poke_success_states(self, mock_conn, state):
-        mock_conn.list_command_invocations.return_value = {
-            "CommandInvocations": [
-                {"CommandId": "123e4567-e89b-12d3-a456-426614174000", "InstanceId": "i-1234567890abcdef0"}
-            ]
-        }
-        mock_conn.get_command_invocation.return_value = {"Status": state}
+    def test_poke_success_states(self, mock_conn, state, mock_ssm_list_invocations):
+        mock_ssm_list_invocations(mock_conn, state)
         self.sensor.hook.conn = mock_conn
         assert self.sensor.poke({}) is True
 
     @pytest.mark.parametrize("state", SENSOR.INTERMEDIATE_STATES)
     @mock.patch.object(SsmHook, "conn")
-    def test_poke_intermediate_states(self, mock_conn, state):
-        mock_conn.list_command_invocations.return_value = {
-            "CommandInvocations": [
-                {"CommandId": "123e4567-e89b-12d3-a456-426614174000", "InstanceId": "i-1234567890abcdef0"}
-            ]
-        }
-        mock_conn.get_command_invocation.return_value = {"Status": state}
+    def test_poke_intermediate_states(self, mock_conn, state, mock_ssm_list_invocations):
+        mock_ssm_list_invocations(mock_conn, state)
         self.sensor.hook.conn = mock_conn
         assert self.sensor.poke({}) is False
 
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(SsmHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state):
-        mock_conn.list_command_invocations.return_value = {
-            "CommandInvocations": [
-                {"CommandId": "123e4567-e89b-12d3-a456-426614174000", "InstanceId": "i-1234567890abcdef0"}
-            ]
-        }
-        mock_conn.get_command_invocation.return_value = {"Status": state}
+    def test_poke_failure_states(self, mock_conn, state, mock_ssm_list_invocations):
+        mock_ssm_list_invocations(mock_conn, state)
         with pytest.raises(AirflowException, match=self.SENSOR.FAILURE_MESSAGE):
             self.sensor.poke({})

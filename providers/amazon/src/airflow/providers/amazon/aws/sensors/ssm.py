@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -120,7 +118,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         else:
             super().execute(context=context)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":

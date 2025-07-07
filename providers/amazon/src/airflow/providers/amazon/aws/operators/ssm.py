@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -120,7 +118,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
 
         elif self.wait_for_completion:
             self.log.info("Waiting for %s", task_description)
-            waiter = self.hook.get_waiter("run_command_instance_complete")
+            waiter = self.hook.get_waiter("command_executed")
 
             instance_ids = response["Command"]["InstanceIds"]
             for instance_id in instance_ids:

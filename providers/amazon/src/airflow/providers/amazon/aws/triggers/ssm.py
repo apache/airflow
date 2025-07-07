@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -50,7 +48,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
     ) -> None:
         super().__init__(
             serialized_fields={"command_id": command_id},
-            waiter_name="run_command_instance_complete",
+            waiter_name="command_executed",
             waiter_args={"CommandId": command_id},
             failure_message="SSM run command failed.",
             status_message="Status of SSM run command is",

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -28,17 +26,19 @@ from airflow.providers.amazon.aws.operators.ssm import SsmRunCommandOperator
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
+COMMAND_ID = "test_command_id"
+DOCUMENT_NAME = "test_ssm_custom_document"
+INSTANCE_IDS = ["test_instance_id_1", "test_instance_id_2"]
+
 
 class TestSsmRunCommandOperator:
-    COMMAND_ID = "test_command_id"
-
     @pytest.fixture
     def mock_conn(self) -> Generator[SsmHook, None, None]:
         with mock.patch.object(SsmHook, "conn") as _conn:
             _conn.send_command.return_value = {
                 "Command": {
-                    "CommandId": self.COMMAND_ID,
-                    "InstanceIds": ["test_instance_id_1", "test_instance_id_2"],
+                    "CommandId": COMMAND_ID,
+                    "InstanceIds": INSTANCE_IDS,
                 }
             }
             yield _conn
@@ -46,8 +46,8 @@ class TestSsmRunCommandOperator:
     def setup_method(self):
         self.operator = SsmRunCommandOperator(
             task_id="test_run_command_operator",
-            document_name="test_ssm_custom_document",
-            run_command_kwargs={"InstanceIds": ["test_instance_id_1", "test_instance_id_2"]},
+            document_name=DOCUMENT_NAME,
+            run_command_kwargs={"InstanceIds": INSTANCE_IDS},
         )
         self.operator.defer = mock.MagicMock()
 
@@ -66,7 +66,8 @@ class TestSsmRunCommandOperator:
 
         command_id = self.operator.execute({})
 
-        assert command_id == self.COMMAND_ID
+        assert command_id == COMMAND_ID
+        mock_conn.send_command.assert_called_once_with(DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS)
         assert mock_get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
 
