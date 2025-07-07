@@ -6,15 +6,27 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
-export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }: {
+export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, searchMatchMode, uriPattern }: {
   dagIds?: string[];
+  groupPattern?: string;
   limit?: number;
   namePattern?: string;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  searchMatchMode?: "any" | "all";
   uriPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, searchMatchMode, uriPattern }])];
+export type AssetServiceGetAssetGroupsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetGroups>>;
+export type AssetServiceGetAssetGroupsQueryResult<TData = AssetServiceGetAssetGroupsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetGroupsKey = "AssetServiceGetAssetGroups";
+export const UseAssetServiceGetAssetGroupsKeyFn = ({ group, limit, offset, onlyActive, orderBy }: {
+  group?: string;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  orderBy?: string;
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetGroupsKey, ...(queryKey ?? [{ group, limit, offset, onlyActive, orderBy }])];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAliases>>;
 export type AssetServiceGetAssetAliasesQueryResult<TData = AssetServiceGetAssetAliasesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
@@ -626,9 +638,10 @@ export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) 
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<ReturnType<typeof DependenciesService.getDependencies>>;
 export type DependenciesServiceGetDependenciesQueryResult<TData = DependenciesServiceGetDependenciesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
-export const UseDependenciesServiceGetDependenciesKeyFn = ({ nodeId }: {
+export const UseDependenciesServiceGetDependenciesKeyFn = ({ nodeId, nodeIds }: {
   nodeId?: string;
-} = {}, queryKey?: Array<unknown>) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
+  nodeIds?: string[];
+} = {}, queryKey?: Array<unknown>) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId, nodeIds }])];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<ReturnType<typeof DashboardService.historicalMetrics>>;
 export type DashboardServiceHistoricalMetricsQueryResult<TData = DashboardServiceHistoricalMetricsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDashboardServiceHistoricalMetricsKey = "DashboardServiceHistoricalMetrics";

@@ -87,6 +87,21 @@ class AssetCollectionResponse(BaseModel):
     total_entries: int
 
 
+class AssetGroupCollectionResponse(BaseModel):
+    """Asset group collection response."""
+
+    groups: list[AssetGroupResponse]
+    total_entries: int
+
+
+class AssetGroupResponse(BaseModel):
+    """Asset group serializer for responses."""
+
+    group: str
+    assets: list[AssetResponse]
+    count: int
+
+
 class AssetAliasResponse(BaseModel):
     """Asset alias serializer for responses."""
 

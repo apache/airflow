@@ -274,6 +274,50 @@ export const $AssetEventResponse = {
     description: 'Asset event serializer for responses.'
 } as const;
 
+export const $AssetGroupCollectionResponse = {
+    properties: {
+        groups: {
+            items: {
+                '$ref': '#/components/schemas/AssetGroupResponse'
+            },
+            type: 'array',
+            title: 'Groups'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['groups', 'total_entries'],
+    title: 'AssetGroupCollectionResponse',
+    description: 'Asset group collection response.'
+} as const;
+
+export const $AssetGroupResponse = {
+    properties: {
+        group: {
+            type: 'string',
+            title: 'Group'
+        },
+        assets: {
+            items: {
+                '$ref': '#/components/schemas/AssetResponse'
+            },
+            type: 'array',
+            title: 'Assets'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: ['group', 'assets', 'count'],
+    title: 'AssetGroupResponse',
+    description: 'Asset group serializer for responses.'
+} as const;
+
 export const $AssetResponse = {
     properties: {
         id: {

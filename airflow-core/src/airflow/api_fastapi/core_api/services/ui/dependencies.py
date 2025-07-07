@@ -48,9 +48,16 @@ def extract_connected_components(adjacency_matrix: dict[str, list[str]]) -> list
 
 
 def extract_single_connected_component(
-    node_id: str, nodes: list[dict], edges: list[dict]
+    node_ids: list[str] | str, nodes: list[dict], edges: list[dict]
 ) -> dict[str, list[dict]]:
-    """Find the connected component that contains the node with the id ``node_id``."""
+    """
+    Find the connected component(s) that contain the node(s) with the given id(s).
+
+    If a single node_id is given, require exactly one component and raise if not found (legacy behavior).
+    If multiple node_ids are given, merge all relevant components.
+    """
+    if isinstance(node_ids, str):
+        node_ids = [node_ids]
     adjacency_matrix: dict[str, list[str]] = defaultdict(list)
 
     for edge in edges:
@@ -59,20 +66,34 @@ def extract_single_connected_component(
 
     connected_components = extract_connected_components(adjacency_matrix)
 
-    filtered_connected_components = [cc for cc in connected_components if node_id in cc]
-
-    if len(filtered_connected_components) != 1:
-        raise ValueError(
-            f"Unique connected component not found, got {filtered_connected_components} for connected components of node {node_id}, expected only 1 connected component."
-        )
-
-    connected_component = filtered_connected_components[0]
-
-    nodes = [node for node in nodes if node["id"] in connected_component]
-    edges = [
+    if len(node_ids) == 1:
+        node_id = node_ids[0]
+        filtered_connected_components = [cc for cc in connected_components if node_id in cc]
+        if len(filtered_connected_components) != 1:
+            raise ValueError(
+                f"Unique connected component not found, got {filtered_connected_components} for connected components of node {node_id}, expected only 1 connected component."
+            )
+        connected_component = filtered_connected_components[0]
+        filtered_nodes = [node for node in nodes if node["id"] in connected_component]
+        filtered_edges = [
+            edge
+            for edge in edges
+            if (edge["source_id"] in connected_component and edge["target_id"] in connected_component)
+        ]
+        return {"nodes": filtered_nodes, "edges": filtered_edges}
+    # Multiple node_ids: merge all relevant components
+    relevant_components = [cc for cc in connected_components if any(nid in cc for nid in node_ids)]
+    # NEW: Check that all node_ids are present in the merged set
+    if not relevant_components:
+        raise ValueError(f"No connected component found for node(s) {node_ids}.")
+    merged_node_ids = set().union(*relevant_components)
+    missing = [nid for nid in node_ids if nid not in merged_node_ids]
+    if missing:
+        raise ValueError(f"No connected component found for node(s) {missing}.")
+    filtered_nodes = [node for node in nodes if node["id"] in merged_node_ids]
+    filtered_edges = [
         edge
         for edge in edges
-        if (edge["source_id"] in connected_component and edge["target_id"] in connected_component)
+        if (edge["source_id"] in merged_node_ids and edge["target_id"] in merged_node_ids)
     ]
-
-    return {"nodes": nodes, "edges": edges}
+    return {"nodes": filtered_nodes, "edges": filtered_edges}

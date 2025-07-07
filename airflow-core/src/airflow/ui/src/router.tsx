@@ -21,9 +21,11 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
+import { AssetsLayout } from "src/layouts/AssetsLayout";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
+import { AssetsGroupedList } from "src/pages/AssetsGroupedList/AssetsGroupedList";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
@@ -58,6 +60,7 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
+import { AssetGroupLayout } from "./pages/Asset/AssetsGroupLayout";
 import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
@@ -99,8 +102,20 @@ export const routerConfig = [
         path: "task_instances",
       },
       {
-        element: <AssetsList />,
+        element: (
+          <AssetsLayout>
+            <AssetsList />
+          </AssetsLayout>
+        ),
         path: "assets",
+      },
+      {
+        element: (
+          <AssetsLayout>
+            <AssetsGroupedList />
+          </AssetsLayout>
+        ),
+        path: "assets/grouped",
       },
       {
         element: <Configs />,
@@ -109,6 +124,14 @@ export const routerConfig = [
       {
         element: <Asset />,
         path: "assets/:assetId",
+      },
+      {
+        element: (
+          <AssetsLayout>
+            <AssetGroupLayout />
+          </AssetsLayout>
+        ),
+        path: "assets/group/:groupName",
       },
       {
         element: <Events />,

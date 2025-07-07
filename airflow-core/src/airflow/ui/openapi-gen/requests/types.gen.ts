@@ -75,6 +75,23 @@ export type AssetEventResponse = {
 };
 
 /**
+ * Asset group collection response.
+ */
+export type AssetGroupCollectionResponse = {
+    groups: Array<AssetGroupResponse>;
+    total_entries: number;
+};
+
+/**
+ * Asset group serializer for responses.
+ */
+export type AssetGroupResponse = {
+    group: string;
+    assets: Array<AssetResponse>;
+    count: number;
+};
+
+/**
  * Asset serializer for responses.
  */
 export type AssetResponse = {
@@ -1899,14 +1916,13 @@ export type category = 'info' | 'warning' | 'error';
 
 export type GetAssetsData = {
     dagIds?: Array<(string)>;
+    groupPattern?: string | null;
     limit?: number;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
     namePattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
     orderBy?: string;
+    searchMatchMode?: 'any' | 'all' | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -1914,6 +1930,19 @@ export type GetAssetsData = {
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;
+
+export type GetAssetGroupsData = {
+    /**
+     * Filter by grupo
+     */
+    group?: string | null;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    orderBy?: string;
+};
+
+export type GetAssetGroupsResponse = AssetGroupCollectionResponse;
 
 export type GetAssetAliasesData = {
     limit?: number;
@@ -2857,6 +2886,10 @@ export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type GetDependenciesData = {
     nodeId?: string | null;
+    /**
+     * List of node ids
+     */
+    nodeIds?: Array<(string)>;
 };
 
 export type GetDependenciesResponse = BaseGraphResponse;
@@ -2943,6 +2976,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: AssetCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/groups': {
+        get: {
+            req: GetAssetGroupsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetGroupCollectionResponse;
                 /**
                  * Unauthorized
                  */

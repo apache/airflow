@@ -1338,3 +1338,79 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
             response.json()["detail"]
             == "Queued event with dag_id: `not_exists` and asset_id: `1` was not found"
         )
+
+
+class TestGetAssetsByGroup(TestAssets):
+    @pytest.mark.parametrize(
+        "params, expected_uris",
+        [
+            ({"group_pattern": "finance"}, {"s3://finance/key", "gcs://finance/key"}),
+            ({"group_pattern": "marketing"}, {"s3://marketing/key"}),
+            ({"group_pattern": ""}, {"s3://finance/key", "gcs://finance/key", "s3://marketing/key"}),
+            ({"group_pattern": "nonexistent"}, set()),
+        ],
+    )
+    @provide_session
+    def test_filter_assets_by_group_pattern_works(self, test_client, params, expected_uris, session):
+        asset1 = AssetModel(name="asset1", uri="s3://finance/key", group="finance")
+        asset2 = AssetModel(name="asset2", uri="gcs://finance/key", group="finance")
+        asset3 = AssetModel(name="asset3", uri="s3://marketing/key", group="marketing")
+        session.add_all([asset1, asset2, asset3])
+        session.add_all(AssetActive.for_asset(a) for a in [asset1, asset2, asset3])
+        session.commit()
+
+        response = test_client.get("/assets", params=params)
+        assert response.status_code == 200
+        asset_uris = {asset["uri"] for asset in response.json()["assets"]}
+        assert asset_uris == expected_uris
+
+
+class TestGetAssetGroups(TestAssets):
+    @provide_session
+    def test_get_asset_groups(self, test_client, session):
+        assets = [
+            AssetModel(name="asset1", uri="s3://finance/key", group="finance"),
+            AssetModel(name="asset2", uri="gcs://finance/key", group="finance"),
+            AssetModel(name="asset3", uri="s3://marketing/key", group="marketing"),
+            AssetModel(name="asset4", uri="s3://hr/key", group="hr"),
+            AssetModel(name="asset5", uri="gcs://hr/key", group="hr"),
+            AssetModel(name="asset6", uri="s3://engineering/key1", group="engineering"),
+            AssetModel(name="asset7", uri="s3://engineering/key2", group="engineering"),
+        ]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(a) for a in assets)
+        session.commit()
+
+        response = test_client.get("/assets/groups")
+        assert response.status_code == 200
+        data = response.json()
+        # Esperado: grupos e assets por grupo
+        expected_uris = {
+            "finance": {"s3://finance/key", "gcs://finance/key"},
+            "marketing": {"s3://marketing/key"},
+            "hr": {"s3://hr/key", "gcs://hr/key"},
+            "engineering": {"s3://engineering/key1", "s3://engineering/key2"},
+        }
+        returned = {group["group"]: {asset["uri"] for asset in group["assets"]} for group in data["groups"]}
+        assert returned == expected_uris
+
+    @provide_session
+    def test_get_asset_groups_with_group_filter(self, test_client, session):
+        assets = [
+            AssetModel(name="asset1", uri="s3://finance/key", group="finance"),
+            AssetModel(name="asset2", uri="gcs://finance/key", group="finance"),
+            AssetModel(name="asset3", uri="s3://marketing/key", group="marketing"),
+        ]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(a) for a in assets)
+        session.commit()
+
+        # Testando filtro por grupo "finance"
+        response = test_client.get("/assets/groups?group=finance")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["groups"]) == 1
+        group = data["groups"][0]
+        assert group["group"] == "finance"
+        uris = {asset["uri"] for asset in group["assets"]}
+        assert uris == {"s3://finance/key", "gcs://finance/key"}
