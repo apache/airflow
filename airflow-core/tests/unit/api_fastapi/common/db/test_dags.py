@@ -25,7 +25,6 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import SortParam
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import utcnow
 
@@ -50,7 +49,6 @@ class TestGenerateDagWithLatestRunQuery:
         self._clear_db()
 
     @pytest.fixture
-    @provide_session
     def dag_with_queued_run(self, session):
         """Returns a DAG with a QUEUED DagRun and null start_date."""
 
@@ -81,7 +79,6 @@ class TestGenerateDagWithLatestRunQuery:
         return dag_model, dagrun
 
     @pytest.fixture
-    @provide_session
     def dag_with_running_run(self, session):
         """Returns a DAG with a RUNNING DagRun and a valid start_date."""
 
@@ -112,7 +109,6 @@ class TestGenerateDagWithLatestRunQuery:
 
         return dag_model, dagrun
 
-    @provide_session
     def test_includes_queued_run_without_start_date(self, dag_with_queued_run, session):
         """DAGs with QUEUED runs and null start_date should be included when no filters are applied, and joined DagRun state must not be None."""
         dag_model, _ = dag_with_queued_run
@@ -129,7 +125,6 @@ class TestGenerateDagWithLatestRunQuery:
         dagrun_state = dag_row[1]
         assert dagrun_state is not None, "Joined DagRun state must not be None"
 
-    @provide_session
     def test_includes_queued_run_when_ordering_by_state(
         self, dag_with_queued_run, dag_with_running_run, session
     ):
@@ -154,7 +149,6 @@ class TestGenerateDagWithLatestRunQuery:
         assert running_row[1] is not None, "Joined DagRun state for RUNNING DAG must not be None"
         assert running_row[2] is not None, "Joined DagRun start_date for RUNNING DAG must not be None"
 
-    @provide_session
     def test_includes_queued_run_when_ordering_by_start_date(
         self, dag_with_queued_run, dag_with_running_run, session
     ):
@@ -181,7 +175,6 @@ class TestGenerateDagWithLatestRunQuery:
         assert running_row[1] is not None, "Joined DagRun state for RUNNING DAG must not be None"
         assert running_row[2] is not None, "Joined DagRun start_date for RUNNING DAG must not be None"
 
-    @provide_session
     def test_latest_queued_run_without_start_date_is_included(self, session):
         """Even if the latest DagRun is QUEUED+start_date=None, joined DagRun state must not be None."""
         dag_id = "dag_with_multiple_runs"
@@ -224,7 +217,6 @@ class TestGenerateDagWithLatestRunQuery:
             "Even if latest DagRun is QUEUED+start_date=None, state must not be None"
         )
 
-    @provide_session
     def test_queued_runs_with_null_start_date_are_properly_joined(
         self, dag_with_queued_run, dag_with_running_run, session
     ):
