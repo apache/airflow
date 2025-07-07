@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
@@ -66,8 +67,11 @@ export const Logs = () => {
   const defaultWrap = Boolean(useConfig("default_wrap"));
   const defaultShowTimestamp = Boolean(useConfig("default_show_timestamp"));
 
-  const [wrap, setWrap] = useState(defaultWrap);
-  const [showTimestamp, setShowTimestamp] = useState(defaultShowTimestamp);
+  const [wrap, setWrap] = useLocalStorage<boolean>("log_wrap", defaultWrap);
+  const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(
+    "log_show_timestamp",
+    defaultShowTimestamp,
+  );
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
