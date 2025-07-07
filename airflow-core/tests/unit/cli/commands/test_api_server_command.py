@@ -128,6 +128,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         Test that AIRFLOW_API_APPS is set and unset in the environment when
         calling the airflow api-server command
         """
+        expected_setitem_calls = []
 
         if dev_mode:
             args.append("--dev")
@@ -137,21 +138,27 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             mock.patch("uvicorn.run"),
             mock.patch("subprocess.Popen"),
         ):
-            # Parse the command line arguments
-            parsed_args = self.parser.parse_args(args)
-
-            # Ensure AIRFLOW_API_APPS is not set initially
+            # Mock the environment variable with initial value or None
             mock_environ.get.return_value = original_env
 
-            # Call the api_server command
+            # Parse the command line arguments and call the api_server command
+            parsed_args = self.parser.parse_args(args)
             api_server_command.api_server(parsed_args)
+
+            # Verify the AIRFLOW_API_APPS was set correctly
+            if "--apps" in args:
+                expected_setitem_calls.append(
+                    mock.call(api_server_command.AIRFLOW_API_APPS, parsed_args.apps)
+                )
 
             # Verify AIRFLOW_API_APPS was cleaned up
             if original_env is not None:
-                # os.environ[AIRFLOW_API_APPS] = original_value
-                mock_environ.__setitem__.assert_any_call(api_server_command.AIRFLOW_API_APPS, original_env)
+                expected_setitem_calls.append(mock.call(api_server_command.AIRFLOW_API_APPS, original_env))
             else:
                 mock_environ.pop.assert_called_with(api_server_command.AIRFLOW_API_APPS, None)
+
+            # Verify that the environment variable was set and cleaned up correctly
+            mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
 
     @pytest.mark.parametrize(
         "cli_args, expected_additional_kwargs",
