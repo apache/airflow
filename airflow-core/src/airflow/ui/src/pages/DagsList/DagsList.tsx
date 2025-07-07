@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -150,7 +152,8 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
+  SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
