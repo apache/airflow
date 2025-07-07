@@ -54,7 +54,7 @@ Requirements
 PIP package              Version required
 =======================  ==================
 ``apache-airflow``       ``>=2.10.0``
-``tableauserverclient``  ``>=0.25``
+``tableauserverclient``  ``>=0.27``
 =======================  ==================
 
 The changelog for the provider package can be found in the
