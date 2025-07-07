@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-07T13:54:32.680421
+# This constraints file was automatically generated on 2025-07-07T19:45:11.295361
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -256,7 +256,7 @@ celery==5.5.3
 certifi==2025.6.15
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.37.0
+cfn-lint==1.37.1
 chardet==5.2.0
 charset-normalizer==3.4.2
 checksumdir==1.2.0
@@ -311,8 +311,9 @@ eventlet==0.40.1
 execnet==2.1.1
 executing==2.2.0
 facebook_business==23.0.0
-fastapi-cli==0.0.7
-fastapi==0.115.14
+fastapi-cli==0.0.8
+fastapi-cloud-cli==0.1.1
+fastapi==0.116.0
 fastavro==1.11.1
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -473,7 +474,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
-litellm==1.74.0
+litellm==1.74.0.post1
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.3.2
@@ -524,7 +525,7 @@ nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.93.0
+openai==1.93.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -670,6 +671,7 @@ rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.14.8
 rich==13.9.4
+rignore==0.5.1
 roman-numerals-py==3.1.0
 rpds-py==0.26.0
 rsa==4.9.1
