@@ -50,39 +50,40 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-======================================  ===================
-PIP package                             Version required
-======================================  ===================
-``apache-airflow``                      ``>=2.9.0``
-``adlfs``                               ``>=2023.10.0``
-``azure-batch``                         ``>=8.0.0``
-``azure-cosmos``                        ``>=4.6.0``
-``azure-mgmt-cosmosdb``                 ``>=3.0.0``
-``azure-datalake-store``                ``>=0.0.45``
-``azure-identity``                      ``>=1.3.1``
-``azure-keyvault-secrets``              ``>=4.1.0``
-``azure-mgmt-datalake-store``           ``>=0.5.0``
-``azure-mgmt-resource``                 ``>=2.2.0``
-``azure-storage-blob``                  ``>=12.14.0``
-``azure-mgmt-storage``                  ``>=16.0.0``
-``azure-storage-file-share``            ``>=12.7.0``
-``azure-servicebus``                    ``>=7.12.1``
-``azure-synapse-spark``                 ``>=0.2.0``
-``azure-synapse-artifacts``             ``>=0.17.0``
-``adal``                                ``>=1.2.7``
-``azure-storage-file-datalake``         ``>=12.9.1``
-``azure-kusto-data``                    ``>=4.1.0,!=4.6.0``
-``azure-mgmt-datafactory``              ``>=2.0.0``
-``azure-mgmt-containerregistry``        ``>=8.0.0``
-``azure-mgmt-containerinstance``        ``>=10.1.0``
-``flask-appbuilder``                    ``>=4.0.0``
-``msgraph-core``                        ``>=1.3.3``
-``microsoft-kiota-http``                ``>=1.8.0,<2.0.0``
-``microsoft-kiota-serialization-json``  ``>=1.8.0``
-``microsoft-kiota-serialization-text``  ``>=1.8.0``
-``microsoft-kiota-abstractions``        ``>=1.8.0,<2.0.0``
-``msal-extensions``                     ``>=1.1.0``
-======================================  ===================
+========================================  ===================
+PIP package                               Version required
+========================================  ===================
+``apache-airflow``                        ``>=2.9.0``
+``adlfs``                                 ``>=2023.10.0``
+``azure-batch``                           ``>=8.0.0``
+``azure-cosmos``                          ``>=4.6.0``
+``azure-mgmt-cosmosdb``                   ``>=3.0.0``
+``azure-datalake-store``                  ``>=0.0.45``
+``azure-identity``                        ``>=1.3.1``
+``azure-keyvault-secrets``                ``>=4.1.0``
+``azure-mgmt-datalake-store``             ``>=0.5.0``
+``azure-mgmt-resource``                   ``>=2.2.0``
+``azure-storage-blob``                    ``>=12.14.0``
+``azure-mgmt-storage``                    ``>=16.0.0``
+``azure-storage-file-share``              ``>=12.7.0``
+``azure-servicebus``                      ``>=7.12.1``
+``azure-synapse-spark``                   ``>=0.2.0``
+``azure-synapse-artifacts``               ``>=0.17.0``
+``adal``                                  ``>=1.2.7``
+``azure-storage-file-datalake``           ``>=12.9.1``
+``azure-kusto-data``                      ``>=4.1.0,!=4.6.0``
+``azure-mgmt-datafactory``                ``>=2.0.0``
+``azure-mgmt-containerregistry``          ``>=8.0.0``
+``azure-mgmt-containerinstance``          ``>=10.1.0``
+``flask-appbuilder``                      ``>=4.0.0``
+``msgraph-core``                          ``>=1.3.3``
+``microsoft-kiota-http``                  ``>=1.9.0,<2.0.0``
+``microsoft-kiota-serialization-json``    ``>=1.9.0``
+``microsoft-kiota-serialization-text``    ``>=1.9.0``
+``microsoft-kiota-abstractions``          ``>=1.9.0,<2.0.0``
+``microsoft-kiota-authentication-azure``  ``>=1.9.0,<2.0.0``
+``msal-extensions``                       ``>=1.1.0``
+========================================  ===================
 
 Cross provider package dependencies
 -----------------------------------

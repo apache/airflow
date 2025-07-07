@@ -50,15 +50,17 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=======================================  =====================================
+=======================================  ==================================================================
 PIP package                              Version required
-=======================================  =====================================
+=======================================  ==================================================================
 ``apache-airflow``                       ``>=2.9.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``mysqlclient``                          ``>=1.4.0; sys_platform != "darwin"``
-``mysql-connector-python``               ``>=8.0.29``
+``mysqlclient``                          ``>=2.1.0; sys_platform != "darwin" and python_version < "3.12"``
+``mysqlclient``                          ``>=2.2.1; sys_platform != "darwin" and python_version >= "3.12"``
+``mysql-connector-python``               ``>=8.0.29; python_version < "3.12"``
+``mysql-connector-python``               ``>=8.2.0; python_version >= "3.12"``
 ``aiomysql``                             ``>=0.2.0``
-=======================================  =====================================
+=======================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
