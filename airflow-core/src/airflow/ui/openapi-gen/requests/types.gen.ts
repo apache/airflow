@@ -921,9 +921,12 @@ export type FastAPIRootMiddlewareResponse = {
  * Response of updating a Human-in-the-loop response.
  */
 export type HITLResponseContentDetail = {
-    response_content: string;
-    response_at: string;
     user_id: string;
+    response_at: string;
+    response_content: Array<(string)>;
+    params_input?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -937,14 +940,14 @@ export type HITLResponseDetail = {
     default?: Array<(string)> | null;
     multiple?: boolean;
     params?: {
-    [key: string]: unknown;
-} | null;
-    response_at?: string | null;
+        [key: string]: unknown;
+    };
     user_id?: string | null;
-    response_content?: string | null;
+    response_at?: string | null;
+    response_content?: Array<(string)> | null;
     params_input?: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    };
     response_received?: boolean;
 };
 
@@ -1472,7 +1475,10 @@ export type TriggererInfoResponse = {
  * Schema for updating the content of a Human-in-the-loop response.
  */
 export type UpdateHITLResponsePayload = {
-    response_content: string;
+    response_content: Array<(string)>;
+    params_input?: {
+        [key: string]: unknown;
+    };
 };
 
 export type ValidationError = {

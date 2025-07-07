@@ -42,7 +42,7 @@ class HITLResponseModel(Base):
     body = Column(Text, nullable=True)
     default = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     multiple = Column(Boolean, unique=False, default=False)
-    params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 
     # Response Content Detail
     response_at = Column(UtcDateTime, nullable=True)
@@ -52,7 +52,7 @@ class HITLResponseModel(Base):
         nullable=True,
         default=None,
     )
-    params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 
     @hybrid_property
     def response_received(self) -> bool:

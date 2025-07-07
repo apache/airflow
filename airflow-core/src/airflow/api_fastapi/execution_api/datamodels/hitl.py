@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 from datetime import datetime
+from typing import Any
 from uuid import UUID
+
+from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -32,7 +34,7 @@ class HITLInputRequestResponse(BaseModel):
     body: str | None = None
     default: list[str] | None = None
     multiple: bool = False
-    params: MutableMapping | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class GetHITLResponseContentDetailPayload(BaseModel):
@@ -45,15 +47,15 @@ class UpdateHITLResponsePayload(BaseModel):
     """Schema for writing a Human-in-the-loop response content detail for a specific task instance."""
 
     ti_id: UUID
-    response_content: str
-    params_input: MutableMapping | None = None
+    response_content: list[str]
+    params_input: dict[str, Any] = Field(default_factory=dict)
 
 
 class HITLResponseContentDetail(BaseModel):
     """Schema for Human-in-the-loop response content detail for a specific task instance."""
 
     response_received: bool
-    response_at: datetime | None
     user_id: str | None
-    response_content: str | None
-    params_input: MutableMapping | None = None
+    response_at: datetime | None
+    response_content: list[str] | None
+    params_input: dict[str, Any] = Field(default_factory=dict)

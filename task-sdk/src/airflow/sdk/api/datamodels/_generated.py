@@ -191,9 +191,9 @@ class HITLResponseContentDetail(BaseModel):
     """
 
     response_received: Annotated[bool, Field(title="Response Received")]
-    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
     user_id: Annotated[str | None, Field(title="User Id")] = None
-    response_content: Annotated[str | None, Field(title="Response Content")] = None
+    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    response_content: Annotated[list[str] | None, Field(title="Response Content")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -374,7 +374,7 @@ class UpdateHITLResponse(BaseModel):
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
-    response_content: Annotated[str, Field(title="Response Content")]
+    response_content: Annotated[list[str], Field(title="Response Content")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
     type: Annotated[Literal["UpdateHITLResponse"] | None, Field(title="Type")] = "UpdateHITLResponse"
 

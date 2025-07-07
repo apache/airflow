@@ -3410,22 +3410,30 @@ export const $FastAPIRootMiddlewareResponse = {
 
 export const $HITLResponseContentDetail = {
     properties: {
-        response_content: {
+        user_id: {
             type: 'string',
-            title: 'Response Content'
+            title: 'User Id'
         },
         response_at: {
             type: 'string',
             format: 'date-time',
             title: 'Response At'
         },
-        user_id: {
-            type: 'string',
-            title: 'User Id'
+        response_content: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Response Content'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
         }
     },
     type: 'object',
-    required: ['response_content', 'response_at', 'user_id'],
+    required: ['user_id', 'response_at', 'response_content'],
     title: 'HITLResponseContentDetail',
     description: 'Response of updating a Human-in-the-loop response.'
 } as const;
@@ -3478,16 +3486,20 @@ export const $HITLResponseDetail = {
             default: false
         },
         params: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params'
+        },
+        user_id: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    type: 'string'
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Params'
+            title: 'User Id'
         },
         response_at: {
             anyOf: [
@@ -3501,21 +3513,13 @@ export const $HITLResponseDetail = {
             ],
             title: 'Response At'
         },
-        user_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'User Id'
-        },
         response_content: {
             anyOf: [
                 {
-                    type: 'string'
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
                 },
                 {
                     type: 'null'
@@ -3524,15 +3528,8 @@ export const $HITLResponseDetail = {
             title: 'Response Content'
         },
         params_input: {
-            anyOf: [
-                {
-                    additionalProperties: true,
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            additionalProperties: true,
+            type: 'object',
             title: 'Params Input'
         },
         response_received: {
@@ -5858,8 +5855,16 @@ export const $TriggererInfoResponse = {
 export const $UpdateHITLResponsePayload = {
     properties: {
         response_content: {
-            type: 'string',
+            items: {
+                type: 'string'
+            },
+            type: 'array',
             title: 'Response Content'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
         }
     },
     type: 'object',

@@ -58,11 +58,11 @@ def upgrade():
         Column("body", Text, nullable=True),
         Column("default", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("multiple", Boolean, unique=False, default=False),
-        Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         Column("response_at", UtcDateTime, nullable=True),
         Column("user_id", String(128), nullable=True),
         Column("response_content", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-        Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=True, default=None),
+        Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
     )
 
 

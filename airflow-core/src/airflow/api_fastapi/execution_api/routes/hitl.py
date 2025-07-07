@@ -87,7 +87,7 @@ def update_hitl_response(
             f"Human-in-the-loop Response Content for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_response_model.user_id = "fallback to default"
+    hitl_response_model.user_id = "Fallback to default"
     hitl_response_model.response_content = payload.response_content
     hitl_response_model.params_input = payload.params_input
     hitl_response_model.response_at = datetime.now(timezone.utc)
@@ -98,6 +98,7 @@ def update_hitl_response(
         response_at=hitl_response_model.response_at,
         user_id=hitl_response_model.user_id,
         response_content=hitl_response_model.response_content,
+        params_input=hitl_response_model.params_input,
     )
 
 
@@ -119,4 +120,5 @@ def get_hitl_response(
         response_at=hitl_response_model.response_at,
         user_id=hitl_response_model.user_id,
         response_content=hitl_response_model.response_content,
+        params_input=hitl_response_model.params_input or {},
     )

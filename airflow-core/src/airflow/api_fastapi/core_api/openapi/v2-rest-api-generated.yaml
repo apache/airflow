@@ -9734,21 +9734,27 @@ components:
       description: Serializer for Plugin FastAPI root middleware responses.
     HITLResponseContentDetail:
       properties:
-        response_content:
+        user_id:
           type: string
-          title: Response Content
+          title: User Id
         response_at:
           type: string
           format: date-time
           title: Response At
-        user_id:
-          type: string
-          title: User Id
+        response_content:
+          items:
+            type: string
+          type: array
+          title: Response Content
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
       type: object
       required:
-      - response_content
-      - response_at
       - user_id
+      - response_at
+      - response_content
       title: HITLResponseContentDetail
       description: Response of updating a Human-in-the-loop response.
     HITLResponseDetail:
@@ -9781,32 +9787,30 @@ components:
           title: Multiple
           default: false
         params:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
+          additionalProperties: true
+          type: object
           title: Params
+        user_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
         response_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Response At
-        user_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: User Id
         response_content:
           anyOf:
-          - type: string
+          - items:
+              type: string
+            type: array
           - type: 'null'
           title: Response Content
         params_input:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
+          additionalProperties: true
+          type: object
           title: Params Input
         response_received:
           type: boolean
@@ -11367,8 +11371,14 @@ components:
     UpdateHITLResponsePayload:
       properties:
         response_content:
-          type: string
+          items:
+            type: string
+          type: array
           title: Response Content
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
       type: object
       required:
       - response_content

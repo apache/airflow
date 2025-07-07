@@ -16,45 +16,43 @@
 # under the License.
 from __future__ import annotations
 
-import logging
-from collections.abc import Sequence
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    raise ImportError("Human in the loop functionality needs Airflow 3.1+.")
+
+
+from collections.abc import Collection, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.exceptions import HITLTriggerEventError
-from airflow.providers.standard.triggers.hitl import HITLTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import add_hitl_response
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
-log = logging.getLogger(__name__)
-if not AIRFLOW_V_3_1_PLUS:
-    log.warning("Human in the loop functionality needs Airflow 3.1+..")
-
 
 class HITLOperator(BaseOperator):
     """
     Base class for all Human-in-the-loop Operators to inherit from.
 
-    :param subject: Headline/subject presented to the user for the interaction task
-    :param options: List of options that the human can select from and click to complete the task.
-        Buttons on the UI will be presented in the order of the list
+    :param subject: Headline/subject presented to the user for the interaction task.
+    :param options: List of options that the an user can select from to complete the task.
     :param body: descriptive text that might give background, hints or can provide background or summary of
-        details that are needed to decide
-    :param default: The default result (highlighted button) and result that is taken if timeout is passed
+        details that are needed to decide.
+    :param default: The default option and the option that is taken if timeout is passed.
+    :param multiple: Whether the user can select one or multiple options.
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
-        and added to XCom of the task result
+        and added to XCom of the task result.
     """
 
-    template_fields: Sequence[str] = ("subject", "body")
-
-    allow_arbitrary_input: bool = False
+    template_fields: Collection[str] = ("subject", "body")
 
     def __init__(
         self,
@@ -63,24 +61,43 @@ class HITLOperator(BaseOperator):
         options: list[str],
         body: str | None = None,
         default: str | list[str] | None = None,
+        multiple: bool = False,
         params: ParamsDict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.options = options
         self.subject = subject
         self.body = body
-        self.params = params or {}
-        self.multiple = False
+
+        self.options = options
+        # allow defaults to store more than one options when multiple=True
         self.default = [default] if isinstance(default, str) else default
+        self.multiple = multiple
 
-        self.validate_default()
+        self.params: ParamsDict | dict = params or {}
 
-    def validate_default(self) -> None:
+        self.validate_defaults()
+
+    def validate_defaults(self) -> None:
+        """
+        Validate whether the given default pass the following criteria.
+
+        1. When timeout is set, default options should be provided.
+        2. Default options should be the subset of options.
+        3. When multiple is False, there should only be one option.
+        """
         if self.default is None and self.execution_timeout:
             raise ValueError('"default" is required when "execution_timeout" is provided.')
 
+        if self.default is not None:
+            if not set(self.default).issubset(self.options):
+                raise ValueError(f'default "{self.default}" should be a subset of options "{self.options}"')
+
+            if self.multiple is False and len(self.default) > 1:
+                raise ValueError('More than one default given when "multiple" is set to False.')
+
     def execute(self, context: Context):
+        """Add a Human-in-the-loop Response and then defer to HITLTrigger and wait for user input."""
         ti_id = context["task_instance"].id
         # Write Human-in-the-loop input request to DB
         add_hitl_response(
@@ -90,7 +107,7 @@ class HITLOperator(BaseOperator):
             body=self.body,
             default=self.default,
             multiple=self.multiple,
-            params=self.serializable_params,
+            params=self.serialzed_params,
         )
         self.log.info("Waiting for response")
         if self.execution_timeout:
@@ -103,51 +120,43 @@ class HITLOperator(BaseOperator):
                 ti_id=ti_id,
                 options=self.options,
                 default=self.default,
-                params=self.serializable_params,
+                params=self.serialzed_params,
                 multiple=self.multiple,
                 timeout_datetime=timeout_datetime,
             ),
             method_name="execute_complete",
         )
 
+    @property
+    def serialzed_params(self) -> dict[str, Any]:
+        return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
+
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
             raise HITLTriggerEventError(event["error"])
 
         response_content = event["response_content"]
-        params_input = event["params_input"]
-        if self.allow_arbitrary_input:
-            self.validate_response_content(response_content)
+        params_input = event["params_input"] or {}
+        self.validate_response_content(response_content)
         self.validate_params_input(params_input)
-        return {
-            "response_content": response_content,
-            "params_input": params_input,
-        }
+        return HITLTriggerEventSuccessPayload(
+            response_content=response_content,
+            params_input=params_input,
+        )
 
-    def validate_response_content(self, response_content: str | list[str]) -> None:
-        if isinstance(response_content, list):
-            if self.multiple is False:
-                raise ValueError(
-                    f"Multiple response {response_content} received while multiple is set to False"
-                )
+    def validate_response_content(self, response_content: list[str]) -> None:
+        """Check whether user provide valid response."""
+        if diff := set(response_content) - set(self.options):
+            raise ValueError(f"Responses {diff} not in {self.options}")
 
-            if diff := set(response_content) - set(self.options):
-                raise ValueError(f"Responses {diff} not in {self.options}")
-
-        if response_content not in self.options:
-            raise ValueError(f"Response {response_content} not in {self.options}")
-
-    def validate_params_input(self, params_input: dict | None) -> None:
+    def validate_params_input(self, params_input: Mapping) -> None:
+        """Check whether user provide valid params input."""
         if (
-            self.serializable_params is not None
+            self.serialzed_params is not None
             and params_input is not None
-            and set(self.serializable_params.keys()) ^ set(params_input)
+            and set(self.serialzed_params.keys()) ^ set(params_input)
         ):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
-
-    @property
-    def serializable_params(self) -> dict[str, Any] | None:
-        return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
 
 
 class ApprovalOperator(HITLOperator):
@@ -161,7 +170,11 @@ class ApprovalOperator(HITLOperator):
 
 
 class HITLTerminationOperator(HITLOperator, SkipMixin):
-    """ShortCirquitOperator to terminate the Dag run by human decision."""
+    """
+    Human-in-the-loop Operator that has only 'Stop' and 'Proceed' options.
+
+    When 'Stop' is selected by user, the dag run terminates like ShortCirquitOperator.
+    """
 
     def __init__(self, **kwargs) -> None:
         if "options" in kwargs:
@@ -176,30 +189,19 @@ class HITLTerminationOperator(HITLOperator, SkipMixin):
 class HITLBranchOperator(HITLOperator):
     """BranchOperator based on Human-in-the-loop Response."""
 
-    def __init__(self, *, multiple: bool = False, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.multiple = multiple
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         raise NotImplementedError
 
 
 class HITLEntryOperator(HITLOperator):
-    """
-    User can add further information with all options that a TriggerForm allows (same like Dag params).
+    """Human-in-the-loop Operator that is used to accept user input through TriggerForm."""
 
-    Options and default default to ["OK"] but can be over-ridden.
-    """
-
-    def __init__(
-        self,
-        **kwargs,
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         if "options" not in kwargs:
             kwargs["options"] = ["OK"]
             kwargs["default"] = ["OK"]
 
         super().__init__(**kwargs)
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        raise NotImplementedError

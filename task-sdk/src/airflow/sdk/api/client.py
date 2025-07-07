@@ -665,8 +665,8 @@ class HITLOperations:
         self,
         *,
         ti_id: uuid.UUID,
-        response_content: str,
-        params_input: dict[str, Any] | None = None,
+        response_content: list[str],
+        params_input: dict[str, Any],
     ) -> HITLResponseContentDetail:
         """Update an existing Human-in-the-loop response."""
         payload = UpdateHITLResponse(

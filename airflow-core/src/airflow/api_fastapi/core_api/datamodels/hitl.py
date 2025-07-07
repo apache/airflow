@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import MutableMapping
+from collections.abc import Mapping
 from datetime import datetime
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -27,15 +27,17 @@ from airflow.api_fastapi.core_api.base import BaseModel
 class UpdateHITLResponsePayload(BaseModel):
     """Schema for updating the content of a Human-in-the-loop response."""
 
-    response_content: str
+    response_content: list[str]
+    params_input: Mapping = Field(default_factory=dict)
 
 
 class HITLResponseContentDetail(BaseModel):
     """Response of updating a Human-in-the-loop response."""
 
-    response_content: str
-    response_at: datetime
     user_id: str
+    response_at: datetime
+    response_content: list[str]
+    params_input: Mapping = Field(default_factory=dict)
 
 
 class HITLResponseDetail(BaseModel):
@@ -49,22 +51,20 @@ class HITLResponseDetail(BaseModel):
     body: str | None = None
     default: list[str] | None = None
     multiple: bool = False
-    params: MutableMapping | None = None
+    params: Mapping = Field(default_factory=dict)
 
     # Response Content Detail
-    response_at: datetime | None = None
     user_id: str | None = None
-    response_content: str | None = None
-    params_input: MutableMapping | None = None
+    response_at: datetime | None = None
+    response_content: list[str] | None = None
+    params_input: Mapping = Field(default_factory=dict)
 
     response_received: bool = False
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: MutableMapping | None) -> dict | None:
+    def get_params(cls, params: Mapping) -> Mapping:
         """Convert params attribute to dict representation."""
-        if params is None:
-            return None
         return {k: v.dump() for k, v in params.items()}
 
 
