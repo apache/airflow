@@ -420,6 +420,9 @@ def initialize_ui_plugins():
                     url_route,
                     seen_url_route[url_route],
                 )
+                # Mutate in place the plugin's React Apps to remove the conflicting app
+                # because some function still access the plugin's React Apps and not the
+                # global `react_apps` variable. (get_plugin_info, for example)
                 plugin.react_apps.remove(react_app)
                 continue
             react_apps.append(react_app)
