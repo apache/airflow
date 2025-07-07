@@ -1,4 +1,10 @@
 {
+  "favorite": {
+    "favoriteDags_one":   "First {{count}} favorite DAG",
+    "favoriteDags_other": "First {{count}} favorite DAGs",
+    "noDagRuns": "There is no DagRun for this dag yet.",
+    "noFavoriteDags": "No favorites yet. Click the star icon next to a DAG in the list to add it to your favorites."
+  },
   "group": "Group",
   "health": {
     "dagProcessor": "Dag Processor",

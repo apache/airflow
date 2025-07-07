@@ -16,26 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum SearchParamsKeys {
-  DEPENDENCIES = "dependencies",
-  END_DATE = "end_date",
-  FAVORITE = "favorite",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
-  LIMIT = "limit",
-  LOG_LEVEL = "log_level",
-  NAME_PATTERN = "name_pattern",
-  OFFSET = "offset",
-  PAUSED = "paused",
-  POOL = "pool",
-  RUN_TYPE = "run_type",
-  SORT = "sort",
-  SOURCE = "log_source",
-  START_DATE = "start_date",
-  STATE = "state",
-  TAGS = "tags",
-  TAGS_MATCH_MODE = "tags_match_mode",
-  TRY_NUMBER = "try_number",
-  VERSION_NUMBER = "version_number",
-}
+import { useQueryClient } from "@tanstack/react-query";
 
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+import { useDagServiceGetDagsUiKey, useDagServiceUnfavoriteDag } from "openapi/queries";
+
+export const useUnfavoriteDag = () => {
+  const queryClient = useQueryClient();
+
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] });
+  };
+
+  return useDagServiceUnfavoriteDag({
+    onSuccess,
+  });
+};

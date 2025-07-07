@@ -34,6 +34,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryExcludeStaleFilter,
+    QueryFavoriteFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -92,6 +93,7 @@ def get_dags(
             ).dynamic_depends()
         ),
     ],
+    is_favorite: QueryFavoriteFilter,
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     dag_runs_limit: int = 10,
@@ -116,6 +118,7 @@ def get_dags(
             tags,
             owners,
             last_dag_run_state,
+            is_favorite,
             readable_dags_filter,
         ],
         order_by=order_by,

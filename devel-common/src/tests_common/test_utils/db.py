@@ -57,7 +57,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -66,6 +66,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.dag_favorite import DagFavorite
 
 
 def _bootstrap_dagbag():
@@ -194,6 +197,8 @@ def clear_db_triggers():
 
 def clear_db_dags():
     with create_session() as session:
+        if AIRFLOW_V_3_1_PLUS:
+            session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
         session.query(

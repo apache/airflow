@@ -60,6 +60,7 @@ def import_all_models():
 
     import airflow.models.asset
     import airflow.models.backfill
+    import airflow.models.dag_favorite
     import airflow.models.dag_version
     import airflow.models.dagbundle
     import airflow.models.dagwarning
