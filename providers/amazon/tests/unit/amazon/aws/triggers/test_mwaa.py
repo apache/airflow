@@ -213,9 +213,6 @@ class TestMwaaTaskCompletedTrigger:
                 "state": "failure",
             },
         ]
-        print(acceptors)
-        print("hello")
-        print({s for s in TaskInstanceState})
         assert len(acceptors) == len(TaskInstanceState)
         assert {tuple(sorted(a.items())) for a in acceptors} == {
             tuple(sorted(a.items())) for a in expected_acceptors
