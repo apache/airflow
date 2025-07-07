@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -296,8 +296,8 @@ export const useDagRunServiceGetDagRunsSuspense = <TData = Common.DagRunServiceG
   updatedAtLte?: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }) as TData, ...options });
 /**
-* Wait Dag Run Until Finished
-* Wait for a dag run until it finishes, and return its return value.
+* Experimental: Wait for a dag run to complete, and return task results if requested.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -312,6 +312,23 @@ export const useDagRunServiceWaitDagRunUntilFinishedSuspense = <TData = Common.D
   dagRunId: string;
   interval: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ collect, dagId, dagRunId, interval }, queryKey), queryFn: () => DagRunService.waitDagRunUntilFinished({ collect, dagId, dagRunId, interval }) as TData, ...options });
+/**
+* Experimental: Wait for a dag run to complete, and return task results if requested.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.interval Seconds to wait between dag run state checks
+* @param data.collect Collect return value XCom from task. Can be set multiple times.
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useExperimentalServiceWaitDagRunUntilFinishedSuspense = <TData = Common.ExperimentalServiceWaitDagRunUntilFinishedDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ collect, dagId, dagRunId, interval }: {
+  collect?: string[];
+  dagId: string;
+  dagRunId: string;
+  interval: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ collect, dagId, dagRunId, interval }, queryKey), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ collect, dagId, dagRunId, interval }) as TData, ...options });
 /**
 * Get Dag Source
 * Get source code using file token.

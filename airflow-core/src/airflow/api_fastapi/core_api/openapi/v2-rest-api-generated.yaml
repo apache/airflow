@@ -2151,8 +2151,11 @@ paths:
     get:
       tags:
       - DagRun
-      summary: Wait Dag Run Until Finished
-      description: Wait for a dag run until it finishes, and return its return value.
+      - experimental
+      summary: 'Experimental: Wait for a dag run to complete, and return task results
+        if requested.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []

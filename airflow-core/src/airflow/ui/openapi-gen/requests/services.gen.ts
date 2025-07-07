@@ -1051,8 +1051,8 @@ export class DagRunService {
     }
     
     /**
-     * Wait Dag Run Until Finished
-     * Wait for a dag run until it finishes, and return its return value.
+     * Experimental: Wait for a dag run to complete, and return task results if requested.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1100,6 +1100,41 @@ export class DagRunService {
             },
             body: data.requestBody,
             mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
+export class ExperimentalService {
+    /**
+     * Experimental: Wait for a dag run to complete, and return task results if requested.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.interval Seconds to wait between dag run state checks
+     * @param data.collect Collect return value XCom from task. Can be set multiple times.
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static waitDagRunUntilFinished(data: WaitDagRunUntilFinishedData): CancelablePromise<WaitDagRunUntilFinishedResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            query: {
+                interval: data.interval,
+                collect: data.collect
+            },
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
