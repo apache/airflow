@@ -536,7 +536,7 @@ class S3DeleteObjectsOperator(AwsBaseOperator[S3Hook]):
                 "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
             )
 
-        if isinstance(self.keys, list | str) and not self.keys:
+        if isinstance(self.keys, (list, str)) and not self.keys:
             return
         # handle case where dates are strings, specifically when sent as template fields and macros.
         if isinstance(self.to_datetime, str):

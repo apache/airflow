@@ -188,8 +188,7 @@ class CreateRayClusterOperator(RayBaseOperator):
                 labels=self.labels,
             )
             cluster_id = self.hook.extract_cluster_id(cluster_path)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="cluster_id",
                 value=cluster_id,
             )

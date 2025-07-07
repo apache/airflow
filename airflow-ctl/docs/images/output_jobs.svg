@@ -74,9 +74,9 @@
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
-
+        
     <g transform="translate(9, 41)" clip-path="url(#terminal-2142602472-clip-terminal)">
-
+    
     <g class="terminal-2142602472-matrix">
     <text class="terminal-2142602472-r1" x="0" y="20" textLength="475.8" clip-path="url(#terminal-2142602472-line-0)">Usage:&#160;airflowctl&#160;jobs&#160;[-h]&#160;COMMAND&#160;...</text><text class="terminal-2142602472-r1" x="976" y="20" textLength="12.2" clip-path="url(#terminal-2142602472-line-0)">
 </text><text class="terminal-2142602472-r1" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-2142602472-line-1)">

@@ -28,6 +28,20 @@ Changelog
 ---------
 
 
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Provider Migration: Replace 'BaseOperator' to Task SDK for 'dingding' (#52577)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.mark.db_test: dingding (#52054)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 3.8.0
 .....
 

@@ -24,19 +24,10 @@ from github import GithubException
 
 from airflow.exceptions import AirflowException
 from airflow.providers.github.hooks.github import GithubHook
-from airflow.providers.github.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+from airflow.providers.github.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.github.version_compat import Context
 
 
 class GithubSensor(BaseSensorOperator):

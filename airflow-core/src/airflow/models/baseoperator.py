@@ -31,13 +31,11 @@ from datetime import datetime
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any
 
-import pendulum
 from sqlalchemy import select
-from sqlalchemy.orm.exc import NoResultFound
 
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.bases.operator import (
     BaseOperator as TaskSDKBaseOperator,
     # Re-export for compat
@@ -60,9 +58,6 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -348,44 +343,6 @@ class BaseOperator(TaskSDKBaseOperator):
         raise NotImplementedError()
 
     @provide_session
-    def clear(
-        self,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-        upstream: bool = False,
-        downstream: bool = False,
-        session: Session = NEW_SESSION,
-    ):
-        """Clear the state of task instances associated with the task, following the parameters specified."""
-        qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
-
-        if start_date:
-            qry = qry.where(TaskInstance.logical_date >= start_date)
-        if end_date:
-            qry = qry.where(TaskInstance.logical_date <= end_date)
-
-        tasks = [self.task_id]
-
-        if upstream:
-            tasks += [t.task_id for t in self.get_flat_relatives(upstream=True)]
-
-        if downstream:
-            tasks += [t.task_id for t in self.get_flat_relatives(upstream=False)]
-
-        qry = qry.where(TaskInstance.task_id.in_(tasks))
-        results = session.scalars(qry).all()
-        count = len(results)
-
-        if TYPE_CHECKING:
-            # TODO: Task-SDK: We need to set this to the scheduler DAG until we fully separate scheduling and
-            # definition code
-            assert isinstance(self.dag, SchedulerDAG)
-
-        clear_task_instances(results, session)
-        session.commit()
-        return count
-
-    @provide_session
     def get_task_instances(
         self,
         start_date: datetime | None = None,
@@ -406,74 +363,6 @@ class BaseOperator(TaskSDKBaseOperator):
         if end_date:
             query = query.where(DagRun.logical_date <= end_date)
         return session.scalars(query.order_by(DagRun.logical_date)).all()
-
-    @provide_session
-    def run(
-        self,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-        ignore_first_depends_on_past: bool = True,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """Run a set of task instances for a date range."""
-        from airflow.models import DagRun
-        from airflow.utils.types import DagRunType
-
-        # Assertions for typing -- we need a dag, for this function, and when we have a DAG we are
-        # _guaranteed_ to have start_date (else we couldn't have been added to a DAG)
-        if TYPE_CHECKING:
-            assert self.start_date
-
-            # TODO: Task-SDK: We need to set this to the scheduler DAG until we fully separate scheduling and
-            # definition code
-            assert isinstance(self.dag, SchedulerDAG)
-
-        start_date = pendulum.instance(start_date or self.start_date)
-        end_date = pendulum.instance(end_date or self.end_date or timezone.utcnow())
-
-        for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
-            ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
-            try:
-                dag_run = session.scalars(
-                    select(DagRun).where(
-                        DagRun.dag_id == self.dag_id,
-                        DagRun.logical_date == info.logical_date,
-                    )
-                ).one()
-                ti = TaskInstance(self, run_id=dag_run.run_id)
-            except NoResultFound:
-                # This is _mostly_ only used in tests
-                dr = DagRun(
-                    dag_id=self.dag_id,
-                    run_id=DagRun.generate_run_id(
-                        run_type=DagRunType.MANUAL,
-                        logical_date=info.logical_date,
-                        run_after=info.run_after,
-                    ),
-                    run_type=DagRunType.MANUAL,
-                    logical_date=info.logical_date,
-                    data_interval=info.data_interval,
-                    run_after=info.run_after,
-                    triggered_by=DagRunTriggeredByType.TEST,
-                    state=DagRunState.RUNNING,
-                )
-                ti = TaskInstance(self, run_id=dr.run_id)
-                ti.dag_run = dr
-                session.add(dr)
-                session.flush()
-
-            ti.run(
-                mark_success=mark_success,
-                ignore_depends_on_past=ignore_depends_on_past,
-                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-                ignore_ti_state=ignore_ti_state,
-                test_mode=test_mode,
-                session=session,
-            )
 
     def dry_run(self) -> None:
         """Perform dry run for the operator - just render template fields."""
@@ -496,66 +385,6 @@ class BaseOperator(TaskSDKBaseOperator):
         if upstream:
             return self.upstream_list
         return self.downstream_list
-
-    @staticmethod
-    def xcom_push(
-        context: Any,
-        key: str,
-        value: Any,
-    ) -> None:
-        """
-        Make an XCom available for tasks to pull.
-
-        :param context: Execution Context Dictionary
-        :param key: A key for the XCom
-        :param value: A value for the XCom. The value is pickled and stored
-            in the database.
-        """
-        context["ti"].xcom_push(key=key, value=value)
-
-    @staticmethod
-    @provide_session
-    def xcom_pull(
-        context: Any,
-        task_ids: str | list[str] | None = None,
-        dag_id: str | None = None,
-        key: str = XCOM_RETURN_KEY,
-        include_prior_dates: bool | None = None,
-        session: Session = NEW_SESSION,
-    ) -> Any:
-        """
-        Pull XComs that optionally meet certain criteria.
-
-        The default value for `key` limits the search to XComs
-        that were returned by other tasks (as opposed to those that were pushed
-        manually). To remove this filter, pass key=None (or any desired value).
-
-        If a single task_id string is provided, the result is the value of the
-        most recent matching XCom from that task_id. If multiple task_ids are
-        provided, a tuple of matching values is returned. None is returned
-        whenever no matches are found.
-
-        :param context: Execution Context Dictionary
-        :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. The default key is 'return_value', also
-            available as a constant XCOM_RETURN_KEY. This key is automatically
-            given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass key=None.
-        :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Can pass None to remove the filter.
-        :param dag_id: If provided, only pulls XComs from this DAG.
-            If None (default), the DAG of the calling task is used.
-        :param include_prior_dates: If False, only XComs from the current
-            logical_date are returned. If True, XComs from previous dates
-            are returned as well.
-        """
-        return context["ti"].xcom_pull(
-            key=key,
-            task_ids=task_ids,
-            dag_id=dag_id,
-            include_prior_dates=include_prior_dates,
-            session=session,
-        )
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""

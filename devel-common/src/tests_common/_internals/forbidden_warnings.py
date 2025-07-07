@@ -34,7 +34,7 @@ class ForbiddenWarningsPlugin:
     def __init__(self, config: pytest.Config, forbidden_warnings: tuple[str, ...]):
         # Set by a pytest_configure hook in conftest
         deprecations_ignore = config.inicfg["airflow_deprecations_ignore"]
-        if isinstance(deprecations_ignore, str | os.PathLike):
+        if isinstance(deprecations_ignore, (str, os.PathLike)):
             self.deprecations_ignore = [deprecations_ignore]
         else:
             self.deprecations_ignore = deprecations_ignore

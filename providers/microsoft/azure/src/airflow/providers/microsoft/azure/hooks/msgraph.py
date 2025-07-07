@@ -50,7 +50,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
 )
-from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -254,7 +254,7 @@ class KiotaRequestAdapterHook(BaseHook):
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
             api_version = self.get_api_version(config)
-            host = self.get_host(connection)
+            host = self.get_host(connection)  # type: ignore[arg-type]
             base_url = config.get("base_url", urljoin(host, api_version))
             authority = config.get("authority")
             proxies = self.get_proxies(config)
@@ -299,6 +299,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
+                    base_url=base_url,
                 ),
                 host=host,  # type: ignore
             )
@@ -446,9 +447,9 @@ class KiotaRequestAdapterHook(BaseHook):
             request_information.url = url
         elif request_information.query_parameters.keys():
             query = ",".join(request_information.query_parameters.keys())
-            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}{{?{query}}}"
+            request_information.url_template = f"{{+baseurl}}{self.normalize_url(url)}{{?{query}}}"
         else:
-            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}"
+            request_information.url_template = f"{{+baseurl}}{self.normalize_url(url)}"
         if not response_type:
             request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
                 response_handler=DefaultResponseHandler()
@@ -467,6 +468,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
             )
             request_information.content = json.dumps(data).encode("utf-8")
+        print("Request Information:", request_information.url)
         return request_information
 
     @staticmethod

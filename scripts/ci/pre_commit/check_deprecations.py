@@ -138,7 +138,7 @@ def built_import(import_clause: ast.Import) -> list[str]:
 def found_compatible_decorators(mod: ast.Module) -> tuple[str, ...]:
     result = []
     for node in mod.body:
-        if not isinstance(node, ast.ImportFrom | ast.Import):
+        if not isinstance(node, (ast.ImportFrom, ast.Import)):
             continue
         result.extend(built_import_from(node) if isinstance(node, ast.ImportFrom) else built_import(node))
     return tuple(sorted(set(result)))
@@ -193,7 +193,7 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
             category_value_ast = category_keyword.value
 
             warns_types = allowed_warnings[file_group]
-            if isinstance(category_value_ast, ast.Name | ast.Attribute):
+            if isinstance(category_value_ast, (ast.Name, ast.Attribute)):
                 category_value = resolve_name(category_value_ast)
                 if not any(cv.endswith(category_value) for cv in warns_types):
                     errors += 1

@@ -43,7 +43,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not k8s:
         return "", "", 0, False
 
-    if isinstance(o, k8s.V1Pod | k8s.V1ResourceRequirements):
+    if isinstance(o, (k8s.V1Pod, k8s.V1ResourceRequirements)):
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         # We're running this in an except block, so we don't want it to fail
