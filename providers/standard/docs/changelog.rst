@@ -314,7 +314,7 @@ Misc
 * ``AIP-72: Move non-user facing code to '_internal' (#45515)``
 * ``AIP-72: Add support for 'get_current_context' in Task SDK (#45486)``
 * ``Move Literal alias into TYPE_CHECKING block (#45345)``
-* ``AIP-72: Add Taskflow API support & template rendering in Task SDK (#45444)``
+* ``AIP-72: Add TaskFlow API support & template rendering in Task SDK (#45444)``
 * ``Remove tuple_in_condition helpers (#45201)``
 
 .. Below changes are excluded from the changelog. Move them to

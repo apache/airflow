@@ -14,12 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
-# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
-# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
-# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
-#
+
 from __future__ import annotations
 
 
@@ -40,10 +35,4 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, BaseSensorOperator
-else:
-    from airflow.models import BaseOperator
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[attr-defined,no-redef]
-
-__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseHook", "BaseOperator", "BaseSensorOperator"]
+__all__ = ["BaseHook"]

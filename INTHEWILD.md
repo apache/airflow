@@ -186,6 +186,7 @@ Currently, **officially** using Airflow:
 1. [DFDS](https://www.dfds.com/) [[@timonviola](https://github.com/timonviola)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [Disney](https://www.disney.com/) [[@coolbeans201](https://github.com/coolbeans201)]
+1. [Docaposte](https://www.docaposte.com) [[@albundy83]](https://github.com/albundy83)
 1. [Docsity](https://www.docsity.com/)
 1. [Doctrine](https://www.doctrine.fr/)[[@anteverse](https://github.com/anteverse)]
 1. [DoorDash](https://www.doordash.com/) [[@chiragtodarka](https://github.com/chiragtodarka)]
