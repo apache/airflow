@@ -44,11 +44,7 @@ if TYPE_CHECKING:
     )
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.openai.version_compat import BaseHook
 
 
 class BatchStatus(str, Enum):

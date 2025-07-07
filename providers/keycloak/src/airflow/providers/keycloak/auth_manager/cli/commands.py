@@ -23,6 +23,11 @@ from typing import get_args
 from keycloak import KeycloakAdmin, KeycloakError
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+try:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+except ImportError:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.constants import (
@@ -109,6 +114,7 @@ def _get_client_uuid(args):
 
 def _create_scopes(client: KeycloakAdmin, client_uuid: str):
     scopes = [{"name": method} for method in get_args(ResourceMethod)]
+    scopes.append({"name": "MENU"})
     for scope in scopes:
         client.create_client_authz_scopes(client_id=client_uuid, payload=scope)
 
@@ -173,7 +179,7 @@ def _create_read_only_permission(client: KeycloakAdmin, client_uuid: str):
 
 def _create_admin_permission(client: KeycloakAdmin, client_uuid: str):
     all_scopes = client.get_client_authz_scopes(client_uuid)
-    scopes = [scope["id"] for scope in all_scopes if scope["name"] in get_args(ResourceMethod)]
+    scopes = [scope["id"] for scope in all_scopes if scope["name"] in get_args(ExtendedResourceMethod)]
     payload = {
         "name": "Admin",
         "type": "scope",

@@ -35,11 +35,7 @@ from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrig
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.google.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection

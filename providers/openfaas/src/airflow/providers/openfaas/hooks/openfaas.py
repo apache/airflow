@@ -22,11 +22,7 @@ from typing import Any
 import requests
 
 from airflow.exceptions import AirflowException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.openfaas.version_compat import BaseHook
 
 OK_STATUS_CODE = 202
 
