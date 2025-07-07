@@ -20,5 +20,4 @@
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 from __future__ import annotations
 
-MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = "return_value"
