@@ -150,7 +150,7 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -176,6 +176,7 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -228,6 +229,7 @@ export const DagsList = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
+    owners,
     paused,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
