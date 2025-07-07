@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1338,3 +1338,20 @@ export const ensureUseGridServiceGetGridTiSummariesData = (queryClient: QueryCli
 export const ensureUseGridServiceGetLatestRunData = (queryClient: QueryClient, { dagId }: {
   dagId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }), queryFn: () => GridService.getLatestRun({ dagId }) });
+/**
+* Get Calendar
+* Get calendar data for a DAG including historical and planned DAG runs.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.granularity
+* @param data.logicalDateGte
+* @param data.logicalDateLte
+* @returns CalendarTimeRangeCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseCalendarServiceGetCalendarData = (queryClient: QueryClient, { dagId, granularity, logicalDateGte, logicalDateLte }: {
+  dagId: string;
+  granularity?: "hourly" | "daily";
+  logicalDateGte?: string;
+  logicalDateLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGte, logicalDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGte, logicalDateLte }) });
