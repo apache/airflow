@@ -25,5 +25,6 @@
   "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",
   "name": "Name",
   "producingTasks": "Produzierende Tasks",
+  "scheduledDags": "Geplante Dags",
   "searchPlaceholder": "Datenset (Asset) suchen"
 }
