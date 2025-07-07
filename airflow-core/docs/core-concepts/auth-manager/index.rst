@@ -91,14 +91,28 @@ Some reasons you may want to write a custom auth manager include:
 * You'd like to use an auth manager that leverages an identity provider from your preferred cloud provider.
 * You have a private user management tool that is only available to you or your organization.
 
-Authentication related BaseAuthManager methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+User representation
+^^^^^^^^^^^^^^^^^^^
 
-* ``get_user``: Return the signed-in user.
+:class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` defines an authentication manager,
+parameterized by a user class T representing the authenticated user type.
+Auth manager implementations (subclasses of :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager`)
+should specify the associated concrete user type. Each auth manager has its own user type definition.
+Concrete user types should be subclass of :class:`~airflow.api_fastapi.auth.managers.models.base_user.BaseUser`.
+
+Authentication related methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
+* ``get_url_logout``: Return the URL the user is redirected to when logging out. This is an optional method,
+  this redirection is usually needed to invalidate resources when logging out, such as a session.
+* ``serialize_user``: Serialize a user instance to a dict. This dict is the actual content of the JWT token.
+  It should contain all the information needed to identify the user and make an authorization request.
+* ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
+  This is the same dict returned by ``serialize_user``.
 
-Authorization related BaseAuthManager methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Authorization related methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Most of authorization methods in :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` look the same.
 Let's go over the different parameters used by most of these methods.
@@ -122,17 +136,21 @@ These authorization methods are:
   Also, ``is_authorized_dag`` is called for any entity related to dags (e.g. task instances, dag runs, ...). This information is passed in ``access_entity``.
   Example: ``auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.Run, details=DagDetails(id="dag-1"))`` asks
   whether the user has permission to read the Dag runs of the dag "dag-1".
-* ``is_authorized_dataset``: Return whether the user is authorized to access Airflow datasets. Some details about the dataset can be provided (e.g. the dataset uri).
+* ``is_authorized_backfill``: Return whether the user is authorized to access Airflow backfills. Some details about the backfill can be provided (e.g. the backfill ID).
+* ``is_authorized_asset``: Return whether the user is authorized to access Airflow assets. Some details about the asset can be provided (e.g. the asset ID).
+* ``is_authorized_asset_alias``: Return whether the user is authorized to access Airflow asset aliases. Some details about the asset alias can be provided (e.g. the asset alias ID).
 * ``is_authorized_pool``: Return whether the user is authorized to access Airflow pools. Some details about the pool can be provided (e.g. the pool name).
 * ``is_authorized_variable``: Return whether the user is authorized to access Airflow variables. Some details about the variable can be provided (e.g. the variable key).
 * ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``).
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
+* ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
 
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The auth manager is responsible for creating the JWT token needed to interact with Airflow public API.
-To achieve this, the auth manager **must** provide an endpoint to create this JWT token. This endpoint must be
-available at ``POST /auth/token``
+To achieve this, the auth manager **must** provide an endpoint to create this JWT token. This endpoint is usually
+available at ``POST /auth/token``.
+Please double check the auth manager documentation to find the accurate token generation endpoint.
 
 The auth manager is also responsible of passing the JWT token to Airflow UI. The protocol to exchange the JWT
 token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
@@ -158,8 +176,8 @@ Optional methods recommended to override for optimization
 
 The following methods aren't required to override to have a functional Airflow auth manager. However, it is recommended to override these to make your auth manager faster (and potentially less costly):
 
-* ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it will call ``is_authorized_dag`` for every single item.
 * ``batch_is_authorized_connection``: Batch version of ``is_authorized_connection``. If not overridden, it will call ``is_authorized_connection`` for every single item.
+* ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it will call ``is_authorized_dag`` for every single item.
 * ``batch_is_authorized_pool``: Batch version of ``is_authorized_pool``. If not overridden, it will call ``is_authorized_pool`` for every single item.
 * ``batch_is_authorized_variable``: Batch version of ``is_authorized_variable``. If not overridden, it will call ``is_authorized_variable`` for every single item.
 * ``get_authorized_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
@@ -203,6 +221,16 @@ Auth managers have the option to extend the Airflow API server. Doing so, allow,
 To extend the API server application, you need to implement the ``get_fastapi_app`` method.
 Such additional endpoints can be used to manage resources such as users, groups, roles (if any) handled by your auth manager.
 Endpoints defined by ``get_fastapi_app`` are mounted in ``/auth``.
+
+Other optional methods
+^^^^^^^^^^^^^^^^^^^^^^
+
+* ``init``: This method is executed when Airflow is initializing.
+  Override this method if you need to make any action (e.g. create resources, API call) that the auth manager needs.
+* ``get_extra_menu_items``: Provide additional links to be added to the menu in the UI.
+* ``get_db_manager``: If your auth manager requires one or several database managers (see :class:`~airflow.utils.db_manager.BaseDBManager`),
+  their class paths need to be returned as part of this method. By doing so, they will be automatically added to the
+  config ``[database] external_db_managers``.
 
 Next Steps
 ----------
