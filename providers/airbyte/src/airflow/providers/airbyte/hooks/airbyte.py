@@ -58,7 +58,7 @@ class AirbyteHook(BaseHook):
 
     def get_conn_params(self, conn_id: str) -> Any:
         conn = self.get_connection(conn_id)
-        
+
         # not sure if this will show password, will need to test this.
         self.log.debug("Connection attributes are: %s", conn.to_dict())
         conn_params: dict = {}
@@ -67,7 +67,7 @@ class AirbyteHook(BaseHook):
         conn_params["client_secret"] = conn.password
         conn_params["token_url"] = conn.schema or "v1/applications/token"
         conn_params["proxies"] = conn.extra_dejson.get("proxies", None)
-        
+
         return conn_params
 
     def create_api_session(self) -> AirbyteAPI:
@@ -199,7 +199,7 @@ class AirbyteHook(BaseHook):
         """Tests the Airbyte connection by hitting the health API."""
         try:
             health_check = self.airbyte_api.health.get_health_check()
-            self.log.debug("Health check details: %s", health_check.)
+            self.log.debug("Health check details: %s", health_check)
             if health_check.status_code == 200:
                 return True, "Connection successfully tested"
             return False, str(health_check.raw_response)
