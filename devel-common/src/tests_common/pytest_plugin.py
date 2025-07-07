@@ -1216,7 +1216,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     self.session.query(DagBundleModel).filter(DagBundleModel.name == self.bundle_name).count()
                     == 0
                 ):
-                    self.session.add(DagBundleModel(name=self.bundle_name, version=self.bundle_version))
+                    self.session.add(DagBundleModel(name=self.bundle_name))
                     self.session.commit()
 
             return self
