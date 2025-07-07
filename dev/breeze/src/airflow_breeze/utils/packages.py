@@ -645,21 +645,10 @@ def get_provider_jinja_context(
     ]
     cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
 
-    from packaging.version import Version
-
-    default_version = Version(DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    upper_bound = default_version.major + 1
-
-    # Before we make decision about how we are going to have python_version specification in providers
-    # latest `uv` version has non-silenceable warning about the specification of ~= - which is otherwise
-    # perfectly valid specification according to PEP 440.
-    # For now we will use >=, < pattern but we should reconsider it when the decision about silencing
-    # is made https://github.com/astral-sh/uv/issues/14422
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
     for excluded_python_version in provider_details.excluded_python_versions:
         requires_python_version += f",!={excluded_python_version}"
-    requires_python_version += f",<{upper_bound}"
 
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
