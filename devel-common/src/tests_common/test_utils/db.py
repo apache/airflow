@@ -103,13 +103,6 @@ def initial_db_init():
 
     db.resetdb()
     if AIRFLOW_V_3_0_PLUS:
-        from tests_common.test_utils.config import env_vars  # type: ignore
-
-        with env_vars(  # type: ignore
-            {
-                "AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS": "airflow.providers.fab.auth_manager.models.db.FABDBManager"
-            }  # type: ignore
-        ):
             db.downgrade(to_revision="5f2621c13b39")
             db.upgradedb(to_revision="head")
     else:
