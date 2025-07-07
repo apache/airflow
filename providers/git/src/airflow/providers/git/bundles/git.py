@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import warnings
 from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
@@ -27,7 +26,7 @@ from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
 log = structlog.get_logger(__name__)
@@ -223,11 +222,6 @@ class GitDagBundle(BaseDagBundle):
 
         This method is deprecated and will be removed in a future release. Use `view_url_template` instead.
         """
-        warnings.warn(
-            message="The method 'view_url' is deprecated and will be removed in a future release. Use 'view_url_template' instead.",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         if not version:
             return None
         template = self.view_url_template()

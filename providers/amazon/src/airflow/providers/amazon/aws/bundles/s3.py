@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import os
-import warnings
 from pathlib import Path
 
 import structlog
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
@@ -143,12 +142,6 @@ class S3DagBundle(BaseDagBundle):
 
         This method is deprecated and will be removed in a future release. Use `view_url_template` instead.
         """
-        warnings.warn(
-            message="The method 'view_url' is deprecated and will be removed in a future release. Use 'view_url_template' instead.",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         return self.view_url_template()
 
     def view_url_template(self) -> str | None:
