@@ -34,6 +34,12 @@ from starlette.middleware.wsgi import WSGIMiddleware
 from airflow import __version__ as airflow_version
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+
+try:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+except ImportError:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
+
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     BackfillDetails,
@@ -382,7 +388,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def is_authorized_view(self, *, access_view: AccessView, user: User) -> bool:
         # "Docs" are only links in the menu, there is no page associated
-        method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
+        method: ExtendedResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
             method=method,
             resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view],
@@ -523,7 +529,7 @@ class FabAuthManager(BaseAuthManager[User]):
     def _is_authorized(
         self,
         *,
-        method: ResourceMethod,
+        method: ExtendedResourceMethod,
         resource_type: str,
         user: User,
     ) -> bool:
@@ -594,7 +600,7 @@ class FabAuthManager(BaseAuthManager[User]):
         return len(authorized_dags) > 0
 
     @staticmethod
-    def _get_fab_action(method: ResourceMethod) -> str:
+    def _get_fab_action(method: ExtendedResourceMethod) -> str:
         """
         Convert the method to a FAB action.
 
