@@ -66,7 +66,10 @@ if TYPE_CHECKING:
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
 # TODO: Move this inside once all providers drop Airflow 2.x support.
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+# List of methods (or actions) a user can do against a resource
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+# Extends ``ResourceMethod`` to include "MENU". The method "MENU" is only supported with specific resources (menu items)
+ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
