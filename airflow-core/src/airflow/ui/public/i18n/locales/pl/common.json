@@ -90,6 +90,11 @@
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
+  "expand": {
+    "collapse": "Zwiń",
+    "expand": "Rozwiń",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
+  },
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
@@ -115,6 +120,7 @@
     "dags": "Dagi",
     "docs": "Pomoc",
     "home": "Pulpit",
+    "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
