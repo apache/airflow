@@ -22,7 +22,6 @@ import { Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState, DagRunType } from "openapi/requests/types.gen";
@@ -148,13 +147,12 @@ export const DagRuns = () => {
   const endDate = searchParams.get(END_DATE_PARAM);
 
   const refetchInterval = useAutoRefresh({});
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
       endDateLte: endDate ?? undefined,
-      limit,
+      limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       runType: filteredType === null ? undefined : [filteredType],
