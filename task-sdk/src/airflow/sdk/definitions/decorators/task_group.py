@@ -40,6 +40,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     MappedArgument,
 )
 from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec
@@ -135,6 +136,11 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         self._validate_arg_names("expand", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="mapping already partial")
         expand_input = DictOfListsExpandInput(kwargs)
+
+        # Similar to @task, @task_group should not be "mappable" over an XCom with a custom key. This will
+        # raise an exception, rather than having an ambiguous exception similar to the one found in #51109.
+        ensure_xcomarg_return_value(expand_input.value)
+
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
@@ -144,7 +150,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> DAGNode:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
-                if not isinstance(item, XComArg | Mapping):
+                if not isinstance(item, (XComArg, Mapping)):
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
@@ -162,8 +168,12 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         # technically we can with AST but let's not), so we have to create stubs
         # for every argument, including those with default values.
         map_kwargs = (k for k in self.function_signature.parameters if k not in self.partial_kwargs)
-
         expand_input = ListOfDictsExpandInput(kwargs)
+
+        # Similar to @task, @task_group should not be "mappable" over an XCom with a custom key. This will
+        # raise an exception, rather than having an ambiguous exception similar to the one found in #51109.
+        ensure_xcomarg_return_value(expand_input.value)
+
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,

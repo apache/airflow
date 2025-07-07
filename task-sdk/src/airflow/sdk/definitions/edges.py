@@ -75,7 +75,7 @@ class EdgeModifier(DependencyMixin):
         from airflow.sdk.definitions.xcom_arg import XComArg
 
         for node in self._make_list(nodes):
-            if isinstance(node, TaskGroup | XComArg | DAGNode):
+            if isinstance(node, (TaskGroup, XComArg, DAGNode)):
                 stream.append(node)
             else:
                 raise TypeError(

@@ -159,6 +159,10 @@ class DagRun(Base, LoggingMixin):
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
+    triggering_user_name = Column(
+        String(512),
+        nullable=True,
+    )  # The user that triggered the DagRun, if applicable
     conf = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
@@ -300,6 +304,7 @@ class DagRun(Base, LoggingMixin):
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
+        triggering_user_name: str | None = None,
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
     ):
@@ -330,6 +335,7 @@ class DagRun(Base, LoggingMixin):
         self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
+        self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier = {}
         super().__init__()
@@ -1004,7 +1010,7 @@ class DagRun(Base, LoggingMixin):
 
     def start_dr_spans_if_needed(self, tis: list[TI]):
         # If there is no value in active_spans, then the span hasn't already been started.
-        if self.active_spans is not None and self.active_spans.get(self.run_id) is None:
+        if self.active_spans is not None and self.active_spans.get("dr:" + str(self.id)) is None:
             if self.span_status == SpanStatus.NOT_STARTED or self.span_status == SpanStatus.NEEDS_CONTINUANCE:
                 dr_span = None
                 continue_ti_spans = False
@@ -1037,7 +1043,7 @@ class DagRun(Base, LoggingMixin):
                 self.context_carrier = carrier
                 self.span_status = SpanStatus.ACTIVE
                 # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                self.active_spans.set(self.run_id, dr_span)
+                self.active_spans.set("dr:" + str(self.id), dr_span)
                 self.log.debug(
                     "DagRun span has been started and the injected context_carrier is: %s",
                     self.context_carrier,
@@ -1055,9 +1061,9 @@ class DagRun(Base, LoggingMixin):
                             ti_carrier = Trace.inject()
                             ti.context_carrier = ti_carrier
                             ti.span_status = SpanStatus.ACTIVE
-                            self.active_spans.set(ti.key, ti_span)
+                            self.active_spans.set("ti:" + ti.id, ti_span)
             else:
-                self.log.info(
+                self.log.debug(
                     "Found span_status '%s', while updating state for dag_run '%s'",
                     self.span_status,
                     self.run_id,
@@ -1065,7 +1071,7 @@ class DagRun(Base, LoggingMixin):
 
     def end_dr_span_if_needed(self):
         if self.active_spans is not None:
-            active_span = self.active_spans.get(self.run_id)
+            active_span = self.active_spans.get("dr:" + str(self.id))
             if active_span is not None:
                 self.log.debug(
                     "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
@@ -1078,7 +1084,7 @@ class DagRun(Base, LoggingMixin):
                 self.set_dagrun_span_attrs(span=active_span)
                 active_span.end(end_time=datetime_to_nano(self.end_date))
                 # Remove the span from the dict.
-                self.active_spans.delete(self.run_id)
+                self.active_spans.delete("dr:" + str(self.id))
                 self.span_status = SpanStatus.ENDED
             else:
                 if self.span_status == SpanStatus.ACTIVE:

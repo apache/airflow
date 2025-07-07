@@ -31,7 +31,7 @@ from cassandra.policies import (
     WhiteListRoundRobinPolicy,
 )
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.cassandra.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy: TypeAlias = DCAwareRoundRobinPolicy | RoundRobinPolicy | TokenAwarePolicy | WhiteListRoundRobinPolicy
@@ -90,7 +90,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 
-        conn_config = {}
+        conn_config: dict[str, Any] = {}
         if conn.host:
             conn_config["contact_points"] = conn.host.split(",")
 

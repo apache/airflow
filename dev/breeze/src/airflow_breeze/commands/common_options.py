@@ -208,12 +208,13 @@ option_github_repository = click.option(
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
 )
-option_historical_python_version = click.option(
-    "--python",
+option_historical_python_versions = click.option(
+    "--python-versions",
     type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
     required=False,
-    envvar="PYTHON_VERSION",
-    help="Python version to update sbom from. (defaults to all historical python versions)",
+    envvar="PYTHON_VERSIONS",
+    help="Comma separate list of Python versions to update sbom from "
+    "(defaults to all historical python versions)",
 )
 option_include_removed_providers = click.option(
     "--include-removed-providers",
@@ -395,6 +396,12 @@ option_upgrade_boto = click.option(
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_upgrade_sqlalchemy = click.option(
+    "--upgrade-sqlalchemy",
+    help="Upgrade SQLAlchemy to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_SQLALCHEMY",
 )
 option_use_uv = click.option(
     "--use-uv/--no-use-uv",

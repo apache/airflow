@@ -805,34 +805,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("generated/provider_dependencies.json",),
-                {
-                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.10', '3.11', '3.12']",
-                    "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                    "python-versions": "['3.10', '3.11', '3.12']",
-                    "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                    "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "needs-helm-tests": "true",
-                    "run-tests": "true",
-                    "run-amazon-tests": "true",
-                    "docs-build": "true",
-                    "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-                    "upgrade-to-newer-dependencies": "true",
-                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "needs-mypy": "true",
-                    "mypy-checks": ALL_MYPY_CHECKS,
-                },
-                id="Everything should run - including all providers and upgrading to "
-                "newer requirements as pyproject.toml changed and all Python versions",
-            )
-        ),
-        (
-            pytest.param(
-                ("generated/provider_dependencies.json",),
+                ("pyproject.toml",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.10', '3.11', '3.12']",
@@ -855,83 +828,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
-        ),
-        pytest.param(
-            ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
-            {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql openlineage postgres salesforce ssh teradata",
-                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                "ci-image-build": "true",
-                "prod-image-build": "false",
-                "needs-helm-tests": "false",
-                "run-tests": "true",
-                "docs-build": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
-                "run-kubernetes-tests": "false",
-                "upgrade-to-newer-dependencies": "false",
-                "run-amazon-tests": "true",
-                "core-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "Always", "test_types": "Always"}]
-                ),
-                "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [
-                        {
-                            "description": "amazon...google",
-                            "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
-                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
-                            "Providers[google]",
-                        }
-                    ]
-                ),
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-providers']",
-            },
-            id="Providers tests run including amazon tests if amazon provider files changed",
-        ),
-        pytest.param(
-            ("providers/amazon/src/airflow/providers/amazon/pyproject.toml",),
-            {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql openlineage postgres salesforce ssh teradata",
-                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                "ci-image-build": "true",
-                "prod-image-build": "false",
-                "needs-helm-tests": "false",
-                "run-tests": "true",
-                "docs-build": "true",
-                # no python files changed so flynt should not run
-                "skip-pre-commits": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
-                "run-kubernetes-tests": "false",
-                "upgrade-to-newer-dependencies": "false",
-                "run-amazon-tests": "true",
-                "core-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "Always", "test_types": "Always"}]
-                ),
-                "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [
-                        {
-                            "description": "amazon...google",
-                            "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
-                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
-                            "Providers[google]",
-                        }
-                    ]
-                ),
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-providers']",
-            },
-            id="Providers tests run including amazon tests if only amazon pyproject.toml files changed",
         ),
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
@@ -1144,7 +1040,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "testable-core-integrations": "['kerberos']",
+                    "testable-core-integrations": "['kerberos', 'redis']",
                     "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
@@ -1276,17 +1172,6 @@ def test_expected_output_pull_request_main(
 @pytest.mark.parametrize(
     "files, commit_ref, expected_outputs",
     [
-        (
-            pytest.param(
-                ("pyproject.toml",),
-                "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
-                {
-                    "full-tests-needed": "false",
-                    "all-versions": "false",
-                },
-                id="No full tests needed / all versions when pyproject.toml changes in insignificant way",
-            )
-        ),
         (
             pytest.param(
                 ("pyproject.toml",),
@@ -2184,16 +2069,6 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             id="Regular source changed",
         ),
         pytest.param(
-            ("pyproject.toml",),
-            {
-                "upgrade-to-newer-dependencies": "false",
-            },
-            (),
-            # In this commit only ruff configuration changed
-            "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
-            id="pyproject.toml changed but no dependency change",
-        ),
-        pytest.param(
             ("providers/microsoft/azure/src/airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "false",
@@ -2201,15 +2076,6 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             (),
             None,
             id="Provider.yaml changed",
-        ),
-        pytest.param(
-            ("generated/provider_dependencies.json",),
-            {
-                "upgrade-to-newer-dependencies": "true",
-            },
-            (),
-            "None",
-            id="Generated provider_dependencies changed",
         ),
         pytest.param(
             ("airflow-core/src/airflow/models/dag.py",),

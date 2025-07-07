@@ -82,7 +82,14 @@ class TestDockerDecorator:
 
     @pytest.mark.db_test
     def test_basic_docker_operator_with_template_fields(self, dag_maker):
-        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
+        from docker.types import Mount
+
+        @task.docker(
+            image="python:3.9-slim",
+            container_name="python_{{dag_run.dag_id}}",
+            auto_remove="force",
+            mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
+        )
         def f():
             raise RuntimeError("Should not executed")
 
@@ -93,6 +100,7 @@ class TestDockerDecorator:
         ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{dr.dag_id}"
+        assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
 
     @pytest.mark.db_test
     def test_basic_docker_operator_multiple_output(self, dag_maker, session):

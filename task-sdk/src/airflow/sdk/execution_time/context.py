@@ -529,7 +529,7 @@ class InletEventsAccessors(
         msg: ToSupervisor
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
-            if not isinstance(obj, Asset | AssetAlias | AssetRef):
+            if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
                 raise IndexError(key)
         else:
             obj = key
