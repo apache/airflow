@@ -50,12 +50,12 @@ from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
@@ -93,7 +93,7 @@ def is_soft_quota_exception(exception: Exception):
     if isinstance(exception, Forbidden):
         return any(reason in error.details() for reason in INVALID_REASONS for error in exception.errors)
 
-    if isinstance(exception, ResourceExhausted | TooManyRequests):
+    if isinstance(exception, (ResourceExhausted, TooManyRequests)):
         return any(key in error.details() for key in INVALID_KEYS for error in exception.errors)
 
     return False

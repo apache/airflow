@@ -55,7 +55,8 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
-    "triggeredBy": "Angestoßen von"
+    "triggeredBy": "Angestoßen von",
+    "triggeringUser": "Benutzer der ausgelöst hat"
   },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
@@ -76,6 +77,11 @@
     "home": "Start",
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
+  },
+  "expand": {
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
   },
   "expression": {
     "all": "Alle",
@@ -102,6 +108,7 @@
     "dags": "Dags",
     "docs": "Doku",
     "home": "Start",
+    "legacyFabViews": "Alte Ansichten",
     "plugins": "Plug-ins",
     "security": "Sicherheit"
   },
@@ -269,6 +276,7 @@
       }
     }
   },
+  "total": "Gesamt {{state}}",
   "triggered": "Angestoßen",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",

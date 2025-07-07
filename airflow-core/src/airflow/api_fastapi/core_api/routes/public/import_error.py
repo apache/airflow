@@ -165,7 +165,7 @@ def get_import_errors(
             visible_files_cte,
             and_(
                 ParseImportError.filename == visible_files_cte.c.relative_fileloc,
-                # ParseImportError.bundle_name == visible_files_cte.c.bundle_name,  # apparently not needed
+                ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
             ),
         )
         .order_by(ParseImportError.id)

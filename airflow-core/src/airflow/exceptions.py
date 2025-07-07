@@ -476,7 +476,7 @@ class TaskDeferred(BaseException):
         self.kwargs = kwargs
         self.timeout: timedelta | None
         # Check timeout type at runtime
-        if isinstance(timeout, int | float):
+        if isinstance(timeout, (int, float)):
             self.timeout = timedelta(seconds=timeout)
         else:
             self.timeout = timeout

@@ -20,6 +20,7 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
+from typing import Any
 
 import oracledb
 
@@ -144,7 +145,7 @@ class OracleHook(DbApiHook):
 
         """
         conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
-        conn_config = {"user": conn.login, "password": conn.password}
+        conn_config: dict[str, Any] = {"user": conn.login, "password": conn.password}
         sid = conn.extra_dejson.get("sid")
         mod = conn.extra_dejson.get("module")
         schema = conn.schema
@@ -156,14 +157,14 @@ class OracleHook(DbApiHook):
         if thick_mode is True:
             if self.thick_mode_lib_dir is None:
                 self.thick_mode_lib_dir = conn.extra_dejson.get("thick_mode_lib_dir")
-                if not isinstance(self.thick_mode_lib_dir, str | type(None)):
+                if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_lib_dir expected str or None, "
                         f"got {type(self.thick_mode_lib_dir).__name__}"
                     )
             if self.thick_mode_config_dir is None:
                 self.thick_mode_config_dir = conn.extra_dejson.get("thick_mode_config_dir")
-                if not isinstance(self.thick_mode_config_dir, str | type(None)):
+                if not isinstance(self.thick_mode_config_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_config_dir expected str or None, "
                         f"got {type(self.thick_mode_config_dir).__name__}"
@@ -192,7 +193,7 @@ class OracleHook(DbApiHook):
         else:
             dsn = conn.extra_dejson.get("dsn")
             if dsn is None:
-                dsn = conn.host
+                dsn = conn.host or ""
                 if conn.port is not None:
                     dsn += f":{conn.port}"
                 if service_name:
@@ -232,16 +233,16 @@ class OracleHook(DbApiHook):
 
         conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
         if mod is not None:
-            conn.module = mod
+            conn.module = mod  # type: ignore[attr-defined]
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
         # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
         if schema and service_name:
-            conn.current_schema = schema
+            conn.current_schema = schema  # type: ignore[attr-defined]
 
-        return conn
+        return conn  # type: ignore[return-value]
 
     def insert_rows(
         self,

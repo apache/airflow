@@ -26,6 +26,47 @@
 Changelog
 ---------
 
+9.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GlueJobOperator deferred waiting (#52314)``
+* ``Handle exceptions when fetching status in GlueJobHook (#52262)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Amazon Provider (#52667)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Replace usage of 'set_extra' with 'extra' for athena sql hook (#52340)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Replace occurences of 'get_password' with 'password' to ease migration (#52333)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Use base AWS classes in Glue Trigger / Sensor and implement custom waiter (#52243)``
+* ``Add Airflow 3.0+ Task SDK support to AWS Batch Executor (#52121)``
+* ``Refactor operator_extra_links property in BatchOperator (#51385)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clean some leftovers of Python 3.9 removal - All the rest (#52432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Added additional steps to QuickSights test prerequisites (#52198)``
+   * ``examples dags: Update redshift node version dc2.large is deprecated (#52120)``
+   * ``Updating AWS systest to do connection setup using ENV (#52073)``
+   * ``Remove pytest.mark.db_test: airbyte and amazon providers where possible (#52017)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+   * ``Mocked time.sleep to avoid actual sleep time (#51752)``
+
 9.9.0
 .....
 
