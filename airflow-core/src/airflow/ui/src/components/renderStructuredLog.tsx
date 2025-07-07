@@ -45,6 +45,7 @@ type RenderStructuredLogProps = {
   logLevelFilters?: Array<string>;
   logLink: string;
   logMessage: string | StructuredLogMessage;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   translate: TFunction;
 };
@@ -95,6 +96,7 @@ export const renderStructuredLog = ({
   logLevelFilters,
   logLink,
   logMessage,
+  showTimestamp = true,
   sourceFilters,
   translate,
 }: RenderStructuredLogProps) => {
@@ -127,7 +129,7 @@ export const renderStructuredLog = ({
     return "";
   }
 
-  if (Boolean(timestamp)) {
+  if (Boolean(timestamp) && showTimestamp) {
     elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
   }
 

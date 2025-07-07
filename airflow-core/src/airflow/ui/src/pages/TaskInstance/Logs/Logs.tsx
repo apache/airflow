@@ -64,12 +64,15 @@ export const Logs = () => {
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
+  const defaultShowTimestamp = Boolean(true);
 
   const [wrap, setWrap] = useState(defaultWrap);
+  const [showTimestamp, setShowTimestamp] = useState(defaultShowTimestamp);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   const toggleWrap = () => setWrap(!wrap);
+  const toggleTimestamp = () => setShowTimestamp(!showTimestamp);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
   const toggleExpanded = () => setExpanded((act) => !act);
 
@@ -89,6 +92,7 @@ export const Logs = () => {
     dagId,
     expanded,
     logLevelFilters,
+    showTimestamp,
     sourceFilters,
     taskInstance,
     tryNumber,
@@ -102,10 +106,12 @@ export const Logs = () => {
       <TaskLogHeader
         expanded={expanded}
         onSelectTryNumber={onSelectTryNumber}
+        showTimestamp={showTimestamp}
         sourceOptions={data.sources}
         taskInstance={taskInstance}
         toggleExpanded={toggleExpanded}
         toggleFullscreen={toggleFullscreen}
+        toggleTimestamp={toggleTimestamp}
         toggleWrap={toggleWrap}
         tryNumber={tryNumber}
         wrap={wrap}
@@ -137,9 +143,11 @@ export const Logs = () => {
                 expanded={expanded}
                 isFullscreen
                 onSelectTryNumber={onSelectTryNumber}
+                showTimestamp={showTimestamp}
                 taskInstance={taskInstance}
                 toggleExpanded={toggleExpanded}
                 toggleFullscreen={toggleFullscreen}
+                toggleTimestamp={toggleTimestamp}
                 toggleWrap={toggleWrap}
                 tryNumber={tryNumber}
                 wrap={wrap}

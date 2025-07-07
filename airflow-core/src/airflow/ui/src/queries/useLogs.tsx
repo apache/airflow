@@ -34,6 +34,7 @@ type Props = {
   dagId: string;
   expanded?: boolean;
   logLevelFilters?: Array<string>;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
@@ -43,6 +44,7 @@ type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   expanded?: boolean;
   logLevelFilters?: Array<string>;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   translate: TFunction;
@@ -53,6 +55,7 @@ const parseLogs = ({
   data,
   expanded,
   logLevelFilters,
+  showTimestamp,
   sourceFilters,
   taskInstance,
   translate,
@@ -80,6 +83,7 @@ const parseLogs = ({
         logLevelFilters,
         logLink,
         logMessage: datum,
+        showTimestamp,
         sourceFilters,
         translate,
       });
@@ -174,6 +178,7 @@ export const useLogs = (
     dagId,
     expanded,
     logLevelFilters,
+    showTimestamp,
     sourceFilters,
     taskInstance,
     tryNumber = 1,
@@ -208,6 +213,7 @@ export const useLogs = (
     data: data?.content ?? [],
     expanded,
     logLevelFilters,
+    showTimestamp,
     sourceFilters,
     taskInstance,
     translate,

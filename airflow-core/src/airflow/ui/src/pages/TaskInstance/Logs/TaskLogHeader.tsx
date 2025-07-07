@@ -41,10 +41,12 @@ type Props = {
   readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
+  readonly toggleTimestamp: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
   readonly wrap: boolean;
@@ -54,10 +56,12 @@ export const TaskLogHeader = ({
   expanded,
   isFullscreen = false,
   onSelectTryNumber,
+  showTimestamp,
   sourceOptions,
   taskInstance,
   toggleExpanded,
   toggleFullscreen,
+  toggleTimestamp,
   toggleWrap,
   tryNumber,
   wrap,
@@ -188,6 +192,17 @@ export const TaskLogHeader = ({
           </Select.Root>
         ) : undefined}
         <HStack gap={1}>
+          <Button
+            aria-label={showTimestamp ? translate("wrap.unwrap") : translate("wrap.wrap")}
+            bg="bg.panel"
+            m={0}
+            onClick={toggleTimestamp}
+            px={4}
+            py={2}
+            variant="outline"
+          >
+            {showTimestamp ? "Hide Timestamps" : "Show Timestamps"}
+          </Button>
           <Tooltip closeDelay={100} content={translate("wrap.tooltip", { hotkey: "w" })} openDelay={100}>
             <Button
               aria-label={wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
