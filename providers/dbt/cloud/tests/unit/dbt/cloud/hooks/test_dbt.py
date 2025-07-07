@@ -263,15 +263,11 @@ class TestDbtCloudHook:
 
         assert hook.method == "GET"
 
-        expected_account_id = account_id or DEFAULT_ACCOUNT_ID
-
-        assert mock_http_run.call_count == 1
-        assert mock_http_run.call_args.args == ()
-        assert mock_http_run.call_args.kwargs == {
-            "endpoint": f"api/v2/accounts/{expected_account_id}/",
-            "data": None,
-            "extra_options": None,
-        }
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/", data=None, extra_options=None
+        )
+        hook._paginate.assert_not_called()
 
         assert mock_paginate.call_count == 0
 
