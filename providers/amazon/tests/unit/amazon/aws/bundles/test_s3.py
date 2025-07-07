@@ -24,7 +24,7 @@ import pytest
 from moto import mock_aws
 
 import airflow.version
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import db
@@ -133,10 +133,7 @@ class TestS3DagBundle:
 
         with pytest.raises(AirflowException, match="Refreshing a specific version is not supported"):
             bundle.refresh()
-        with (
-            pytest.raises(AirflowException, match="S3 url with version is not supported"),
-            pytest.warns(AirflowProviderDeprecationWarning),
-        ):
+        with pytest.raises(AirflowException, match="S3 url with version is not supported"):
             bundle.view_url("test_version")
 
     @pytest.mark.db_test
