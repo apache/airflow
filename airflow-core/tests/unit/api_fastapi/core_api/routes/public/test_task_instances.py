@@ -2042,7 +2042,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions_new(
+    def test_should_respond_200_with_versions_using_url_template(
         self, test_client, run_id, expected_version_number, session
     ):
         response = test_client.get(
@@ -2080,7 +2080,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": "http://test_host.github.com/tree/some_commit_hash/dags",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
@@ -3192,7 +3192,9 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions_new(self, test_client, run_id, expected_version_number):
+    def test_should_respond_200_with_versions_using_url_template(
+        self, test_client, run_id, expected_version_number
+    ):
         response = test_client.get(
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
         )
@@ -3229,7 +3231,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": "http://test_host.github.com/tree/some_commit_hash/dags",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },

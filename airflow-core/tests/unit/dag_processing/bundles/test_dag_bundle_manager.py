@@ -239,11 +239,11 @@ def test_sync_bundles_to_db_with_template(clear_db, session):
 
     # Check that the template and parameters were stored
     bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
-    bundle_model.version = "v1.0"
+
     session.merge(bundle_model)
 
     assert bundle_model is not None
-    assert bundle_model.render_url() == "https://github.com/example/repo/tree/v1.0/dags"
+    assert bundle_model.render_url(version="v1.0") == "https://github.com/example/repo/tree/v1.0/dags"
     assert bundle_model.template_params == {"subdir": "dags"}
     assert bundle_model.active is True
 
@@ -258,14 +258,12 @@ def test_bundle_model_render_url(clear_db, session):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
         bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
-        bundle_model.version = "main"
+
         session.merge(bundle_model)
         assert bundle_model is not None
 
-        url = bundle_model.render_url()
+        url = bundle_model.render_url(version="main")
         assert url == "https://github.com/example/repo/tree/main/dags"
-        bundle_model.version = None
-        session.merge(bundle_model)
         url = bundle_model.render_url()
         assert url == "https://github.com/example/repo/tree/None/dags"
 
@@ -310,10 +308,7 @@ def test_template_params_update_on_sync(clear_db, session):
     url = bundle_model._unsign_url()
     assert url == "https://gitlab.com/example/repo/-/tree/{version}/{subdir}"
     assert bundle_model.template_params == {"subdir": "workflows"}
-    assert (
-        bundle_model.render_url()
-        == f"https://gitlab.com/example/repo/-/tree/{bundle_model.version}/workflows"
-    )
+    assert bundle_model.render_url(version="v1") == "https://gitlab.com/example/repo/-/tree/v1/workflows"
 
 
 @pytest.mark.db_test
@@ -329,11 +324,9 @@ def test_template_update_on_sync(clear_db, session):
 
     # Verify initial template
     bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
-    bundle_model.version = "v1.0"
-    session.merge(bundle_model)
     url = bundle_model._unsign_url()
     assert url == "https://github.com/example/repo/tree/{version}/{subdir}"
-    assert bundle_model.render_url() == f"https://github.com/example/repo/tree/{bundle_model.version}/dags"
+    assert bundle_model.render_url(version="v1") == "https://github.com/example/repo/tree/v1/dags"
 
     # Update the bundle config with a different template
     updated_config = [
@@ -358,17 +351,17 @@ def test_template_update_on_sync(clear_db, session):
     bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
     url = bundle_model._unsign_url()
     assert url == "https://gitlab.com/example/repo/-/tree/{version}/{subdir}"
-    assert bundle_model.render_url() == f"https://gitlab.com/example/repo/-/tree/{bundle_model.version}/dags"
+    assert bundle_model.render_url("v1") == "https://gitlab.com/example/repo/-/tree/v1/dags"
 
 
 def test_dag_bundle_model_render_url_with_invalid_template():
     """Test that DagBundleModel.render_url handles invalid templates gracefully."""
     bundle_model = DagBundleModel(name="test-bundle")
-    bundle_model.url = "https://github.com/example/repo/tree/{invalid_placeholder}"
+    bundle_model.url_template = "https://github.com/example/repo/tree/{invalid_placeholder}"
     bundle_model.template_params = {"subdir": "dags"}
 
     # Should return the original template when rendering fails
-    url = bundle_model.render_url()
+    url = bundle_model.render_url("v1")
     assert url == "https://github.com/example/repo/tree/{invalid_placeholder}"
 
 
