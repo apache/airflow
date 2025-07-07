@@ -154,7 +154,7 @@ class Connection:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
             raise
 
     @property
