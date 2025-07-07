@@ -55,7 +55,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.9.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``pydruid``                              ``>=0.4.1``
+``pydruid``                              ``>=0.6.6``
 =======================================  ==================
 
 Cross provider package dependencies

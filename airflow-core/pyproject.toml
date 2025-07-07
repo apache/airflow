@@ -35,7 +35,7 @@ name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
-requires-python = "~=3.9,<3.13"
+requires-python = ">=3.9,!=3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]

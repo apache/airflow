@@ -56,7 +56,7 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.9.0``
 ``apache-beam``     ``>=2.53.0; python_version < "3.12"``
 ``apache-beam``     ``>=2.57.0; python_version >= "3.12"``
-``pyarrow``         ``>=14.0.1``
+``pyarrow``         ``>=16.1.0``
 ``numpy``           ``>=1.26.0``
 ==================  ======================================
 
