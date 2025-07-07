@@ -67,7 +67,7 @@ Bug Fixes
 - UI: Enable iframe script execution (#52568)
 - UI: Fix DAG tags filter not showing all tags in UI when tags are greater than 50 (#52714)
 - UI: Add real-time clock updates to timezone selector (#52414)
-- Improve Grid view performance and responsiveness with optimized data loading (#52718)(#52822))
+- Improve Grid view performance and responsiveness with optimized data loading (#52718,#52822,#52919)
 - Fix editing connection with sensitive extra field (#52445)
 - Fix archival for cascading deletes by archiving dependent tables first (#51952)
 - Fix whitespace handling in DAG owners parsing for multiple owners (#52221)
@@ -79,6 +79,7 @@ Bug Fixes
 - Ensure trigger kwargs are properly deserialized during trigger execution (#52721)
 - Fixing bad cadwyn migration for upstream map indexes (#52797)
 - Run trigger expansion logic only when ``start_from_trigger`` is True (#52873)
+- Fix example dag ``example_external_task_parent_deferrable.py`` imports (#52957)
 
 Miscellaneous
 """""""""""""
