@@ -52,7 +52,7 @@ class DagVersionResponse(BaseModel):
                 )
 
                 if bundle_model and hasattr(bundle_model, "url_template"):
-                    return bundle_model.render_url()
+                    return bundle_model.render_url(self.bundle_version)
                 try:
                     return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
                 except ValueError:
