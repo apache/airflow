@@ -269,8 +269,6 @@ class TestDbtCloudHook:
         )
         hook._paginate.assert_not_called()
 
-        assert mock_paginate.call_count == 0
-
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
