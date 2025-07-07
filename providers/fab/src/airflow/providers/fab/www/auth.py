@@ -46,10 +46,7 @@ from airflow.utils.net import get_hostname
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
-        IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
-        IsAuthorizedPoolRequest,
-        IsAuthorizedVariableRequest,
     )
     from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
@@ -170,15 +167,13 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             connections: set[Connection] = set(args[1])
-            requests: Sequence[IsAuthorizedConnectionRequest] = [
-                {
-                    "method": method,
-                    "details": ConnectionDetails(conn_id=connection.conn_id),
-                }
+            is_authorized = all(
+                get_auth_manager().is_authorized_connection(
+                    method=method,
+                    details=ConnectionDetails(conn_id=connection.conn_id),
+                    user=get_auth_manager().get_user(),
+                )
                 for connection in connections
-            ]
-            is_authorized = get_auth_manager().batch_is_authorized_connection(
-                requests, user=get_auth_manager().get_user()
             )
             return _has_access(
                 is_authorized=is_authorized,
@@ -284,15 +279,11 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             pools: set[Pool] = set(args[1])
-            requests: Sequence[IsAuthorizedPoolRequest] = [
-                {
-                    "method": method,
-                    "details": PoolDetails(name=pool.pool),
-                }
+            is_authorized = all(
+                get_auth_manager().is_authorized_pool(
+                    method=method, details=PoolDetails(name=pool.pool), user=get_auth_manager().get_user()
+                )
                 for pool in pools
-            ]
-            is_authorized = get_auth_manager().batch_is_authorized_pool(
-                requests, user=get_auth_manager().get_user()
             )
             return _has_access(
                 is_authorized=is_authorized,
@@ -310,23 +301,15 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            if len(args) == 1:
-                # No items provided
-                is_authorized = get_auth_manager().is_authorized_variable(
-                    method=method, user=get_auth_manager().get_user()
+            variables: set[Variable] = set(args[1])
+            is_authorized = all(
+                get_auth_manager().is_authorized_variable(
+                    method=method,
+                    details=VariableDetails(key=variable.key),
+                    user=get_auth_manager().get_user(),
                 )
-            else:
-                variables: set[Variable] = set(args[1])
-                requests: Sequence[IsAuthorizedVariableRequest] = [
-                    {
-                        "method": method,
-                        "details": VariableDetails(key=variable.key),
-                    }
-                    for variable in variables
-                ]
-                is_authorized = get_auth_manager().batch_is_authorized_variable(
-                    requests, user=get_auth_manager().get_user()
-                )
+                for variable in variables
+            )
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
