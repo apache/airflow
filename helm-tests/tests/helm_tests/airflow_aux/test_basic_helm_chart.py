@@ -37,7 +37,7 @@ OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-worker"),
     ("Secret", "test-basic-airflow-metadata"),
     ("Secret", "test-basic-broker-url"),
-    ("Secret", "test-basic-airflow-fernet-key"),
+    ("Secret", "test-basic-fernet-key"),
     ("Secret", "test-basic-redis-password"),
     ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
