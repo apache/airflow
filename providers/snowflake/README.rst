@@ -57,7 +57,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``pandas``                                  ``>=2.1.2,<2.2``
-``pyarrow``                                 ``>=14.0.1``
+``pyarrow``                                 ``>=16.1.0``
 ``snowflake-connector-python``              ``>=3.7.1``
 ``snowflake-sqlalchemy``                    ``>=1.4.0``
 ``snowflake-snowpark-python``               ``>=1.17.0; python_version < "3.12"``
