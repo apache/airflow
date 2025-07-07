@@ -17,9 +17,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Generic, Literal, TypeVar
 
+from pydantic import computed_field
+
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.utils.state import TaskInstanceState
+from airflow.utils.types import DagRunType
 
 
 class BaseEdgeResponse(BaseModel):
@@ -52,8 +57,46 @@ E = TypeVar("E", bound=BaseEdgeResponse)
 N = TypeVar("N", bound=BaseNodeResponse)
 
 
+class GridNodeResponse(BaseModel):
+    """Base Node serializer for responses."""
+
+    id: str
+    label: str
+    children: list[GridNodeResponse] | None = None
+    is_mapped: bool | None
+    setup_teardown_type: Literal["setup", "teardown"] | None = None
+
+
+class GridRunsResponse(BaseModel):
+    """Base Node serializer for responses."""
+
+    dag_id: str
+    run_id: str
+    queued_at: datetime | None
+    start_date: datetime | None
+    end_date: datetime | None
+    run_after: datetime
+    state: TaskInstanceState | None
+    run_type: DagRunType
+
+    @computed_field
+    def duration(self) -> int | None:
+        if self.start_date and self.end_date:
+            return (self.end_date - self.start_date).seconds
+        return None
+
+
 class BaseGraphResponse(BaseModel, Generic[E, N]):
     """Base Graph serializer for responses."""
 
     edges: list[E]
     nodes: list[N]
+
+
+class LatestRunResponse(BaseModel):
+    """Base Node serializer for responses."""
+
+    id: int
+    dag_id: str
+    run_id: str
+    run_after: datetime

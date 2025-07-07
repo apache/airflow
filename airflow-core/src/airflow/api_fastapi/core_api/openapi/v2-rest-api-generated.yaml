@@ -2758,6 +2758,14 @@ paths:
           type: string
           default: dag_id
           title: Order By
+      - name: is_favorite
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Favorite
       responses:
         '200':
           description: Successful Response
@@ -3134,6 +3142,98 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/favorite:
+    post:
+      tags:
+      - DAG
+      summary: Favorite Dag
+      description: Mark the DAG as favorite.
+      operationId: favorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/unfavorite:
+    post:
+      tags:
+      - DAG
+      summary: Unfavorite Dag
+      description: Unmark the DAG as favorite.
+      operationId: unfavorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7029,9 +7129,7 @@ components:
           type: string
           title: Name
         href:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Href
         category:
           anyOf:
@@ -7042,6 +7140,7 @@ components:
       type: object
       required:
       - name
+      - href
       title: AppBuilderMenuItemResponse
       description: Serializer for AppBuilder Menu Item responses.
     AppBuilderViewResponse:
@@ -7229,16 +7328,21 @@ components:
           type: string
           format: date-time
           title: Updated At
-        consuming_dags:
+        scheduled_dags:
           items:
             $ref: '#/components/schemas/DagScheduleAssetReference'
           type: array
-          title: Consuming Dags
+          title: Scheduled Dags
         producing_tasks:
           items:
             $ref: '#/components/schemas/TaskOutletAssetReference'
           type: array
           title: Producing Tasks
+        consuming_tasks:
+          items:
+            $ref: '#/components/schemas/TaskInletAssetReference'
+          type: array
+          title: Consuming Tasks
         aliases:
           items:
             $ref: '#/components/schemas/AssetAliasResponse'
@@ -7256,8 +7360,9 @@ components:
       - group
       - created_at
       - updated_at
-      - consuming_dags
+      - scheduled_dags
       - producing_tasks
+      - consuming_tasks
       - aliases
       title: AssetResponse
       description: Asset serializer for responses.
@@ -8171,6 +8276,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8338,6 +8450,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -8429,6 +8542,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8508,6 +8628,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -8610,6 +8731,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
         data_interval_start:
           anyOf:
           - type: string
@@ -8640,6 +8766,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
+        triggering_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Triggering User Name
         conf:
           anyOf:
           - additionalProperties: true
@@ -8672,6 +8803,7 @@ components:
       - queued_at
       - start_date
       - end_date
+      - duration
       - data_interval_start
       - data_interval_end
       - run_after
@@ -8679,6 +8811,7 @@ components:
       - run_type
       - state
       - triggered_by
+      - triggering_user_name
       - conf
       - note
       - dag_versions
@@ -9114,6 +9247,31 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DeadlineAlertResponse:
+      properties:
+        reference:
+          type: string
+          title: Reference
+        interval:
+          type: string
+          format: duration
+          title: Interval
+        callback:
+          type: string
+          title: Callback
+        callback_kwargs:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Callback Kwargs
+      type: object
+      required:
+      - reference
+      - interval
+      - callback
+      title: DeadlineAlertResponse
+      description: Deadline alert serializer for responses.
     DryRunBackfillCollectionResponse:
       properties:
         backfills:
@@ -9240,6 +9398,51 @@ components:
       - url
       title: ExternalLogUrlResponse
       description: Response for the external log URL endpoint.
+    ExternalViewResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
+          title: Destination
+          default: nav
+        href:
+          type: string
+          title: Href
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - href
+      title: ExternalViewResponse
+      description: Serializer for External View Plugin responses.
     ExtraLinkCollectionResponse:
       properties:
         extra_links:
@@ -9333,42 +9536,6 @@ components:
       - triggerer
       title: HealthInfoResponse
       description: Health serializer for responses.
-    IFrameViewsResponse:
-      properties:
-        name:
-          type: string
-          title: Name
-        src:
-          type: string
-          title: Src
-        icon:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Icon
-        url_route:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Url Route
-        destination:
-          anyOf:
-          - type: string
-            enum:
-            - nav
-            - dag
-            - dag_run
-            - task
-            - task_instance
-          - type: 'null'
-          title: Destination
-      additionalProperties: true
-      type: object
-      required:
-      - name
-      - src
-      title: IFrameViewsResponse
-      description: Serializer for IFrame Plugin responses.
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -9623,11 +9790,18 @@ components:
             $ref: '#/components/schemas/FastAPIRootMiddlewareResponse'
           type: array
           title: Fastapi Root Middlewares
-        iframe_views:
+        external_views:
           items:
-            $ref: '#/components/schemas/IFrameViewsResponse'
+            $ref: '#/components/schemas/ExternalViewResponse'
           type: array
-          title: Iframe Views
+          title: External Views
+          description: Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items'
+            are included here.
+        react_apps:
+          items:
+            $ref: '#/components/schemas/ReactAppResponse'
+          type: array
+          title: React Apps
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -9638,6 +9812,7 @@ components:
             $ref: '#/components/schemas/AppBuilderMenuItemResponse'
           type: array
           title: Appbuilder Menu Items
+          deprecated: true
         global_operator_extra_links:
           items:
             type: string
@@ -9668,7 +9843,8 @@ components:
       - flask_blueprints
       - fastapi_apps
       - fastapi_root_middlewares
-      - iframe_views
+      - external_views
+      - react_apps
       - appbuilder_views
       - appbuilder_menu_items
       - global_operator_extra_links
@@ -9866,6 +10042,51 @@ components:
       - dag_display_name
       title: QueuedEventResponse
       description: Queued Event serializer for responses..
+    ReactAppResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
+          title: Destination
+          default: nav
+        bundle_url:
+          type: string
+          title: Bundle Url
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - bundle_url
+      title: ReactAppResponse
+      description: Serializer for React App Plugin responses.
     ReprocessBehavior:
       type: string
       enum:
@@ -9952,6 +10173,31 @@ components:
       - reason
       title: TaskDependencyResponse
       description: Task Dependency serializer for responses.
+    TaskInletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskInletAssetReference
+      description: Task inlet reference serializer for assets.
     TaskInstanceCollectionResponse:
       properties:
         task_instances:

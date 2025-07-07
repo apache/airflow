@@ -154,7 +154,6 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.serialize_user(user)
         assert result == {"sub": str(user.id)}
 
-    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -163,7 +162,6 @@ class TestFabAuthManager:
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
-    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -279,6 +277,62 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "resource_test")],
                 False,
             ),
+            # With specific DAG permissions but no specific DAG requested
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # With multiple specific DAG permissions, no specific DAG requested
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
+                True,
+            ),
+            # With specific DAG permissions but wrong method
+            (
+                "POST",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # With correct method permissions for specific DAG
+            (
+                "POST",
+                None,
+                None,
+                [(ACTION_CAN_CREATE, "DAG:test_dag_id")],
+                True,
+            ),
+            # With EDIT permission on specific DAG, no specific DAG requested
+            (
+                "PUT",
+                None,
+                None,
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id")],
+                True,
+            ),
+            # With DELETE permission on specific DAG, no specific DAG requested
+            (
+                "DELETE",
+                None,
+                None,
+                [(ACTION_CAN_DELETE, "DAG:test_dag_id")],
+                True,
+            ),
+            # Mixed permissions - some DAG, some non-DAG
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "resource_test")],
+                True,
+            ),
             # Scenario 2 #
             # With global permissions on DAGs
             (
@@ -348,10 +402,52 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
                 False,
             ),
+            # DAG sub-entity with specific DAG permissions but no specific DAG requested
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                True,
+            ),
+            # DAG sub-entity access with no DAG permissions, no specific DAG requested
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                True,
+            ),
+            # DAG sub-entity with specific DAG permissions but missing sub-entity permission
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # Multiple DAG access entities with proper permissions
+            (
+                "DELETE",
+                DagAccessEntity.TASK,
+                None,
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
+                True,
+            ),
+            # User with specific DAG permissions but wrong method for sub-entity
+            (
+                "POST",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                True,
+            ),
         ],
     )
+    @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
     def test_is_authorized_dag(
         self,
+        mock_get_authorized_dag_ids,
         method,
         dag_access_entity,
         dag_details,
@@ -359,8 +455,13 @@ class TestFabAuthManager:
         expected_result,
         auth_manager_with_appbuilder,
     ):
+        dag_permissions = [perm[1] for perm in user_permissions if perm[1].startswith("DAG:")]
+        dag_ids = {perm.replace("DAG:", "") for perm in dag_permissions}
+        mock_get_authorized_dag_ids.return_value = dag_ids
+
         user = Mock()
         user.perms = user_permissions
+        user.id = 1
         result = auth_manager_with_appbuilder.is_authorized_dag(
             method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
@@ -587,11 +688,9 @@ class TestFabAuthManager:
 
         delete_user(flask_app, "username")
 
-    @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)
 
-    @pytest.mark.db_test
     def test_security_manager_return_custom_provided(self, flask_app, auth_manager_with_appbuilder):
         class TestSecurityManager(FabAirflowSecurityManagerOverride):
             pass
@@ -599,7 +698,6 @@ class TestFabAuthManager:
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
         assert isinstance(auth_manager_with_appbuilder.security_manager, TestSecurityManager)
 
-    @pytest.mark.db_test
     def test_security_manager_wrong_inheritance_raise_exception(
         self, flask_app, auth_manager_with_appbuilder
     ):

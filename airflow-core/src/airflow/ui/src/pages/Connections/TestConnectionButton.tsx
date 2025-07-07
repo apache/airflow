@@ -35,7 +35,7 @@ const connectedIcon = <FiWifi color="green" />;
 const disconnectedIcon = <FiWifiOff color="red" />;
 
 const TestConnectionButton = ({ connection }: Props) => {
-  const { t: translate } = useTranslation("connections");
+  const { t: translate } = useTranslation("admin");
   const [icon, setIcon] = useState(defaultIcon);
   const testConnection = useConfig("test_connection");
   let option: TestConnectionOption;
@@ -72,7 +72,9 @@ const TestConnectionButton = ({ connection }: Props) => {
 
   return (
     <ActionButton
-      actionName={option === "Enabled" ? translate("test") : translate("testDisabled")}
+      actionName={
+        option === "Enabled" ? translate("connections.test") : translate("connections.testDisabled")
+      }
       disabled={option === "Disabled"}
       display={option === "Hidden" ? "none" : "flex"}
       icon={icon}
@@ -80,7 +82,7 @@ const TestConnectionButton = ({ connection }: Props) => {
       onClick={() => {
         mutate({ requestBody: connectionBody });
       }}
-      text={translate("test")}
+      text={translate("connections.test")}
       withText={false}
     />
   );

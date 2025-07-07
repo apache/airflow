@@ -27,12 +27,11 @@ import os
 import sys
 import time
 import warnings
-from collections.abc import Generator, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Protocol,
     TypeVar,
     overload,
@@ -93,7 +92,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
-    "3.1.0": "3ac9e5732b1f",
+    "3.0.3": "fe199e1abd77",
+    "3.1.0": "ffdb0566c7c0",
 }
 
 
@@ -124,9 +124,16 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
 @provide_session
 def create_default_connections(session: Session = NEW_SESSION):
     """Create default Airflow connections."""
+    conns = get_default_connections()
+
+    for c in conns:
+        merge_conn(c, session)
+
+
+def get_default_connections():
     from airflow.models.connection import Connection
 
-    merge_conn(
+    conns = [
         Connection(
             conn_id="airflow_db",
             conn_type="mysql",
@@ -135,40 +142,26 @@ def create_default_connections(session: Session = NEW_SESSION):
             password="",
             schema="airflow",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="athena_default",
             conn_type="athena",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="aws_default",
             conn_type="aws",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="azure_batch_default",
             conn_type="azure_batch",
             login="<ACCOUNT_NAME>",
             password="",
             extra="""{"account_url": "<ACCOUNT_URL>"}""",
-        )
-    )
-    merge_conn(
+        ),
         Connection(
             conn_id="azure_cosmos_default",
             conn_type="azure_cosmos",
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="azure_data_explorer_default",
             conn_type="azure_data_explorer",
@@ -177,50 +170,32 @@ def create_default_connections(session: Session = NEW_SESSION):
                     "tenant": "<TENANT ID>", "certificate": "<APPLICATION PEM CERTIFICATE>",
                     "thumbprint": "<APPLICATION CERTIFICATE THUMBPRINT>"}""",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="azure_data_lake_default",
             conn_type="azure_data_lake",
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="azure_default",
             conn_type="azure",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="cassandra_default",
             conn_type="cassandra",
             host="cassandra",
             port=9042,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="databricks_default",
             conn_type="databricks",
             host="localhost",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="dingding_default",
             conn_type="http",
             host="",
             password="",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="drill_default",
             conn_type="drill",
@@ -228,9 +203,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             port=8047,
             extra='{"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="druid_broker_default",
             conn_type="druid",
@@ -238,9 +210,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             port=8082,
             extra='{"endpoint": "druid/v2/sql"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="druid_ingest_default",
             conn_type="druid",
@@ -248,9 +217,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             port=8081,
             extra='{"endpoint": "druid/indexer/v1/task"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="elasticsearch_default",
             conn_type="elasticsearch",
@@ -258,9 +224,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="http",
             port=9200,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="emr_default",
             conn_type="emr",
@@ -309,9 +272,6 @@ def create_default_connections(session: Session = NEW_SESSION):
                 }
             """,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="facebook_default",
             conn_type="facebook_social",
@@ -323,17 +283,11 @@ def create_default_connections(session: Session = NEW_SESSION):
                 }
             """,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="fs_default",
             conn_type="fs",
             extra='{"path": "/"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="ftp_default",
             conn_type="ftp",
@@ -343,26 +297,17 @@ def create_default_connections(session: Session = NEW_SESSION):
             password="airflow",
             extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="google_cloud_default",
             conn_type="google_cloud_platform",
             schema="default",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="gremlin_default",
             conn_type="gremlin",
             host="gremlin",
             port=8182,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="hive_cli_default",
             conn_type="hive_cli",
@@ -371,9 +316,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             extra='{"use_beeline": true, "auth": ""}',
             schema="default",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="hiveserver2_default",
             conn_type="hiveserver2",
@@ -381,41 +323,26 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="default",
             port=10000,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="http_default",
             conn_type="http",
             host="https://www.httpbin.org/",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="iceberg_default",
             conn_type="iceberg",
             host="https://api.iceberg.io/ws/v1",
         ),
-        session,
-    )
-    merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
-    merge_conn(
+        Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050),
         Connection(
             conn_id="kafka_default",
             conn_type="kafka",
             extra=json.dumps({"bootstrap.servers": "broker:29092", "group.id": "my-group"}),
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="kubernetes_default",
             conn_type="kubernetes",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="kylin_default",
             conn_type="kylin",
@@ -424,18 +351,12 @@ def create_default_connections(session: Session = NEW_SESSION):
             login="ADMIN",
             password="KYLIN",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="leveldb_default",
             conn_type="leveldb",
             host="localhost",
         ),
-        session,
-    )
-    merge_conn(Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998), session)
-    merge_conn(
+        Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998),
         Connection(
             conn_id="local_mysql",
             conn_type="mysql",
@@ -444,9 +365,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             password="airflow",
             schema="airflow",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="metastore_default",
             conn_type="hive_metastore",
@@ -454,19 +372,13 @@ def create_default_connections(session: Session = NEW_SESSION):
             extra='{"authMechanism": "PLAIN"}',
             port=9083,
         ),
-        session,
-    )
-    merge_conn(Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017), session)
-    merge_conn(
+        Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
         Connection(
             conn_id="mssql_default",
             conn_type="mssql",
             host="localhost",
             port=1433,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="mysql_default",
             conn_type="mysql",
@@ -474,9 +386,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="airflow",
             host="mysql",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="opensearch_default",
             conn_type="opensearch",
@@ -484,18 +393,12 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="http",
             port=9200,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="opsgenie_default",
             conn_type="http",
             host="",
             password="",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="oracle_default",
             conn_type="oracle",
@@ -505,39 +408,28 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="schema",
             port=1521,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="oss_default",
             conn_type="oss",
-            extra="""{
+            extra="""
+                {
                 "auth_type": "AK",
                 "access_key_id": "<ACCESS_KEY_ID>",
                 "access_key_secret": "<ACCESS_KEY_SECRET>",
                 "region": "<YOUR_OSS_REGION>"}
                 """,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="pig_cli_default",
             conn_type="pig_cli",
             schema="default",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="pinot_admin_default",
             conn_type="pinot",
             host="localhost",
             port=9000,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="pinot_broker_default",
             conn_type="pinot",
@@ -545,9 +437,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             port=9000,
             extra='{"endpoint": "/query", "schema": "http"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="postgres_default",
             conn_type="postgres",
@@ -556,9 +445,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="airflow",
             host="postgres",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="presto_default",
             conn_type="presto",
@@ -566,18 +452,12 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="hive",
             port=3400,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="qdrant_default",
             conn_type="qdrant",
             host="qdrant",
             port=6333,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="redis_default",
             conn_type="redis",
@@ -585,13 +465,11 @@ def create_default_connections(session: Session = NEW_SESSION):
             port=6379,
             extra='{"db": 0}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="redshift_default",
             conn_type="redshift",
-            extra="""{
+            extra="""
+{
     "iam": true,
     "cluster_identifier": "<REDSHIFT_CLUSTER_IDENTIFIER>",
     "port": 5439,
@@ -601,9 +479,6 @@ def create_default_connections(session: Session = NEW_SESSION):
     "region": ""
 }""",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="salesforce_default",
             conn_type="salesforce",
@@ -611,17 +486,11 @@ def create_default_connections(session: Session = NEW_SESSION):
             password="password",
             extra='{"security_token": "security_token"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="segment_default",
             conn_type="segment",
             extra='{"write_key": "my-segment-write-key"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="sftp_default",
             conn_type="sftp",
@@ -630,34 +499,22 @@ def create_default_connections(session: Session = NEW_SESSION):
             login="airflow",
             extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="spark_default",
             conn_type="spark",
             host="yarn",
             extra='{"queue": "root.default"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="sqlite_default",
             conn_type="sqlite",
             host=os.path.join(gettempdir(), "sqlite_default.db"),
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="ssh_default",
             conn_type="ssh",
             host="localhost",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="tableau_default",
             conn_type="tableau",
@@ -666,9 +523,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             password="password",
             extra='{"site_id": "my_site"}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="teradata_default",
             conn_type="teradata",
@@ -677,9 +531,6 @@ def create_default_connections(session: Session = NEW_SESSION):
             password="password",
             schema="schema",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="trino_default",
             conn_type="trino",
@@ -687,43 +538,28 @@ def create_default_connections(session: Session = NEW_SESSION):
             schema="hive",
             port=3400,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="vertica_default",
             conn_type="vertica",
             host="localhost",
             port=5433,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="wasb_default",
             conn_type="wasb",
             extra='{"sas_token": null}',
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="webhdfs_default",
             conn_type="hdfs",
             host="localhost",
             port=50070,
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="yandexcloud_default",
             conn_type="yandexcloud",
             schema="default",
         ),
-        session,
-    )
-    merge_conn(
         Connection(
             conn_id="ydb_default",
             conn_type="ydb",
@@ -731,8 +567,8 @@ def create_default_connections(session: Session = NEW_SESSION):
             port=2135,
             extra={"database": "/local"},
         ),
-        session,
-    )
+    ]
+    return conns
 
 
 def _create_db_from_orm(session):

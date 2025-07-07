@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
@@ -30,11 +31,11 @@ import { getTaskInstanceLinkFromObj } from "src/utils/links";
 
 import { XComEntry } from "./XComEntry";
 
-const columns: Array<ColumnDef<XComResponse>> = [
+const columns = (translate: (key: string) => string): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
-    header: "Key",
+    header: translate("xcom.columns.key"),
   },
   {
     accessorKey: "dag_id",
@@ -44,7 +45,7 @@ const columns: Array<ColumnDef<XComResponse>> = [
       </Link>
     ),
     enableSorting: false,
-    header: "Dag",
+    header: translate("xcom.columns.dag"),
   },
   {
     accessorKey: "run_id",
@@ -56,7 +57,7 @@ const columns: Array<ColumnDef<XComResponse>> = [
       </Link>
     ),
     enableSorting: false,
-    header: "Run Id",
+    header: translate("common:runId"),
   },
   {
     accessorKey: "task_id",
@@ -75,12 +76,12 @@ const columns: Array<ColumnDef<XComResponse>> = [
       </Link>
     ),
     enableSorting: false,
-    header: "Task ID",
+    header: translate("common:taskId"),
   },
   {
     accessorKey: "map_index",
     enableSorting: false,
-    header: "Map Index",
+    header: translate("common:mapIndex"),
   },
   {
     cell: ({ row: { original } }) => (
@@ -93,13 +94,13 @@ const columns: Array<ColumnDef<XComResponse>> = [
       />
     ),
     enableSorting: false,
-    header: "Value",
+    header: translate("xcom.columns.value"),
   },
 ];
 
 export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
-
+  const { t: translate } = useTranslation(["browse", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
@@ -118,15 +119,18 @@ export const XCom = () => {
 
   return (
     <Box>
+      {dagId === "~" && runId === "~" && taskId === "~" ? (
+        <Heading size="md">{translate("xcom.title")}</Heading>
+      ) : undefined}
       <ErrorAlert error={error} />
       <DataTable
-        columns={columns}
+        columns={columns(translate)}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="XCom"
+        modelName={translate("xcom.title")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}

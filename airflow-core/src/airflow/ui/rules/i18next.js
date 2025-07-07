@@ -22,7 +22,7 @@
  */
 import i18nextPlugin from "eslint-plugin-i18next";
 
-import { WARN } from "./levels.js";
+import { ERROR } from "./levels.js";
 
 const allExtensions = "*.{j,t}s{x,}";
 
@@ -36,6 +36,10 @@ export const i18nextRules = /** @type {const} @satisfies {FlatConfig.Config} */ 
   files: [
     // Check files in the ui/src directory
     `src/**/${allExtensions}`,
+  ],
+  ignores: [
+    // Ignore test files
+    "src/**/*.test.tsx",
   ],
   plugins: {
     i18next: i18nextPlugin,
@@ -56,7 +60,7 @@ export const i18nextRules = /** @type {const} @satisfies {FlatConfig.Config} */ 
      * @see [i18next/no-literal-string](https://github.com/edvardchen/eslint-plugin-i18next#no-literal-string)
      */
     "i18next/no-literal-string": [
-      WARN,
+      ERROR,
       {
         markupOnly: true,
       },

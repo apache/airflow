@@ -1,0 +1,123 @@
+{
+  "allRuns": "Wszystkie wykonania",
+  "blockingDeps": {
+    "dependency": "Zależność",
+    "reason": "Powód",
+    "title": "Zależności blokujące zaplanowanie zadania"
+  },
+  "code": {
+    "bundleUrl": "Adres URL paczki Dagów",
+    "noCode": "Nie znaleziono kodu",
+    "parsedAt": "Przeanalizowano o:"
+  },
+  "extraLinks": "Dodatkowe linki",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Przywróć do najnowszego",
+      "toggleGroup": "Przełącz grupę"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Dokumentacja Daga"
+    }
+  },
+  "logs": {
+    "allLevels": "Wszystkie poziomy logów",
+    "allSources": "Wszystkie źródła",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Pełny ekran",
+      "tooltip": "Naciśnij {{hotkey}}, aby przejść do pełnego ekranu"
+    },
+    "info": "INFO",
+    "noTryNumber": "Brak numeru próby",
+    "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
+    "warning": "WARNING"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_few": "Nieudane wykonania",
+      "failedRun_many": "Nieudanych wykonań",
+      "failedRun_one": "Nieudane wykonanie",
+      "failedRun_other": "Nieudane wykonania",
+      "failedTask_few": "Nieudane zadania",
+      "failedTask_many": "Nieudanych zadań",
+      "failedTask_one": "Nieudane zadanie",
+      "failedTask_other": "Nieudane zadania",
+      "failedTaskInstance_few": "Nieudane instancje zadań",
+      "failedTaskInstance_many": "Nieudanych instancji zadań",
+      "failedTaskInstance_one": "Nieudana instancja zadania",
+      "failedTaskInstance_other": "Nieudane instancje zadań"
+    },
+    "charts": {
+      "assetEvent_few": "Utworzone zdarzenia zasobów",
+      "assetEvent_many": "Utworzonych zdarzeń zasobów",
+      "assetEvent_one": "Utworzone zdarzenie zasobu",
+      "assetEvent_other": "Utworzone zdarzenia zasobów"
+    },
+    "failedLogs": {
+      "title": "Ostatnie logi nieudanych zadań",
+      "viewFullLogs": "Zobacz pełne logi"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opcje",
+      "showGraph": "Pokaż graf",
+      "showGrid": "Pokaż siatkę"
+    },
+    "dagRuns": {
+      "label": "Liczba wykonań Daga"
+    },
+    "dependencies": {
+      "label": "Zależności",
+      "options": {
+        "allDagDependencies": "Wszystkie zależności Daga",
+        "externalConditions": "Warunki zewnętrzne",
+        "onlyTasks": "Tylko zadania"
+      },
+      "placeholder": "Zależności"
+    },
+    "graphDirection": {
+      "label": "Kierunek grafu"
+    }
+  },
+  "paramsFailed": "Nie udało się załadować parametrów",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Nie udało się przetworzyć żądania prztworzenia Daga. Mogą istnieć oczekujące żądania przetworznia Dagów.",
+        "title": "Nie udało się ponownie przetworzyć Daga"
+      },
+      "success": {
+        "description": "Dag zostanie wkrótce ponownie przetworzony.",
+        "title": "Żądanie ponownego przetworzenia Daga zostało pomyślnie wysłane"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Zdarzenia zasobów",
+    "auditLog": "Log audytu",
+    "backfills": "Wypełnienia wsteczne",
+    "code": "Kod",
+    "details": "Szczegóły",
+    "logs": "Logi",
+    "mappedTaskInstances_few": "Instancje zadań [{{count}}]",
+    "mappedTaskInstances_many": "Instancji zadań [{{count}}]",
+    "mappedTaskInstances_one": "Instancja zadania [{{count}}]",
+    "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
+    "overview": "Przegląd",
+    "renderedTemplates": "Wyrenderowane szablony",
+    "runs": "Wykonania",
+    "taskInstances": "Instancje zadań",
+    "tasks": "Zadania",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Zwiń wszystkie grupy zadań",
+    "expandAll": "Rozwiń wszystkie grupy zadań"
+  }
+}

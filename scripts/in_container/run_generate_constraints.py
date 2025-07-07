@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.9")
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
@@ -83,7 +83,7 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 # commands that might change the installed version of apache-airflow should include "apache-airflow==X.Y.Z"
 # in the list of install targets to prevent Airflow accidental upgrade or downgrade.
 #
-# Typical installation process of airflow for Python 3.9 is (with random selection of extras and custom
+# Typical installation process of airflow for Python 3.10 is (with random selection of extras and custom
 # dependencies added), usually consists of two steps:
 #
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):

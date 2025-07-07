@@ -23,16 +23,14 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.dingding.hooks.dingding import DingdingHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 class TestDingdingHook:
     conn_id = "dingding_conn_id_test"
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=self.conn_id,
                 conn_type="dingding",

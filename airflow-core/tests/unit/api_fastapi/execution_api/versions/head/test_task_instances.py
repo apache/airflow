@@ -1909,7 +1909,7 @@ class TestGetTaskStates:
             },
         }
 
-    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker, serialized=True):
+    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_logical_dates", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
@@ -2181,7 +2181,14 @@ class TestGetTaskStates:
 
 
 class TestInvactiveInletsAndOutlets:
-    def test_ti_inactive_inlets_and_outlets(self, client, dag_maker):
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            datetime(2025, 6, 6, tzinfo=timezone.utc),
+            None,
+        ],
+    )
+    def test_ti_inactive_inlets_and_outlets(self, logical_date, client, dag_maker):
         """Test the inactive assets in inlets and outlets can be found."""
         with dag_maker("test_inlets_and_outlets"):
             EmptyOperator(
@@ -2193,7 +2200,7 @@ class TestInvactiveInletsAndOutlets:
                 ],
             )
 
-        dr = dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun(logical_date=logical_date)
 
         task1_ti = dr.get_task_instance("task1")
         response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
@@ -2214,7 +2221,14 @@ class TestInvactiveInletsAndOutlets:
         for asset in expected_inactive_assets:
             assert asset in inactive_assets
 
-    def test_ti_inactive_inlets_and_outlets_without_inactive_assets(self, client, dag_maker):
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            datetime(2025, 6, 6, tzinfo=timezone.utc),
+            None,
+        ],
+    )
+    def test_ti_inactive_inlets_and_outlets_without_inactive_assets(self, logical_date, client, dag_maker):
         """Test the task without inactive assets in its inlets or outlets returns empty list."""
         with dag_maker("test_inlets_and_outlets_inactive"):
             EmptyOperator(
@@ -2223,7 +2237,7 @@ class TestInvactiveInletsAndOutlets:
                 outlets=[Asset(name="outlet-name", uri="uri")],
             )
 
-        dr = dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun(logical_date=logical_date)
 
         task1_ti = dr.get_task_instance("inactive_task1")
         response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")

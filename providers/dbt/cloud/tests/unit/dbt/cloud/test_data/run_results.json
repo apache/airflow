@@ -1,7 +1,8 @@
 {
   "metadata": {
     "dbt_schema_version": "https://schemas.getdbt.com/dbt/run-results/v4.json",
-    "dbt_version": "1.6.1"
+    "dbt_version": "1.6.1",
+    "invocation_id": "188471607"
   },
   "results": [
     {

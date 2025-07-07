@@ -65,11 +65,12 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _patch_task_instance_note,
+    _patch_task_instance_state,
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -848,46 +849,22 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
-            tis = dag.set_task_instance_state(
+            _patch_task_instance_state(
                 task_id=task_id,
-                run_id=dag_run_id,
-                map_indexes=[map_index] if map_index is not None else None,
-                state=data["new_state"],
-                upstream=body.include_upstream,
-                downstream=body.include_downstream,
-                future=body.include_future,
-                past=body.include_past,
-                commit=True,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                task_instance_body=body,
+                data=data,
                 session=session,
             )
-            if not tis:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
-                )
-
-            for ti in tis:
-                try:
-                    if data["new_state"] == TaskInstanceState.SUCCESS:
-                        get_listener_manager().hook.on_task_instance_success(
-                            previous_state=None, task_instance=ti
-                        )
-                    elif data["new_state"] == TaskInstanceState.FAILED:
-                        get_listener_manager().hook.on_task_instance_failed(
-                            previous_state=None,
-                            task_instance=ti,
-                            error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                        )
-                except Exception:
-                    log.exception("error calling listener")
 
         elif key == "note":
-            for ti in tis:
-                if update_mask or body.note is not None:
-                    if ti.task_instance_note is None:
-                        ti.note = (body.note, user.get_id())
-                    else:
-                        ti.task_instance_note.content = body.note
-                        ti.task_instance_note.user_id = user.get_id()
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=tis,
+                user=user,
+                update_mask=update_mask,
+            )
 
     return TaskInstanceCollectionResponse(
         task_instances=[

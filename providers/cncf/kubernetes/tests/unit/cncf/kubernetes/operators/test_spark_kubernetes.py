@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 from datetime import date
 from functools import cached_property
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -31,13 +32,36 @@ import yaml
 from kubernetes.client import models as k8s
 
 from airflow import DAG
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
-from airflow.utils import db, timezone
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
+
+
+@pytest.fixture(autouse=True, scope="module")
+def patch_pod_manager_methods():
+    # Patch watch_pod_events
+    patch_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock)
+    mock_watch_pod_events = patch_watch_pod_events.start()
+    mock_watch_pod_events.return_value = asyncio.Future()
+    mock_watch_pod_events.return_value.set_result(None)
+
+    # Patch await_pod_start
+    patch_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start", new_callable=mock.AsyncMock)
+    mock_await_pod_start = patch_await_pod_start.start()
+    mock_await_pod_start.return_value = asyncio.Future()
+    mock_await_pod_start.return_value.set_result(None)
+
+    yield
+
+    mock.patch.stopall()
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
@@ -200,21 +224,20 @@ def create_context(task):
     }
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperatorCreateApplication:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
@@ -254,6 +277,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             "version": "v1beta2",
         }
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "task_name, application_file_path",
         [
@@ -269,7 +293,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         mock_cleanup,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -294,6 +317,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             **self.call_commons,
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "task_name, application_file_path",
         [
@@ -309,7 +333,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         mock_cleanup,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -339,6 +362,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             **self.call_commons,
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "task_name, application_file_path",
         [
@@ -354,7 +378,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         mock_cleanup,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -381,6 +404,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             **self.call_commons,
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("random_name_suffix", [True, False])
     def test_new_template_from_yaml(
         self,
@@ -389,7 +413,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         mock_cleanup,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -415,6 +438,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             **self.call_commons,
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("random_name_suffix", [True, False])
     def test_template_spec(
         self,
@@ -423,7 +447,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         mock_cleanup,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -451,10 +474,8 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name")
@@ -462,11 +483,12 @@ class TestSparkKubernetesOperatorCreateApplication:
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperator:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
@@ -488,6 +510,7 @@ class TestSparkKubernetesOperator:
         op.execute(context)
         return op
 
+    @pytest.mark.asyncio
     def test_env(
         self,
         mock_create_namespaced_crd,
@@ -496,7 +519,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -532,6 +554,7 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body["spec"]["driver"]["envFrom"] == env_from
         assert op.launcher.body["spec"]["executor"]["envFrom"] == env_from
 
+    @pytest.mark.asyncio
     def test_volume(
         self,
         mock_create_namespaced_crd,
@@ -540,7 +563,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -578,6 +600,7 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body["spec"]["driver"]["volumeMounts"] == volume_mounts
         assert op.launcher.body["spec"]["executor"]["volumeMounts"] == volume_mounts
 
+    @pytest.mark.asyncio
     def test_pull_secret(
         self,
         mock_create_namespaced_crd,
@@ -586,7 +609,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -599,6 +621,7 @@ class TestSparkKubernetesOperator:
         exp_secrets = [k8s.V1LocalObjectReference(name=secret) for secret in ["secret1", "secret2"]]
         assert op.launcher.body["spec"]["imagePullSecrets"] == exp_secrets
 
+    @pytest.mark.asyncio
     def test_affinity(
         self,
         mock_create_namespaced_crd,
@@ -607,7 +630,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -653,6 +675,7 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body["spec"]["driver"]["affinity"] == affinity
         assert op.launcher.body["spec"]["executor"]["affinity"] == affinity
 
+    @pytest.mark.asyncio
     def test_toleration(
         self,
         mock_create_namespaced_crd,
@@ -661,7 +684,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -680,6 +702,7 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body["spec"]["driver"]["tolerations"] == [toleration]
         assert op.launcher.body["spec"]["executor"]["tolerations"] == [toleration]
 
+    @pytest.mark.asyncio
     def test_get_logs_from_driver(
         self,
         mock_create_namespaced_crd,
@@ -688,7 +711,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -703,6 +725,7 @@ class TestSparkKubernetesOperator:
             follow_logs=True,
         )
 
+    @pytest.mark.asyncio
     def test_find_custom_pod_labels(
         self,
         mock_create_namespaced_crd,
@@ -711,7 +734,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -731,6 +753,41 @@ class TestSparkKubernetesOperator:
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
         op.find_spark_job(context)
         mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+    @pytest.mark.asyncio
+    def test_execute_deferrable(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+        mocker,
+    ):
+        task_name = "test_execute_deferrable"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            deferrable=True,
+        )
+        context = create_context(op)
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context)
+
+        assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
 
 @pytest.mark.db_test

@@ -19,6 +19,7 @@
 import { Button, Field, Heading, HStack, VStack, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import {
@@ -52,6 +53,7 @@ type Props = {
 };
 
 export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
+  const { t: translate } = useTranslation(["assets", "components"]);
   const [eventType, setEventType] = useState("manual");
   const [extraError, setExtraError] = useState<string | undefined>();
   const [unpause, setUnpause] = useState(true);
@@ -82,7 +84,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
         setExtra(formattedJson); // Update only if the value is different
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
+      const errorMessage = error instanceof Error ? error.message : translate("common:error.unknown");
 
       setExtraError(errorMessage);
     }
@@ -107,14 +109,14 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       ];
 
       toaster.create({
-        description: `Upstream Dag ${response.dag_id} was triggered successfully.`,
-        title: "Materializing Asset",
+        description: translate("createEvent.success.materializeDescription", { dagId: response.dag_id }),
+        title: translate("createEvent.success.materializeTitle"),
         type: "success",
       });
     } else {
       toaster.create({
-        description: "Manual asset event creation was successful.",
-        title: "Asset Event Created",
+        description: translate("createEvent.success.manualDescription"),
+        title: translate("createEvent.success.manualTitle"),
         type: "success",
       });
     }
@@ -164,7 +166,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       <Dialog.Content backdrop>
         <Dialog.Header paddingBottom={0}>
           <VStack align="start" gap={4}>
-            <Heading size="xl">Create Asset Event for {asset.name}</Heading>
+            <Heading size="xl">{translate("createEvent.title", { name: asset.name })}</Heading>
           </VStack>
         </Dialog.Header>
 
@@ -180,24 +182,34 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
           >
             <HStack align="stretch">
               <RadioCardItem
-                description={`Trigger the Dag upstream of this asset${upstreamDagId === undefined ? "" : `: ${dag?.dag_display_name ?? upstreamDagId}`}`}
+                description={
+                  upstreamDagId === undefined
+                    ? translate("createEvent.materialize.description")
+                    : translate("createEvent.materialize.descriptionWithDag", {
+                        dagName: dag?.dag_display_name ?? upstreamDagId,
+                      })
+                }
                 disabled={!hasUpstreamDag}
-                label="Materialize"
+                label={translate("createEvent.materialize.label")}
                 value="materialize"
               />
-              <RadioCardItem description="Directly create an Asset Event" label="Manual" value="manual" />
+              <RadioCardItem
+                description={translate("createEvent.manual.description")}
+                label={translate("createEvent.manual.label")}
+                value="manual"
+              />
             </HStack>
           </RadioCardRoot>
           {eventType === "manual" ? (
             <Field.Root mt={6}>
-              <Field.Label fontSize="md">Asset Event Extra</Field.Label>
+              <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
               <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
               <Text color="fg.error">{extraError}</Text>
             </Field.Root>
           ) : undefined}
           {eventType === "materialize" && dag?.is_paused ? (
             <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
-              Unpause {dag.dag_display_name} on trigger
+              {translate("createEvent.materialize.unpauseDag", { dagName: dag.dag_display_name })}
             </Checkbox>
           ) : undefined}
           <ErrorAlert error={eventType === "manual" ? manualError : materializeError} />
@@ -209,7 +221,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
             loading={isPending || isMaterializePending}
             onClick={handleSubmit}
           >
-            <FiPlay /> Create Event
+            <FiPlay /> {translate("createEvent.button")}
           </Button>
         </Dialog.Footer>
       </Dialog.Content>

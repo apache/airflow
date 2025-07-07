@@ -81,7 +81,11 @@ class TestPoolImportCommand:
         mock_response = mock.MagicMock()
         mock_response.success = ["test_pool"]
         mock_response.errors = []
-        mock_client.pools.bulk.return_value = mock_response
+
+        mock_bulk_builder = mock.MagicMock()
+        mock_bulk_builder.create = mock_response
+
+        mock_client.pools.bulk.return_value = mock_bulk_builder
 
         pool_command.import_(args=mock.MagicMock(file=pools_file))
 

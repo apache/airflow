@@ -50,7 +50,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
         <Accordion.Item key="tasks" value="tasks">
           <Accordion.ItemTrigger>
             <Text fontWeight="bold">
-              {translate("dags:runAndTaskActions.clear.dialog.affectedTasks.title", {
+              {translate("dags:runAndTaskActions.affectedTasks.title", {
                 count: affectedTasks.total_entries,
               })}
             </Text>
@@ -62,7 +62,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
                 data={affectedTasks.task_instances}
                 displayMode="table"
                 modelName={translate("common:taskInstance_other")}
-                noRowsMessage={translate("dags:runAndTaskActions.clear.dialog.affectedTasks.noItemsFound")}
+                noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
                 total={affectedTasks.total_entries}
               />
             </Box>
@@ -71,7 +71,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
       ) : undefined}
       <Accordion.Item key="note" value="note">
         <Accordion.ItemTrigger>
-          <Text fontWeight="bold">{translate("dags:runAndTaskActions.clear.dialog.note.title")}</Text>
+          <Text fontWeight="bold">{translate("note.label")}</Text>
         </Accordion.ItemTrigger>
         <Accordion.ItemContent>
           <Editable.Root
@@ -90,16 +90,14 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
               {Boolean(note) ? (
                 <ReactMarkdown>{note}</ReactMarkdown>
               ) : (
-                <Text color="fg.subtle">
-                  {translate("dags:runAndTaskActions.clear.dialog.note.placeholder")}
-                </Text>
+                <Text color="fg.subtle">{translate("note.placeholder")}</Text>
               )}
             </Editable.Preview>
             <Editable.Textarea
               data-testid="notes-input"
               height="200px"
               overflowY="auto"
-              placeholder={translate("dags:runAndTaskActions.clear.dialog.note.placeholder")}
+              placeholder={translate("note.placeholder")}
               resize="none"
             />
           </Editable.Root>

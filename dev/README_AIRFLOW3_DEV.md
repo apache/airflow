@@ -28,7 +28,8 @@
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
-  - [Merging PRs targeted for Airflow 3.0 (bugfixes/CI changes)](#merging-prs-targeted-for-airflow-30-bugfixesci-changes)
+  - [Merging PRs targeted for Airflow 3.X](#merging-prs-targeted-for-airflow-3x)
+  - [What do we backport to `v3-X-test` branch?](#what-do-we-backport-to-v3-x-test-branch)
   - [Merging PR for Airflow 3 and 2.11.x](#merging-pr-for-airflow-3-and-211x)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
   - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
@@ -112,9 +113,11 @@ Core parts should be extracted to a separate PR.
 Exclusions should be pre-approved specifically with a comment by release manager.
 Do not treat PR approval (Green V) as exclusion approval.
 
-## Merging PRs targeted for Airflow 3.0 (bugfixes/CI changes)
+## Merging PRs targeted for Airflow 3.X
 
-The committer who merges the PR is responsible for backporting the PRs that are 3.0 bugfixes to `v3-0-test` .
+The committer who merges the PR is responsible for backporting the PRs that are 3.0 bugfixes (generally speaking)
+to `v3-X-test` (latest active branch we release bugfixes from). See next chapter to see what kind of changes we cherry-pick.
+
 It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
 If the cherry-pick is too complex, then ask the PR author / start your own PR against `v3-0-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
@@ -132,6 +135,25 @@ We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker)
 Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
 command line and via GitHub Actions interface.
 
+## What do we backport to `v3-X-test` branch?
+
+The `v3-x-test` latest branch is generally used to release bugfixes, but what we cherry-pick is a bit more
+nuanced than `bugfixes only`. We cherry-pick:
+
+* **Bug-fixes** (obviously) - but not all of them - often we might decide to not cherry-pick bug-fixes that are
+  not relevant to the latest release or difficult to cherry-pick
+* **CI changes** - we cherry-pick most CI changes because our CI has a lot of dependencies on external factors
+  (such as dependencies, Python versions, etc.) and we want to keep it up-to-date in the bugfix branch to
+  keep CI green and to make latest workflows work in the same way as in the main branch
+* **Documentation changes** - we cherry-pick documentation changes that are relevant to the latest release
+  and that help users to understand how to use the latest release. We do not cherry-pick documentation changes
+  that refer to features that are added in `main` branch and not in the latest release.
+* **Minor refactorings in active areas** - sometimes we might decide to cherry-pick minor refactorings
+  that are relevant to the latest release and that help us to keep the codebase clean and maintainable,
+  particularly when they are done in areas that are likely to be cherry-picked. The reason why we are doing
+  it is to make it easier for future cherry-picks to avoid conflicts. Committers should use their judgment
+  whether to cherry-pick such changes (default being `no`) and they should be always justified by explaining
+  why this change is cherry-picked even if it is not a bug-fix.
 
 ## Merging PR for Airflow 3 and 2.11.x
 

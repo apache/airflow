@@ -25,7 +25,7 @@ import pytest
 from airflow.models import Connection
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
 from tests_common.test_utils.system_tests import get_test_run
 
@@ -50,7 +50,7 @@ class TestDataprepExampleDagsSystem(GoogleSystemTest):
             session.add(dataprep_conn_id)
 
     def teardown_method(self):
-        clear_db_connections()
+        clear_test_connections()
 
     def test_run_example_dag(self):
         from unit.google.cloud.dataprep.example_dataprep import dag

@@ -19,7 +19,7 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
@@ -213,14 +213,12 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
 # It is called "_terminal_" to avoid future conflicts if we added an actual state named "terminal"
 # and "_other_" is a catch-all for all other states that are not covered by the other schemas.
 TIStateUpdate = Annotated[
-    Union[
-        Annotated[TITerminalStatePayload, Tag("_terminal_")],
-        Annotated[TISuccessStatePayload, Tag("success")],
-        Annotated[TITargetStatePayload, Tag("_other_")],
-        Annotated[TIDeferredStatePayload, Tag("deferred")],
-        Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")],
-        Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    ],
+    Annotated[TITerminalStatePayload, Tag("_terminal_")]
+    | Annotated[TISuccessStatePayload, Tag("success")]
+    | Annotated[TITargetStatePayload, Tag("_other_")]
+    | Annotated[TIDeferredStatePayload, Tag("deferred")]
+    | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
+    | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
     Discriminator(ti_state_discriminator),
 ]
 

@@ -113,7 +113,6 @@ class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
         if self.project_id:
             DataprepJobGroupLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=self.project_id,
                 job_group_id=int(self.job_group_id),
             )
@@ -170,7 +169,6 @@ class DataprepRunJobGroupOperator(GoogleCloudBaseOperator):
         if self.project_id and job_group_id:
             DataprepJobGroupLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=self.project_id,
                 job_group_id=int(job_group_id),
             )
@@ -230,7 +228,6 @@ class DataprepCopyFlowOperator(GoogleCloudBaseOperator):
         if self.project_id and copied_flow_id:
             DataprepFlowLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=self.project_id,
                 flow_id=int(copied_flow_id),
             )
@@ -303,7 +300,6 @@ class DataprepRunFlowOperator(GoogleCloudBaseOperator):
             job_group_id = response["data"][0]["id"]
             DataprepJobGroupLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=self.project_id,
                 job_group_id=int(job_group_id),
             )

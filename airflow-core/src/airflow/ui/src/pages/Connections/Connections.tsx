@@ -18,7 +18,9 @@
  */
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useConnectionServiceGetConnections } from "openapi/queries";
@@ -38,6 +40,7 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
@@ -57,7 +60,8 @@ const getColumns = ({
   onRowSelect,
   onSelectAll,
   selectedRows,
-}: GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => [
+  translate,
+}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => (
@@ -68,6 +72,7 @@ const getColumns = ({
         onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
       />
     ),
+    enableHiding: false,
     enableSorting: false,
     header: () => (
       <Checkbox
@@ -83,23 +88,23 @@ const getColumns = ({
   },
   {
     accessorKey: "connection_id",
-    header: "Connection Id",
+    header: translate("connections.columns.connectionId"),
   },
   {
     accessorKey: "conn_type",
-    header: "Connection Type",
+    header: translate("connections.columns.connectionType"),
   },
   {
     accessorKey: "description",
-    header: "Description",
+    header: translate("columns.description"),
   },
   {
     accessorKey: "host",
-    header: "Host",
+    header: translate("connections.columns.host"),
   },
   {
     accessorKey: "port",
-    header: "Port",
+    header: translate("connections.columns.port"),
   },
   {
     accessorKey: "actions",
@@ -119,6 +124,7 @@ const getColumns = ({
 ];
 
 export const Connections = () => {
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
@@ -150,8 +156,9 @@ export const Connections = () => {
         onRowSelect: handleRowSelect,
         onSelectAll: handleSelectAll,
         selectedRows,
+        translate,
       }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
+    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
   );
 
   const handleSearchChange = (value: string) => {
@@ -175,7 +182,7 @@ export const Connections = () => {
           buttonProps={{ disabled: true }}
           defaultValue={connectionIdPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder="Search Connections"
+          placeHolder={translate("connections.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <Spacer />
@@ -191,16 +198,19 @@ export const Connections = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName="Connection"
+          modelName={translate("common:admin.Connections")}
+          noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
         />
       </Box>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
-          <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("deleteActions.selected")}
+          </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected connections">
+          <Tooltip content={translate("deleteActions.tooltip")}>
             <DeleteConnectionsButton
               clearSelections={clearSelections}
               deleteKeys={[...selectedRows.keys()]}

@@ -20,13 +20,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import {
-  useDagRunServiceGetDagRuns,
   useDagServiceGetDagDetailsKey,
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsUi,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
+  useGridServiceGetLatestRun,
+  UseGridServiceGetDagStructureKeyFn,
+  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 
 import { useConfig } from "./useConfig";
@@ -36,15 +38,15 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
   const previousDagRunIdRef = useRef<string>();
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
-  const { data } = useDagRunServiceGetDagRuns({ dagId, limit: 1, orderBy: "-run_after" }, undefined, {
+  const { data } = useGridServiceGetLatestRun({ dagId }, undefined, {
     enabled: Boolean(dagId) && !hasPendingRuns,
     refetchInterval: Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000,
   });
 
   useEffect(() => {
-    const latestDagRun = data?.dag_runs[0];
+    const latestDagRun = data;
 
-    const latestDagRunId = latestDagRun?.dag_run_id;
+    const latestDagRunId = latestDagRun?.run_id;
 
     if ((latestDagRunId ?? "") && previousDagRunIdRef.current !== latestDagRunId) {
       previousDagRunIdRef.current = latestDagRunId;
@@ -56,6 +58,8 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
         UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+        UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
+        UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       ];
 
       queryKeys.forEach((key) => {

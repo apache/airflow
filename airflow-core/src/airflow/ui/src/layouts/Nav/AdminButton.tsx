@@ -18,12 +18,13 @@
  */
 import { useTranslation } from "react-i18next";
 import { FiSettings } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
-import type { MenuItem } from "openapi/requests/types.gen";
+import type { MenuItem, ExternalViewResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
 
 const links = [
   {
@@ -52,19 +53,25 @@ const links = [
   },
 ];
 
-export const AdminButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
+export const AdminButton = ({
+  authorizedMenuItems,
+  externalViews,
+}: {
+  readonly authorizedMenuItems: Array<MenuItem>;
+  readonly externalViews: Array<ExternalViewResponse>;
+}) => {
   const { t: translate } = useTranslation("common");
   const menuItems = links
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
       <Menu.Item asChild key={link.title} value={link.title}>
-        <Link aria-label={translate(`admin.${link.title}`)} to={link.href}>
+        <RouterLink aria-label={translate(`admin.${link.title}`)} to={link.href}>
           {translate(`admin.${link.title}`)}
-        </Link>
+        </RouterLink>
       </Menu.Item>
     ));
 
-  if (!menuItems.length) {
+  if (!menuItems.length && !externalViews.length) {
     return undefined;
   }
 
@@ -73,7 +80,12 @@ export const AdminButton = ({ authorizedMenuItems }: { readonly authorizedMenuIt
       <Menu.Trigger asChild>
         <NavButton icon={<FiSettings size="1.75rem" />} title={translate("nav.admin")} />
       </Menu.Trigger>
-      <Menu.Content>{menuItems}</Menu.Content>
+      <Menu.Content>
+        {menuItems}
+        {externalViews.map((view) => (
+          <PluginMenuItem {...view} key={view.name} />
+        ))}
+      </Menu.Content>
     </Menu.Root>
   );
 };

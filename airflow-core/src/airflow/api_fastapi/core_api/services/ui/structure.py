@@ -23,6 +23,14 @@ Private service for dag structure.
 
 from __future__ import annotations
 
+from collections import defaultdict
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from airflow.models.asset import AssetAliasModel, AssetEvent
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 
 
@@ -116,30 +124,62 @@ def get_upstream_assets(
     return nodes, edges
 
 
-def bind_output_assets_to_tasks(edges: list[dict], serialized_dag: SerializedDagModel) -> None:
+def bind_output_assets_to_tasks(
+    edges: list[dict], serialized_dag: SerializedDagModel, version_number: int, session: Session
+) -> None:
     """
     Try to bind the downstream assets to the relevant task that produces them.
 
     This function will mutate the `edges` in place.
     """
+    # bind normal assets present in the `task_outlet_asset_references`
     outlet_asset_references = serialized_dag.dag_model.task_outlet_asset_references
 
-    downstream_asset_related_edges = [edge for edge in edges if edge["target_id"].startswith("asset:")]
+    downstream_asset_edges = [
+        edge
+        for edge in edges
+        if edge["target_id"].startswith("asset:") and not edge.get("resolved_from_alias")
+    ]
 
-    for edge in downstream_asset_related_edges:
-        asset_id = int(edge["target_id"].strip("asset:"))
-        try:
-            # Try to attach the outlet asset to the relevant task
-            outlet_asset_reference = next(
-                outlet_asset_reference
-                for outlet_asset_reference in outlet_asset_references
-                if outlet_asset_reference.asset_id == asset_id
-            )
-            edge["source_id"] = outlet_asset_reference.task_id
-            continue
-        except StopIteration:
-            # If no asset reference found, fallback to using the exit node reference
-            # This can happen because asset aliases are not yet handled, they do no populate
-            # the `outlet_asset_references` when resolved. Extra lookup is needed. Same for asset-name-ref and
-            # asset-uri-ref.
-            pass
+    for edge in downstream_asset_edges:
+        # Try to attach the outlet assets to the relevant tasks
+        asset_id = int(edge["target_id"].replace("asset:", "", 1))
+        outlet_asset_reference = next(
+            outlet_asset_reference
+            for outlet_asset_reference in outlet_asset_references
+            if outlet_asset_reference.asset_id == asset_id
+        )
+        edge["source_id"] = outlet_asset_reference.task_id
+
+    # bind assets resolved from aliases, they do not populate the `outlet_asset_references`
+    downstream_alias_resolved_edges = [
+        edge for edge in edges if edge["target_id"].startswith("asset:") and edge.get("resolved_from_alias")
+    ]
+
+    aliases_names = {edges["resolved_from_alias"] for edges in downstream_alias_resolved_edges}
+
+    result = session.scalars(
+        select(AssetEvent)
+        .join(AssetEvent.source_aliases)
+        .join(AssetEvent.source_dag_run)
+        # That's a simplification, instead doing `version_number` in `DagRun.dag_versions`.
+        .join(DagRun.created_dag_version)
+        .where(AssetEvent.source_aliases.any(AssetAliasModel.name.in_(aliases_names)))
+        .where(AssetEvent.source_dag_run.has(DagRun.dag_id == serialized_dag.dag_model.dag_id))
+        .where(DagVersion.version_number == version_number)
+    ).unique()
+
+    asset_id_to_task_ids = defaultdict(set)
+    for asset_event in result:
+        asset_id_to_task_ids[asset_event.asset_id].add(asset_event.source_task_id)
+
+    for edge in downstream_alias_resolved_edges:
+        asset_id = int(edge["target_id"].replace("asset:", "", 1))
+        task_ids = asset_id_to_task_ids.get(asset_id, set())
+
+        for index, task_id in enumerate(task_ids):
+            if index == 0:
+                edge["source_id"] = task_id
+                continue
+            edge_copy = {**edge, "source_id": task_id}
+            edges.append(edge_copy)

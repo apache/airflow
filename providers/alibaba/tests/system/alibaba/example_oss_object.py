@@ -32,6 +32,8 @@ from airflow.providers.alibaba.cloud.operators.oss import (
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "oss_object_dag"
+REGION = os.environ.get("REGION", "default_region")
+
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
@@ -45,22 +47,26 @@ with DAG(
         file="your local file",
         key="your oss key",
         task_id="task1",
+        region=REGION,
     )
 
     download_object = OSSDownloadObjectOperator(
         file="your local file",
         key="your oss key",
         task_id="task2",
+        region=REGION,
     )
 
     delete_object = OSSDeleteObjectOperator(
         key="your oss key",
         task_id="task3",
+        region=REGION,
     )
 
     delete_batch_object = OSSDeleteBatchObjectOperator(
         keys=["obj1", "obj2", "obj3"],
         task_id="task4",
+        region=REGION,
     )
 
     create_object >> download_object >> delete_object >> delete_batch_object

@@ -17,11 +17,13 @@
  * under the License.
  */
 import { Box, Table, Heading } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetTaskInstanceDependencies } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
+  const { t: translate } = useTranslation();
   const { data } = useTaskInstanceServiceGetTaskInstanceDependencies({
     dagId: taskInstance.dag_id,
     dagRunId: taskInstance.dag_run_id,
@@ -36,13 +38,13 @@ export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInst
   return (
     <Box flexGrow={1} mt={3}>
       <Heading py={2} size="sm">
-        Dependencies Blocking Task From Getting Scheduled
+        {translate("dag.blockingDeps.title")}
       </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.ColumnHeader>Dependency</Table.ColumnHeader>
-            <Table.ColumnHeader>Reason</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("dag.blockingDeps.dependency")}</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("dag.blockingDeps.reason")}</Table.ColumnHeader>
           </Table.Row>
           {data.dependencies.map((dep) => (
             <Table.Row key={dep.name}>

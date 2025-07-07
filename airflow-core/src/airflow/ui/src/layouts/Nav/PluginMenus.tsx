@@ -16,59 +16,86 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
+
+// Define existing button categories to filter out
+const existingCategories = ["user", "docs", "admin", "browse"];
 
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
   const { data } = usePluginServiceGetPlugins();
 
-  const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
+  let menuPlugins =
+    data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
+    [];
 
-  if (data === undefined || menuPlugins === undefined) {
-    return undefined;
-  }
+  // Filter out plugins with categories that match existing buttons
+  menuPlugins = menuPlugins.filter((view) => {
+    const category = view.category?.toLowerCase();
 
-  const categories: Record<string, Array<AppBuilderMenuItemResponse>> = {};
-  const buttons: Array<AppBuilderMenuItemResponse> = [];
-
-  menuPlugins.forEach((plugin) => {
-    plugin.appbuilder_menu_items.forEach((mi) => {
-      if (mi.category !== null && mi.category !== undefined) {
-        categories[mi.category] = [...(categories[mi.category] ?? []), mi];
-      } else {
-        buttons.push(mi);
-      }
-    });
+    return category === undefined || !existingCategories.includes(category);
   });
 
-  if (!buttons.length && !Object.keys(categories).length) {
+  const hasLegacyViews =
+    (
+      data?.plugins
+        .flatMap((plugin) => plugin.appbuilder_views)
+        // Only include legacy views that have a visible link in the menu. No menu items views
+        // are accessible via direct URLs.
+        .filter((view) => view.name !== undefined && view.name !== null) ?? []
+    ).length >= 1;
+
+  if (hasLegacyViews) {
+    menuPlugins = [
+      ...menuPlugins,
+      {
+        destination: "nav",
+        href: "/pluginsv2",
+        name: translate("nav.legacyFabViews"),
+        url_route: "legacy-fab-views",
+      },
+    ];
+  }
+
+  if (data === undefined || menuPlugins.length === 0) {
     return undefined;
   }
 
-  return (
+  const categories: Record<string, Array<ExternalViewResponse>> = {};
+  const buttons: Array<ExternalViewResponse> = [];
+
+  menuPlugins.forEach((externalView) => {
+    if (externalView.category !== null && externalView.category !== undefined) {
+      categories[externalView.category] = [...(categories[externalView.category] ?? []), externalView];
+    } else {
+      buttons.push(externalView);
+    }
+  });
+
+  if (!buttons.length && !Object.keys(categories).length && menuPlugins.length === 0) {
+    return undefined;
+  }
+
+  // Show plugins in menu if there are more than 2
+  return menuPlugins.length > 2 ? (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
         <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
       </Menu.Trigger>
       <Menu.Content>
-        {buttons.map(({ href, name }) =>
-          href !== null && href !== undefined ? (
-            <Menu.Item asChild key={name} value={name}>
-              <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                {name}
-              </Link>
-            </Menu.Item>
-          ) : undefined,
-        )}
+        {buttons.map((externalView) => (
+          <PluginMenuItem key={externalView.name} {...externalView} />
+        ))}
         {Object.entries(categories).map(([key, menuButtons]) => (
           <Menu.Root key={key} positioning={{ placement: "right" }}>
             <Menu.TriggerItem display="flex" justifyContent="space-between">
@@ -76,19 +103,15 @@ export const PluginMenus = () => {
               <FiChevronRight />
             </Menu.TriggerItem>
             <Menu.Content>
-              {menuButtons.map(({ href, name }) =>
-                href !== undefined && href !== null ? (
-                  <Menu.Item asChild key={name} value={name}>
-                    <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                      {name}
-                    </Link>
-                  </Menu.Item>
-                ) : undefined,
-              )}
+              {menuButtons.map((externalView) => (
+                <PluginMenuItem {...externalView} key={externalView.name} />
+              ))}
             </Menu.Content>
           </Menu.Root>
         ))}
       </Menu.Content>
     </Menu.Root>
+  ) : (
+    menuPlugins.map((plugin) => <PluginMenuItem {...plugin} key={plugin.name} topLevel={true} />)
   );
 };

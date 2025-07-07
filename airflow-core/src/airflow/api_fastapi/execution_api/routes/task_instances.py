@@ -899,7 +899,7 @@ def validate_inlets_and_outlets(
     bind_contextvars(ti_id=ti_id_str)
 
     ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti or not ti.logical_date:
+    if not ti:
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

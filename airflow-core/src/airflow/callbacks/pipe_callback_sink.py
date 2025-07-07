@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 

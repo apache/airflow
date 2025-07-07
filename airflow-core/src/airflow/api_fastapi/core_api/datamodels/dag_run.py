@@ -66,6 +66,7 @@ class DAGRunResponse(BaseModel):
     queued_at: datetime | None
     start_date: datetime | None
     end_date: datetime | None
+    duration: float | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     run_after: datetime
@@ -73,6 +74,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None
+    triggering_user_name: str | None
     conf: dict | None
     note: str | None
     dag_versions: list[DagVersionResponse]

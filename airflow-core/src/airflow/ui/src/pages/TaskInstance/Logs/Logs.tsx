@@ -19,6 +19,7 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -34,6 +35,7 @@ import { TaskLogHeader } from "./TaskLogHeader";
 export const Logs = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t: translate } = useTranslation("dag");
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -65,12 +67,15 @@ export const Logs = () => {
 
   const [wrap, setWrap] = useState(defaultWrap);
   const [fullscreen, setFullscreen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
+  const toggleExpanded = () => setExpanded((act) => !act);
 
   useHotkeys("w", toggleWrap);
   useHotkeys("f", toggleFullscreen);
+  useHotkeys("e", toggleExpanded);
 
   const onOpenChange = () => {
     setFullscreen(false);
@@ -82,6 +87,7 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
+    expanded,
     logLevelFilters,
     sourceFilters,
     taskInstance,
@@ -94,9 +100,11 @@ export const Logs = () => {
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
+        expanded={expanded}
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
         taskInstance={taskInstance}
+        toggleExpanded={toggleExpanded}
         toggleFullscreen={toggleFullscreen}
         toggleWrap={toggleWrap}
         tryNumber={tryNumber}
@@ -104,7 +112,7 @@ export const Logs = () => {
       />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (
-          <p>No try number</p>
+          <p>{translate("logs.noTryNumber")}</p>
         ) : (
           <ExternalLogLink
             externalLogName={externalLogName}
@@ -126,9 +134,11 @@ export const Logs = () => {
             <VStack gap={2}>
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
+                expanded={expanded}
                 isFullscreen
                 onSelectTryNumber={onSelectTryNumber}
                 taskInstance={taskInstance}
+                toggleExpanded={toggleExpanded}
                 toggleFullscreen={toggleFullscreen}
                 toggleWrap={toggleWrap}
                 tryNumber={tryNumber}

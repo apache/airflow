@@ -21,7 +21,7 @@ class AppBuilderMenuItemResponse(BaseModel):
         extra="allow",
     )
     name: Annotated[str, Field(title="Name")]
-    href: Annotated[str | None, Field(title="Href")] = None
+    href: Annotated[str, Field(title="Href")]
     category: Annotated[str | None, Field(title="Category")] = None
 
 
@@ -468,6 +468,17 @@ class DagWarningType(str, Enum):
     NON_EXISTENT_POOL = "non-existent pool"
 
 
+class DeadlineAlertResponse(BaseModel):
+    """
+    Deadline alert serializer for responses.
+    """
+
+    reference: Annotated[str, Field(title="Reference")]
+    interval: Annotated[timedelta, Field(title="Interval")]
+    callback: Annotated[str, Field(title="Callback")]
+    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -501,6 +512,31 @@ class ExternalLogUrlResponse(BaseModel):
     """
 
     url: Annotated[str, Field(title="Url")]
+
+
+class Destination(str, Enum):
+    NAV = "nav"
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK = "task"
+    TASK_INSTANCE = "task_instance"
+
+
+class ExternalViewResponse(BaseModel):
+    """
+    Serializer for External View Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+    href: Annotated[str, Field(title="Href")]
 
 
 class ExtraLinkCollectionResponse(BaseModel):
@@ -543,29 +579,6 @@ class HTTPExceptionResponse(BaseModel):
     """
 
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
-
-
-class Destination(str, Enum):
-    NAV = "nav"
-    DAG = "dag"
-    DAG_RUN = "dag_run"
-    TASK = "task"
-    TASK_INSTANCE = "task_instance"
-
-
-class IFrameViewsResponse(BaseModel):
-    """
-    Serializer for IFrame Plugin responses.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    name: Annotated[str, Field(title="Name")]
-    src: Annotated[str, Field(title="Src")]
-    icon: Annotated[str | None, Field(title="Icon")] = None
-    url_route: Annotated[str | None, Field(title="Url Route")] = None
-    destination: Annotated[Destination | None, Field(title="Destination")] = None
 
 
 class ImportErrorResponse(BaseModel):
@@ -622,28 +635,6 @@ class PluginImportErrorResponse(BaseModel):
 
     source: Annotated[str, Field(title="Source")]
     error: Annotated[str, Field(title="Error")]
-
-
-class PluginResponse(BaseModel):
-    """
-    Plugin serializer.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    macros: Annotated[list[str], Field(title="Macros")]
-    flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
-    fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
-    fastapi_root_middlewares: Annotated[
-        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
-    ]
-    iframe_views: Annotated[list[IFrameViewsResponse], Field(title="Iframe Views")]
-    appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
-    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
-    global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
-    operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
-    source: Annotated[str, Field(title="Source")]
-    listeners: Annotated[list[str], Field(title="Listeners")]
-    timetables: Annotated[list[str], Field(title="Timetables")]
 
 
 class PoolBody(BaseModel):
@@ -712,6 +703,23 @@ class QueuedEventResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
+class ReactAppResponse(BaseModel):
+    """
+    Serializer for React App Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+    bundle_url: Annotated[str, Field(title="Bundle Url")]
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -752,6 +760,20 @@ class TaskDependencyResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     reason: Annotated[str, Field(title="Reason")]
+
+
+class TaskInletAssetReference(BaseModel):
+    """
+    Task inlet reference serializer for assets.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    created_at: Annotated[datetime, Field(title="Created At")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
 class TaskInstanceState(str, Enum):
@@ -1028,8 +1050,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
+    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None
 
@@ -1215,6 +1238,7 @@ class DAGDetailsResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1271,6 +1295,7 @@ class DAGResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1314,6 +1339,7 @@ class DAGRunResponse(BaseModel):
     queued_at: Annotated[datetime | None, Field(title="Queued At")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")] = None
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    duration: Annotated[float | None, Field(title="Duration")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
@@ -1321,6 +1347,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None = None
+    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
@@ -1447,15 +1474,6 @@ class PatchTaskInstanceBody(BaseModel):
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
 
 
-class PluginCollectionResponse(BaseModel):
-    """
-    Plugin Collection serializer.
-    """
-
-    plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
-
-
 class PluginImportErrorCollectionResponse(BaseModel):
     """
     Plugin Import Error Collection serializer.
@@ -1463,6 +1481,35 @@ class PluginImportErrorCollectionResponse(BaseModel):
 
     import_errors: Annotated[list[PluginImportErrorResponse], Field(title="Import Errors")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class PluginResponse(BaseModel):
+    """
+    Plugin serializer.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    macros: Annotated[list[str], Field(title="Macros")]
+    flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
+    fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
+    fastapi_root_middlewares: Annotated[
+        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
+    ]
+    external_views: Annotated[
+        list[ExternalViewResponse],
+        Field(
+            description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.",
+            title="External Views",
+        ),
+    ]
+    react_apps: Annotated[list[ReactAppResponse], Field(title="React Apps")]
+    appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
+    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
+    global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
+    operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
+    source: Annotated[str, Field(title="Source")]
+    listeners: Annotated[list[str], Field(title="Listeners")]
+    timetables: Annotated[list[str], Field(title="Timetables")]
 
 
 class PoolCollectionResponse(BaseModel):
@@ -1731,6 +1778,15 @@ class DagStatsCollectionResponse(BaseModel):
     """
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class PluginCollectionResponse(BaseModel):
+    """
+    Plugin Collection serializer.
+    """
+
+    plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

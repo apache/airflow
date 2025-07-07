@@ -43,6 +43,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import setup, task, task_group, teardown
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -66,6 +67,11 @@ if TYPE_CHECKING:
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
+
+
+def test_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 @pytest.fixture(scope="module")
@@ -492,13 +498,13 @@ class TestDagRun:
         tis = dag_run.get_task_instances()
 
         assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get(dag_run.run_id) is None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
         assert dag_run.span_status == SpanStatus.NOT_STARTED
 
         dag_run.start_dr_spans_if_needed(tis=tis)
 
         assert dag_run.span_status == SpanStatus.ACTIVE
-        assert dag_run.active_spans.get(dag_run.run_id) is not None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
 
     def test_start_dr_spans_if_needed_span_with_continuance(self, testing_dag_bundle, dag_maker, session):
         with dag_maker(
@@ -534,8 +540,8 @@ class TestDagRun:
         first_ti.span_status = SpanStatus.NEEDS_CONTINUANCE
 
         assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get(dag_run.run_id) is None
-        assert dag_run.active_spans.get(first_ti.key) is None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
+        assert dag_run.active_spans.get("ti:" + first_ti.id) is None
         assert dag_run.span_status == SpanStatus.NEEDS_CONTINUANCE
         assert first_ti.span_status == SpanStatus.NEEDS_CONTINUANCE
 
@@ -543,8 +549,8 @@ class TestDagRun:
 
         assert dag_run.span_status == SpanStatus.ACTIVE
         assert first_ti.span_status == SpanStatus.ACTIVE
-        assert dag_run.active_spans.get(dag_run.run_id) is not None
-        assert dag_run.active_spans.get(first_ti.key) is not None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
+        assert dag_run.active_spans.get("ti:" + first_ti.id) is not None
 
     def test_end_dr_span_if_needed(self, testing_dag_bundle, dag_maker, session):
         with dag_maker(
@@ -576,15 +582,15 @@ class TestDagRun:
 
         dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
 
-        active_spans.set(dag_run.run_id, dr_span)
+        active_spans.set("dr:" + str(dag_run.id), dr_span)
 
         assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get(dag_run.run_id) is not None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
 
         dag_run.end_dr_span_if_needed()
 
         assert dag_run.span_status == SpanStatus.ENDED
-        assert dag_run.active_spans.get(dag_run.run_id) is None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
 
     def test_end_dr_span_if_needed_with_span_from_another_scheduler(
         self, testing_dag_bundle, dag_maker, session
@@ -617,7 +623,7 @@ class TestDagRun:
         dag_run.span_status = SpanStatus.ACTIVE
 
         assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get(dag_run.run_id) is None
+        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
 
         dag_run.end_dr_span_if_needed()
 
@@ -1243,6 +1249,40 @@ class TestDagRun:
         # Check that dag_run.version_number returns the version number of
         # the latest task instance dag_version
         assert dag_run.version_number == dag_v.version_number
+
+    def test_dagrun_success_deadline(self, dag_maker, session):
+        def on_success_callable(context):
+            assert context["dag_run"].dag_id == "test_dagrun_success_callback"
+
+        with dag_maker(
+            dag_id="test_dagrun_success_callback",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=on_success_callable,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
+                interval=datetime.timedelta(hours=1),
+                callback=test_callback_for_deadline,
+            ),
+        ) as dag:
+            ...
+        dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_state_succeeded2", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "test_state_succeeded1": TaskInstanceState.SUCCESS,
+            "test_state_succeeded2": TaskInstanceState.SUCCESS,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        _, callback = dag_run.update_state()
+        assert dag_run.state == DagRunState.SUCCESS
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        assert callback is None
 
 
 @pytest.mark.parametrize(

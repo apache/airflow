@@ -218,6 +218,14 @@ paths:
           type: string
           default: dag_id
           title: Order By
+      - name: is_favorite
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Favorite
       responses:
         '200':
           description: Successful Response
@@ -604,6 +612,351 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/structure/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Get Dag Structure
+      description: Return dag structure for grid view.
+      operationId: get_dag_structure
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GridNodeResponse'
+                title: Response Get Dag Structure
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/runs/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Get Grid Runs
+      description: Get info about a run for the grid.
+      operationId: get_grid_runs
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GridRunsResponse'
+                title: Response Get Grid Runs
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/ti_summaries/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Grid
+      summary: Get Grid Ti Summaries
+      description: 'Get states for TIs / "groups" of TIs.
+
+
+        Essentially this is to know what color to put in the squares in the grid.
+
+
+        The tricky part here is that we aggregate the state for groups and mapped
+        tasks.
+
+
+        We don''t add all the TIs for mapped TIs -- we only add one entry for the
+        mapped task and
+
+        its state is an aggregate of its TI states.
+
+
+        And for task groups, we add a "task" for that which is not really a task but
+        is just
+
+        an entry that represents the group (so that we can show a filled in box when
+        the group
+
+        is not expanded) and its state is an agg of those within it.'
+      operationId: get_grid_ti_summaries
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridTISummaries'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/latest_run/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Get Latest Run
+      description: 'Get information about the latest dag run by run_after.
+
+
+        This is used by the UI to figure out if it needs to rerun queries and resume
+        auto refresh.'
+      operationId: get_latest_run
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/LatestRunResponse'
+                - type: 'null'
+                title: Response Get Latest Run
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/calendar/{dag_id}:
+    get:
+      tags:
+      - Calendar
+      summary: Get Calendar
+      description: Get calendar data for a DAG including historical and planned DAG
+        runs.
+      operationId: get_calendar
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          enum:
+          - hourly
+          - daily
+          type: string
+          default: daily
+          title: Granularity
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarTimeRangeCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BackfillCollectionResponse:
@@ -745,6 +1098,47 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
+    CalendarTimeRangeCollectionResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/CalendarTimeRangeResponse'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - total_entries
+      - dag_runs
+      title: CalendarTimeRangeCollectionResponse
+      description: Response model for calendar time range results.
+    CalendarTimeRangeResponse:
+      properties:
+        date:
+          type: string
+          format: date-time
+          title: Date
+        state:
+          type: string
+          enum:
+          - queued
+          - running
+          - success
+          - failed
+          - planned
+          title: State
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - date
+      - state
+      - count
+      title: CalendarTimeRangeResponse
+      description: Represents a summary of DAG runs for a specific calendar time range.
     ConfigResponse:
       properties:
         page_size:
@@ -899,6 +1293,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
         data_interval_start:
           anyOf:
           - type: string
@@ -929,6 +1328,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
+        triggering_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Triggering User Name
         conf:
           anyOf:
           - additionalProperties: true
@@ -961,6 +1365,7 @@ components:
       - queued_at
       - start_date
       - end_date
+      - duration
       - data_interval_start
       - data_interval_end
       - run_after
@@ -968,6 +1373,7 @@ components:
       - run_type
       - state
       - triggered_by
+      - triggering_user_name
       - conf
       - note
       - dag_versions
@@ -1084,6 +1490,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -1174,6 +1587,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -1313,6 +1727,31 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineAlertResponse:
+      properties:
+        reference:
+          type: string
+          title: Reference
+        interval:
+          type: string
+          format: duration
+          title: Interval
+        callback:
+          type: string
+          title: Callback
+        callback_kwargs:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Callback Kwargs
+      type: object
+      required:
+      - reference
+      - interval
+      - callback
+      title: DeadlineAlertResponse
+      description: Deadline alert serializer for responses.
     EdgeResponse:
       properties:
         source_id:
@@ -1430,6 +1869,41 @@ components:
       - task_instances
       title: GridDAGRunwithTIs
       description: DAG Run model for the Grid UI.
+    GridNodeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        children:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/GridNodeResponse'
+            type: array
+          - type: 'null'
+          title: Children
+        is_mapped:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Mapped
+        setup_teardown_type:
+          anyOf:
+          - type: string
+            enum:
+            - setup
+            - teardown
+          - type: 'null'
+          title: Setup Teardown Type
+      type: object
+      required:
+      - id
+      - label
+      - is_mapped
+      title: GridNodeResponse
+      description: Base Node serializer for responses.
     GridResponse:
       properties:
         dag_runs:
@@ -1437,14 +1911,86 @@ components:
             $ref: '#/components/schemas/GridDAGRunwithTIs'
           type: array
           title: Dag Runs
-        structure:
-          $ref: '#/components/schemas/StructureDataResponse'
       type: object
       required:
       - dag_runs
-      - structure
       title: GridResponse
       description: Response model for the Grid UI.
+    GridRunsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        queued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued At
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        run_type:
+          $ref: '#/components/schemas/DagRunType'
+        duration:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration
+          readOnly: true
+      type: object
+      required:
+      - dag_id
+      - run_id
+      - queued_at
+      - start_date
+      - end_date
+      - run_after
+      - state
+      - run_type
+      - duration
+      title: GridRunsResponse
+      description: Base Node serializer for responses.
+    GridTISummaries:
+      properties:
+        run_id:
+          type: string
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        task_instances:
+          items:
+            $ref: '#/components/schemas/LightGridTaskInstanceSummary'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - run_id
+      - dag_id
+      - task_instances
+      title: GridTISummaries
+      description: DAG Run model for the Grid UI.
     GridTaskInstanceSummary:
       properties:
         task_id:
@@ -1540,6 +2086,68 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    LatestRunResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+      type: object
+      required:
+      - id
+      - dag_id
+      - run_id
+      - run_after
+      title: LatestRunResponse
+      description: Base Node serializer for responses.
+    LightGridTaskInstanceSummary:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        child_states:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            propertyNames:
+              $ref: '#/components/schemas/TaskInstanceState'
+            type: object
+          - type: 'null'
+          title: Child States
+        min_start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Min Start Date
+        max_end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Max End Date
+      type: object
+      required:
+      - task_id
+      - state
+      - child_states
+      - min_start_date
+      - max_end_date
+      title: LightGridTaskInstanceSummary
+      description: Task Instance Summary model for the Grid UI.
     MenuItem:
       type: string
       enum:

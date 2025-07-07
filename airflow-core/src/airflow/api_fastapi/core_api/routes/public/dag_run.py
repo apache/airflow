@@ -324,6 +324,7 @@ def get_dag_runs(
                     "end_date",
                     "updated_at",
                     "conf",
+                    "duration",
                 ],
                 DagRun,
                 {"dag_run_id": "run_id"},
@@ -417,6 +418,7 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
+            triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             session=session,
         )

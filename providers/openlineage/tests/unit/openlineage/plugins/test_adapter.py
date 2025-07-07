@@ -59,8 +59,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-pytestmark = pytest.mark.db_test
-
 
 @pytest.mark.parametrize(
     "env_vars, expected_logging",
@@ -215,6 +213,7 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         run_id=run_id,
         job_name="job",
         job_description="description",
+        job_description_type="text/plain",
         event_time=event_time,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
@@ -278,7 +277,9 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "documentation": documentation_job.DocumentationJobFacet(description="description"),
+                        "documentation": documentation_job.DocumentationJobFacet(
+                            description="description", contentType="text/plain"
+                        ),
                         "ownership": ownership_job.OwnershipJobFacet(
                             owners=[
                                 ownership_job.Owner(name="owner1", type=None),
@@ -327,6 +328,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
         task=OperatorLineage(),
         owners=[],
         tags=[],
+        job_description=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
     )
@@ -384,6 +386,8 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
         job_name="job",
         owners=["owner1", "owner2"],
         tags=["tag1", "tag2"],
+        job_description="description",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         task=OperatorLineage(
@@ -446,6 +450,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     namespace="default",
                     name="job",
                     facets={
+                        "documentation": documentation_job.DocumentationJobFacet(
+                            description="description", contentType="text/plain"
+                        ),
                         "ownership": ownership_job.OwnershipJobFacet(
                             owners=[
                                 ownership_job.Owner(name="owner1", type=None),
@@ -494,6 +501,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
         task=OperatorLineage(),
         owners=[],
         tags=[],
+        job_description=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
     )
@@ -551,6 +559,8 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
         job_name="job",
         owners=["owner1", "owner2"],
         tags=["tag1", "tag2"],
+        job_description="description",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         task=OperatorLineage(
@@ -616,6 +626,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                 namespace="default",
                 name="job",
                 facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="description", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -728,7 +741,8 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
         owners=["owner1", "owner2"],
-        description=dag.description,
+        job_description=dag.description,
+        job_description_type="text/plain",
         tags=["tag1", "tag2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
@@ -787,7 +801,9 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                 namespace=namespace(),
                 name="dag_id",
                 facets={
-                    "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -870,6 +886,8 @@ def test_emit_dag_complete_event(
         task_ids=["task_0", "task_1", "task_2.test"],
         owners=["owner1", "owner2"],
         tags=["tag1", "tag2"],
+        job_description="dag desc",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         run_facets={
@@ -923,6 +941,9 @@ def test_emit_dag_complete_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -1004,6 +1025,8 @@ def test_emit_dag_failed_event(
         tags=["tag1", "tag2"],
         msg="error msg",
         owners=["owner1", "owner2"],
+        job_description="dag desc",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         run_facets={
@@ -1060,6 +1083,9 @@ def test_emit_dag_failed_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -1316,3 +1342,66 @@ def test_configuration_precedence_when_creating_ol_client():
         ):
             client = OpenLineageAdapter().get_or_create_openlineage_client()
             assert client.transport.kind == "console"
+
+
+def test_adapter_build_run():
+    run_id = str(uuid.uuid4())
+    result = OpenLineageAdapter._build_run(
+        run_id=run_id,
+        nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
+        nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
+        run_facets={
+            "my_custom_facet": external_query_run.ExternalQueryRunFacet(
+                externalQueryId="123", source="source"
+            ),
+            "processing_engine": "this_should_be_gone",
+        },
+    )
+    assert result.runId == run_id
+    assert result.facets == {
+        "my_custom_facet": external_query_run.ExternalQueryRunFacet(externalQueryId="123", source="source"),
+        "nominalTime": nominal_time_run.NominalTimeRunFacet(
+            nominalStartTime="2022-01-01T00:00:00",
+            nominalEndTime="2022-01-01T00:00:00",
+        ),
+        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+            version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+        ),
+    }
+
+
+def test_adapter_build_job():
+    result = OpenLineageAdapter._build_job(
+        job_name="job_name",
+        job_type="TASK",
+        job_description="job_description",
+        job_owners=["def", "abc"],
+        job_tags=["tag2", "tag1"],
+        job_facets={
+            "my_custom_facet": sql_job.SQLJobFacet(query="sql"),
+            "jobType": "this_should_be_gone",
+            "documentation": "this_should_be_gone",
+            "ownership": "this_should_be_gone",
+            "tags": "this_should_be_gone",
+        },
+    )
+    assert result.name == "job_name"
+    assert result.facets == {
+        "my_custom_facet": sql_job.SQLJobFacet(query="sql"),
+        "documentation": documentation_job.DocumentationJobFacet(description="job_description"),
+        "ownership": ownership_job.OwnershipJobFacet(
+            owners=[
+                ownership_job.Owner(name="abc", type=None),
+                ownership_job.Owner(name="def", type=None),
+            ]
+        ),
+        "tags": tags_job.TagsJobFacet(
+            tags=[
+                tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+            ]
+        ),
+        "jobType": job_type_job.JobTypeJobFacet(
+            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+        ),
+    }

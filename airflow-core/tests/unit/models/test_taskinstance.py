@@ -41,6 +41,7 @@ from airflow.exceptions import (
     AirflowSkipException,
 )
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -403,7 +404,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, create_task_instance, session=None):
+    def test_ti_updates_with_task(self, create_task_instance, session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -775,8 +776,11 @@ class TestTaskInstance:
         assert not task_reschedules_for_ti(ti)
 
     def test_depends_on_past_catchup_true(self, dag_maker):
+        class CustomOp(BaseOperator):
+            def execute(self, context): ...
+
         with dag_maker(dag_id="test_depends_on_past", serialized=True, catchup=True):
-            task = EmptyOperator(
+            task = CustomOp(
                 task_id="test_dop_task",
                 depends_on_past=True,
             )
@@ -796,18 +800,21 @@ class TestTaskInstance:
         ti.task = task
 
         # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         ti.refresh_from_db()
         assert ti.state is None
 
         # ignore first depends_on_past to allow the run
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
     def test_depends_on_past_catchup_false(self, dag_maker):
+        class CustomOp(BaseOperator):
+            def execute(self, context): ...
+
         with dag_maker(dag_id="test_depends_on_past_catchup_false", serialized=True, catchup=False):
-            task = EmptyOperator(
+            task = CustomOp(
                 task_id="test_dop_task",
                 depends_on_past=True,
             )
@@ -830,7 +837,7 @@ class TestTaskInstance:
         # With catchup=False, depends_on_past behavior is different:
         # The task ignores historical dependencies since catchup=False means
         # "only consider runs from now forward"
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         ti.refresh_from_db()
 
         # The task runs successfully even with depends_on_past=True because
@@ -838,7 +845,7 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
 
         # ignore_first_depends_on_past should still allow the run with catchup=False
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -1262,7 +1269,7 @@ class TestTaskInstance:
     )
     @provide_session
     def test_are_dependents_done(
-        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session=None
+        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session
     ):
         ti = create_task_instance(session=session)
         dag = ti.task.dag
@@ -1886,7 +1893,7 @@ class TestTaskInstance:
     def test_inlet_asset_extra(self, dag_maker, session, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset
 
-        mock_supervisor_comms.get_message.return_value = AssetEventsResult(
+        mock_supervisor_comms.send.return_value = AssetEventsResult(
             asset_events=[
                 AssetEventResponse(
                     id=1,
@@ -1960,7 +1967,7 @@ class TestTaskInstance:
     @pytest.mark.need_serialized_dag
     def test_inlet_unresolved_asset_alias(self, dag_maker, session, mock_supervisor_comms):
         asset_alias_name = "test_inlet_asset_extra_asset_alias"
-        mock_supervisor_comms.get_message.return_value = AssetEventsResult(asset_events=[])
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
 
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
         session.add(asset_alias_model)
@@ -2281,7 +2288,10 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
     @provide_session
-    def test_handle_failure(self, create_dummy_dag, session=None):
+    def test_handle_failure(self, dag_maker, session):
+        class CustomOp(BaseOperator):
+            def execute(self, context): ...
+
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
@@ -2298,16 +2308,15 @@ class TestTaskInstance:
             __name__="mock_on_retry_1",
             __call__=mock.MagicMock(),
         )
-        dag, task1 = create_dummy_dag(
-            dag_id="test_handle_failure",
-            schedule=None,
-            start_date=start_date,
-            task_id="test_handle_failure_on_failure",
-            with_dagrun_type=DagRunType.MANUAL,
-            on_failure_callback=mock_on_failure_1,
-            on_retry_callback=mock_on_retry_1,
-            session=session,
-        )
+        with dag_maker(dag_id="test_handle_failure", start_date=start_date, schedule=None) as dag:
+            task1 = CustomOp(
+                task_id="test_handle_failure_on_failure",
+                on_failure_callback=mock_on_failure_1,
+                on_retry_callback=mock_on_retry_1,
+            )
+
+        dag_maker.create_dagrun(session=session, run_type=DagRunType.MANUAL, start_date=start_date)
+
         logical_date = timezone.utcnow()
         dr = dag.create_dagrun(
             run_id="test2",
@@ -2347,7 +2356,7 @@ class TestTaskInstance:
             __name__="mock_on_retry_2",
             __call__=mock.MagicMock(),
         )
-        task2 = EmptyOperator(
+        task2 = CustomOp(
             task_id="test_handle_failure_on_retry",
             on_failure_callback=mock_on_failure_2,
             on_retry_callback=mock_on_retry_2,
@@ -2375,7 +2384,7 @@ class TestTaskInstance:
             __name__="mock_on_retry_3",
             __call__=mock.MagicMock(),
         )
-        task3 = EmptyOperator(
+        task3 = CustomOp(
             task_id="test_handle_failure_on_force_fail",
             on_failure_callback=mock_on_failure_3,
             on_retry_callback=mock_on_retry_3,
@@ -2450,20 +2459,23 @@ class TestTaskInstance:
         del ti.task
         ti.handle_failure("test ti.task undefined")
 
-    def test_handle_failure_fail_fast(self, create_dummy_dag, session):
+    def test_handle_failure_fail_fast(self, dag_maker, session):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
-        dag, task1 = create_dummy_dag(
+        class CustomOp(BaseOperator):
+            def execute(self, context): ...
+
+        with dag_maker(
             dag_id="test_handle_failure_fail_fast",
-            schedule=None,
             start_date=start_date,
-            task_id="task1",
-            trigger_rule="all_success",
-            with_dagrun_type=DagRunType.MANUAL,
-            session=session,
+            schedule=None,
             fail_fast=True,
-        )
+        ) as dag:
+            task1 = CustomOp(task_id="task1", trigger_rule="all_success")
+
+        dag_maker.create_dagrun(run_type=DagRunType.MANUAL, start_date=start_date)
+
         logical_date = timezone.utcnow()
         dr = dag.create_dagrun(
             run_id="test_ff",
@@ -2484,19 +2496,13 @@ class TestTaskInstance:
         states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
         tasks = []
         for i, state in enumerate(states):
-            op = EmptyOperator(
-                task_id=f"reg_Task{i}",
-                dag=dag,
-            )
+            op = CustomOp(task_id=f"reg_Task{i}", dag=dag)
             ti = TI(task=op, run_id=dr.run_id)
             ti.state = state
             session.add(ti)
             tasks.append(ti)
 
-        fail_task = EmptyOperator(
-            task_id="fail_Task",
-            dag=dag,
-        )
+        fail_task = CustomOp(task_id="fail_Task", dag=dag)
         ti_ff = TI(task=fail_task, run_id=dr.run_id)
         ti_ff.state = State.FAILED
         session.add(ti_ff)

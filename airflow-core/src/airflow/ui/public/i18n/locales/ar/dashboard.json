@@ -1,0 +1,38 @@
+{
+  "group": "المجموعة",
+  "health": {
+    "dagProcessor": "معالج الDag",
+    "health": "الصحة",
+    "healthy": "سليم",
+    "lastHeartbeat": "آخر نبضة",
+    "metaDatabase": "قاعدة البيانات الوصفية",
+    "scheduler": "المُجَدْوِل",
+    "status": "الحالة",
+    "triggerer": "المُطلِق",
+    "unhealthy": "غير سليم"
+  },
+  "history": "التاريخ",
+  "importErrors": {
+    "dagImportError_one": "خطأ في استيراد Dag",
+    "dagImportError_other": "أخطاء في استيراد Dag",
+    "searchByFile": "البحث بالملف",
+    "timestamp": "الختم الزمني"
+  },
+  "managePools": "ادارة مجموعة الموارد",
+  "noAssetEvents": "لم يتم العثور على وقائع الأصول.",
+  "poolSlots": "حصص مجموعة الموارد",
+  "sortBy": {
+    "newestFirst": "الأحدث أولاً",
+    "oldestFirst": "الأقدم أولاً"
+  },
+  "source": "المصدر",
+  "stats": {
+    "activeDags": "Dags النشطة",
+    "failedDags": "Dags الفاشلة",
+    "queuedDags": "Dags في الانتظار",
+    "runningDags": "Dags قيد التشغيل",
+    "stats": "الإحصائيات"
+  },
+  "uri": "Uri",
+  "welcome": "مرحباً"
+}
