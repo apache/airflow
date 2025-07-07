@@ -14,11 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+import yandexcloud
 
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.dataproc import DataprocHook
@@ -58,6 +61,7 @@ class DataprocCreateClusterOperator(BaseOperator):
                  Currently there are ru-central1-a, ru-central1-b and ru-central1-c.
     :param service_account_id: Service account id for the cluster.
                                Service account can be created inside the folder.
+    :param environment: Environment for the cluster. Possible options: PRODUCTION, PRESTABLE.
     :param masternode_resource_preset: Resources preset (CPU+RAM configuration)
                                        for the primary node of the cluster.
     :param masternode_disk_size: Masternode storage size in GiB.
@@ -100,6 +104,7 @@ class DataprocCreateClusterOperator(BaseOperator):
                     Docs: https://cloud.yandex.com/docs/data-proc/concepts/logs
     :param initialization_actions: Set of init-actions to run when cluster starts.
                         Docs: https://cloud.yandex.com/docs/data-proc/concepts/init-action
+    :param oslogin_enabled: Enable authorization via OS Login for cluster.
     :param labels: Cluster labels as key:value pairs. No more than 64 per resource.
                         Docs: https://cloud.yandex.com/docs/resource-manager/concepts/labels
     """
@@ -117,6 +122,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         s3_bucket: str | None = None,
         zone: str = "ru-central1-b",
         service_account_id: str | None = None,
+        environment: str | None = None,
         masternode_resource_preset: str | None = None,
         masternode_disk_size: int | None = None,
         masternode_disk_type: str | None = None,
@@ -142,6 +148,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         security_group_ids: Iterable[str] | None = None,
         log_group_id: str | None = None,
         initialization_actions: Iterable[InitializationAction] | None = None,
+        oslogin_enabled: bool = False,
         labels: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
@@ -163,6 +170,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.zone = zone
         self.service_account_id = service_account_id
+        self.environment = environment
         self.masternode_resource_preset = masternode_resource_preset
         self.masternode_disk_size = masternode_disk_size
         self.masternode_disk_type = masternode_disk_type
@@ -187,6 +195,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.security_group_ids = security_group_ids
         self.log_group_id = log_group_id
         self.initialization_actions = initialization_actions
+        self.oslogin_enabled = oslogin_enabled
         self.labels = labels
 
         self.hook: DataprocHook | None = None
@@ -195,6 +204,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
         )
+        kwargs_0_350_0 = {"oslogin_enabled": self.oslogin_enabled, "environment": self.environment}
         operation_result = self.hook.dataproc_client.create_cluster(
             folder_id=self.folder_id,
             cluster_name=self.cluster_name,
@@ -240,6 +250,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             ]
             if self.initialization_actions
             else None,
+            **kwargs_0_350_0 if yandexcloud.__version__ >= "0.350.0" else None,
         )
         cluster_id = operation_result.response.id
 
