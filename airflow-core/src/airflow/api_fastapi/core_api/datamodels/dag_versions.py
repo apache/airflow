@@ -20,9 +20,9 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import AliasPath, Field, computed_field
+from sqlalchemy import select
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.dag_processing.bundles.manager import DagBundlesManager
 
 
 class DagVersionResponse(BaseModel):
@@ -41,9 +41,17 @@ class DagVersionResponse(BaseModel):
     @property
     def bundle_url(self) -> str | None:
         if self.bundle_name:
-            try:
-                return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
-            except ValueError:
+            # Get the bundle model from the database and render the URL
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            with create_session() as session:
+                bundle_model = session.scalar(
+                    select(DagBundleModel).where(DagBundleModel.name == self.bundle_name)
+                )
+
+                if bundle_model:
+                    return bundle_model.render_url()
                 return None
         return None
 
