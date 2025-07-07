@@ -109,8 +109,8 @@ class TestS3DagBundle:
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
         )
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            url: str = bundle.view_url("test_version")
+
+        url: str = bundle.view_url("test_version")
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
 
     @pytest.mark.db_test

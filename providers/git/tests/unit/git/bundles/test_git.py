@@ -429,8 +429,7 @@ class TestGitDagBundle:
             tracking_ref="main",
         )
         bundle.initialize = mock.MagicMock()
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            view_url = bundle.view_url("0f0f0f")
+        view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
@@ -519,8 +518,7 @@ class TestGitDagBundle:
             git_conn_id="git_default",
         )
         bundle.initialize = mock.MagicMock()
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            view_url = bundle.view_url("0f0f0f")
+        view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
