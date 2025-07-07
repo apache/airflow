@@ -2179,7 +2179,7 @@ export type GetDagRunsData = {
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
-    runId?: string | null;
+    runIdPattern?: string | null;
     runType?: Array<(string)>;
     startDateGte?: string | null;
     startDateLte?: string | null;

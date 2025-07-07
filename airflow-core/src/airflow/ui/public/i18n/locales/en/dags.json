@@ -14,7 +14,7 @@
       "all": "All",
       "paused": "Paused"
     },
-    "runIdPatternFilter": "Add run_id filter"
+    "runIdPatternFilter": "Search Dag Runs"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {

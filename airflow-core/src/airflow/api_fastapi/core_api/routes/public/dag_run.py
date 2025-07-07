@@ -336,7 +336,7 @@ def get_dag_runs(
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
     dag_bag: DagBagDep,
-    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id"))],
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.

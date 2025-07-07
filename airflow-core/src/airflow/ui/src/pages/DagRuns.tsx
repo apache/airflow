@@ -176,7 +176,7 @@ export const DagRuns = () => {
       limit,
       offset: pageIndex * pageSize,
       orderBy,
-      runId: filteredRunIdPattern ?? undefined,
+      runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
@@ -244,6 +244,15 @@ export const DagRuns = () => {
   return (
     <>
       <HStack paddingY="4px">
+        <Box>
+          <SearchBar
+            defaultValue={filteredRunIdPattern ?? ""}
+            hideAdvanced
+            hotkeyDisabled={false}
+            onChange={handleRunIdPatternChange}
+            placeHolder={translate("dags:filters.runIdPatternFilter")}
+          />
+        </Box>
         <Select.Root
           collection={stateOptions}
           maxW="200px"
@@ -311,16 +320,6 @@ export const DagRuns = () => {
             ))}
           </Select.Content>
         </Select.Root>
-
-        <Box flex="1" maxW="200px">
-          <SearchBar
-            defaultValue={filteredRunIdPattern ?? ""}
-            hideAdvanced={true}
-            hotkeyDisabled={false}
-            onChange={handleRunIdPatternChange}
-            placeHolder={translate("dags:filters.runIdPatternFilter")}
-          />
-        </Box>
       </HStack>
       <DataTable
         columns={runColumns(translate, dagId)}

@@ -2041,7 +2041,7 @@ paths:
           type: string
           default: id
           title: Order By
-      - name: run_id
+      - name: run_id_pattern
         in: query
         required: false
         schema:
@@ -2050,7 +2050,7 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
-          title: Run Id
+          title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       responses:
