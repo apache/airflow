@@ -42,9 +42,10 @@ class Neo4jOperator(BaseOperator):
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement
     :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
+    :param parameters: the parameters to send to Neo4j driver session
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "parameters")
 
     def __init__(
         self,
@@ -61,5 +62,5 @@ class Neo4jOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing: %s", self.sql)
-        hook = Neo4jHook(conn_id=self.neo4j_conn_id)
+        hook = Neo4jHook(conn_id=self.neo4j_conn_id, parameters=self.parameters)
         hook.run(self.sql)
