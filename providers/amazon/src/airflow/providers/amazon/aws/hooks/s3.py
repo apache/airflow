@@ -635,6 +635,10 @@ class S3Hook(AwsBaseHook):
         delimiter: str | None = "/",
     ) -> list[Any]:
         """Get a list of files in the bucket."""
+        # Validate that bucket_keys is in fact a list, otherwise, the characters will be split
+        if isinstance(bucket_keys, str):
+            bucket_keys = [bucket_keys]
+
         keys: list[Any] = []
         for key in bucket_keys:
             prefix = key

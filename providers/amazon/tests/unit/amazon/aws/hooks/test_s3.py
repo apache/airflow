@@ -698,7 +698,7 @@ class TestAwsS3Hook:
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="/",
-            Prefix="t",
+            Prefix="test.txt",
             RequestPayer="requester",
         )
 
@@ -729,7 +729,7 @@ class TestAwsS3Hook:
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="/",
-            Prefix="t",
+            Prefix="test.txt",
         )
 
     @pytest.mark.asyncio
