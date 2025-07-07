@@ -234,6 +234,7 @@ class TestSerDe:
 
         d = deserialize(e)
         assert i.x == getattr(d, "x", None)
+        raise
 
     def test_serder_dataclass(self):
         i = W(12)
