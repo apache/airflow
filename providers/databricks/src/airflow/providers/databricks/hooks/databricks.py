@@ -770,7 +770,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: json containing permission specification
         """
-        return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
+        return self._do_api_call(("PATCH", f"2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
         """
