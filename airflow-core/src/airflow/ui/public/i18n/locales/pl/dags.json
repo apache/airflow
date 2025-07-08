@@ -12,8 +12,8 @@
     "allStates": "Wszystkie Stany",
     "favorite": {
       "all": "Wszystkie",
-      "favorite": "Polubione",
-      "unfavorite": "Niepolubione"
+      "favorite": "Ulubione",
+      "unfavorite": "Nieulubione"
     },
     "paused": {
       "active": "Aktywne",
