@@ -324,7 +324,7 @@ class BulkStateFetcher(LoggingMixin):
         super().__init__()
         self._sync_parallelism = sync_parallelism
 
-    def _tasks_list_to_task_ids(self, async_tasks) -> set[str]:
+    def _tasks_list_to_task_ids(self, async_tasks: Collection[AsyncResult]) -> set[str]:
         return {a.task_id for a in async_tasks}
 
     def get_many(self, async_results: Collection[AsyncResult]) -> Mapping[str, EventBufferValueType]:
@@ -345,9 +345,7 @@ class BulkStateFetcher(LoggingMixin):
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
         task_results = [app.backend.decode_result(v) for v in values if v]
-        task_results_by_task_id: dict[str, dict[str, Any]] = {
-            task_result["task_id"]: task_result for task_result in task_results
-        }
+        task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
@@ -364,9 +362,7 @@ class BulkStateFetcher(LoggingMixin):
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         tasks = self._query_task_cls_from_db_backend(task_ids)
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
-        task_results_by_task_id: dict[str, dict[str, Any]] = {
-            task_result["task_id"]: task_result for task_result in task_results
-        }
+        task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
