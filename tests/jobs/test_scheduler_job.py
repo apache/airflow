@@ -2310,7 +2310,7 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        mock_executors[0].fail.assert_called()
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
 
