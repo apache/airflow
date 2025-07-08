@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from deprecated import deprecated
-from sqlalchemy import and_, delete, func, not_, or_, select, text, update
+from sqlalchemy import and_, delete, desc, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -1896,18 +1896,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """
-        return (
-            session.query(Log)
+        last_running_time = session.scalar(
+            select(Log.dttm)
             .where(
-                Log.task_id == ti.task_id,
                 Log.dag_id == ti.dag_id,
+                Log.task_id == ti.task_id,
                 Log.run_id == ti.run_id,
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
-                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                Log.event == "running",
             )
-            .count()
+            .order_by(desc(Log.dttm))
+            .limit(1)
         )
+
+        query = session.query(Log).where(
+            Log.task_id == ti.task_id,
+            Log.dag_id == ti.dag_id,
+            Log.run_id == ti.run_id,
+            Log.map_index == ti.map_index,
+            Log.try_number == ti.try_number,
+            Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+        )
+
+        if last_running_time:
+            query = query.where(Log.dttm > last_running_time)
+
+        return query.count()
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
