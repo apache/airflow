@@ -120,7 +120,6 @@ ALLOWED_TOP_LEVEL_FILES = ("exceptions.py",)
 
 PACKAGES_THAT_WE_SHOULD_ADD_TO_API_DOCS = {
     "hooks",
-    "decorators",
     "example_dags",
     "executors",
     "operators",
@@ -140,15 +139,6 @@ UTIL_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
 
 MODELS_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
     "baseoperator.py",
-    "connection.py",
-    "dag.py",
-    "dagrun.py",
-    "dagbag.py",
-    "param.py",
-    "taskinstance.py",
-    "taskinstancekey.py",
-    "variable.py",
-    "xcom.py",
 }
 
 
