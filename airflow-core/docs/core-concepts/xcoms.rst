@@ -94,9 +94,6 @@ The XCom system has interchangeable backends, and you can set which backend is b
 
 If you want to implement your own backend, you should subclass :class:`~airflow.sdk.bases.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
 
-The base class for custom XCom backends is now :class:`~airflow.sdk.execution_time.xcom.XCom`
-from the airflow.sdk namespace.
-
 You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the xcom data from the custom backend. This will be called as part of ``delete``.
 
 Verifying Custom XCom Backend usage in Containers
