@@ -52,6 +52,9 @@ export const TaskNode = ({
       toggleGroupId(id);
     }
   };
+  const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
 
   return (
     <NodeWrapper>
@@ -81,6 +84,7 @@ export const TaskNode = ({
           >
             <LinkOverlay asChild>
               <TaskLink
+                childCount={thisChildCount}
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
