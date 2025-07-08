@@ -1475,13 +1475,6 @@ api:
       type: boolean
       example: ~
       default: "False"
-    default_show_timestamp:
-      description: |
-        Default setting for show timestamp toggle on TI log views.
-      version_added: 3.1.0
-      type: boolean
-      example: ~
-      default: "True"
     auto_refresh_interval:
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or grid view

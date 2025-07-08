@@ -36,7 +36,6 @@ API_CONFIG_KEYS = [
     "hide_paused_dags_by_default",
     "page_size",
     "default_wrap",
-    "default_show_timestamp",
     "auto_refresh_interval",
     "require_confirmation_dag_change",
 ]

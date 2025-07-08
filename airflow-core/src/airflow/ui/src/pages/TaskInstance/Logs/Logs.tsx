@@ -65,7 +65,7 @@ export const Logs = () => {
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
-  const defaultShowTimestamp = Boolean(useConfig("default_show_timestamp"));
+  const defaultShowTimestamp = Boolean(true);
 
   const [wrap, setWrap] = useLocalStorage<boolean>("log_wrap", defaultWrap);
   const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(
