@@ -42,7 +42,7 @@ airflow_version = "3.1.0"
 def upgrade():
     """Apply Add url and template params to DagBundleModel."""
     with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("url_template", sa.String(length=200), nullable=True))
+        batch_op.add_column(sa.Column("signed_url_template", sa.String(length=200), nullable=True))
         batch_op.add_column(sa.Column("template_params", JSONType(), nullable=True))
 
 
@@ -50,4 +50,4 @@ def downgrade():
     """Unapply Add url and template params to DagBundleModel."""
     with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
         batch_op.drop_column("template_params")
-        batch_op.drop_column("url_template")
+        batch_op.drop_column("signed_url_template")
