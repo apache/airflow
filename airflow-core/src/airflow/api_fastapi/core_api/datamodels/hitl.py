@@ -18,10 +18,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
 
 from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.sdk import Param
 
 
 class UpdateHITLResponsePayload(BaseModel):
@@ -51,21 +53,21 @@ class HITLResponseDetail(BaseModel):
     body: str | None = None
     default: list[str] | None = None
     multiple: bool = False
-    params: Mapping = Field(default_factory=dict)
+    params: dict[str, Any] = Field(default_factory=dict)
 
     # Response Content Detail
     user_id: str | None = None
     response_at: datetime | None = None
     response_content: list[str] | None = None
-    params_input: Mapping = Field(default_factory=dict)
+    params_input: dict[str, Any] = Field(default_factory=dict)
 
     response_received: bool = False
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: Mapping) -> Mapping:
+    def get_params(cls, params: dict[str, Any]) -> dict[str, Any]:
         """Convert params attribute to dict representation."""
-        return {k: v.dump() for k, v in params.items()}
+        return {k: v.dump() if isinstance(v, Param) else v for k, v in params.items()}
 
 
 class HITLResponseDetailCollection(BaseModel):
