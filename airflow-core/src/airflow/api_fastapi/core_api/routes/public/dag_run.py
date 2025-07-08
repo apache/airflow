@@ -46,7 +46,9 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _SearchParam,
     datetime_range_filter_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
@@ -334,6 +336,7 @@ def get_dag_runs(
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
     dag_bag: DagBagDep,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -360,6 +363,7 @@ def get_dag_runs(
             state,
             run_type,
             readable_dag_runs_filter,
+            run_id_pattern,
         ],
         order_by=order_by,
         offset=offset,
