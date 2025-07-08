@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -613,7 +614,7 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(self, *, expand_input: SchedulerExpandInput, **kwargs: Any) -> None:
+    def __init__(self, *, expand_input: SchedulerExpandInput | ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
 

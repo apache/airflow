@@ -154,7 +154,8 @@ def _get_v1_env_var_type() -> type:
     return V1EnvVar
 
 
-def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+# mypy crashing on this line, if we use TypeGuard[V1EnvVar]
+def _is_v1_env_var(v: Any) -> bool:
     return isinstance(v, _get_v1_env_var_type())
 
 
@@ -256,7 +257,7 @@ class SecretsMasker(logging.Filter):
                 return to_return
             if isinstance(item, Enum):
                 return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
-            if _is_v1_env_var(item):
+            if _is_v1_env_var(item) and hasattr(item, "to_dict"):
                 tmp: dict = item.to_dict()  # type: ignore[attr-defined] # V1EnvVar has a to_dict method
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
