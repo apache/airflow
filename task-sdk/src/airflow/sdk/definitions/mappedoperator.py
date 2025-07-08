@@ -200,7 +200,7 @@ class OperatorPartial:
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.utils.skipmixin import SkipMixin
-        from airflow.sensors.base import BaseSensorOperator
+        from airflow.sdk.bases.sensor import BaseSensorOperator
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
