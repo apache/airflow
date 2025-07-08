@@ -306,7 +306,9 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        return msg.root
+        from airflow.serialization.serde import deserialize
+
+        return deserialize(msg.root)
 
     @staticmethod
     def serialize_value(
