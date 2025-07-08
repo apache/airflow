@@ -68,6 +68,7 @@ from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -2063,6 +2064,41 @@ my_postgres_conn:
         assert dag.get_bundle_version() is None
         DAG.bulk_write_to_db("testing", "abc", [dag])
         assert dag.get_bundle_version() == "abc"
+
+    @pytest.mark.parametrize(
+        "reference_type, reference_column",
+        [
+            pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, "logical_date", id="logical_date"),
+            pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, "queued_at", id="queued_at"),
+            pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
+        ],
+    )
+    def test_dagrun_deadline(self, reference_type, reference_column, dag_maker, session):
+        interval = datetime.timedelta(hours=1)
+        with dag_maker(
+            dag_id="test_queued_deadline",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=reference_type,
+                interval=interval,
+                callback=print,
+            ),
+        ) as dag:
+            ...
+
+        dr = dag.create_dagrun(
+            run_id="test_dagrun_deadline",
+            run_type=DagRunType.SCHEDULED,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert len(dr.deadlines) == 1
+        assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
 
 class TestDagModel:

@@ -426,6 +426,7 @@ def trigger_dag_run(
             state=DagRunState.QUEUED,
             session=session,
         )
+
         dag_run_note = body.note
         if dag_run_note:
             current_user_id = user.get_id()
