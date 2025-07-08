@@ -163,7 +163,8 @@ class TestFileTaskLogHandler:
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         ti.try_number = 0
         ti.state = State.SKIPPED
