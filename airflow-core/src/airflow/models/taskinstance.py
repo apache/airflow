@@ -26,7 +26,7 @@ import operator
 import os
 import uuid
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable
+from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -154,28 +154,6 @@ def _add_log(
             **kwargs,
         )
     )
-
-
-@contextlib.contextmanager
-def set_current_context(context: Context) -> Generator[Context, None, None]:
-    """
-    Set the current execution context to the provided context object.
-
-    This method should be called once per Task execution, before calling operator.execute.
-    """
-    from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
-
-    _CURRENT_CONTEXT.append(context)
-    try:
-        yield context
-    finally:
-        expected_state = _CURRENT_CONTEXT.pop()
-        if expected_state != context:
-            log.warning(
-                "Current context is not equal to the state at context stack. Expected=%s, got=%s",
-                context,
-                expected_state,
-            )
 
 
 def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
