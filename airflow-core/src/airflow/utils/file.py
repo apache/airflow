@@ -117,7 +117,13 @@ class _GlobIgnoreRule(NamedTuple):
             rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
             matched = rule.wild_match_pattern.match_file(rel_path) is not None
 
-        return matched is not None
+            if matched:
+                if rule.wild_match_pattern and str(rule.wild_match_pattern.pattern).startswith("!"):  # type: ignore[arg-type]
+                    return False
+
+                return matched
+
+        return matched
 
 
 ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
