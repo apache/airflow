@@ -290,6 +290,7 @@ class BaseXCom:
         :return: List of all XCom values if found.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.serialization.serde import deserialize
 
         msg = SUPERVISOR_COMMS.send(
             msg=GetXComSequenceSlice(
@@ -306,9 +307,17 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        from airflow.serialization.serde import deserialize
-
-        return deserialize(msg.root)
+        result = deserialize(msg.root)
+        if not result:
+            log.warning(
+                "No XCom value(s) found; defaulting to None.",
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+            )
+            return None
+        return result
 
     @staticmethod
     def serialize_value(
