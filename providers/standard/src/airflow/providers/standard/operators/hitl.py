@@ -63,7 +63,7 @@ class HITLOperator(BaseOperator):
         body: str | None = None,
         default: str | list[str] | None = None,
         multiple: bool = False,
-        params: ParamsDict | None = None,
+        params: ParamsDict | dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
