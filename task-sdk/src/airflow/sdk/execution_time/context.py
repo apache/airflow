@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 import attrs
 import structlog
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -273,12 +272,9 @@ class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
-        try:
-            return _get_connection(conn_id)
-        except AirflowRuntimeError as e:
-            if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
-            raise
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection.get(conn_id)
 
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
