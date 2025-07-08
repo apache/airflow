@@ -24,6 +24,7 @@ import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsUi,
+  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
   useGridServiceGetLatestRun,
   UseGridServiceGetDagStructureKeyFn,
@@ -56,6 +57,7 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
         UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+        UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
         UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
         UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       ];
