@@ -25,6 +25,9 @@ XComs (short for "cross-communications") are a mechanism that let :doc:`tasks` t
 
 An XCom is identified by a ``key`` (essentially its name), as well as the ``task_id`` and ``dag_id`` it came from. They can have any serializable value (including objects that are decorated with ``@dataclass`` or ``@attr.define``, see :ref:`TaskFlow arguments <concepts:arbitrary-arguments>`:), but they are only designed for small amounts of data; do not use them to pass around large values, like dataframes.
 
+XCom operations should be performed through the Task Context using
+:func:`~airflow.sdk.get_current_context`. Directly updating using XCom database model is not possible.
+
 XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xcom_push`` and ``xcom_pull`` methods on Task Instances.
 
 To push a value within a task called **"task-1"** that will be used by another task:
@@ -73,8 +76,6 @@ An example of pushing multiple XComs and pulling them individually:
         # Pulling entire xcom data from push_multiple task
         data = context["ti"].xcom_pull(task_ids="push_multiple", key="return_value")
 
-
-
 .. note::
 
   If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
@@ -91,7 +92,7 @@ Custom XCom Backends
 
 The XCom system has interchangeable backends, and you can set which backend is being used via the ``xcom_backend`` configuration option.
 
-If you want to implement your own backend, you should subclass :class:`~airflow.models.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
+If you want to implement your own backend, you should subclass :class:`~airflow.sdk.bases.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
 
 You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the xcom data from the custom backend. This will be called as part of ``delete``.
 
@@ -104,6 +105,6 @@ If you can exec into a terminal in an Airflow container, you can then print out 
 
 .. code-block:: python
 
-    from airflow.models.xcom import XCom
+    from airflow.sdk.execution_time.xcom import XCom
 
     print(XCom.__name__)
