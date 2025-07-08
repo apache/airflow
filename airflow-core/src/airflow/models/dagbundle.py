@@ -34,7 +34,7 @@ class DagBundleModel(Base, LoggingMixin):
     - active: Is the bundle currently found in configuration?
     - version: The latest version Airflow has seen for the bundle.
     - last_refreshed: When the bundle was last refreshed.
-    - url_template: Signed URL template for viewing the bundle
+    - signed_url_template: Signed URL template for viewing the bundle
     - template_params: JSON object containing template parameters (e.g., {"subdir": "dags"})
 
     """
@@ -44,7 +44,7 @@ class DagBundleModel(Base, LoggingMixin):
     active = Column(Boolean, default=True)
     version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
-    url_template = Column(String(200), nullable=True)
+    signed_url_template = Column(String(200), nullable=True)
     template_params = Column(JSONType, nullable=True)
 
     def __init__(self, *, name: str, version: str | None = None):
@@ -65,7 +65,7 @@ class DagBundleModel(Base, LoggingMixin):
             from airflow.configuration import conf
 
             serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
-            payload = serializer.loads(self.url_template)
+            payload = serializer.loads(self.signed_url_template)
             if isinstance(payload, dict) and "url" in payload and "bundle_name" in payload:
                 if payload["bundle_name"] == self.name:
                     return payload["url"]
@@ -84,13 +84,13 @@ class DagBundleModel(Base, LoggingMixin):
         :param version: The version to substitute in the template
         :return: The rendered URL or None if no template is available
         """
-        if not self.url_template:
+        if not self.signed_url_template:
             return None
 
         url_template = self._unsign_url()
 
         if url_template is None:
-            url_template = self.url_template
+            return None
 
         params = dict(self.template_params or {})
         params["version"] = version
@@ -99,4 +99,4 @@ class DagBundleModel(Base, LoggingMixin):
             return url_template.format(**params)
         except (KeyError, ValueError) as e:
             self.log.warning("Failed to render URL template for bundle %s: %s", self.name, e)
-            return url_template
+            return None

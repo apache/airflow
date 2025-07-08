@@ -357,7 +357,7 @@ def test_template_update_on_sync(clear_db, session):
 def test_dag_bundle_model_render_url_with_invalid_template():
     """Test that DagBundleModel.render_url handles invalid templates gracefully."""
     bundle_model = DagBundleModel(name="test-bundle")
-    bundle_model.url_template = "https://github.com/example/repo/tree/{invalid_placeholder}"
+    bundle_model.signed_url_template = "https://github.com/example/repo/tree/{invalid_placeholder}"
     bundle_model.template_params = {"subdir": "dags"}
 
     # Should return the original template when rendering fails
