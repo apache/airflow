@@ -409,13 +409,6 @@ class SFTPHook(SSHHook):
     def _store_file(
         self, conn: SFTPClient, remote_full_path: str, local_full_path: str, confirm: bool
     ) -> None:
-        print("-" * 20)
-        print("-" * 20)
-        print("-" * 20)
-        print(f"called store file with local path: {local_full_path}")
-        print("-" * 20)
-        print("-" * 20)
-        print("-" * 20)
         if isinstance(local_full_path, BytesIO):
             conn.putfo(local_full_path, remote_full_path, confirm=confirm)
         else:
