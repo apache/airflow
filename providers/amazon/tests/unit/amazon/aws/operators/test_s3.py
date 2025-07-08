@@ -49,7 +49,6 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
 )
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     LifecycleStateChange,
@@ -61,6 +60,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime, utcnow
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
