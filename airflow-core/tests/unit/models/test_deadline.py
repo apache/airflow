@@ -255,7 +255,7 @@ class TestCalculatedDeadlineDatabaseCalls:
         2. Fixed deadlines do not interact with database.
         3. Intervals are added to reference times.
         """
-        conditions = {"dag_id": DAG_ID}
+        conditions = {"dag_id": DAG_ID, "run_id": "dagrun_1"}
         interval = timedelta(hours=1)
         with mock.patch("airflow.models.deadline._fetch_from_db") as mock_fetch:
             mock_fetch.return_value = DEFAULT_DATE
@@ -282,6 +282,7 @@ class TestDeadlineReference:
         """Test that all deadline types evaluate correctly with their required conditions."""
         conditions = {
             "dag_id": DAG_ID,
+            "run_id": "dagrun_1",
             "unexpected": "param",  # Add an unexpected parameter.
             "extra": "kwarg",  # Add another unexpected parameter.
         }
@@ -305,10 +306,13 @@ class TestDeadlineReference:
     def test_deadline_missing_required_kwargs(self, reference, session):
         """Test that deadlines raise appropriate errors for missing required parameters."""
         if reference.required_kwargs:
-            with pytest.raises(ValueError) as e:
+            with pytest.raises(ValueError) as raised_exception:
                 reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
-            expected_error = f"{reference.__class__.__name__} is missing required parameters: dag_id"
-            assert expected_error in str(e)
+            expected_substrings = {
+                f"{reference.__class__.__name__} is missing required parameters: ",
+                *reference.required_kwargs,
+            }
+            assert [substring in str(raised_exception) for substring in expected_substrings]
         else:
             # Let the lack of an exception here effectively assert that no exception is raised.
             reference.evaluate_with(session=session, **self.DEFAULT_ARGS)

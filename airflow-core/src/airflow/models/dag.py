@@ -1599,18 +1599,17 @@ class DAG(TaskSDKDag, LoggingMixin):
             session=session,
         )
 
-        if (deadline := self.deadline) and isinstance(
-            deadline.reference, DeadlineReference.TYPES.DAGRUN_CREATED
-        ):
+        if self.deadline and isinstance(self.deadline.reference, DeadlineReference.TYPES.DAGRUN):
             session.add(
                 Deadline(
-                    deadline_time=deadline.reference.evaluate_with(
+                    deadline_time=self.deadline.reference.evaluate_with(
                         session=session,
-                        interval=deadline.interval,
+                        interval=self.deadline.interval,
                         dag_id=self.dag_id,
+                        run_id=run_id,
                     ),
-                    callback=deadline.callback,
-                    callback_kwargs=deadline.callback_kwargs or {},
+                    callback=self.deadline.callback,
+                    callback_kwargs=self.deadline.callback_kwargs or {},
                     dag_id=self.dag_id,
                     dagrun_id=orm_dagrun.id,
                 )

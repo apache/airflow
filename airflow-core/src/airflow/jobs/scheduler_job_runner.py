@@ -60,11 +60,9 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
-from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -1770,25 +1768,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed()
-
-            if (deadline := dag.deadline) and isinstance(
-                deadline.reference, DeadlineReference.TYPES.DAGRUN_QUEUED
-            ):
-                session.add(
-                    Deadline(
-                        deadline_time=(
-                            deadline.reference.evaluate_with(
-                                interval=deadline.interval,
-                                dag_id=dag_id,
-                                session=session,
-                            )
-                        ),
-                        callback=deadline.callback,
-                        callback_kwargs=deadline.callback_kwargs or {},
-                        dag_id=dag_id,
-                        dagrun_id=dag_run.id,
-                    )
-                )
 
     @retry_db_transaction
     def _schedule_all_dag_runs(

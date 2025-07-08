@@ -202,7 +202,7 @@ class ReferenceModels:
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
@@ -212,7 +212,7 @@ class ReferenceModels:
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
         @provide_session
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
