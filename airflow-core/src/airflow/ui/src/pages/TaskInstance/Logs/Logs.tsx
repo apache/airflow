@@ -84,7 +84,7 @@ export const Logs = () => {
     logLevelFilters,
     sourceFilters,
     taskInstance,
-    tryNumber: tryNumber === 0 ? 1 : tryNumber,
+    tryNumber,
   });
 
   return (
