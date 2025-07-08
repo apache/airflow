@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-07T19:43:48.199298
+# This constraints file was automatically generated on 2025-07-08T02:22:56.953344
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -215,7 +215,7 @@ fsspec==2025.5.1
 future==1.0.0
 gcloud-aio-auth==5.4.2
 gcloud-aio-bigquery==7.1.0
-gcloud-aio-storage==9.4.0
+gcloud-aio-storage==9.5.0
 gcsfs==2025.5.1
 geomet==0.2.1.post1
 gevent==25.5.1
