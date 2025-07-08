@@ -61,6 +61,7 @@ export const TaskNode = ({
           positioning={{
             placement: "top-start",
           }}
+          taskInstance={taskInstance}
         >
           <Box
             // Alternate background color for nested open groups
