@@ -24,11 +24,12 @@ import pytest
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import SortParam
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import utcnow
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -40,6 +41,7 @@ class TestGenerateDagWithLatestRunQuery:
     def _clear_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
@@ -52,11 +54,17 @@ class TestGenerateDagWithLatestRunQuery:
     def dag_with_queued_run(self, session):
         """Returns a DAG with a QUEUED DagRun and null start_date."""
 
+        bundle_name = "testing"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.add(orm_dag_bundle)
+        session.flush()
+
         dag_id = "dag_with_queued_run"
 
         # Create DagModel
         dag_model = DagModel(
             dag_id=dag_id,
+            bundle_name="testing",
             is_stale=False,
             is_paused=False,
             fileloc="/tmp/dag.py",
@@ -87,6 +95,7 @@ class TestGenerateDagWithLatestRunQuery:
         # Create DagModel
         dag_model = DagModel(
             dag_id=dag_id,
+            bundle_name="testing",
             is_stale=False,
             is_paused=False,
             fileloc="/tmp/dag2.py",
@@ -175,11 +184,13 @@ class TestGenerateDagWithLatestRunQuery:
         assert running_row[1] is not None, "Joined DagRun state for RUNNING DAG must not be None"
         assert running_row[2] is not None, "Joined DagRun start_date for RUNNING DAG must not be None"
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_latest_queued_run_without_start_date_is_included(self, session):
         """Even if the latest DagRun is QUEUED+start_date=None, joined DagRun state must not be None."""
         dag_id = "dag_with_multiple_runs"
         dag_model = DagModel(
             dag_id=dag_id,
+            bundle_name="testing",
             is_stale=False,
             is_paused=False,
             fileloc="/tmp/dag3.py",
