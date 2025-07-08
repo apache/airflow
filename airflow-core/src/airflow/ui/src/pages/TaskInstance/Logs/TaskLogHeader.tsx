@@ -216,19 +216,6 @@ export const TaskLogHeader = ({
               </Menu.Item>
             </Menu.Content>
           </Menu.Root>
-          <Tooltip closeDelay={100} content={translate("wrap.tooltip", { hotkey: "w" })} openDelay={100}>
-            <Button
-              aria-label={wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
-              bg="bg.panel"
-              m={0}
-              onClick={toggleWrap}
-              px={4}
-              py={2}
-              variant="outline"
-            >
-              {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
-            </Button>
-          </Tooltip>
           <Tooltip closeDelay={100} content={translate("expand.tooltip", { hotkey: "e" })} openDelay={100}>
             <ButtonGroup attached size="md" variant="outline">
               <IconButton
