@@ -165,8 +165,7 @@ class ApprovalOperator(HITLOperator):
 
     def __init__(self, **kwargs) -> None:
         if "options" in kwargs:
-            kwargs.pop("options")
-            self.log.warning("Passing options into ApprovalOperator will be ignored.")
+            raise ValueError("Passing options to ApprovalOperator is not allowed.")
         super().__init__(options=["Approve", "Reject"], **kwargs)
 
 
@@ -179,8 +178,7 @@ class HITLTerminationOperator(HITLOperator, SkipMixin):
 
     def __init__(self, **kwargs) -> None:
         if "options" in kwargs:
-            kwargs.pop("options")
-            self.log.warning("Passing options into ApprovalOperator will be ignored.")
+            raise ValueError("Passing options to HITLTerminationOperator is not allowed.")
         super().__init__(options=["Stop", "Proceed"], **kwargs)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
