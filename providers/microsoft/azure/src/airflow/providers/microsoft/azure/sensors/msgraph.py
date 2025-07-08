@@ -43,6 +43,7 @@ except ImportError:
         next_kwargs: dict[str, Any] | None = None
         timeout: datetime.timedelta | None = None
 
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseSensorOperator
 else:
@@ -81,6 +82,7 @@ class MSGraphSensor(BaseSensorOperator):
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     :param start_from_trigger: If set to True, the sensor will start directly from the triggerer without going into the worker first.
     """
+
     start_trigger_args = StartTriggerArgs(
         trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
         trigger_kwargs={},
