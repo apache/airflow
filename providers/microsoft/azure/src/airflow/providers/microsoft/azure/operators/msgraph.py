@@ -127,13 +127,6 @@ class MSGraphAsyncOperator(BaseOperator):
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
 
-    start_trigger_args = StartTriggerArgs(
-        trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
-        trigger_kwargs={},
-        next_method="execute_complete",
-        next_kwargs=None,
-        timeout=None,
-    )
     start_from_trigger = True
     template_fields: Sequence[str] = (
         "url",
@@ -188,9 +181,12 @@ class MSGraphAsyncOperator(BaseOperator):
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
-        self.start_trigger_args.next_method = self.execute_complete.__name__
+        self.start_trigger_args = StartTriggerArgs(
+            trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+            next_method=self.execute_complete.__name__,
+        )
 
-    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
         self.render_template_fields(context=context)
         self.start_trigger_args.trigger_kwargs = dict(
             url=self.url,
@@ -208,7 +204,7 @@ class MSGraphAsyncOperator(BaseOperator):
             api_version=self.api_version,
             serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
         )
-        return self.start_trigger_args
+        return self.start_from_trigger
 
     def execute(self, context: Context) -> None:
         return
