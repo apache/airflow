@@ -90,12 +90,7 @@ def update_hitl_response(
 @hitl_router.get(
     "/{task_instance_id}",
     status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
