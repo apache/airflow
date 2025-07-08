@@ -28,6 +28,7 @@ import {
   useGridServiceGridData,
   useTaskInstanceServiceGetMappedTaskInstance,
 } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -36,6 +37,9 @@ import { Header } from "./Header";
 export const TaskInstance = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+
+  // Get external views with task_instance destination
+  const externalTabs = usePluginTabs("task_instance");
 
   const tabs = [
     { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
@@ -49,6 +53,7 @@ export const TaskInstance = () => {
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
   ];
 
   const refetchInterval = useAutoRefresh({ dagId });

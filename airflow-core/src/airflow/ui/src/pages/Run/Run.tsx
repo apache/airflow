@@ -23,6 +23,7 @@ import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -32,12 +33,16 @@ export const Run = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", runId = "" } = useParams();
 
+  // Get external views with dag_run destination
+  const externalTabs = usePluginTabs("dag_run");
+
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
   ];
 
   const refetchInterval = useAutoRefresh({ dagId });
