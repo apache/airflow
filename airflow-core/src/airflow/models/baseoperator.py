@@ -454,6 +454,9 @@ class BaseOperator(TaskSDKBaseOperator):
     def _(cls, task: MappedOperator, run_id: str, *, session: Session) -> int:
         # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
         exp_input = cast("SchedulerExpandInput", task._get_specified_expand_input())
+        if not hasattr(exp_input, "get_total_map_length"):  # We got an SDK task instead.
+            exp_input = _coerce_sdk_expand_input(exp_input, task.dag)
+
         current_count = exp_input.get_total_map_length(run_id, session=session)
 
         group = task.get_closest_mapped_task_group()
@@ -484,7 +487,18 @@ class BaseOperator(TaskSDKBaseOperator):
             while group is not None:
                 if isinstance(group, MappedTaskGroup):
                     exp_input = group._expand_input
+                    if not hasattr(exp_input, "get_total_map_length"):  # We got an SDK task group instead.
+                        exp_input = _coerce_sdk_expand_input(exp_input, group.dag)
                     yield exp_input.get_total_map_length(run_id, session=session)
                 group = group.parent_group
 
         return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))
+
+
+def _coerce_sdk_expand_input(exp_input, dag):
+    from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
+
+    return _ExpandInputRef(
+        exp_input.EXPAND_INPUT_TYPE,
+        BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+    ).deref(dag)
