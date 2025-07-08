@@ -232,6 +232,11 @@
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
+  "timestamp": {
+    "hide": "Hide Timestamps",
+    "hotkey": "t",
+    "show": "Show Timestamps"
+  },
   "timezone": "Timezone",
   "timezoneModal": {
     "current-timezone": "Current time in",
@@ -281,6 +286,7 @@
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"

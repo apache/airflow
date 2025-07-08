@@ -34,6 +34,9 @@
     },
     "info": "INFO",
     "noTryNumber": "No try number",
+    "settings": {
+      "menu": "Log Settings"
+    },
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
