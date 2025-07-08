@@ -35,7 +35,7 @@ name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
-requires-python = "~=3.9,<3.13"
+requires-python = ">=3.10,!=3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -51,7 +51,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -78,9 +77,6 @@ dependencies = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # Required for python 3.9 to work with new annotations styles. Check package
-    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
-    'eval-type-backport>=0.2.0;python_version<"3.10"',
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
@@ -95,8 +91,7 @@ dependencies = [
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "lazy-object-proxy>=1.2.0",
-    'libcst >=1.1.0,!=1.8.1;python_version<"3.10"',
-    'libcst >=1.1.0;python_version>="3.10"',
+    'libcst >=1.1.0',
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
@@ -220,6 +215,7 @@ include = [
 exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
 ]
 
 [tool.hatch.build.targets.custom]
@@ -242,6 +238,7 @@ artifacts = [
 exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
 ]
 
 [dependency-groups]

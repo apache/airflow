@@ -19,21 +19,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-    from airflow.sdk import BaseSensorOperator
-    from airflow.utils.context import Context
+from airflow.providers.google.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+    BaseSensorOperator,
+)
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+    from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com"
 
@@ -106,7 +107,7 @@ class BaseGoogleLink(BaseOperatorLink):
         ti_key: TaskInstanceKey,
     ) -> str:
         if TYPE_CHECKING:
-            assert isinstance(operator, GoogleCloudBaseOperator | BaseSensorOperator)
+            assert isinstance(operator, (GoogleCloudBaseOperator, BaseSensorOperator))
 
         conf = self.get_config(operator, ti_key)
         if not conf:

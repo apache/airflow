@@ -22,8 +22,9 @@ import enum
 import json
 import os
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import keyring
@@ -53,7 +54,6 @@ from airflowctl.exceptions import (
     AirflowCtlException,
     AirflowCtlNotFoundException,
 )
-from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub
@@ -130,8 +130,7 @@ class Credentials:
     def save(self):
         """Save the credentials to keyring and URL to disk as a file."""
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
-        if not os.path.exists(default_config_dir):
-            os.makedirs(default_config_dir)
+        os.makedirs(default_config_dir, exist_ok=True)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
         try:

@@ -79,6 +79,7 @@ if TYPE_CHECKING:
         SecretsMasker,
         should_hide_value_for_key,
     )
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
@@ -114,6 +115,7 @@ else:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+_MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 
 
 def try_import_from_string(string: str) -> Any:
@@ -127,7 +129,33 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
-def get_job_name(task: TaskInstance) -> str:
+def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> str | None:
+    """Get the provider package version for the given operator."""
+    try:
+        class_path = get_fully_qualified_class_name(operator)
+
+        if not class_path.startswith("airflow.providers."):
+            return None
+
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+
+        for package_name, provider_info in providers_manager.providers.items():
+            if package_name.startswith("apache-airflow-providers-"):
+                provider_module_path = package_name.replace(
+                    "apache-airflow-providers-", "airflow.providers."
+                ).replace("-", ".")
+                if class_path.startswith(provider_module_path + "."):
+                    return provider_info.version
+
+        return None
+
+    except Exception:
+        return None
+
+
+def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
@@ -150,6 +178,80 @@ def get_task_parent_run_facet(
             ),
         )
     }
+
+
+def _truncate_string_to_byte_size(s: str, max_size: int = _MAX_DOC_BYTES) -> str:
+    """
+    Truncate a string to a maximum UTF-8 byte size, ensuring valid encoding.
+
+    This is used to safely limit the size of string content (e.g., for OpenLineage events)
+    without breaking multibyte characters. If truncation occurs, the result is a valid
+    UTF-8 string with any partial characters at the end removed.
+
+    Args:
+        s (str): The input string to truncate.
+        max_size (int): Maximum allowed size in bytes after UTF-8 encoding.
+
+    Returns:
+        str: A UTF-8-safe truncated string within the specified byte limit.
+    """
+    encoded = s.encode("utf-8")
+    if len(encoded) <= max_size:
+        return s
+    log.debug(
+        "Truncating long string content for OpenLineage event. "
+        "Original size: %d bytes, truncated to: %d bytes (UTF-8 safe).",
+        len(encoded),
+        max_size,
+    )
+    truncated = encoded[:max_size]
+    # Make sure we don't cut a multibyte character in half
+    return truncated.decode("utf-8", errors="ignore")
+
+
+def get_task_documentation(operator: BaseOperator | MappedOperator | None) -> tuple[str | None, str | None]:
+    """Get task documentation and mime type, truncated to _MAX_DOC_BYTES bytes length, if present."""
+    if not operator:
+        return None, None
+
+    doc, mime_type = None, None
+    if operator.doc:
+        doc = operator.doc
+        mime_type = "text/plain"
+    elif operator.doc_md:
+        doc = operator.doc_md
+        mime_type = "text/markdown"
+    elif operator.doc_json:
+        doc = operator.doc_json
+        mime_type = "application/json"
+    elif operator.doc_yaml:
+        doc = operator.doc_yaml
+        mime_type = "application/x-yaml"
+    elif operator.doc_rst:
+        doc = operator.doc_rst
+        mime_type = "text/x-rst"
+
+    if doc:
+        return _truncate_string_to_byte_size(doc), mime_type
+    return None, None
+
+
+def get_dag_documentation(dag: DAG | None) -> tuple[str | None, str | None]:
+    """Get dag documentation and mime type, truncated to _MAX_DOC_BYTES bytes length, if present."""
+    if not dag:
+        return None, None
+
+    doc, mime_type = None, None
+    if dag.doc_md:
+        doc = dag.doc_md
+        mime_type = "text/markdown"
+    elif dag.description:
+        doc = dag.description
+        mime_type = "text/plain"
+
+    if doc:
+        return _truncate_string_to_byte_size(doc), mime_type
+    return None, None
 
 
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
@@ -206,7 +308,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 
 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
-    if isinstance(operator, MappedOperator | SerializedBaseOperator):
+    if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
     op_class = get_operator_class(operator)
@@ -223,7 +325,7 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    if isinstance(obj, BaseOperator | MappedOperator):
+    if isinstance(obj, (BaseOperator, MappedOperator)):
         return is_task_lineage_enabled(obj)
     raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
@@ -301,7 +403,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, set | list | tuple):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
@@ -376,7 +478,7 @@ class DagInfo(InfoJsonEncodable):
                 return serialized
 
             def _serialize_ds(ds: BaseDatasetEventInput) -> dict[str, Any]:
-                if isinstance(ds, DatasetAny | DatasetAll):
+                if isinstance(ds, (DatasetAny, DatasetAll)):
                     return {
                         "__type": "dataset_all" if isinstance(ds, DatasetAll) else "dataset_any",
                         "objects": [_serialize_ds(child) for child in ds.objects],
@@ -510,6 +612,7 @@ class TaskInfo(InfoJsonEncodable):
         ),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "operator_provider_version": lambda task: get_operator_provider_version(task),
     }
 
 

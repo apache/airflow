@@ -30,7 +30,6 @@ from sqlalchemy.orm import Session
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.edge3.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -55,6 +54,7 @@ if TYPE_CHECKING:
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
+DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 
 
 class EdgeExecutor(BaseExecutor):
@@ -72,6 +72,7 @@ class EdgeExecutor(BaseExecutor):
         """
         inspector = inspect(engine)
         edge_job_columns = None
+        edge_job_command_len = None
         with contextlib.suppress(NoSuchTableError):
             edge_job_schema = inspector.get_columns("edge_job")
             edge_job_columns = [column["name"] for column in edge_job_schema]

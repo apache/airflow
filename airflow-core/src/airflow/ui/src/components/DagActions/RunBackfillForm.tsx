@@ -193,7 +193,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                     colorPalette="blue"
                     indicatorPlacement="start"
                     key={item.value}
-                    label={item.label}
+                    label={translate(item.label)}
                     value={item.value}
                   />
                 ))}

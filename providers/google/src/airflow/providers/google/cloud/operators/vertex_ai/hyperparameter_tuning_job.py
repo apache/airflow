@@ -257,7 +257,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         hyperparameter_tuning_job_id = hyperparameter_tuning_job.name
         self.log.info("Hyperparameter Tuning job was created. Job id: %s", hyperparameter_tuning_job_id)
 
-        self.xcom_push(context, key="hyperparameter_tuning_job_id", value=hyperparameter_tuning_job_id)
+        context["ti"].xcom_push(key="hyperparameter_tuning_job_id", value=hyperparameter_tuning_job_id)
         VertexAITrainingLink.persist(context=context, training_id=hyperparameter_tuning_job_id)
 
         if self.deferrable:

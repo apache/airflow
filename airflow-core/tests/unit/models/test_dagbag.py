@@ -1073,7 +1073,7 @@ class TestCaptureWithReraise:
         with pytest.warns(UserWarning, match="(Foo|Bar|Baz)") as ctx:
             with _capture_with_reraise() as cw:
                 self.raise_warnings()
-            assert len(cw) == 3
+        assert len(cw) == 3
         assert len(ctx.list) == 3
 
     def test_capture_warnings_with_parent_error_filter(self):

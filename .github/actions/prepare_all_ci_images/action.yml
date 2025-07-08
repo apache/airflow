@@ -36,6 +36,7 @@ runs:
     #       this should be implemented in stash action as list of keys to download.
     #       That includes 3.9 - 3.12 as we are backporting it to v3-0-test branch
     #       This is captured in https://github.com/apache/airflow/issues/45268
+    #       So we actually need 3.9 even if 3.9 support on main is dropped!
     - name: "Restore CI docker image ${{ inputs.platform }}:3.9"
       uses: ./.github/actions/prepare_single_ci_image
       with:

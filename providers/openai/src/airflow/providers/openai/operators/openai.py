@@ -23,17 +23,17 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
+from airflow.providers.openai.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
         from airflow.sdk.definitions.context import Context
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+        from airflow.utils.context import Context  # type: ignore[no-redef]
 
 
 class OpenAIEmbeddingOperator(BaseOperator):
@@ -75,7 +75,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> list[float]:
-        if not self.input_text or not isinstance(self.input_text, str | list):
+        if not self.input_text or not isinstance(self.input_text, (str, list)):
             raise ValueError(
                 "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
             )

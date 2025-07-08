@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+1.6.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Provider Migration: Replace 'BaseOperator' to Task SDK for 'OpenAI' (#52561)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.6.0
 .....
 

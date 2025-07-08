@@ -25,12 +25,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
-from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

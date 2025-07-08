@@ -61,15 +61,19 @@ def dag_bundle(clear_db, session: Session = NEW_SESSION) -> DagBundleModel:
 
 @pytest.fixture(scope="class")
 @provide_session
-def permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
+    # Create the bundle first
+    bundle = DagBundleModel(name=BUNDLE_NAME)
+    session.add(bundle)
+    session.commit()
+
     dag_model = DagModel(
         fileloc=FILENAME1,
-        bundle_name=BUNDLE_NAME,
         relative_fileloc=FILENAME1,
         dag_id="dag_id1",
         is_paused=False,
+        bundle_name=BUNDLE_NAME,
     )
-
     session.add(dag_model)
     session.commit()
     return dag_model
@@ -400,3 +404,40 @@ class TestGetImportErrors:
                 }
             ],
         }
+
+    @pytest.mark.usefixtures("permitted_dag_model")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_bundle_name_join_condition_for_import_errors(
+        self, mock_get_auth_manager, test_client, permitted_dag_model, import_errors, session
+    ):
+        """Test that the bundle_name join condition works correctly."""
+        set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
+        mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager, {permitted_dag_model.dag_id}
+        )
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors")
+
+        # Assert
+        mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
+        assert response.status_code == 200
+        response_json = response.json()
+
+        # Should return the import error with matching bundle_name and filename
+        assert response_json["total_entries"] == 1
+        assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
+        assert response_json["import_errors"][0]["filename"] == FILENAME1
+
+        # Now test that removing the bundle_name from the DagModel causes the import error to not be returned
+        permitted_dag_model.bundle_name = None
+        session.merge(permitted_dag_model)
+        session.commit()
+
+        response2 = test_client.get("/importErrors")
+
+        # Assert - should return 0 entries because bundle_name no longer matches
+        assert response2.status_code == 200
+        response_json2 = response2.json()
+        assert response_json2["total_entries"] == 0
+        assert response_json2["import_errors"] == []

@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
+from airflow.providers.slack.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

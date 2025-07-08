@@ -31,7 +31,6 @@ import pytest
 from asgiref.sync import sync_to_async
 
 from airflow.executors import workloads
-from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     TriggerCommsDecoder,
@@ -50,6 +49,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.sdk import BaseHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
@@ -333,6 +333,51 @@ class TestTriggerRunner:
         trigger_id, traceback = msg.failures[0]
         assert trigger_id == 1
         assert traceback[-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+    @pytest.mark.asyncio
+    async def test_trigger_kwargs_serialization_cleanup(self, session):
+        """
+        Test that trigger kwargs are properly cleaned of serialization artifacts
+        (__var, __type keys).
+        """
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        kw = {"simple": "test", "tuple": (), "dict": {}, "list": []}
+
+        serialized_kwargs = BaseSerialization.serialize(kw)
+
+        trigger_orm = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs=serialized_kwargs)
+        session.add(trigger_orm)
+        session.commit()
+
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == {
+            "Encoding.TYPE": "dict",
+            "Encoding.VAR": {
+                "dict": {"Encoding.TYPE": "dict", "Encoding.VAR": {}},
+                "list": [],
+                "simple": "test",
+                "tuple": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            },
+        }
+
+        runner = TriggerRunner()
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=trigger_orm.id,
+                ti=None,
+                classpath=trigger_orm.classpath,
+                encrypted_kwargs=trigger_orm.encrypted_kwargs,
+            )
+        )
+
+        await runner.create_triggers()
+        assert trigger_orm.id in runner.triggers
+        trigger_instance = runner.triggers[trigger_orm.id]["task"]
+
+        # The test passes if no exceptions were raised during trigger creation
+        trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
 
 
 @pytest.mark.asyncio
@@ -658,7 +703,16 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
-    connection = Connection(conn_id="test_connection", conn_type="http")
+    connection = Connection(
+        conn_id="test_connection",
+        conn_type="http",
+        schema="https",
+        login="user",
+        password="pass",
+        extra={"key": "value"},
+        port=443,
+        host="example.com",
+    )
     variable = Variable(key="test_variable", val="some_variable_value")
     XComModel.set(
         key="test_xcom",
@@ -688,12 +742,12 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
                 "conn_id": "test_connection",
                 "conn_type": "http",
                 "description": None,
-                "host": None,
-                "schema": None,
-                "login": None,
-                "password": None,
-                "port": None,
-                "extra": None,
+                "host": "example.com",
+                "schema": "https",
+                "login": "user",
+                "password": "pass",
+                "port": 443,
+                "extra": '{"key": "value"}',
             },
             "variable": "some_variable_value",
             "xcom": '"some_xcom_value"',

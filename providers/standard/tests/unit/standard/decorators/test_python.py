@@ -41,7 +41,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import setup, task as task_decorator, teardown
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment]
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator
@@ -154,18 +154,18 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t2(5, 5).operator.multiple_outputs is True
 
+        @task_decorator
+        def t3(  # type: ignore[empty-body]
+            x: "FakeTypeCheckingOnlyClass",
+            y: int,
+        ) -> "UnresolveableName[int, int]": ...
+
         with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
-
-            @task_decorator
-            def t3(  # type: ignore[empty-body]
-                x: "FakeTypeCheckingOnlyClass",
-                y: int,
-            ) -> "UnresolveableName[int, int]": ...
-
             line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
-            if PY311:
-                # extra line explaining the error location in Py311
-                line = line - 1
+
+        if PY311:
+            # extra line explaining the error location in Py311
+            line = line - 1
 
         warn = recwarn[0]
         assert warn.filename == __file__

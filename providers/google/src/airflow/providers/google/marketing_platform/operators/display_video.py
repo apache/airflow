@@ -29,9 +29,9 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -99,7 +99,7 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
         self.log.info("Creating Display & Video 360 query.")
         response = hook.create_query(query=self.body)
         query_id = response["queryId"]
-        self.xcom_push(context, key="query_id", value=query_id)
+        context["task_instance"].xcom_push(key="query_id", value=query_id)
         self.log.info("Created query with ID: %s", query_id)
         return response
 
@@ -295,7 +295,7 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
             self.bucket_name,
             report_name,
         )
-        self.xcom_push(context, key="report_name", value=report_name)
+        context["task_instance"].xcom_push(key="report_name", value=report_name)
 
 
 class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
@@ -360,8 +360,8 @@ class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
             self.parameters,
         )
         response = hook.run_query(query_id=self.query_id, params=self.parameters)
-        self.xcom_push(context, key="query_id", value=response["key"]["queryId"])
-        self.xcom_push(context, key="report_id", value=response["key"]["reportId"])
+        context["task_instance"].xcom_push(key="query_id", value=response["key"]["queryId"])
+        context["task_instance"].xcom_push(key="report_id", value=response["key"]["reportId"])
         return response
 
 
@@ -564,7 +564,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         operation = hook.create_sdf_download_operation(body_request=self.body_request)
 
         name = operation["name"]
-        self.xcom_push(context, key="name", value=name)
+        context["task_instance"].xcom_push(key="name", value=name)
         self.log.info("Created SDF operation with name: %s", name)
 
         return operation

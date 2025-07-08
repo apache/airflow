@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
@@ -24,13 +25,17 @@ import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
-export const Iframe = () => {
+export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
+  const { t: translate } = useTranslation();
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
-  const iframeView = pluginData?.plugins
-    .flatMap((plugin) => plugin.external_views)
-    .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
+  const iframeView =
+    page === "legacy-fab-views"
+      ? { href: "/pluginsv2/", name: translate("nav.legacyFabViews") }
+      : pluginData?.plugins
+          .flatMap((plugin) => plugin.external_views)
+          .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
 
   if (!iframeView) {
     if (isLoading) {
@@ -47,7 +52,7 @@ export const Iframe = () => {
   return (
     <Box flexGrow={1} m={-3}>
       <iframe
-        sandbox="allow-same-origin allow-forms"
+        sandbox={sandbox}
         src={iframeView.href}
         style={{ height: "100%", width: "100%" }}
         title={iframeView.name}
