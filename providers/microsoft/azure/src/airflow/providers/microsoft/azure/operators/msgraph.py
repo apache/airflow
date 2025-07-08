@@ -125,7 +125,6 @@ class MSGraphAsyncOperator(BaseOperator):
         the message from the event, otherwise the response from the event payload is returned.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
-    :param start_from_trigger: If set to True, the operator will start directly from the triggerer without going into the worker first.
     """
 
     start_trigger_args = StartTriggerArgs(
@@ -135,7 +134,7 @@ class MSGraphAsyncOperator(BaseOperator):
         next_kwargs=None,
         timeout=None,
     )
-    start_from_trigger = False
+    start_from_trigger = True
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -168,7 +167,6 @@ class MSGraphAsyncOperator(BaseOperator):
         result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         event_handler: Callable[[dict[Any, Any] | None, Context], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
-        start_from_trigger: bool = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -190,46 +188,26 @@ class MSGraphAsyncOperator(BaseOperator):
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
-        self.start_from_trigger = start_from_trigger
-        if self.start_from_trigger:
-            self.start_trigger_args.trigger_kwargs = dict(
-                url=self.url,
-                response_type=self.response_type,
-                path_parameters=self.path_parameters,
-                url_template=self.url_template,
-                method=self.method,
-                query_parameters=self.query_parameters,
-                headers=self.headers,
-                data=self.data,
-                conn_id=self.conn_id,
-                timeout=self.timeout,
-                proxies=self.proxies,
-                scopes=self.scopes,
-                api_version=self.api_version,
-                serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
-            )
+        self.start_trigger_args.next_method = self.execute_complete.__name__
+        self.start_trigger_args.trigger_kwargs = dict(
+            url=self.url,
+            response_type=self.response_type,
+            path_parameters=self.path_parameters,
+            url_template=self.url_template,
+            method=self.method,
+            query_parameters=self.query_parameters,
+            headers=self.headers,
+            data=self.data,
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            proxies=self.proxies,
+            scopes=self.scopes,
+            api_version=self.api_version,
+            serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+        )
 
     def execute(self, context: Context) -> None:
-        if not self.start_from_trigger:
-            self.defer(
-                trigger=MSGraphTrigger(
-                    url=self.url,
-                    response_type=self.response_type,
-                    path_parameters=self.path_parameters,
-                    url_template=self.url_template,
-                    method=self.method,
-                    query_parameters=self.query_parameters,
-                    headers=self.headers,
-                    data=self.data,
-                    conn_id=self.conn_id,
-                    timeout=self.timeout,
-                    proxies=self.proxies,
-                    scopes=self.scopes,
-                    api_version=self.api_version,
-                    serializer=type(self.serializer),
-                ),
-                method_name=self.execute_complete.__name__,
-            )
+        return
 
     def execute_complete(
         self,

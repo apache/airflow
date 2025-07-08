@@ -80,7 +80,6 @@ class MSGraphSensor(BaseSensorOperator):
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
-    :param start_from_trigger: If set to True, the sensor will start directly from the triggerer without going into the worker first.
     """
 
     start_trigger_args = StartTriggerArgs(
@@ -90,7 +89,7 @@ class MSGraphSensor(BaseSensorOperator):
         next_kwargs=None,
         timeout=None,
     )
-    start_from_trigger = False
+    start_from_trigger = True
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -120,7 +119,6 @@ class MSGraphSensor(BaseSensorOperator):
         result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         retry_delay: timedelta | float = 60,
-        start_from_trigger: bool = False,
         **kwargs,
     ):
         super().__init__(retry_delay=retry_delay, **kwargs)
@@ -139,9 +137,34 @@ class MSGraphSensor(BaseSensorOperator):
         self.event_processor = event_processor
         self.result_processor = result_processor
         self.serializer = serializer()
-        self.start_from_trigger = start_from_trigger
-        if self.start_from_trigger:
-            self.start_trigger_args.trigger_kwargs = dict(
+        self.start_trigger_args.next_method = self.execute_complete.__name__
+        self.start_trigger_args.trigger_kwargs = dict(
+            url=self.url,
+            response_type=self.response_type,
+            path_parameters=self.path_parameters,
+            url_template=self.url_template,
+            method=self.method,
+            query_parameters=self.query_parameters,
+            headers=self.headers,
+            data=self.data,
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            proxies=self.proxies,
+            scopes=self.scopes,
+            api_version=self.api_version,
+            serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+        )
+
+    def execute(self, context: Context):
+        return
+
+    def retry_execute(
+        self,
+        context: Context,
+        **kwargs,
+    ) -> Any:
+        self.defer(
+            trigger=MSGraphTrigger(
                 url=self.url,
                 response_type=self.response_type,
                 path_parameters=self.path_parameters,
@@ -155,37 +178,10 @@ class MSGraphSensor(BaseSensorOperator):
                 proxies=self.proxies,
                 scopes=self.scopes,
                 api_version=self.api_version,
-                serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
-            )
-
-    def execute(self, context: Context):
-        if not self.start_from_trigger:
-            self.defer(
-                trigger=MSGraphTrigger(
-                    url=self.url,
-                    response_type=self.response_type,
-                    path_parameters=self.path_parameters,
-                    url_template=self.url_template,
-                    method=self.method,
-                    query_parameters=self.query_parameters,
-                    headers=self.headers,
-                    data=self.data,
-                    conn_id=self.conn_id,
-                    timeout=self.timeout,
-                    proxies=self.proxies,
-                    scopes=self.scopes,
-                    api_version=self.api_version,
-                    serializer=type(self.serializer),
-                ),
-                method_name=self.execute_complete.__name__,
-            )
-
-    def retry_execute(
-        self,
-        context: Context,
-        **kwargs,
-    ) -> Any:
-        self.execute(context=context)
+                serializer=type(self.serializer),
+            ),
+            method_name=self.execute_complete.__name__,
+        )
 
     def execute_complete(
         self,
