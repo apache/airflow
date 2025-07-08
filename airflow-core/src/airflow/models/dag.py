@@ -69,6 +69,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import Deadline
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -86,7 +87,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
-from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.settings import json
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -1584,7 +1585,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-        return _create_orm_dagrun(
+        orm_dagrun = _create_orm_dagrun(
             dag=self,
             run_id=run_id,
             logical_date=logical_date,
@@ -1600,6 +1601,24 @@ class DAG(TaskSDKDag, LoggingMixin):
             triggering_user_name=triggering_user_name,
             session=session,
         )
+
+        if self.deadline and isinstance(self.deadline.reference, DeadlineReference.TYPES.DAGRUN):
+            session.add(
+                Deadline(
+                    deadline_time=self.deadline.reference.evaluate_with(
+                        session=session,
+                        interval=self.deadline.interval,
+                        dag_id=self.dag_id,
+                        run_id=run_id,
+                    ),
+                    callback=self.deadline.callback,
+                    callback_kwargs=self.deadline.callback_kwargs or {},
+                    dag_id=self.dag_id,
+                    dagrun_id=orm_dagrun.id,
+                )
+            )
+
+        return orm_dagrun
 
     @classmethod
     @provide_session
@@ -2012,7 +2031,7 @@ class DagModel(Base):
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
-        self._deadline = None if value is None else value.serialize_deadline_alert()
+        self._deadline = value if isinstance(value, dict) else value.serialize_deadline_alert()
 
     @property
     def timezone(self):

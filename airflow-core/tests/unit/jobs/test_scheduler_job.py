@@ -2508,11 +2508,8 @@ class TestSchedulerJob:
 
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker):
         """
-        Test if a a dagrun will not be scheduled if max_dag_runs
+        Test if a dagrun will not be scheduled if max_dag_runs
         has been reached and dagrun_timeout is not reached
-
-        Test if a a dagrun would be scheduled if max_dag_runs has
-        been reached but dagrun_timeout is also reached
         """
         with dag_maker(
             dag_id="test_scheduler_verify_max_active_runs_and_dagrun_timeout",
@@ -2575,7 +2572,7 @@ class TestSchedulerJob:
 
     def test_dagrun_timeout_fails_run(self, dag_maker):
         """
-        Test if a a dagrun will be set failed if timeout, even without max_active_runs
+        Test if a dagrun will be set failed if timeout, even without max_active_runs
         """
         session = settings.Session()
         with dag_maker(
