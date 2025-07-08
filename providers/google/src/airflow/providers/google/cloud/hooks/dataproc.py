@@ -1341,6 +1341,37 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         template_client = await self.get_template_client(region=region)
         return template_client.transport.operations_client
 
+    async def get_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Cluster:
+        """
+        Get a cluster.
+
+        :param region: Cloud Dataproc region in which to handle the request.
+        :param project_id: Google Cloud project ID that the cluster belongs to.
+        :param cluster_name: Name of the cluster to get.
+        :param retry: A retry object used to retry requests. If *None*, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. If *retry* is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = await self.get_cluster_client(region=region)
+        result = await client.get_cluster(
+            request={"project_id": project_id, "region": region, "cluster_name": cluster_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
     async def create_cluster(
         self,
         region: str,
@@ -1498,37 +1529,6 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
                 "jobs": jobs,
                 "yarn_application_ids": yarn_application_ids,
             },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    async def get_cluster(
-        self,
-        region: str,
-        cluster_name: str,
-        project_id: str,
-        retry: AsyncRetry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> Cluster:
-        """
-        Get the resource representation for a cluster in a project.
-
-        :param project_id: Google Cloud project ID that the cluster belongs to.
-        :param region: Cloud Dataproc region to handle the request.
-        :param cluster_name: The cluster name.
-        :param retry: A retry object used to retry requests. If *None*, requests
-            will not be retried.
-        :param timeout: The amount of time, in seconds, to wait for the request
-            to complete. If *retry* is specified, the timeout applies to each
-            individual attempt.
-        :param metadata: Additional metadata that is provided to the method.
-        """
-        client = await self.get_cluster_client(region=region)
-        result = await client.get_cluster(
-            request={"project_id": project_id, "region": region, "cluster_name": cluster_name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
