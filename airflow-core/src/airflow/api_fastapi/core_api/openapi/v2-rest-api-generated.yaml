@@ -6608,7 +6608,7 @@ paths:
         required: true
         schema:
           type: integer
-          exclusiveMinimum: 0
+          minimum: 0
           title: Try Number
       - name: full_content
         in: query
