@@ -878,8 +878,6 @@ def print_happy_cat(message):
 def _revision_greater(config, this_rev, base_rev):
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
-    if this_rev == base_rev:
-        return False
     script = _get_script_object(config)
     try:
         list(script.revision_map.iterate_revisions(upper=this_rev, lower=base_rev))
@@ -1057,7 +1055,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
     # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
-    if _revision_greater(config, _REVISION_HEADS_MAP["3.0.0"], to_revision):
+    if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
         unitest_mode = conf.getboolean("core", "unit_test_mode")
         if unitest_mode:
             try:
