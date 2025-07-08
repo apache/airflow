@@ -174,6 +174,22 @@ class DagBundlesManager(LoggingMixin):
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
         self.log.debug("Syncing DAG bundles to the database")
+
+        def _signed_template(new_template_: str | None, bundle_name: str) -> str | None:
+            if new_template_:
+                if not _is_safe_bundle_url(new_template_):
+                    self.log.warning(
+                        "Bundle %s has unsafe URL template '%s', skipping URL update",
+                        bundle_name,
+                        new_template_,
+                    )
+                    new_template_ = None
+                else:
+                    # Sign the URL for integrity verification
+                    new_template_ = _sign_bundle_url(new_template_, bundle_name)
+                    self.log.debug("Signed URL template for bundle %s", bundle_name)
+            return new_template_
+
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
 
         for name in self._bundle_config.keys():
@@ -185,16 +201,7 @@ class DagBundlesManager(LoggingMixin):
                 new_params = self._extract_template_params(bundle_instance)
 
                 # Validate and sign the URL before saving
-                if new_template:
-                    if not _is_safe_bundle_url(new_template):
-                        self.log.warning(
-                            "Bundle %s has unsafe URL template '%s', skipping URL update", name, new_template
-                        )
-                        new_template = None
-                    else:
-                        # Sign the URL for integrity verification
-                        new_template = _sign_bundle_url(new_template, name)
-                        self.log.debug("Signed URL template for bundle %s", name)
+                new_template = _signed_template(new_template, name)
 
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
@@ -210,16 +217,7 @@ class DagBundlesManager(LoggingMixin):
                 new_params = self._extract_template_params(bundle_instance)
 
                 # Validate and sign the URL before saving
-                if new_template:
-                    if not _is_safe_bundle_url(new_template):
-                        self.log.warning(
-                            "Bundle %s has unsafe URL template '%s', skipping URL", name, new_template
-                        )
-                        new_template = None
-                    else:
-                        # Sign the URL for integrity verification
-                        new_template = _sign_bundle_url(new_template, name)
-                        self.log.debug("Signed URL template for bundle %s", name)
+                new_template = _signed_template(new_template, name)
 
                 new_bundle.signed_url_template = new_template
                 new_bundle.template_params = new_params
