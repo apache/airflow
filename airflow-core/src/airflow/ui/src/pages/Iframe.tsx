@@ -27,7 +27,7 @@ import { ErrorPage } from "./Error";
 
 export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
   const { t: translate } = useTranslation();
-  const { dagId, page, runId, taskId } = useParams();
+  const { dagId, mapIndex, page, runId, taskId } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
   const iframeView =
@@ -55,13 +55,16 @@ export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly
   if (iframeView.destination !== undefined && iframeView.destination !== "nav") {
     // Check if the href contains placeholders that need to be replaced
     if (dagId !== undefined) {
-      src = src.replaceAll("{dag_id}", dagId);
+      src = src.replaceAll("{DAG_ID}", dagId);
     }
     if (runId !== undefined) {
-      src = src.replaceAll("{run_id}", runId);
+      src = src.replaceAll("{RUN_ID}", runId);
     }
     if (taskId !== undefined) {
-      src = src.replaceAll("{task_id}", taskId);
+      src = src.replaceAll("{TASK_ID}", taskId);
+    }
+    if (mapIndex !== undefined) {
+      src = src.replaceAll("{MAP_INDEX}", mapIndex);
     }
   }
 
