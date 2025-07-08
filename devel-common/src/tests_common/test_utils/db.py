@@ -57,7 +57,6 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
@@ -95,9 +94,6 @@ def _bootstrap_dagbag():
         DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
 
-@conf_vars(
-    {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
-)
 def initial_db_init():
     from airflow.configuration import conf
     from airflow.utils import db
