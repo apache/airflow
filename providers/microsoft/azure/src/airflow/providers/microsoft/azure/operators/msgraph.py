@@ -40,7 +40,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 try:
     from airflow.triggers.base import StartTriggerArgs
 except ImportError:
-    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    # TODO: Remove this when min airflow version is 2.10.0
     @dataclass
     class StartTriggerArgs:  # type: ignore[no-redef]
         """Arguments required for start task execution from triggerer."""
