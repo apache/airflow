@@ -52,8 +52,8 @@ else:
 if TYPE_CHECKING:
     from datetime import timedelta
     from io import BytesIO
-
     from msgraph_core import APIVersion
+    from sqlalchemy.orm import Session
 
     from airflow.utils.context import Context
 
@@ -138,6 +138,9 @@ class MSGraphSensor(BaseSensorOperator):
         self.result_processor = result_processor
         self.serializer = serializer()
         self.start_trigger_args.next_method = self.execute_complete.__name__
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        self.render_template_fields(context=context)
         self.start_trigger_args.trigger_kwargs = dict(
             url=self.url,
             response_type=self.response_type,
@@ -154,6 +157,7 @@ class MSGraphSensor(BaseSensorOperator):
             api_version=self.api_version,
             serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
         )
+        return self.start_trigger_args
 
     def execute(self, context: Context):
         return
