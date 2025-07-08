@@ -2758,6 +2758,14 @@ paths:
           type: string
           default: dag_id
           title: Order By
+      - name: is_favorite
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Favorite
       responses:
         '200':
           description: Successful Response
@@ -3134,6 +3142,98 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/favorite:
+    post:
+      tags:
+      - DAG
+      summary: Favorite Dag
+      description: Mark the DAG as favorite.
+      operationId: favorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/unfavorite:
+    post:
+      tags:
+      - DAG
+      summary: Unfavorite Dag
+      description: Unmark the DAG as favorite.
+      operationId: unfavorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6508,7 +6608,7 @@ paths:
         required: true
         schema:
           type: integer
-          exclusiveMinimum: 0
+          minimum: 0
           title: Try Number
       - name: full_content
         in: query
