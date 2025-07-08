@@ -19,24 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
-
-
-class GridTaskInstanceSummary(BaseModel):
-    """Task Instance Summary model for the Grid UI."""
-
-    task_id: str
-    try_number: int
-    start_date: datetime | None
-    end_date: datetime | None
-    queued_dttm: datetime | None
-    child_states: dict[str, int] | None
-    task_count: int
-    state: TaskInstanceState | None
-    note: str | None
+from airflow.utils.state import TaskInstanceState
 
 
 class LightGridTaskInstanceSummary(BaseModel):
@@ -49,32 +34,9 @@ class LightGridTaskInstanceSummary(BaseModel):
     max_end_date: datetime | None
 
 
-class GridDAGRunwithTIs(BaseModel):
-    """DAG Run model for the Grid UI."""
-
-    run_id: str = Field(serialization_alias="dag_run_id", validation_alias="run_id")
-    queued_at: datetime | None
-    start_date: datetime | None
-    end_date: datetime | None
-    run_after: datetime
-    state: DagRunState
-    run_type: DagRunType
-    logical_date: datetime | None
-    data_interval_start: datetime | None
-    data_interval_end: datetime | None
-    note: str | None
-    task_instances: list[GridTaskInstanceSummary]
-
-
 class GridTISummaries(BaseModel):
     """DAG Run model for the Grid UI."""
 
     run_id: str
     dag_id: str
     task_instances: list[LightGridTaskInstanceSummary]
-
-
-class GridResponse(BaseModel):
-    """Response model for the Grid UI."""
-
-    dag_runs: list[GridDAGRunwithTIs]
