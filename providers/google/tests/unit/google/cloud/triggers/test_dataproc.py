@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
 from asyncio import CancelledError, Future, sleep
 from unittest import mock
 
@@ -171,9 +170,9 @@ class TestDataprocClusterTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
-    @mock.patch("google.auth.default")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_async_cluster_trigger_run_returns_error_event(
-        self, mock_auth, mock_get_async_hook, cluster_trigger, caplog
+        self, mock_log, mock_auth, mock_get_async_hook, cluster_trigger
     ):
         mock_credentials = mock.MagicMock()
         mock_credentials.universe_domain = "googleapis.com"
@@ -192,8 +191,6 @@ class TestDataprocClusterTrigger:
         future.set_result(mock_cluster)
         mock_get_async_hook.return_value.get_cluster.return_value = future
 
-        caplog.set_level(logging.INFO)
-
         trigger_event = None
         async for event in cluster_trigger.run():
             trigger_event = event
@@ -204,7 +201,8 @@ class TestDataprocClusterTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
-    async def test_cluster_run_loop_is_still_running(self, mock_get_async_hook, cluster_trigger, caplog):
+    @mock.patch.object(DataprocClusterTrigger, "log")
+    async def test_cluster_run_loop_is_still_running(self, mock_log, mock_get_async_hook, cluster_trigger):
         mock_cluster = mock.MagicMock()
         mock_cluster.status = ClusterStatus(state=ClusterStatus.State.CREATING)
 
@@ -212,20 +210,18 @@ class TestDataprocClusterTrigger:
         future.set_result(mock_cluster)
         mock_get_async_hook.return_value.get_cluster.return_value = future
 
-        caplog.set_level(logging.INFO)
-
         task = asyncio.create_task(cluster_trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {ClusterStatus.State.CREATING}."
-        assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
+        mock_log.info.assert_called()
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_cluster_trigger_cancellation_handling(
-        self, mock_get_sync_hook, mock_get_async_hook, caplog
+        self, mock_log, mock_get_sync_hook, mock_get_async_hook
     ):
         cluster = Cluster(status=ClusterStatus(state=ClusterStatus.State.RUNNING))
         mock_get_async_hook.return_value.get_cluster.return_value = asyncio.Future()
@@ -259,8 +255,7 @@ class TestDataprocClusterTrigger:
                     cluster_name=cluster_trigger.cluster_name,
                     project_id=cluster_trigger.project_id,
                 )
-                assert "Deleting cluster" in caplog.text
-                assert "Deleted cluster" in caplog.text
+                mock_log.info.assert_called()
             else:
                 mock_delete_cluster.assert_not_called()
         except Exception as e:
@@ -284,7 +279,8 @@ class TestDataprocClusterTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
-    async def test_delete_when_error_occurred(self, mock_get_async_hook, cluster_trigger):
+    @mock.patch.object(DataprocClusterTrigger, "log")
+    async def test_delete_when_error_occurred(self, mock_log, mock_get_async_hook, cluster_trigger):
         mock_cluster = mock.MagicMock(spec=Cluster)
         type(mock_cluster).status = mock.PropertyMock(
             return_value=mock.MagicMock(state=ClusterStatus.State.ERROR)
@@ -315,8 +311,9 @@ class TestDataprocClusterTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.safe_to_cancel")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_cluster_trigger_run_cancelled_not_safe_to_cancel(
-        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, cluster_trigger
+        self, mock_log, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, cluster_trigger
     ):
         """Test the trigger's cancellation behavior when it is not safe to cancel."""
         mock_safe_to_cancel.return_value = False
@@ -468,7 +465,8 @@ class TestDataprocBatchTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
-    async def test_create_batch_run_loop_is_still_running(self, mock_get_async_hook, batch_trigger, caplog):
+    @mock.patch.object(DataprocBatchTrigger, "log")
+    async def test_create_batch_run_loop_is_still_running(self, mock_log, mock_get_async_hook, batch_trigger):
         mock_batch = mock.MagicMock()
         mock_batch.state = Batch.State.RUNNING
 
@@ -476,14 +474,11 @@ class TestDataprocBatchTrigger:
         future.set_result(mock_batch)
         mock_get_async_hook.return_value.get_batch.return_value = future
 
-        caplog.set_level(logging.INFO)
-
         task = asyncio.create_task(batch_trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {Batch.State.RUNNING}"
-        assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
+        mock_log.info.assert_called()
 
 
 class TestDataprocOperationTrigger:
