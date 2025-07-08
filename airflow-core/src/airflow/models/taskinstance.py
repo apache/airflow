@@ -26,7 +26,7 @@ import operator
 import os
 import uuid
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Collection, Generator, Iterable
 from datetime import timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -121,7 +121,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions._internal.abstractoperator import Operator, TaskStateChangeCallback
+    from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
@@ -410,38 +410,6 @@ def _get_email_subject_content(
         html_content_err = render("html_content_template", default_html_content_err)
 
     return subject, html_content, html_content_err
-
-
-def _run_finished_callback(
-    *,
-    callbacks: None | TaskStateChangeCallback | Sequence[TaskStateChangeCallback],
-    context: Context,
-) -> None:
-    """
-    Run callback after task finishes.
-
-    :param callbacks: callbacks to run
-    :param context: callbacks context
-
-    :meta private:
-    """
-    if callbacks:
-        callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
-
-        def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
-            with contextlib.suppress(AttributeError):
-                return callback.__name__
-            with contextlib.suppress(AttributeError):
-                return callback.__class__.__name__
-            return callback
-
-        for idx, callback in enumerate(callbacks):
-            callback_repr = get_callback_representation(callback)
-            log.info("Executing callback at index %d: %s", idx, callback_repr)
-            try:
-                callback(context)
-            except Exception:
-                log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
 def _log_state(*, task_instance: TaskInstance, lead_msg: str = "") -> None:
@@ -1708,10 +1676,8 @@ class TaskInstance(Base, LoggingMixin):
     def fetch_handle_failure_context(
         cls,
         ti: TaskInstance,
-        error: None | str | BaseException,
+        error: None | str,
         test_mode: bool | None = None,
-        context: Context | None = None,
-        force_fail: bool = False,
         *,
         session: Session,
         fail_fast: bool = False,
@@ -1722,8 +1688,6 @@ class TaskInstance(Base, LoggingMixin):
         :param ti: TaskInstance
         :param error: if specified, log the specific exception if thrown
         :param test_mode: doesn't record success or failure in the DB if True
-        :param context: Jinja2 context
-        :param force_fail: if True, task does not retry
         :param session: SQLAlchemy ORM Session
         :param fail_fast: if True, fail all downstream tasks
         """
@@ -1745,8 +1709,9 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
+        context = None
         # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
-        if context is None and getattr(ti, "task", None):
+        if getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
         if context is not None:
@@ -1773,7 +1738,7 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
 
-        if force_fail or not ti.is_eligible_to_retry():
+        if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
@@ -1817,20 +1782,16 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: None | str | BaseException,
+        error: None | str,
         test_mode: bool | None = None,
-        context: Context | None = None,
-        force_fail: bool = False,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Handle Failure for a task instance.
 
         :param error: if specified, log the specific exception if thrown
-        :param session: SQLAlchemy ORM Session
         :param test_mode: doesn't record success or failure in the DB if True
-        :param context: Jinja2 context
-        :param force_fail: if True, task does not retry
+        :param session: SQLAlchemy ORM Session
         """
         if TYPE_CHECKING:
             assert self.task
@@ -1845,13 +1806,11 @@ class TaskInstance(Base, LoggingMixin):
             ti=self,  # type: ignore[arg-type]
             error=error,
             test_mode=test_mode,
-            context=context,
-            force_fail=force_fail,
             session=session,
             fail_fast=fail_fast,
         )
 
-        _log_state(task_instance=self, lead_msg="Immediate failure requested. " if force_fail else "")
+        _log_state(task_instance=self)
         if (
             failure_context["task"]
             and failure_context["email_for_state"](failure_context["task"])
@@ -1861,12 +1820,6 @@ class TaskInstance(Base, LoggingMixin):
                 self.email_alert(error, failure_context["task"])
             except Exception:
                 log.exception("Failed to send email to: %s", failure_context["task"].email)
-
-        if failure_context["callbacks"] and failure_context["context"]:
-            _run_finished_callback(
-                callbacks=failure_context["callbacks"],
-                context=failure_context["context"],
-            )
 
         if not test_mode:
             TaskInstance.save_to_db(failure_context["ti"], session)
