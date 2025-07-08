@@ -76,6 +76,7 @@ def _trigger_dag(
         if replace_microseconds:
             logical_date = logical_date.replace(microsecond=0)
 
+        coerced_logical_date: datetime | None
         if dag.default_args and "start_date" in dag.default_args:
             min_dag_start_date = dag.default_args["start_date"]
             if min_dag_start_date and logical_date < min_dag_start_date:
