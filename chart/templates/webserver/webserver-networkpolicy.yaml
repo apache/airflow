@@ -34,7 +34,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- if or (.Values.labels) (.Values.webserver.labels) }}
-      {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
+      {{- tpl (mustMerge .Values.webserver.labels .Values.labels | toYaml) $ | nindent 4 }}
     {{- end }}
 spec:
   podSelector:

@@ -33,7 +33,7 @@ metadata:
     chart: "{{ $Global.Chart.Name }}-{{ $Global.Chart.Version }}"
     heritage: {{ $Global.Release.Service }}
     {{- with $Global.Values.labels }}
-      {{- toYaml . | nindent 4 }}
+      {{- tpl (toYaml .) $ | nindent 4 }}
     {{- end }}
     {{- if $configMapContent.labels }}
       {{- toYaml $configMapContent.labels | nindent 4 }}
