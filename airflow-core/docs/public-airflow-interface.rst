@@ -114,16 +114,10 @@ API Server, etc.), providing a version-agnostic, stable interface for writing an
 * ``get_current_context``
 * ``get_parsing_context``
 
-**Migration Example:**
+**Migration from Airflow 2.x:**
 
-.. code-block:: python
-
-    # Old (Airflow 2.x)
-    from airflow.models import DAG
-    from airflow.decorators import task
-
-    # New (Airflow 3.x)
-    from airflow.sdk import DAG, task
+For detailed migration instructions from Airflow 2.x to 3.x, including import changes and other breaking changes,
+see the :doc:`Migration Guide <installation/upgrading_to_airflow3>`.
 
 For an exhaustive list of available classes, decorators, and functions, check ``airflow.sdk.__all__``.
 
@@ -184,15 +178,11 @@ Subclasses of BaseOperator which are published in Apache Airflow are public in *
 Task Instances
 ==============
 
-Task instances are the individual runs of a single task in a DAG (in a DAG Run). They are available in the context
-passed to the execute method of the operators via the :class:`~airflow.sdk.types.RuntimeTaskInstanceProtocol` class.
-
-Task instances are accessed through the Task Context via :func:`~airflow.sdk.get_current_context`
-Direct database access is not possible. The :class:`~airflow.sdk.types.RuntimeTaskInstanceProtocol` provides
-the stable interface for task instance operations.
+Task instances are the individual runs of a single task in a DAG (in a DAG Run). Task instances are accessed through
+the Task Context via :func:`~airflow.sdk.get_current_context`. Direct database access is not possible.
 
 .. note::
-   Task Context and RuntimeTaskInstanceProtocol are part of the airflow.sdk namespace.
+   Task Context is part of the airflow.sdk namespace.
    For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
 Task Instance Keys
