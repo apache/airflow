@@ -25,5 +25,6 @@
   "lastAssetEvent": "אירוע אחרון בנכס",
   "name": "שם",
   "producingTasks": "מייצר משימות",
+  "scheduledDags": "Dags מתוזמנים",
   "searchPlaceholder": "חיפוש נכסים"
 }

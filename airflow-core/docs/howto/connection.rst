@@ -22,7 +22,7 @@ Managing Connections
 
   For an overview of hooks and connections, see :doc:`/authoring-and-scheduling/connections`.
 
-Airflow's :class:`~airflow.models.connection.Connection` object is used for storing credentials and other information necessary for connecting to external services.
+Airflow's :class:`~airflow.sdk.Connection` object is used for storing credentials and other information necessary for connecting to external services.
 
 Connections may be defined in the following ways:
 
@@ -77,7 +77,7 @@ convenience property :py:meth:`~airflow.models.connection.Connection.as_json`. I
 
 .. code-block:: pycon
 
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
     >>> c = Connection(
     ...     conn_id="some_conn",
     ...     conn_type="mysql",
@@ -94,7 +94,7 @@ In addition, same approach could be used to convert Connection from URI format t
 
 .. code-block:: pycon
 
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
     >>> c = Connection(
     ...     conn_id="awesome_conn",
     ...     description="Example Connection",
