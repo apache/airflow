@@ -17,6 +17,12 @@
 from __future__ import annotations
 
 import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
+
 from sqlalchemy import select
 
 from airflow.models import Trigger
