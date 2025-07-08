@@ -17,6 +17,12 @@
 from __future__ import annotations
 
 import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
+
 from sqlalchemy import select
 
 from airflow.exceptions import DownstreamTasksSkipped
@@ -28,7 +34,6 @@ from airflow.providers.standard.operators.hitl import (
     HITLOperator,
     HITLTerminationOperator,
 )
-from airflow.providers.standard.triggers.hitl import HITLTriggerEventSuccessPayload
 from airflow.sdk import Param
 from airflow.sdk.definitions.param import ParamsDict
 
@@ -139,7 +144,7 @@ class TestHITLOperator:
 
         ret = hitl_op.execute_complete(
             context={},
-            event=HITLTriggerEventSuccessPayload(response_content=["1"], params_input={"input": 2}),
+            event={"response_content": ["1"], "params_input": {"input": 2}},
         )
 
         assert ret["response_content"] == ["1"]
@@ -157,10 +162,10 @@ class TestHITLOperator:
         with pytest.raises(ValueError):
             hitl_op.execute_complete(
                 context={},
-                event=HITLTriggerEventSuccessPayload(
-                    response_content=["not exists"],
-                    params_input={"input": 2},
-                ),
+                event={
+                    "response_content": ["not exists"],
+                    "params_input": {"input": 2},
+                },
             )
 
     def test_validate_params_input_with_invalid_input(self) -> None:
@@ -175,10 +180,10 @@ class TestHITLOperator:
         with pytest.raises(ValueError):
             hitl_op.execute_complete(
                 context={},
-                event=HITLTriggerEventSuccessPayload(
-                    response_content=["1"],
-                    params_input={"no such key": 2, "input": 333},
-                ),
+                event={
+                    "response_content": ["1"],
+                    "params_input": {"no such key": 2, "input": 333},
+                },
             )
 
 
