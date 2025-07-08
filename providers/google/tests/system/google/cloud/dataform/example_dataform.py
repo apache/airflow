@@ -120,7 +120,6 @@ with DAG(
         region=REGION,
         repository_id=REPOSITORY_ID,
         compilation_result={
-            "git_commitish": "main",
             "workspace": (
                 f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/"
                 f"workspaces/{WORKSPACE_ID}"
