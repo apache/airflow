@@ -22,7 +22,7 @@ import textwrap
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
-from pydantic import NonNegativeInt, PositiveInt
+from pydantic import NonNegativeInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
