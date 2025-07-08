@@ -91,7 +91,7 @@ export const Logs = () => {
     logLevelFilters,
     sourceFilters,
     taskInstance,
-    tryNumber: tryNumber === 0 ? 1 : tryNumber,
+    tryNumber,
   });
 
   const externalLogName = useConfig("external_log_name") as string;
