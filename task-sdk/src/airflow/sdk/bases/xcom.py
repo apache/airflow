@@ -309,13 +309,6 @@ class BaseXCom:
 
         result = deserialize(msg.root)
         if not result:
-            log.warning(
-                "No XCom value(s) found; defaulting to None.",
-                key=key,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-            )
             return None
         return result
 

@@ -1355,6 +1355,7 @@ class TestRuntimeTaskInstance:
             pytest.param("hello", id="string_value"),
             pytest.param("'hello'", id="quoted_string_value"),
             pytest.param({"key": "value"}, id="json_value"),
+            pytest.param([], id="empty_list_no_xcoms_found"),
             pytest.param((1, 2, 3), id="tuple_int_value"),
             pytest.param([1, 2, 3], id="list_int_value"),
             pytest.param(42, id="int_value"),
@@ -1377,6 +1378,9 @@ class TestRuntimeTaskInstance:
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
+        from airflow.serialization.serde import deserialize
+
+        spy_agency.spy_on(deserialize)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -1402,6 +1406,7 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms.send.side_effect = mock_send_side_effect
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
 
         if not isinstance(task_ids, Iterable) or isinstance(task_ids, str):
             task_ids = [task_ids]
