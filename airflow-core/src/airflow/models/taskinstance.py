@@ -84,7 +84,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XComModel
-from airflow.plugins_manager import integrate_macros_plugins
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -1906,7 +1905,6 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
 
-        from airflow import macros
         from airflow.models.abstractoperator import NotMapped
         from airflow.models.baseoperator import BaseOperator
         from airflow.sdk.api.datamodels._generated import (
@@ -1921,8 +1919,6 @@ class TaskInstance(Base, LoggingMixin):
             OutletEventAccessors,
             VariableAccessor,
         )
-
-        integrate_macros_plugins()
 
         task = self.task
         if TYPE_CHECKING:
@@ -1999,7 +1995,6 @@ class TaskInstance(Base, LoggingMixin):
             {
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(task.inlets),
-                "macros": macros,
                 "params": validated_params,
                 "prev_data_interval_start_success": get_prev_data_interval_start_success(),
                 "prev_data_interval_end_success": get_prev_data_interval_end_success(),
