@@ -1434,7 +1434,7 @@ repos:
         pass_filenames: false
         files: airflow-core/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.16.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
