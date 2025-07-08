@@ -71,8 +71,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
         task_ids: str | list[str] | None = None,
         dag_id: str | None = None,
         key: str = "return_value",
-        # TODO: `include_prior_dates` isn't yet supported in the SDK
-        # include_prior_dates: bool = False,
+        include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,
