@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
@@ -26,6 +28,20 @@ from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterH
 from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
+
+try:
+    from airflow.triggers.base import StartTriggerArgs
+except ImportError:
+    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    @dataclass
+    class StartTriggerArgs:  # type: ignore[no-redef]
+        """Arguments required for start task execution from triggerer."""
+
+        trigger_cls: str
+        next_method: str
+        trigger_kwargs: dict[str, Any] | None = None
+        next_kwargs: dict[str, Any] | None = None
+        timeout: datetime.timedelta | None = None
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseSensorOperator
@@ -63,8 +79,16 @@ class MSGraphSensor(BaseSensorOperator):
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
+    :param start_from_trigger: If set to True, the sensor will start directly from the triggerer without going into the worker first.
     """
-
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+        trigger_kwargs={},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -94,6 +118,7 @@ class MSGraphSensor(BaseSensorOperator):
         result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         retry_delay: timedelta | float = 60,
+        start_from_trigger: bool = False,
         **kwargs,
     ):
         super().__init__(retry_delay=retry_delay, **kwargs)
@@ -112,10 +137,9 @@ class MSGraphSensor(BaseSensorOperator):
         self.event_processor = event_processor
         self.result_processor = result_processor
         self.serializer = serializer()
-
-    def execute(self, context: Context):
-        self.defer(
-            trigger=MSGraphTrigger(
+        self.start_from_trigger = start_from_trigger
+        if self.start_from_trigger:
+            self.start_trigger_args.trigger_kwargs = dict(
                 url=self.url,
                 response_type=self.response_type,
                 path_parameters=self.path_parameters,
@@ -129,10 +153,30 @@ class MSGraphSensor(BaseSensorOperator):
                 proxies=self.proxies,
                 scopes=self.scopes,
                 api_version=self.api_version,
-                serializer=type(self.serializer),
-            ),
-            method_name=self.execute_complete.__name__,
-        )
+                serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+            )
+
+    def execute(self, context: Context):
+        if not self.start_from_trigger:
+            self.defer(
+                trigger=MSGraphTrigger(
+                    url=self.url,
+                    response_type=self.response_type,
+                    path_parameters=self.path_parameters,
+                    url_template=self.url_template,
+                    method=self.method,
+                    query_parameters=self.query_parameters,
+                    headers=self.headers,
+                    data=self.data,
+                    conn_id=self.conn_id,
+                    timeout=self.timeout,
+                    proxies=self.proxies,
+                    scopes=self.scopes,
+                    api_version=self.api_version,
+                    serializer=type(self.serializer),
+                ),
+                method_name=self.execute_complete.__name__,
+            )
 
     def retry_execute(
         self,

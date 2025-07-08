@@ -468,7 +468,6 @@ class KiotaRequestAdapterHook(BaseHook):
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
             )
             request_information.content = json.dumps(data).encode("utf-8")
-        print("Request Information:", request_information.url)
         return request_information
 
     @staticmethod

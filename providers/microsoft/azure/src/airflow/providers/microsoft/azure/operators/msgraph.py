@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import warnings
 from collections.abc import Callable, Sequence
 from contextlib import suppress
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -34,6 +36,21 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
 )
 from airflow.providers.microsoft.azure.version_compat import BaseOperator
 from airflow.utils.xcom import XCOM_RETURN_KEY
+
+try:
+    from airflow.triggers.base import StartTriggerArgs
+except ImportError:
+    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    @dataclass
+    class StartTriggerArgs:  # type: ignore[no-redef]
+        """Arguments required for start task execution from triggerer."""
+
+        trigger_cls: str
+        next_method: str
+        trigger_kwargs: dict[str, Any] | None = None
+        next_kwargs: dict[str, Any] | None = None
+        timeout: datetime.timedelta | None = None
+
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -108,8 +125,17 @@ class MSGraphAsyncOperator(BaseOperator):
         the message from the event, otherwise the response from the event payload is returned.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
+    :param start_from_trigger: If set to True, the operator will start directly from the triggerer without going into the worker first.
     """
 
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+        trigger_kwargs={},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -142,6 +168,7 @@ class MSGraphAsyncOperator(BaseOperator):
         result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         event_handler: Callable[[dict[Any, Any] | None, Context], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
+        start_from_trigger: bool = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -163,10 +190,9 @@ class MSGraphAsyncOperator(BaseOperator):
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
-
-    def execute(self, context: Context) -> None:
-        self.defer(
-            trigger=MSGraphTrigger(
+        self.start_from_trigger = start_from_trigger
+        if self.start_from_trigger:
+            self.start_trigger_args.trigger_kwargs = dict(
                 url=self.url,
                 response_type=self.response_type,
                 path_parameters=self.path_parameters,
@@ -180,10 +206,30 @@ class MSGraphAsyncOperator(BaseOperator):
                 proxies=self.proxies,
                 scopes=self.scopes,
                 api_version=self.api_version,
-                serializer=type(self.serializer),
-            ),
-            method_name=self.execute_complete.__name__,
-        )
+                serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+            )
+
+    def execute(self, context: Context) -> None:
+        if not self.start_from_trigger:
+            self.defer(
+                trigger=MSGraphTrigger(
+                    url=self.url,
+                    response_type=self.response_type,
+                    path_parameters=self.path_parameters,
+                    url_template=self.url_template,
+                    method=self.method,
+                    query_parameters=self.query_parameters,
+                    headers=self.headers,
+                    data=self.data,
+                    conn_id=self.conn_id,
+                    timeout=self.timeout,
+                    proxies=self.proxies,
+                    scopes=self.scopes,
+                    api_version=self.api_version,
+                    serializer=type(self.serializer),
+                ),
+                method_name=self.execute_complete.__name__,
+            )
 
     def execute_complete(
         self,
@@ -229,14 +275,14 @@ class MSGraphAsyncOperator(BaseOperator):
                     self.trigger_next_link(
                         response=response, method_name=self.execute_complete.__name__, context=context
                     )
-                except TaskDeferred as exception:
+                except TaskDeferred as task_deferred:
                     self.append_result(
                         results=results,
                         result=result,
                         append_result_as_list_if_absent=True,
                     )
                     self.push_xcom(context=context, value=results)
-                    raise exception
+                    raise task_deferred
 
                 if not results:
                     return result
