@@ -24,8 +24,8 @@ import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } fr
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
