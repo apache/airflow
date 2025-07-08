@@ -44,10 +44,12 @@ class TestClearTasks:
     @pytest.fixture(autouse=True, scope="class")
     def clean(self):
         db.clear_db_runs()
+        db.clear_db_serialized_dags()
 
         yield
 
         db.clear_db_runs()
+        db.clear_db_serialized_dags()
 
     def test_clear_task_instances(self, dag_maker):
         # Explicitly needs catchup as True as test is creating history runs
@@ -367,9 +369,6 @@ class TestClearTasks:
         ) as dag:
             task0 = EmptyOperator(task_id="task0")
             task1 = EmptyOperator(task_id="task1", retries=2)
-
-        # Write DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,

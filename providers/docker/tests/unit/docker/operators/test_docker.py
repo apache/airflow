@@ -27,7 +27,6 @@ from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import TaskInstance
 from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator, fetch_logs
 
@@ -810,7 +809,7 @@ class TestDockerOperator:
             operator.execute({})
 
         dr = dag_maker.create_dagrun()
-        ti = TaskInstance(task=operator, run_id=dr.run_id)
+        ti = dr.task_instances[0]
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{dr.dag_id}"
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"

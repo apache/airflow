@@ -40,6 +40,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.executors import executor_constants, executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -118,7 +119,8 @@ class TestFileTaskLogHandler:
             )
 
         dagrun = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         logger = ti.log
         ti.log.disabled = False
@@ -161,7 +163,8 @@ class TestFileTaskLogHandler:
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         ti.try_number = 0
         ti.state = State.SKIPPED
@@ -329,7 +332,8 @@ class TestFileTaskLogHandler:
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         ti.try_number = 2
         ti.state = State.RUNNING
@@ -380,7 +384,8 @@ class TestFileTaskLogHandler:
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         ti.try_number = 1
         ti.state = State.RUNNING

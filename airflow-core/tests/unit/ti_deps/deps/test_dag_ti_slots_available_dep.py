@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
@@ -34,7 +35,7 @@ class TestDagTISlotsAvailableDep:
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
         task = Mock(dag=dag, pool_slots=1)
-        ti = TaskInstance(task)
+        ti = TaskInstance(task, dag_version_id=mock.MagicMock())
 
         assert not DagTISlotsAvailableDep().is_met(ti=ti)
 
@@ -44,6 +45,6 @@ class TestDagTISlotsAvailableDep:
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=False))
         task = Mock(dag=dag, pool_slots=1)
-        ti = TaskInstance(task)
+        ti = TaskInstance(task, dag_version_id=mock.MagicMock())
 
         assert DagTISlotsAvailableDep().is_met(ti=ti)

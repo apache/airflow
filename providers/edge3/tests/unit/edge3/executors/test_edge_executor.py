@@ -328,6 +328,7 @@ class TestEdgeExecutor:
                 queue="default",
                 priority_weight=1,
                 start_date=timezone.utcnow(),
+                dag_version_id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             ),
             dag_rel_path="mock.py",
             log_path="mock.log",

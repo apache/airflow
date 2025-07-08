@@ -63,6 +63,7 @@ MOCK_COMMAND = (
             "dag_id": "mock",
             "run_id": "mock",
             "try_number": 1,
+            "dag_version_id": "01234567-89ab-cdef-0123-456789abcdef",
             "pool_slots": 1,
             "queue": "default",
             "priority_weight": 1,

@@ -43,6 +43,8 @@ from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -103,10 +105,12 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    task_instance = TaskInstance(operator, run_id=run.run_id)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -396,17 +400,20 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     trigger_orm = Trigger.from_object(trigger)
     session.add(trigger_orm)
     session.flush()
-
-    dag = DagModel(dag_id="test-dag")
+    dag = DAG(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag")
+    session.add(dm)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
+        dag_version_id=dag_version.id,
     )
     ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
-    session.add(dag)
     session.add(dag_run)
     session.add(ti)
 

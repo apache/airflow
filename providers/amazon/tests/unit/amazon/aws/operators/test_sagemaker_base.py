@@ -26,6 +26,7 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
     SageMakerCreateExperimentOperator,
@@ -209,6 +210,12 @@ class TestSageMakerExperimentOperator:
             dag=dag,
         )
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
@@ -224,7 +231,7 @@ class TestSageMakerExperimentOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=op)
+            ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()

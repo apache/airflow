@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
@@ -34,7 +35,7 @@ class TestDagUnpausedDep:
         """
         dag = Mock(**{"get_is_paused.return_value": True})
         task = Mock(dag=dag)
-        ti = TaskInstance(task=task)
+        ti = TaskInstance(task=task, dag_version_id=mock.MagicMock())
 
         assert not DagUnpausedDep().is_met(ti=ti)
 
@@ -44,6 +45,6 @@ class TestDagUnpausedDep:
         """
         dag = Mock(**{"get_is_paused.return_value": False})
         task = Mock(dag=dag)
-        ti = TaskInstance(task=task)
+        ti = TaskInstance(task=task, dag_version_id=mock.MagicMock())
 
         assert DagUnpausedDep().is_met(ti=ti)
