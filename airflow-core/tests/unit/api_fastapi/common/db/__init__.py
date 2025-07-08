@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import datetime
-
-from airflow.configuration import conf
-from airflow.sdk.definitions._internal.abstractoperator import (
-    AbstractOperator as AbstractOperator,
-    NotMapped as NotMapped,  # Re-export this for compat
-    TaskStateChangeCallback as TaskStateChangeCallback,
-)
-
-DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
-DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
-
-DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
-    "core", "default_task_execution_timeout"
-)

@@ -326,6 +326,51 @@ class TestTriggerRunner:
         assert trigger_id == 1
         assert traceback[-1] == "ModuleNotFoundError: No module named 'fake'\n"
 
+    @pytest.mark.asyncio
+    async def test_trigger_kwargs_serialization_cleanup(self, session):
+        """
+        Test that trigger kwargs are properly cleaned of serialization artifacts
+        (__var, __type keys).
+        """
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        kw = {"simple": "test", "tuple": (), "dict": {}, "list": []}
+
+        serialized_kwargs = BaseSerialization.serialize(kw)
+
+        trigger_orm = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs=serialized_kwargs)
+        session.add(trigger_orm)
+        session.commit()
+
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == {
+            "Encoding.TYPE": "dict",
+            "Encoding.VAR": {
+                "dict": {"Encoding.TYPE": "dict", "Encoding.VAR": {}},
+                "list": [],
+                "simple": "test",
+                "tuple": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            },
+        }
+
+        runner = TriggerRunner()
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=trigger_orm.id,
+                ti=None,
+                classpath=trigger_orm.classpath,
+                encrypted_kwargs=trigger_orm.encrypted_kwargs,
+            )
+        )
+
+        await runner.create_triggers()
+        assert trigger_orm.id in runner.triggers
+        trigger_instance = runner.triggers[trigger_orm.id]["task"]
+
+        # The test passes if no exceptions were raised during trigger creation
+        trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
+
 
 @pytest.mark.asyncio
 async def test_trigger_create_race_condition_38599(session, supervisor_builder):

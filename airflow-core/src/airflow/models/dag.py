@@ -856,7 +856,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        state: list[TaskInstanceState] | None = None,
+        state: TaskInstanceState | Sequence[TaskInstanceState] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TaskInstance]:
         if not start_date:

@@ -88,7 +88,7 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
         if days_diff <= 5:
             return "📢 <5d          "
         if days_diff <= 30:
-            return "⚠ <30d          "
+            return "⚠️ <30d           "
         return f"🚨 >{days_diff}d".ljust(15)
     except Exception:
         return "📢 N/A           "
@@ -130,22 +130,33 @@ def get_first_newer_release_date_str(releases, current_version):
 
     try:
         current = version.parse(current_version)
-        newer_versions = [
-            version.parse(v)
-            for v in releases
-            if version.parse(v) > current and releases[v] and not version.parse(v).is_prerelease
-        ]
+
+        # Filter and parse versions, excluding pre-releases and invalid versions
+        valid_versions = []
+        for v in releases:
+            try:
+                parsed_v = version.parse(v)
+                if not parsed_v.is_prerelease and releases[v]:  # Check if release data exists
+                    valid_versions.append(parsed_v)
+            except version.InvalidVersion:
+                continue
+
+        # Find newer versions
+        newer_versions = [v for v in valid_versions if v > current]
+
         if not newer_versions:
             return None
-    except version.InvalidVersion:
+
+        # Get the immediate next version
+        first_newer_version = str(min(newer_versions))
+        upload_time_str = releases[first_newer_version][0]["upload_time_iso_8601"]
+        return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+
+    except version.InvalidVersion as e:
         get_console().print(
-            f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check.[/]"
+            f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check. Error: {str(e)}[/]"
         )
         return None
-
-    first_newer_version = min(newer_versions)
-    upload_time_str = releases[str(first_newer_version)][0]["upload_time_iso_8601"]
-    return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
 
 def constraints_version_check(
@@ -412,15 +423,16 @@ def print_package_table_row(
     color = (
         "green"
         if is_latest_version
-        else ("yellow" if status.startswith("📢") or status.startswith("⚠") else "red")
+        else ("yellow" if status.startswith("📢") or status.startswith("⚠️") else "red")
     )
+    offset = 1 if status.startswith("⚠️") else 0
     string_to_print = format_str.format(
         pkg,
         pinned_version[: col_widths["Constraint Version"]],
         constraint_release_date[: col_widths["Constraint Date"]],
         latest_version[: col_widths["Latest Version"]],
         latest_release_date[: col_widths["Latest Date"]],
-        status[: col_widths["📢 Status"]],
+        status[: (col_widths["📢 Status"] + offset)],
         versions_behind_str,
         pypi_link,
     )
@@ -478,6 +490,7 @@ def explain_package_upgrade(
                 ]
             ),
             output=output_before,
+            signal_error=False,
         )
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version)
         if get_verbose():
@@ -502,6 +515,7 @@ def explain_package_upgrade(
                 ],
             ),
             output=output_after,
+            signal_error=False,
         )
         if after_result.returncode == 0:
             explanation += f"\n[bold yellow]Package {pkg} can be upgraded from {pinned_version} to {latest_version} without conflicts.[/]."

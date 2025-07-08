@@ -64,7 +64,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, add_span
+from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
 from airflow.utils import timezone
 from airflow.utils.helpers import log_filename_template_renderer
@@ -463,7 +463,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
-            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
+            with DebugTrace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
                 self.load_triggers()
 
                 # Wait for up to 1 second for activity
@@ -482,14 +482,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def heartbeat_callback(self, session: Session | None = None) -> None:
         Stats.incr("triggerer_heartbeat", 1, 1)
 
-    @add_span
+    @add_debug_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
         Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
         ids = Trigger.ids_for_triggerer(self.job.id)
         self.update_triggers(set(ids))
 
-    @add_span
+    @add_debug_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.events:
@@ -500,12 +500,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
-    @add_span
+    @add_debug_span
     def clean_unused(self):
         """Clean out unused or finished triggers."""
         Trigger.clean_unused()
 
-    @add_span
+    @add_debug_span
     def handle_failed_triggers(self):
         """
         Handle "failed" triggers. - ones that errored or exited before they sent an event.
@@ -871,8 +871,16 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                kwargs = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
-                trigger_instance = trigger_class(**kwargs)
+                from airflow.serialization.serialized_objects import smart_decode_trigger_kwargs
+
+                # Decrypt and clean trigger kwargs before for execution
+                # Note: We only clean up serialization artifacts (__var, __type keys) here,
+                # not in `_decrypt_kwargs` because it is used during hash comparison in
+                # add_asset_trigger_references and could lead to adverse effects like hash mismatches
+                # that could cause None values in collections.
+                kw = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
+                deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
+                trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))

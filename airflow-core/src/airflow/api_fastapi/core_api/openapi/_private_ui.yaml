@@ -218,6 +218,14 @@ paths:
           type: string
           default: dag_id
           title: Order By
+      - name: is_favorite
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Favorite
       responses:
         '200':
           description: Successful Response
@@ -891,6 +899,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/calendar/{dag_id}:
+    get:
+      tags:
+      - Calendar
+      summary: Get Calendar
+      description: Get calendar data for a DAG including historical and planned DAG
+        runs.
+      operationId: get_calendar
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          enum:
+          - hourly
+          - daily
+          type: string
+          default: daily
+          title: Granularity
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarTimeRangeCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BackfillCollectionResponse:
@@ -1032,6 +1098,47 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
+    CalendarTimeRangeCollectionResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/CalendarTimeRangeResponse'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - total_entries
+      - dag_runs
+      title: CalendarTimeRangeCollectionResponse
+      description: Response model for calendar time range results.
+    CalendarTimeRangeResponse:
+      properties:
+        date:
+          type: string
+          format: date-time
+          title: Date
+        state:
+          type: string
+          enum:
+          - queued
+          - running
+          - success
+          - failed
+          - planned
+          title: State
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - date
+      - state
+      - count
+      title: CalendarTimeRangeResponse
+      description: Represents a summary of DAG runs for a specific calendar time range.
     ConfigResponse:
       properties:
         page_size:

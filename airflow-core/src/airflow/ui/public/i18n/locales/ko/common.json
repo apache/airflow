@@ -103,6 +103,7 @@
     "dags": "Dags",
     "docs": "문서",
     "home": "홈",
+    "legacyFabViews": "레거시 FAB 뷰",
     "plugins": "플러그인",
     "security": "보안"
   },
@@ -270,6 +271,7 @@
       }
     }
   },
+  "total": "총 {{state}} 수",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
   "user": "사용자",

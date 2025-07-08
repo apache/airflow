@@ -57,7 +57,6 @@ from airflow_breeze.commands.common_options import (
     option_dry_run,
     option_github_repository,
     option_github_token,
-    option_historical_python_version,
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
@@ -95,6 +94,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    CONSTRAINTS_SOURCE_PROVIDERS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DESTINATION_LOCATIONS,
@@ -245,13 +245,13 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.17"
+AIRFLOW_UV_VERSION = "0.7.19"
 AIRFLOW_USE_UV = False
-# TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
-RICH_VERSION = "13.9.4"
+RICH_VERSION = "14.0.0"
 PRE_COMMIT_VERSION = "4.2.0"
-HATCH_VERSION = "1.14.0"
+PRE_COMMIT_UV_VERSION = "4.1.4"
+HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
@@ -264,7 +264,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  pre-commit=={PRE_COMMIT_VERSION}
+  pre-commit=={PRE_COMMIT_VERSION} pre-commit-uv=={PRE_COMMIT_UV_VERSION}
 COPY . /opt/airflow
 """
 
@@ -2632,7 +2632,8 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = sorted(pull_requests.keys())
+    # Only include PRs that have corresponding user data to avoid KeyError in template
+    pr_list = sorted([pr for pr in pull_requests.keys() if pr in users])
     user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
     all_users: set[str] = set()
     for user_list in users.values():
@@ -2778,6 +2779,7 @@ def get_airflow_versions_supported_by_python(
 def get_all_constraint_files(
     refresh_constraints: bool,
     python_version: str,
+    airflow_constraints_mode: str,
     github_token: str | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
@@ -2798,6 +2800,7 @@ def get_all_constraint_files(
                     constraints_reference=f"constraints-{airflow_version}",
                     python_version=python_version,
                     github_token=github_token,
+                    airflow_constraints_mode=airflow_constraints_mode,
                     output_file=CONSTRAINTS_CACHE_PATH
                     / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
@@ -2832,16 +2835,15 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     help="Refresh constraints before generating metadata",
 )
 @option_github_token
-@option_historical_python_version
 @option_dry_run
 @option_verbose
-def generate_providers_metadata(refresh_constraints: bool, github_token: str | None, python: str | None):
+def generate_providers_metadata(refresh_constraints: bool, github_token: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
-    if python is None:
-        python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     all_airflow_releases, airflow_release_dates = get_all_constraint_files(
         refresh_constraints=refresh_constraints,
         python_version=python,
+        airflow_constraints_mode=CONSTRAINTS_SOURCE_PROVIDERS,
         github_token=github_token,
     )
     constraints = load_constraints(python_version=python)
