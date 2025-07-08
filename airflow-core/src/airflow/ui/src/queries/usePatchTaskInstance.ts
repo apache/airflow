@@ -20,7 +20,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,

@@ -19,7 +19,6 @@
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { CgRedo } from "react-icons/cg";
 
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
@@ -62,7 +61,6 @@ export const TaskNode = ({
           positioning={{
             placement: "top-start",
           }}
-          taskInstance={taskInstance}
         >
           <Box
             // Alternate background color for nested open groups
@@ -82,7 +80,6 @@ export const TaskNode = ({
           >
             <LinkOverlay asChild>
               <TaskLink
-                childCount={taskInstance?.task_count}
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
@@ -106,7 +103,6 @@ export const TaskNode = ({
                 <StateBadge fontSize="xs" state={taskInstance.state}>
                   {taskInstance.state}
                 </StateBadge>
-                {taskInstance.try_number > 1 ? <CgRedo /> : undefined}
               </HStack>
             )}
             {isGroup ? (

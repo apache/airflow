@@ -24,7 +24,6 @@ import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   UseDagServiceGetDagDetailsKeyFn,
-  UseGridServiceGridDataKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
