@@ -360,9 +360,9 @@ def test_dag_bundle_model_render_url_with_invalid_template():
     bundle_model.signed_url_template = "https://github.com/example/repo/tree/{invalid_placeholder}"
     bundle_model.template_params = {"subdir": "dags"}
 
-    # Should return the original template when rendering fails
+    # Should return None if rendering fails
     url = bundle_model.render_url("v1")
-    assert url == "https://github.com/example/repo/tree/{invalid_placeholder}"
+    assert url is None
 
 
 def test_example_dags_bundle_added():
