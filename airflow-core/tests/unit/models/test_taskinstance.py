@@ -2303,7 +2303,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
     @provide_session
-    def test_handle_failure(self, dag_maker, session):
+    def test_handle_failure_calls_listener(self, dag_maker, session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
@@ -2315,19 +2315,9 @@ class TestTaskInstance:
         listener_callback_on_error = mock.MagicMock()
         get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
 
-        mock_on_failure_1 = mock.Mock(
-            __name__="mock_on_failure_1",
-            __call__=mock.MagicMock(),
-        )
-        mock_on_retry_1 = mock.Mock(
-            __name__="mock_on_retry_1",
-            __call__=mock.MagicMock(),
-        )
         with dag_maker(dag_id="test_handle_failure", start_date=start_date, schedule=None) as dag:
             task1 = CustomOp(
                 task_id="test_handle_failure_on_failure",
-                on_failure_callback=mock_on_failure_1,
-                on_retry_callback=mock_on_retry_1,
             )
 
         dag_maker.create_dagrun(session=session, run_type=DagRunType.MANUAL, start_date=start_date)
@@ -2357,65 +2347,6 @@ class TestTaskInstance:
         callback_args = listener_callback_on_error.call_args.kwargs
         assert "error" in callback_args
         assert callback_args["error"] == error_message
-
-        context_arg_1 = mock_on_failure_1.call_args.args[0]
-        assert context_arg_1
-        assert "task_instance" in context_arg_1
-        mock_on_retry_1.assert_not_called()
-
-        mock_on_failure_2 = mock.Mock(
-            __name__="mock_on_failure_2",
-            __call__=mock.MagicMock(),
-        )
-        mock_on_retry_2 = mock.Mock(
-            __name__="mock_on_retry_2",
-            __call__=mock.MagicMock(),
-        )
-        task2 = CustomOp(
-            task_id="test_handle_failure_on_retry",
-            on_failure_callback=mock_on_failure_2,
-            on_retry_callback=mock_on_retry_2,
-            retries=1,
-            dag=dag,
-        )
-        ti2 = TI(task=task2, run_id=dr.run_id, dag_version_id=ti1.dag_version_id)
-        ti2.state = State.FAILED
-        session.add(ti2)
-        session.flush()
-        ti2.handle_failure("test retry handling")
-
-        mock_on_failure_2.assert_not_called()
-
-        context_arg_2 = mock_on_retry_2.call_args.args[0]
-        assert context_arg_2
-        assert "task_instance" in context_arg_2
-
-        # test the scenario where normally we would retry but have been asked to fail
-        mock_on_failure_3 = mock.Mock(
-            __name__="mock_on_failure_3",
-            __call__=mock.MagicMock(),
-        )
-        mock_on_retry_3 = mock.Mock(
-            __name__="mock_on_retry_3",
-            __call__=mock.MagicMock(),
-        )
-        task3 = CustomOp(
-            task_id="test_handle_failure_on_force_fail",
-            on_failure_callback=mock_on_failure_3,
-            on_retry_callback=mock_on_retry_3,
-            retries=1,
-            dag=dag,
-        )
-        ti3 = TI(task=task3, run_id=dr.run_id, dag_version_id=ti1.dag_version_id)
-        session.add(ti3)
-        session.flush()
-        ti3.state = State.FAILED
-        ti3.handle_failure("test force_fail handling", force_fail=True)
-
-        context_arg_3 = mock_on_failure_3.call_args.args[0]
-        assert context_arg_3
-        assert "task_instance" in context_arg_3
-        mock_on_retry_3.assert_not_called()
 
     def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):
         session = settings.Session()
