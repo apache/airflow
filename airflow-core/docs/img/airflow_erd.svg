@@ -1386,33 +1386,33 @@
 <!-- dag_bundle -->
 <g id="node24" class="node">
 <title>dag_bundle</title>
-<polygon fill="none" stroke="black" points="42,-2012.5 42,-2040.5 294,-2040.5 294,-2012.5 42,-2012.5"/>
-<text text-anchor="start" x="116.5" y="-2023.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_bundle</text>
-<polygon fill="none" stroke="black" points="42,-1987.5 42,-2012.5 294,-2012.5 294,-1987.5 42,-1987.5"/>
-<text text-anchor="start" x="47" y="-1997.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">name</text>
-<text text-anchor="start" x="87" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="92" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="213" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="42,-1962.5 42,-1987.5 294,-1987.5 294,-1962.5 42,-1962.5"/>
-<text text-anchor="start" x="47" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00">active</text>
-<text text-anchor="start" x="89" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="94" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
-<polygon fill="none" stroke="black" points="42,-1937.5 42,-1962.5 294,-1962.5 294,-1937.5 42,-1937.5"/>
-<text text-anchor="start" x="47" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00">last_refreshed</text>
-<text text-anchor="start" x="145" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="150" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<polygon fill="none" stroke="black" points="42,-1912.5 42,-1937.5 294,-1937.5 294,-1912.5 42,-1912.5"/>
-<text text-anchor="start" x="47" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00">template_params</text>
-<text text-anchor="start" x="168" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="173" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="42,-1887.5 42,-1912.5 294,-1912.5 294,-1887.5 42,-1887.5"/>
-<text text-anchor="start" x="47" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00">url_template</text>
-<text text-anchor="start" x="135" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="140" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
-<polygon fill="none" stroke="black" points="42,-1862.5 42,-1887.5 294,-1887.5 294,-1862.5 42,-1862.5"/>
-<text text-anchor="start" x="47" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00">version</text>
-<text text-anchor="start" x="99" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="104" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
+<polygon fill="none" stroke="black" points="30,-2012.5 30,-2040.5 307,-2040.5 307,-2012.5 30,-2012.5"/>
+<text text-anchor="start" x="117" y="-2023.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_bundle</text>
+<polygon fill="none" stroke="black" points="30,-1987.5 30,-2012.5 307,-2012.5 307,-1987.5 30,-1987.5"/>
+<text text-anchor="start" x="35" y="-1997.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">name</text>
+<text text-anchor="start" x="75" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="80" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="201" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="30,-1962.5 30,-1987.5 307,-1987.5 307,-1962.5 30,-1962.5"/>
+<text text-anchor="start" x="35" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00">active</text>
+<text text-anchor="start" x="77" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="82" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<polygon fill="none" stroke="black" points="30,-1937.5 30,-1962.5 307,-1962.5 307,-1937.5 30,-1937.5"/>
+<text text-anchor="start" x="35" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00">last_refreshed</text>
+<text text-anchor="start" x="133" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="138" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<polygon fill="none" stroke="black" points="30,-1912.5 30,-1937.5 307,-1937.5 307,-1912.5 30,-1912.5"/>
+<text text-anchor="start" x="35" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00">signed_url_template</text>
+<text text-anchor="start" x="176" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="181" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
+<polygon fill="none" stroke="black" points="30,-1887.5 30,-1912.5 307,-1912.5 307,-1887.5 30,-1887.5"/>
+<text text-anchor="start" x="35" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00">template_params</text>
+<text text-anchor="start" x="156" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="161" y="-1897.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="30,-1862.5 30,-1887.5 307,-1887.5 307,-1862.5 30,-1862.5"/>
+<text text-anchor="start" x="35" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00">version</text>
+<text text-anchor="start" x="87" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="92" y="-1872.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
 </g>
 <!-- dag -->
 <g id="node25" class="node">
@@ -1527,9 +1527,9 @@
 <!-- dag_bundle&#45;&#45;dag -->
 <g id="edge16" class="edge">
 <title>dag_bundle&#45;&#45;dag</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M302.2,-1951.5C335.68,-1951.5 372.43,-1951.5 408.65,-1951.5"/>
-<text text-anchor="start" x="377.65" y="-1940.3" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="302.2" y="-1940.3" font-family="Times,serif" font-size="14.00">{0,1}</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M314.78,-1951.5C344.87,-1951.5 377.11,-1951.5 408.94,-1951.5"/>
+<text text-anchor="start" x="377.94" y="-1940.3" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="314.78" y="-1940.3" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- dag&#45;&#45;dag_schedule_asset_alias_reference -->
 <g id="edge19" class="edge">
