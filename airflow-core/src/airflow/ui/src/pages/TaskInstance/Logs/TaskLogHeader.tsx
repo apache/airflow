@@ -19,7 +19,6 @@
 import {
   Badge,
   Box,
-  ButtonGroup,
   createListCollection,
   HStack,
   IconButton,
@@ -207,39 +206,27 @@ export const TaskLogHeader = ({
             </Menu.Trigger>
             <Menu.Content>
               <Menu.Item onClick={toggleWrap} value="wrap">
-                <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}{" "}
+                <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
                 <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
               <Menu.Item onClick={toggleTimestamp} value="timestamp">
-                <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}{" "}
+                <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
                 <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleExpanded} value="expand">
+                {expanded ? (
+                  <>
+                    <MdCompress /> {translate("expand.collapse")}
+                  </>
+                ) : (
+                  <>
+                    <MdExpand /> {translate("expand.expand")}
+                  </>
+                )}
+                <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
             </Menu.Content>
           </Menu.Root>
-          <Tooltip closeDelay={100} content={translate("expand.tooltip", { hotkey: "e" })} openDelay={100}>
-            <ButtonGroup attached size="md" variant="outline">
-              <IconButton
-                aria-label={translate("expand.expand")}
-                bg="bg.panel"
-                disabled={expanded}
-                onClick={expanded ? undefined : toggleExpanded}
-                size="md"
-                variant="surface"
-              >
-                <MdExpand />
-              </IconButton>
-              <IconButton
-                aria-label={translate("expand.collapse")}
-                bg="bg.panel"
-                disabled={!expanded}
-                onClick={expanded ? toggleExpanded : undefined}
-                size="md"
-                variant="outline"
-              >
-                <MdCompress />
-              </IconButton>
-            </ButtonGroup>
-          </Tooltip>
           {!isFullscreen && (
             <Tooltip
               closeDelay={100}

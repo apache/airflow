@@ -81,6 +81,7 @@
   "expand":{
     "collapse": "Collapse",
     "expand": "Expand",
+    "hotkey": "e",
     "tooltip": "Press {{hotkey}} to toggle expand"
   },
   "expression": {
