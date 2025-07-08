@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
-    raise ImportError("Human in the loop functionality needs Airflow 3.1+.")
+    raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
 import asyncio
 from collections.abc import AsyncIterator
