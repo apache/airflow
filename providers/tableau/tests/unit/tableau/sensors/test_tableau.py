@@ -79,7 +79,7 @@ class TestTableauJobStatusSensor:
             TableauJobFinishCode.SUCCESS,
         ]
         mock_tableau_hook_class.return_value.__enter__.return_value = mock_tableau_hook
-        sensor = TableauJobStatusSensor(**self.kwargs, retries_on_failure=2)
+        sensor = TableauJobStatusSensor(**self.kwargs, max_status_retries=2)
 
         assert not sensor.poke({})
         assert not sensor.poke({})
@@ -95,7 +95,7 @@ class TestTableauJobStatusSensor:
             TableauJobFinishCode.ERROR,
         ]
         mock_tableau_hook_class.return_value.__enter__.return_value = mock_tableau_hook
-        sensor = TableauJobStatusSensor(**self.kwargs, retries_on_failure=2, poke_interval=10.0)
+        sensor = TableauJobStatusSensor(**self.kwargs, max_status_retries=2, poke_interval=10.0)
         assert not sensor.poke({})
         assert not sensor.poke({})
         with pytest.raises(TableauJobFailedException, match="The Tableau Refresh Workbook Job failed!"):
