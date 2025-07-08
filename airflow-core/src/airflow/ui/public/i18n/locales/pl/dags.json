@@ -6,9 +6,15 @@
       "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań i zadań zostaną usunięte."
     }
   },
+  "favoriteDag": "Ulubiony Dag",
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań",
     "allStates": "Wszystkie Stany",
+    "favorite": {
+      "all": "Wszystkie",
+      "favorite": "Polubione",
+      "unfavorite": "Niepolubione"
+    },
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",
@@ -83,5 +89,6 @@
       "desc": "Sortuj według Następnego Wykonania Daga (Najnowsze-Najwcześniejsze)"
     },
     "placeholder": "Sortuj według"
-  }
+  },
+  "unfavoriteDag": "Usuń polubienie Daga"
 }
