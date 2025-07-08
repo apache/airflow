@@ -482,6 +482,15 @@ class FileTaskHandler(logging.Handler):
         """
         if try_number is None:
             try_number = task_instance.try_number
+
+        if task_instance.state == TaskInstanceState.SKIPPED:
+            logs = [
+                StructuredLogMessage(  # type: ignore[call-arg]
+                    event="Task was skipped, no logs available."
+                )
+            ]
+            return logs, {"end_of_log": True}
+
         if try_number is None or try_number < 1:
             logs = [
                 StructuredLogMessage(  # type: ignore[call-arg]

@@ -151,6 +151,43 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
+    def test_file_task_handler_when_ti_is_skipped(self, dag_maker):
+        def task_callable(ti):
+            ti.log.info("test")
+
+        with dag_maker("dag_for_testing_file_task_handler", schedule=None):
+            task = PythonOperator(
+                task_id="task_for_testing_file_log_handler",
+                python_callable=task_callable,
+            )
+        dagrun = dag_maker.create_dagrun()
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+
+        ti.try_number = 0
+        ti.state = State.SKIPPED
+
+        logger = ti.log
+        ti.log.disabled = False
+
+        file_handler = next(
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+        )
+        assert file_handler is not None
+
+        set_context(logger, ti)
+        assert file_handler.handler is not None
+        # We expect set_context generates a file locally.
+        log_filename = file_handler.handler.baseFilename
+        assert os.path.isfile(log_filename)
+        assert log_filename.endswith("0.log"), log_filename
+
+        # Return value of read must be a tuple of list and list.
+        logs, metadata = file_handler.read(ti)
+        assert logs[0].event == "Task was skipped, no logs available."
+
+        # Remove the generated tmp log file.
+        os.remove(log_filename)
+
     @pytest.mark.xfail(reason="TODO: Needs to be ported over to the new structlog based logging")
     def test_file_task_handler(self, dag_maker, session):
         def task_callable(ti):
