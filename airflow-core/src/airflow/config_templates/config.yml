@@ -1493,6 +1493,31 @@ api:
       type: boolean
       example: ~
       default: "False"
+    hitl_enable_shared_links:
+      description: |
+        Enable HITL (Human-in-the-Loop) shared links functionality. When enabled, users can generate
+        shareable URLs for HITL tasks that allow direct interaction without authentication.
+      version_added: 3.0.0
+      type: boolean
+      example: ~
+      default: "False"
+    hitl_shared_link_secret_key:
+      description: |
+        Secret key used to sign HITL shared links to prevent CSRF attacks. This key should be
+        kept secret and consistent across all Airflow instances.
+      version_added: 3.0.0
+      type: string
+      sensitive: true
+      example: ~
+      default: "{HITL_SHARED_LINK_SECRET_KEY}"
+    hitl_shared_link_expiration_hours:
+      description: |
+        Default expiration time in hours for HITL shared links. Links will become invalid after
+        this time period.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "24"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:

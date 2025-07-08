@@ -960,6 +960,45 @@ export type HITLResponseDetailCollection = {
 };
 
 /**
+ * Schema for HITL shared link action request.
+ */
+export type HITLSharedLinkActionRequest = {
+    response_content: Array<(string)>;
+    params_input?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Schema for requesting a HITL shared link.
+ */
+export type HITLSharedLinkRequest = {
+    /**
+     * Type of link to generate: 'action' for direct action or 'redirect' for UI interaction
+     */
+    link_type?: string;
+    /**
+     * Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.
+     */
+    action?: string | null;
+    /**
+     * Optional custom expiration time in hours
+     */
+    expires_in_hours?: number | null;
+};
+
+/**
+ * Schema for HITL shared link response.
+ */
+export type HITLSharedLinkResponse = {
+    task_instance_id: string;
+    link_url: string;
+    expires_at: string;
+    action?: string | null;
+    link_type?: string;
+};
+
+/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -2936,6 +2975,73 @@ export type GetHitlResponseData = {
 export type GetHitlResponseResponse = HITLResponseDetail;
 
 export type GetHitlResponsesResponse = HITLResponseDetailCollection;
+
+export type CreateHitlSharedLinkData = {
+    requestBody: HITLSharedLinkRequest;
+    taskInstanceId: string;
+};
+
+export type CreateHitlSharedLinkResponse = HITLSharedLinkResponse;
+
+export type GetHitlSharedResponseData = {
+    payload: string;
+    signature: string;
+    taskInstanceId: string;
+};
+
+export type GetHitlSharedResponseResponse = HITLResponseDetail;
+
+export type PerformHitlSharedActionData = {
+    payload: string;
+    requestBody: HITLSharedLinkActionRequest;
+    signature: string;
+    taskInstanceId: string;
+};
+
+export type PerformHitlSharedActionResponse = HITLResponseContentDetail;
+
+export type RedirectToHitlUiData = {
+    /**
+     * Base64 encoded payload
+     */
+    payload: string;
+    /**
+     * Base64 encoded signature
+     */
+    signature: string;
+    taskInstanceId: string;
+};
+
+export type RedirectToHitlUiResponse = unknown;
+
+export type GetHitlSharedResponse1Data = {
+    /**
+     * Base64 encoded payload
+     */
+    payload: string;
+    /**
+     * Base64 encoded signature
+     */
+    signature: string;
+    taskInstanceId: string;
+};
+
+export type GetHitlSharedResponse1Response = HITLResponseDetail;
+
+export type PerformHitlSharedAction1Data = {
+    /**
+     * Base64 encoded payload
+     */
+    payload: string;
+    requestBody: HITLSharedLinkActionRequest;
+    /**
+     * Base64 encoded signature
+     */
+    signature: string;
+    taskInstanceId: string;
+};
+
+export type PerformHitlSharedAction1Response = HITLResponseContentDetail;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -5924,10 +6030,6 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5949,6 +6051,172 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+            };
+        };
+    };
+    '/api/v2/hitl-responses/{task_instance_id}/shared-link': {
+        post: {
+            req: CreateHitlSharedLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLSharedLinkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-responses/shared/{task_instance_id}': {
+        get: {
+            req: GetHitlSharedResponseData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLResponseDetail;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-responses/shared/{task_instance_id}/action': {
+        post: {
+            req: PerformHitlSharedActionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLResponseContentDetail;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl/shared/{task_instance_id}/redirect': {
+        get: {
+            req: RedirectToHitlUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl/shared/{task_instance_id}': {
+        get: {
+            req: GetHitlSharedResponse1Data;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLResponseDetail;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl/shared/{task_instance_id}/action': {
+        post: {
+            req: PerformHitlSharedAction1Data;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLResponseContentDetail;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

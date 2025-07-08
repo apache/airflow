@@ -3564,6 +3564,103 @@ export const $HITLResponseDetailCollection = {
     description: 'Schema for a collection of Human-in-the-loop responses.'
 } as const;
 
+export const $HITLSharedLinkActionRequest = {
+    properties: {
+        response_content: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Response Content'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        }
+    },
+    type: 'object',
+    required: ['response_content'],
+    title: 'HITLSharedLinkActionRequest',
+    description: 'Schema for HITL shared link action request.'
+} as const;
+
+export const $HITLSharedLinkRequest = {
+    properties: {
+        link_type: {
+            type: 'string',
+            title: 'Link Type',
+            description: "Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+            default: 'action'
+        },
+        action: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Action',
+            description: "Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links."
+        },
+        expires_in_hours: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires In Hours',
+            description: 'Optional custom expiration time in hours'
+        }
+    },
+    type: 'object',
+    title: 'HITLSharedLinkRequest',
+    description: 'Schema for requesting a HITL shared link.'
+} as const;
+
+export const $HITLSharedLinkResponse = {
+    properties: {
+        task_instance_id: {
+            type: 'string',
+            title: 'Task Instance Id'
+        },
+        link_url: {
+            type: 'string',
+            title: 'Link Url'
+        },
+        expires_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Expires At'
+        },
+        action: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Action'
+        },
+        link_type: {
+            type: 'string',
+            title: 'Link Type',
+            default: 'action'
+        }
+    },
+    type: 'object',
+    required: ['task_instance_id', 'link_url', 'expires_at'],
+    title: 'HITLSharedLinkResponse',
+    description: 'Schema for HITL shared link response.'
+} as const;
+
 export const $HTTPExceptionResponse = {
     properties: {
         detail: {

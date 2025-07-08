@@ -612,6 +612,51 @@ class HITLResponseDetailCollection(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class HITLSharedLinkActionRequest(BaseModel):
+    """
+    Schema for HITL shared link action request.
+    """
+
+    response_content: Annotated[list[str], Field(title="Response Content")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
+class HITLSharedLinkRequest(BaseModel):
+    """
+    Schema for requesting a HITL shared link.
+    """
+
+    link_type: Annotated[
+        str | None,
+        Field(
+            description="Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+            title="Link Type",
+        ),
+    ] = "action"
+    action: Annotated[
+        str | None,
+        Field(
+            description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
+            title="Action",
+        ),
+    ] = None
+    expires_in_hours: Annotated[
+        int | None, Field(description="Optional custom expiration time in hours", title="Expires In Hours")
+    ] = None
+
+
+class HITLSharedLinkResponse(BaseModel):
+    """
+    Schema for HITL shared link response.
+    """
+
+    task_instance_id: Annotated[str, Field(title="Task Instance Id")]
+    link_url: Annotated[str, Field(title="Link Url")]
+    expires_at: Annotated[datetime, Field(title="Expires At")]
+    action: Annotated[str | None, Field(title="Action")] = None
+    link_type: Annotated[str | None, Field(title="Link Type")] = "action"
+
+
 class HTTPExceptionResponse(BaseModel):
     """
     HTTPException Model used for error response.

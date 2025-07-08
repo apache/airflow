@@ -1154,6 +1154,51 @@ export const prefetchUseHumanInTheLoopServiceGetHitlResponse = (queryClient: Que
 */
 export const prefetchUseHumanInTheLoopServiceGetHitlResponses = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(), queryFn: () => HumanInTheLoopService.getHitlResponses() });
 /**
+* Get Hitl Shared Response
+* Get HITL response details via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload
+* @param data.signature
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const prefetchUseHumanInTheLoopServiceGetHitlSharedResponse = (queryClient: QueryClient, { payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlSharedResponseKeyFn({ payload, signature, taskInstanceId }), queryFn: () => HumanInTheLoopService.getHitlSharedResponse({ payload, signature, taskInstanceId }) });
+/**
+* Redirect To Hitl Ui
+* Redirect to Airflow UI page for HITL task interaction.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const prefetchUseHumanInTheLoopServiceRedirectToHitlUi = (queryClient: QueryClient, { payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceRedirectToHitlUiKeyFn({ payload, signature, taskInstanceId }), queryFn: () => HumanInTheLoopService.redirectToHitlUi({ payload, signature, taskInstanceId }) });
+/**
+* Get Hitl Shared Response
+* Get HITL response details via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const prefetchUseHumanInTheLoopServiceGetHitlSharedResponse1 = (queryClient: QueryClient, { payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlSharedResponse1KeyFn({ payload, signature, taskInstanceId }), queryFn: () => HumanInTheLoopService.getHitlSharedResponse1({ payload, signature, taskInstanceId }) });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError

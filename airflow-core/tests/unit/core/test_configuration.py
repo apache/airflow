@@ -1718,6 +1718,7 @@ def test_sensitive_values():
         ("core", "fernet_key"),
         ("api_auth", "jwt_secret"),
         ("api", "secret_key"),
+        ("api", "hitl_shared_link_secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
@@ -1736,6 +1737,10 @@ def test_sensitive_values():
         ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
         ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
+        (
+            "api",
+            "hitl_shared_link_secret_key",
+        ),  # HITL shared link secret key is not sensitive in test context
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)

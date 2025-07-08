@@ -611,6 +611,30 @@ export type HumanInTheLoopServiceGetHitlResponsesDefaultResponse = Awaited<Retur
 export type HumanInTheLoopServiceGetHitlResponsesQueryResult<TData = HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlResponsesKey = "HumanInTheLoopServiceGetHitlResponses";
 export const UseHumanInTheLoopServiceGetHitlResponsesKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlResponsesKey, ...(queryKey ?? [])];
+export type HumanInTheLoopServiceGetHitlSharedResponseDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlSharedResponse>>;
+export type HumanInTheLoopServiceGetHitlSharedResponseQueryResult<TData = HumanInTheLoopServiceGetHitlSharedResponseDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlSharedResponseKey = "HumanInTheLoopServiceGetHitlSharedResponse";
+export const UseHumanInTheLoopServiceGetHitlSharedResponseKeyFn = ({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlSharedResponseKey, ...(queryKey ?? [{ payload, signature, taskInstanceId }])];
+export type HumanInTheLoopServiceRedirectToHitlUiDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.redirectToHitlUi>>;
+export type HumanInTheLoopServiceRedirectToHitlUiQueryResult<TData = HumanInTheLoopServiceRedirectToHitlUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceRedirectToHitlUiKey = "HumanInTheLoopServiceRedirectToHitlUi";
+export const UseHumanInTheLoopServiceRedirectToHitlUiKeyFn = ({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceRedirectToHitlUiKey, ...(queryKey ?? [{ payload, signature, taskInstanceId }])];
+export type HumanInTheLoopServiceGetHitlSharedResponse1DefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlSharedResponse1>>;
+export type HumanInTheLoopServiceGetHitlSharedResponse1QueryResult<TData = HumanInTheLoopServiceGetHitlSharedResponse1DefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlSharedResponse1Key = "HumanInTheLoopServiceGetHitlSharedResponse1";
+export const UseHumanInTheLoopServiceGetHitlSharedResponse1KeyFn = ({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlSharedResponse1Key, ...(queryKey ?? [{ payload, signature, taskInstanceId }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
@@ -742,6 +766,9 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<Re
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
 export type XcomServiceCreateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.createXcomEntry>>;
 export type VariableServicePostVariableMutationResult = Awaited<ReturnType<typeof VariableService.postVariable>>;
+export type HumanInTheLoopServiceCreateHitlSharedLinkMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.createHitlSharedLink>>;
+export type HumanInTheLoopServicePerformHitlSharedActionMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.performHitlSharedAction>>;
+export type HumanInTheLoopServicePerformHitlSharedAction1MutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.performHitlSharedAction1>>;
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;

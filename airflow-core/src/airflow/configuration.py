@@ -2056,6 +2056,10 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
 
         JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
         conf.configuration_description["api_auth"]["options"]["jwt_secret"]["default"] = JWT_SECRET_KEY
+        HITL_SHARED_LINK_SECRET_KEY = b64encode(os.urandom(32)).decode("utf-8")
+        conf.configuration_description["api"]["options"]["hitl_shared_link_secret_key"]["default"] = (
+            HITL_SHARED_LINK_SECRET_KEY
+        )
         pathlib.Path(airflow_config.__fspath__()).touch()
         make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:
@@ -2264,6 +2268,7 @@ else:
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 JWT_SECRET_KEY = ""
+HITL_SHARED_LINK_SECRET_KEY = b64encode(os.urandom(32)).decode("utf-8")
 
 conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()

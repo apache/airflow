@@ -75,3 +75,34 @@ class HITLResponseDetailCollection(BaseModel):
 
     hitl_responses: list[HITLResponseDetail]
     total_entries: int
+
+
+class HITLSharedLinkRequest(BaseModel):
+    """Schema for requesting a HITL shared link."""
+
+    link_type: str = Field(
+        default="action",
+        description="Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+    )
+    action: str | None = Field(
+        default=None,
+        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
+    )
+    expires_in_hours: int | None = Field(default=None, description="Optional custom expiration time in hours")
+
+
+class HITLSharedLinkResponse(BaseModel):
+    """Schema for HITL shared link response."""
+
+    task_instance_id: str
+    link_url: str
+    expires_at: datetime
+    action: str | None = None
+    link_type: str = "action"
+
+
+class HITLSharedLinkActionRequest(BaseModel):
+    """Schema for HITL shared link action request."""
+
+    response_content: list[str]
+    params_input: Mapping = Field(default_factory=dict)

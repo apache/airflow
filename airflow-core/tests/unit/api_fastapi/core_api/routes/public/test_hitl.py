@@ -25,6 +25,7 @@ if not AIRFLOW_V_3_1_PLUS:
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import time_machine
 from uuid6 import uuid7
@@ -200,3 +201,193 @@ class TestGetHITLResponsesEndpoint:
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/hitl-responses/")
         assert response.status_code == 403
+
+
+class TestHITLSharedLinksAPI:
+    """Test HITL shared links API endpoints."""
+
+    @pytest.mark.usefixtures("sample_hitl_response")
+    @patch("airflow.configuration.conf.getboolean")
+    def test_create_shared_link_redirect(self, mock_getboolean, test_client, sample_ti):
+        """Test creating a redirect shared link."""
+        mock_getboolean.return_value = True
+
+        with patch(
+            "airflow.utils.hitl_shared_links.hitl_shared_link_manager.generate_redirect_link"
+        ) as mock_generate:
+            mock_generate.return_value = ("/test/redirect/link", "2024-01-01T12:00:00Z")
+
+            response = test_client.post(
+                f"/api/v2/hitl-responses/{sample_ti.id}/shared-link",
+                json={"link_type": "redirect", "expires_in_hours": 24},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["task_instance_id"] == sample_ti.id
+            assert data["link_url"] == "/test/redirect/link"
+            assert data["link_type"] == "redirect"
+
+    @pytest.mark.usefixtures("sample_hitl_response")
+    @patch("airflow.configuration.conf.getboolean")
+    def test_create_shared_link_action(self, mock_getboolean, test_client, sample_ti):
+        """Test creating an action shared link."""
+        mock_getboolean.return_value = True
+
+        with patch(
+            "airflow.utils.hitl_shared_links.hitl_shared_link_manager.generate_action_link"
+        ) as mock_generate:
+            mock_generate.return_value = ("/test/action/link", "2024-01-01T12:00:00Z")
+
+            response = test_client.post(
+                f"/api/v2/hitl-responses/{sample_ti.id}/shared-link",
+                json={"link_type": "action", "action": "approve", "expires_in_hours": 24},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["task_instance_id"] == sample_ti.id
+            assert data["link_url"] == "/test/action/link"
+            assert data["action"] == "approve"
+            assert data["link_type"] == "action"
+
+    @patch("airflow.configuration.conf.getboolean")
+    def test_create_shared_link_disabled(self, mock_getboolean, test_client, sample_ti):
+        """Test creating shared link when feature is disabled."""
+        mock_getboolean.return_value = False
+
+        response = test_client.post(
+            f"/api/v2/hitl-responses/{sample_ti.id}/shared-link",
+            json={"link_type": "action", "action": "approve"},
+        )
+
+        assert response.status_code == 403
+        assert "HITL shared links are not enabled" in response.json()["detail"]
+
+    def test_create_shared_link_not_found(self, test_client):
+        """Test creating shared link for non-existent task instance."""
+        response = test_client.post(
+            "/api/v2/hitl-responses/non-existent-task/shared-link",
+            json={"link_type": "action", "action": "approve"},
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.usefixtures("sample_hitl_response")
+    @patch("airflow.configuration.conf.getboolean")
+    def test_get_hitl_shared_response(self, mock_getboolean, test_client, sample_ti):
+        """Test getting HITL response via shared link."""
+        mock_getboolean.return_value = True
+
+        with patch("airflow.utils.hitl_shared_links.hitl_shared_link_manager.verify_link") as mock_verify:
+            mock_verify.return_value = {
+                "ti_id": sample_ti.id,
+                "action": None,
+                "link_type": "redirect",
+                "expires_at": "2024-01-01T12:00:00Z",
+            }
+
+            response = test_client.get(
+                f"/api/v2/hitl/shared/{sample_ti.id}",
+                params={"payload": "test-payload", "signature": "test-signature"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["ti_id"] == sample_ti.id
+            assert data["subject"] == "This is subject"
+
+    @patch("airflow.configuration.conf.getboolean")
+    def test_get_hitl_shared_response_invalid_link(self, mock_getboolean, test_client, sample_ti):
+        """Test getting HITL response with invalid shared link."""
+        mock_getboolean.return_value = True
+
+        with patch("airflow.utils.hitl_shared_links.hitl_shared_link_manager.verify_link") as mock_verify:
+            mock_verify.side_effect = ValueError("Invalid link")
+
+            response = test_client.get(
+                f"/api/v2/hitl/shared/{sample_ti.id}",
+                params={"payload": "invalid-payload", "signature": "invalid-signature"},
+            )
+
+            assert response.status_code == 400
+            assert "Invalid shared link" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_response")
+    @patch("airflow.configuration.conf.getboolean")
+    def test_perform_hitl_shared_action(self, mock_getboolean, test_client, sample_ti):
+        """Test performing action via shared link."""
+        mock_getboolean.return_value = True
+
+        with patch("airflow.utils.hitl_shared_links.hitl_shared_link_manager.verify_link") as mock_verify:
+            mock_verify.return_value = {
+                "ti_id": sample_ti.id,
+                "action": "approve",
+                "link_type": "action",
+                "expires_at": "2024-01-01T12:00:00Z",
+            }
+
+            response = test_client.post(
+                f"/api/v2/hitl/shared/{sample_ti.id}/action",
+                params={"payload": "test-payload", "signature": "test-signature"},
+                json={"response_content": ["Approve"], "params_input": {"reason": "Approved by manager"}},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["response_content"] == ["Approve"]
+            assert data["params_input"] == {"reason": "Approved by manager"}
+
+    @pytest.mark.usefixtures("sample_hitl_response")
+    @patch("airflow.configuration.conf.getboolean")
+    def test_perform_hitl_shared_action_already_responded(self, mock_getboolean, test_client, sample_ti):
+        """Test performing action on already responded task."""
+        mock_getboolean.return_value = True
+
+        # Mark the response as already received
+        sample_ti.response_received = True
+        sample_ti.response_content = ["Reject"]
+        sample_ti.response_at = "2024-01-01T10:00:00Z"
+
+        with patch("airflow.utils.hitl_shared_links.hitl_shared_link_manager.verify_link") as mock_verify:
+            mock_verify.return_value = {
+                "ti_id": sample_ti.id,
+                "action": "approve",
+                "link_type": "action",
+                "expires_at": "2024-01-01T12:00:00Z",
+            }
+
+            response = test_client.post(
+                f"/api/v2/hitl/shared/{sample_ti.id}/action",
+                params={"payload": "test-payload", "signature": "test-signature"},
+                json={"response_content": ["Approve"], "params_input": {}},
+            )
+
+            assert response.status_code == 409
+            assert "already been updated" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_response")
+    @patch("airflow.configuration.conf.getboolean")
+    def test_redirect_to_hitl_ui(self, mock_getboolean, test_client, sample_ti):
+        """Test redirect to HITL UI."""
+        mock_getboolean.return_value = True
+
+        with patch("airflow.utils.hitl_shared_links.hitl_shared_link_manager.verify_link") as mock_verify:
+            mock_verify.return_value = {
+                "ti_id": sample_ti.id,
+                "action": None,
+                "link_type": "redirect",
+                "expires_at": "2024-01-01T12:00:00Z",
+            }
+
+            with patch("airflow.configuration.conf.get") as mock_conf_get:
+                mock_conf_get.return_value = "http://localhost:8080"
+
+                response = test_client.get(
+                    f"/api/v2/hitl/shared/{sample_ti.id}/redirect",
+                    params={"payload": "test-payload", "signature": "test-signature"},
+                )
+
+                assert response.status_code == 302
+                assert "Location" in response.headers
+                assert "hitl_mode=true" in response.headers["Location"]

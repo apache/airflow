@@ -1154,6 +1154,51 @@ export const useHumanInTheLoopServiceGetHitlResponseSuspense = <TData = Common.H
 */
 export const useHumanInTheLoopServiceGetHitlResponsesSuspense = <TData = Common.HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlResponses() as TData, ...options });
 /**
+* Get Hitl Shared Response
+* Get HITL response details via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload
+* @param data.signature
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlSharedResponseSuspense = <TData = Common.HumanInTheLoopServiceGetHitlSharedResponseDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlSharedResponseKeyFn({ payload, signature, taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlSharedResponse({ payload, signature, taskInstanceId }) as TData, ...options });
+/**
+* Redirect To Hitl Ui
+* Redirect to Airflow UI page for HITL task interaction.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceRedirectToHitlUiSuspense = <TData = Common.HumanInTheLoopServiceRedirectToHitlUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceRedirectToHitlUiKeyFn({ payload, signature, taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.redirectToHitlUi({ payload, signature, taskInstanceId }) as TData, ...options });
+/**
+* Get Hitl Shared Response
+* Get HITL response details via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlSharedResponse1Suspense = <TData = Common.HumanInTheLoopServiceGetHitlSharedResponse1DefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlSharedResponse1KeyFn({ payload, signature, taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlSharedResponse1({ payload, signature, taskInstanceId }) as TData, ...options });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError

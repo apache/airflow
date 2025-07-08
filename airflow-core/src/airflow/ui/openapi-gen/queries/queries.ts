@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLResponsePayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, HITLSharedLinkActionRequest, HITLSharedLinkRequest, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLResponsePayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1154,6 +1154,51 @@ export const useHumanInTheLoopServiceGetHitlResponse = <TData = Common.HumanInTh
 */
 export const useHumanInTheLoopServiceGetHitlResponses = <TData = Common.HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlResponses() as TData, ...options });
 /**
+* Get Hitl Shared Response
+* Get HITL response details via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload
+* @param data.signature
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlSharedResponse = <TData = Common.HumanInTheLoopServiceGetHitlSharedResponseDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlSharedResponseKeyFn({ payload, signature, taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlSharedResponse({ payload, signature, taskInstanceId }) as TData, ...options });
+/**
+* Redirect To Hitl Ui
+* Redirect to Airflow UI page for HITL task interaction.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceRedirectToHitlUi = <TData = Common.HumanInTheLoopServiceRedirectToHitlUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceRedirectToHitlUiKeyFn({ payload, signature, taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.redirectToHitlUi({ payload, signature, taskInstanceId }) as TData, ...options });
+/**
+* Get Hitl Shared Response
+* Get HITL response details via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @returns HITLResponseDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlSharedResponse1 = <TData = Common.HumanInTheLoopServiceGetHitlSharedResponse1DefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ payload, signature, taskInstanceId }: {
+  payload: string;
+  signature: string;
+  taskInstanceId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlSharedResponse1KeyFn({ payload, signature, taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlSharedResponse1({ payload, signature, taskInstanceId }) as TData, ...options });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError
@@ -1623,6 +1668,66 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: VariableBody;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Create Hitl Shared Link
+* Create a shared link for a HITL task instance.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.requestBody
+* @returns HITLSharedLinkResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceCreateHitlSharedLink = <TData = Common.HumanInTheLoopServiceCreateHitlSharedLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: HITLSharedLinkRequest;
+  taskInstanceId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: HITLSharedLinkRequest;
+  taskInstanceId: string;
+}, TContext>({ mutationFn: ({ requestBody, taskInstanceId }) => HumanInTheLoopService.createHitlSharedLink({ requestBody, taskInstanceId }) as unknown as Promise<TData>, ...options });
+/**
+* Perform Hitl Shared Action
+* Perform an action on a HITL task instance via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload
+* @param data.signature
+* @param data.requestBody
+* @returns HITLResponseContentDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServicePerformHitlSharedAction = <TData = Common.HumanInTheLoopServicePerformHitlSharedActionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  payload: string;
+  requestBody: HITLSharedLinkActionRequest;
+  signature: string;
+  taskInstanceId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  payload: string;
+  requestBody: HITLSharedLinkActionRequest;
+  signature: string;
+  taskInstanceId: string;
+}, TContext>({ mutationFn: ({ payload, requestBody, signature, taskInstanceId }) => HumanInTheLoopService.performHitlSharedAction({ payload, requestBody, signature, taskInstanceId }) as unknown as Promise<TData>, ...options });
+/**
+* Perform Hitl Shared Action
+* Perform an action on a HITL task instance via shared link.
+* @param data The data for the request.
+* @param data.taskInstanceId
+* @param data.payload Base64 encoded payload
+* @param data.signature Base64 encoded signature
+* @param data.requestBody
+* @returns HITLResponseContentDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServicePerformHitlSharedAction1 = <TData = Common.HumanInTheLoopServicePerformHitlSharedAction1MutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  payload: string;
+  requestBody: HITLSharedLinkActionRequest;
+  signature: string;
+  taskInstanceId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  payload: string;
+  requestBody: HITLSharedLinkActionRequest;
+  signature: string;
+  taskInstanceId: string;
+}, TContext>({ mutationFn: ({ payload, requestBody, signature, taskInstanceId }) => HumanInTheLoopService.performHitlSharedAction1({ payload, requestBody, signature, taskInstanceId }) as unknown as Promise<TData>, ...options });
 /**
 * Pause Backfill
 * @param data The data for the request.
