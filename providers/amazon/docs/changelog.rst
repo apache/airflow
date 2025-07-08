@@ -26,14 +26,21 @@
 Changelog
 ---------
 
-9.9.1
-.....
+9.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for S3 dag bundle (#46621)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix GlueJobOperator deferred waiting (#52314)``
 * ``Handle exceptions when fetching status in GlueJobHook (#52262)``
+* ``Handle 'S3KeySensor' in 'deferrable' mode splits 'bucket_key' into individual chars (#52983)``
+* ``Pass the region_name from the GlueJobOperator / GlueJobSensor to the Trigger (#52904)``
 
 Misc
 ~~~~
@@ -50,6 +57,14 @@ Misc
 * ``Use base AWS classes in Glue Trigger / Sensor and implement custom waiter (#52243)``
 * ``Add Airflow 3.0+ Task SDK support to AWS Batch Executor (#52121)``
 * ``Refactor operator_extra_links property in BatchOperator (#51385)``
+* ``Remove unused batch methods from auth manager (#52883)``
+* ``Add debug logging for endpoint_url in AWS Connection (#52856)``
+* ``Remove 'MENU' from 'ResourceMethod' in auth manager (#52731)``
+* ``Remove 'MAX_XCOM_SIZE' hardcoded constant from Airflow core  (#52978)``
+* ``More robust handling of 'BaseHook.get_connection''s 'CONNECTION_NOT_FOUND' Task SDK exception (#52838)``
+* ``Move all BaseHook usages to version_compat in Amazon (#52796)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
 
 Doc-only
 ~~~~~~~~
@@ -66,6 +81,7 @@ Doc-only
    * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
    * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
    * ``Mocked time.sleep to avoid actual sleep time (#51752)``
+   * ``Prepare release for July 2025 1st provider wave (#52727)``
 
 9.9.0
 .....
