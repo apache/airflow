@@ -31,7 +31,10 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.file_task_handler import extract_events
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    get_base_airflow_version_tuple,
+)
 
 
 class TestRedisTaskHandler:
@@ -112,7 +115,7 @@ class TestRedisTaskHandler:
             logs = handler.read(ti)
 
         if AIRFLOW_V_3_0_PLUS:
-            if get_base_airflow_version_tuple() < (3, 0, 3):
+            if get_base_airflow_version_tuple() < (3, 1, 0):
                 assert logs == (["Line 1\nLine 2"], {"end_of_log": True})
             else:
                 log_stream, metadata = logs

@@ -82,7 +82,7 @@ class TestFileTaskLogHandler:
 
             fth._read_from_logs_server = mock.Mock()
 
-            # compact with 2.x and 3.x
+            # compat with 2.x and 3.x
             if AIRFLOW_V_3_0_PLUS:
                 fth._read_from_logs_server.return_value = (
                     ["this message"],

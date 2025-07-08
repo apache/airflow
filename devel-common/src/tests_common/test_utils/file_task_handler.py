@@ -35,7 +35,7 @@ def extract_events(logs: Iterable[StructuredLogMessage], skip_source_info=True) 
     logs = iter(logs)
     if skip_source_info:
 
-        def is_source_group(log: StructuredLogMessage):
+        def is_source_group(log: StructuredLogMessage) -> bool:
             return not hasattr(log, "timestamp") or log.event == "::endgroup::" or hasattr(log, "sources")
 
         logs = itertools.dropwhile(is_source_group, logs)
