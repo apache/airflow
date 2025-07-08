@@ -46,7 +46,7 @@ class TestFernetKeySecret:
         # Verify the key is valid by creating a Fernet instance
         Fernet(fernet_key.encode())  # Raise: Fernet key must be 32 url-safe base64-encoded bytes.
 
-    def test_should_generate_valid_fernet_key(self):
+    def test_should_generate_valid_fernetkey_secret(self):
         """Test that a valid Fernet key is generated."""
         docs = render_chart(
             values={},  # No fernetKey provided
