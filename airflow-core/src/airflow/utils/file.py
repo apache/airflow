@@ -118,7 +118,7 @@ class _GlobIgnoreRule(NamedTuple):
             matched = rule.wild_match_pattern.match_file(rel_path) is not None
 
             if matched:
-                if rule.wild_match_pattern and str(rule.wild_match_pattern.pattern).startswith("!"):  # type: ignore[arg-type]
+                if not rule.wild_match_pattern.include:
                     return False
 
                 return matched
