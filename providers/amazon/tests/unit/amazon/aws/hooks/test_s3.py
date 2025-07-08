@@ -715,7 +715,7 @@ class TestAwsS3Hook:
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="/",
-            Prefix="t",
+            Prefix="test.txt",
             RequestPayer="requester",
         )
 
@@ -746,8 +746,53 @@ class TestAwsS3Hook:
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="/",
-            Prefix="t",
+            Prefix="test.txt",
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_bucket_keys, mock_response_bucket_keys",
+        [
+            (["test.txt"], ["test.txt"]),
+            (["test_key"], ["test_key", "test_key2"]),
+        ],
+    )
+    async def test_s3_key_hook_get_files_bucket_keys_list(self, mock_bucket_keys, mock_response_bucket_keys):
+        test_resp_iter = [
+            {
+                "Contents": [
+                    {
+                        "Key": mock_response_bucket_key,
+                        "Size": 0,
+                        "ETag": "etag1",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                    }
+                    for mock_response_bucket_key in mock_response_bucket_keys
+                ]
+            }
+        ]
+
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=True)
+        mock_client = AsyncMock()
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+        response = await s3_hook_async.get_files_async(
+            client=mock_client, bucket="test_bucket", bucket_keys=mock_bucket_keys, wildcard_match=False
+        )
+
+        assert response == mock_response_bucket_keys
+
+        for test_bucket_key in mock_bucket_keys:
+            mock_paginator.paginate.assert_called_with(
+                Bucket="test_bucket",
+                Delimiter="/",
+                Prefix=test_bucket_key,
+                RequestPayer="requester",
+            )
 
     @pytest.mark.asyncio
     async def test_s3_key_hook_list_keys_async(self):
