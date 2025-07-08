@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 import warnings
-from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
+from airflow._logging.structlog import configure_structlog
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.module_loading import import_string
@@ -94,20 +94,21 @@ def configure_logging():
             if "mask_secrets" not in task_handler_config["filters"]:
                 task_handler_config["filters"].append("mask_secrets")
 
+        level: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
         # Try to init logging
-        dictConfig(logging_config)
+        configure_structlog(log_level=level, stdlib_config=logging_config)
     except (ValueError, KeyError) as e:
         log.error("Unable to load the config, contains a configuration error.")
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
         raise e
 
-    validate_logging_config(logging_config)
+    validate_logging_config()
 
     return logging_class_path
 
 
-def validate_logging_config(logging_config):
+def validate_logging_config():
     """Validate the provided Logging Config."""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get("logging", "task_log_reader")

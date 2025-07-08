@@ -117,8 +117,8 @@ class TestProviderManager:
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["wrong-connection-type"]
-        assert len(self._caplog.records) == 1
-        assert "Inconsistency!" in self._caplog.records[0].message
+        assert len(self._caplog.entries) == 1
+        assert "Inconsistency!" in self._caplog[0]["event"]
         assert "sftp" not in providers_manager.hooks
 
     def test_warning_logs_not_generated(self):
@@ -162,11 +162,12 @@ class TestProviderManager:
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["dummy"]
         assert len(self._caplog.records) == 1
-        assert "The connection type 'dummy' is already registered" in self._caplog.records[0].message
+        msg = self._caplog.messages[0]
+        assert msg.startswith("The connection type 'dummy' is already registered")
         assert (
             "different class names: 'airflow.providers.dummy.hooks.dummy.DummyHook'"
             " and 'airflow.providers.dummy.hooks.dummy.DummyHook2'."
-        ) in self._caplog.records[0].message
+        ) in msg
 
     def test_providers_manager_register_plugins(self):
         providers_manager = ProvidersManager()

@@ -17,16 +17,18 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import structlog
+
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
+    from airflow._logging.structlog import AirflowFilteringBoundLogger
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -81,7 +83,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     _log_config_logger_name: str | None = None
     _logger_name: str | None = None
-    _cached_logger: logging.Logger | None = None
+    _cached_logger: AirflowFilteringBoundLogger | None = None
 
     def __init__(self):
         self.upstream_task_ids = set()
@@ -112,7 +114,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return "_in_memory_dag_"
 
     @property
-    def log(self) -> logging.Logger:
+    def log(self) -> AirflowFilteringBoundLogger:
         """
         Get a logger for this node.
 
@@ -137,7 +139,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
                 else self._log_config_logger_name
             )
 
-        self._cached_logger = logging.getLogger(logger_name)
+        self._cached_logger = structlog.get_logger(logger_name)
         return self._cached_logger
 
     @property

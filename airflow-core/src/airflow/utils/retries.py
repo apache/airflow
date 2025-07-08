@@ -43,7 +43,7 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logge
         reraise=True,
         **kwargs,
     )
-    if logger and isinstance(logger, logging.Logger):
+    if logger is not None:
         retry_kwargs["before_sleep"] = tenacity.before_sleep_log(logger, logging.DEBUG, True)
 
     return tenacity.Retrying(**retry_kwargs)

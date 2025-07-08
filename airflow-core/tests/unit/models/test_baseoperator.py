@@ -122,16 +122,6 @@ class TestBaseOperator:
         assert op_no_dag.start_date.tzinfo
         assert op_no_dag.end_date.tzinfo
 
-    # ensure the default logging config is used for this test, no matter what ran before
-    @pytest.mark.usefixtures("reset_logging_config")
-    def test_logging_propogated_by_default(self, caplog):
-        """Test that when set_context hasn't been called that log records are emitted"""
-        BaseOperator(task_id="test").log.warning("test")
-        # This looks like "how could it fail" but this actually checks that the handler called `emit`. Testing
-        # the other case (that when we have set_context it goes to the file is harder to achieve without
-        # leaking a lot of state)
-        assert caplog.messages == ["test"]
-
     def test_resume_execution(self):
         op = BaseOperator(task_id="hi")
         with pytest.raises(TaskDeferralTimeout):

@@ -376,11 +376,11 @@ class TestPatternValidatorConfigOption:
 
     @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "baz,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
-        importlib.reload(airflow.stats)
-
-        assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-        assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
         with caplog.at_level(logging.WARNING):
+            importlib.reload(airflow.stats)
+
+            assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
+            assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
             assert "Ignoring metrics_block_list" in caplog.text
 
 

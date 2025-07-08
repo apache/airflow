@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import importlib
-import itertools
 import json
+import logging
 import os
 import platform
 import re
@@ -1668,13 +1668,9 @@ def create_log_template(request):
 
 @pytest.fixture
 def reset_logging_config():
-    import logging.config
+    from airflow.logging_config import configure_logging
 
-    from airflow import settings
-    from airflow.utils.module_loading import import_string
-
-    logging_config = import_string(settings.LOGGING_CLASS_PATH)
-    logging.config.dictConfig(logging_config)
+    configure_logging()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1955,7 +1951,7 @@ def add_expected_folders_to_pythonpath():
 
 
 @pytest.fixture
-def cap_structlog():
+def cap_structlog(request, monkeypatch):
     """
     Test that structlog messages are logged.
 
@@ -1970,56 +1966,46 @@ def cap_structlog():
     ...
     ...     assert "not logged" not in cap_structlog  # not in works too
     """
-    import structlog.testing
-    from structlog import configure, get_config
+    import structlog.stdlib
+    from structlog import DropEvent, configure, get_config
 
-    class LogCapture(structlog.testing.LogCapture):
-        # Partial comparison -- only check keys passed in, or the "event"/message if a single value is given
-        def __contains__(self, target):
-            if not isinstance(target, dict):
-                target = {"event": target}
+    from tests_common.test_utils.logs import StructlogCapture
 
-            def predicate(e):
-                def check_one(key, want):
-                    try:
-                        val = e.get(key)
-                        if isinstance(want, re.Pattern):
-                            return want.match(val)
-                        return val == want
-                    except Exception:
-                        return False
-
-                return all(itertools.starmap(check_one, target.items()))
-
-            return any(predicate(e) for e in self.entries)
-
-        def __getitem__(self, i):
-            return self.entries[i]
-
-        def __iter__(self):
-            return iter(self.entries)
-
-        def __repr__(self):
-            return repr(self.entries)
-
-        @property
-        def text(self):
-            """All the event text as a single multi-line string."""
-            return "\n".join(e["event"] for e in self.entries)
-
-    cap = LogCapture()
+    cap = StructlogCapture()
     # Modify `_Configuration.default_processors` set via `configure` but always
     # keep the list instance intact to not break references held by bound
     # loggers.
     processors = get_config()["processors"]
     old_processors = processors.copy()
+
+    # And modify the stdlib logging to capture too
+    handler = logging.root.handlers[0]
+    if not isinstance(handler.formatter, structlog.stdlib.ProcessorFormatter):
+        raise AssertionError(
+            f"{type(handler.formatter)} is not an instance of structlog.stblid.ProcessorFormatter"
+        )
+
+    std_formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=handler.formatter.foreign_pre_chain,
+        pass_foreign_args=True,
+        processor=cap,
+    )
+
+    def stdlib_filter(record):
+        with suppress(DropEvent):
+            std_formatter.format(record)
+        return False
+
     try:
         # clear processors list and use LogCapture for testing
         processors.clear()
         processors.append(cap)
         configure(processors=processors)
+        monkeypatch.setattr(handler, "level", logging.DEBUG)
+        monkeypatch.setattr(handler, "filters", [stdlib_filter])
         yield cap
     finally:
+        cap._finalize()
         # remove LogCapture and restore original processors
         processors.clear()
         processors.extend(old_processors)
@@ -2034,6 +2020,8 @@ def override_caplog(request):
     This is in an effort to reduce flakiness from caplog related tests where one test file can change log
     behaviour and bleed in to affecting other test files
     """
+    yield request.getfixturevalue("cap_structlog")
+    return
     # We need this `_ispytest` so it doesn't warn about using private
     fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
     yield fixture
