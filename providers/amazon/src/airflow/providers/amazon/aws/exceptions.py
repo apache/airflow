@@ -47,6 +47,7 @@ class EcsOperatorError(Exception):
         """Return EcsOperator state and a tuple of failures list and message."""
         return EcsOperatorError, (self.failures, self.message)
 
+
 class EcsCannotPullContainerError(Exception):
     """Raise when ECS cannot retrieve the specified container image."""
 

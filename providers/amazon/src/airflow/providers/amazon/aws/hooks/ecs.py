@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart, EcsCannotPullContainerError
+from airflow.providers.amazon.aws.exceptions import (
+    EcsCannotPullContainerError,
+    EcsOperatorError,
+    EcsTaskFailToStart,
+)
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import _StringCompareEnum
 
