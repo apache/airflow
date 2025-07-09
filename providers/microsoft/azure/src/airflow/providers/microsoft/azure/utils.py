@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from functools import partial, wraps
+from typing import TypeAlias
 from urllib.parse import urlparse, urlunparse
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
@@ -80,12 +81,14 @@ def _get_default_azure_credential(
     return credential_cls()
 
 
-get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(
+AzureCredentialType: TypeAlias = DefaultAzureCredential | AsyncDefaultAzureCredential
+
+get_sync_default_azure_credential: partial[AzureCredentialType] = partial(
     _get_default_azure_credential,  #  type: ignore[arg-type]
     use_async=False,
 )
 
-get_async_default_azure_credential: partial[AsyncDefaultAzureCredential] = partial(
+get_async_default_azure_credential: partial[AzureCredentialType] = partial(
     _get_default_azure_credential,  #  type: ignore[arg-type]
     use_async=True,
 )
