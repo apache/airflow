@@ -193,16 +193,14 @@ class DagBundlesManager(LoggingMixin):
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
 
         for name in self._bundle_config.keys():
+            # Update URL template and parameters if they've changed
+            bundle_instance = self.get_bundle(name)
+            new_template = bundle_instance.view_url_template()
+            new_params = self._extract_template_params(bundle_instance)
+            new_template = _signed_template(new_template, name)
+
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                # Update URL template and parameters if they've changed
-                bundle_instance = self.get_bundle(name)
-                new_template = bundle_instance.view_url_template()
-                new_params = self._extract_template_params(bundle_instance)
-
-                # Validate and sign the URL before saving
-                new_template = _signed_template(new_template, name)
-
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
@@ -211,14 +209,6 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
                 new_bundle = DagBundleModel(name=name)
-                # Set URL template and parameters for new bundle
-                bundle_instance = self.get_bundle(name)
-                new_template = bundle_instance.view_url_template()
-                new_params = self._extract_template_params(bundle_instance)
-
-                # Validate and sign the URL before saving
-                new_template = _signed_template(new_template, name)
-
                 new_bundle.signed_url_template = new_template
                 new_bundle.template_params = new_params
 
