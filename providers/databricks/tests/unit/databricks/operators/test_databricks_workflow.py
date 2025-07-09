@@ -34,8 +34,6 @@ from airflow.providers.databricks.operators.databricks_workflow import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
@@ -135,6 +133,7 @@ def test_wait_for_job_to_start(mock_databricks_hook):
     mock_hook_instance.get_run_state.assert_called()
 
 
+@pytest.mark.db_test
 def test_execute(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")

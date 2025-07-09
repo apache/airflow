@@ -20,7 +20,8 @@ import datetime
 import logging
 import random
 import warnings
-from typing import TYPE_CHECKING, Callable, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
@@ -47,7 +48,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-GaugeValues = Union[int, float]
+GaugeValues = int | float
 
 DEFAULT_GAUGE_VALUE = 0.0
 

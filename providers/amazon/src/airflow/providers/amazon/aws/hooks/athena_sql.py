@@ -111,7 +111,14 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 connection.login = athena_conn.login
                 connection.password = athena_conn.password
                 connection.schema = athena_conn.schema
-                connection.set_extra(json.dumps({**athena_conn.extra_dejson, **connection.extra_dejson}))
+                merged_extra = {**athena_conn.extra_dejson, **connection.extra_dejson}
+                try:
+                    extra_json = json.dumps(merged_extra)
+                    connection.extra = extra_json
+                except (TypeError, ValueError):
+                    raise ValueError(
+                        f"Encountered non-JSON in `extra` field for connection {self.aws_conn_id!r}."
+                    )
             except AirflowNotFoundException:
                 connection = athena_conn
                 connection.conn_type = "aws"
@@ -120,7 +127,10 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 )
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
+            conn=connection,
+            region_name=self._region_name,
+            botocore_config=self._config,
+            verify=self._verify,
         )
 
     @property

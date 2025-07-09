@@ -32,6 +32,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 KUBERNETES_QUEUE = "kubernetes"
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 does not support this executor anymore")
 class TestCeleryKubernetesExecutor:
     def test_supports_pickling(self):
         assert CeleryKubernetesExecutor.supports_pickling
@@ -88,7 +89,6 @@ class TestCeleryKubernetesExecutor:
         celery_executor_mock.start.assert_called()
         k8s_executor_mock.start.assert_called()
 
-    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have queue_command anymore")
     @pytest.mark.parametrize("test_queue", ["any-other-queue", KUBERNETES_QUEUE])
     @mock.patch.object(CeleryExecutor, "queue_command")
     @mock.patch.object(KubernetesExecutor, "queue_command")

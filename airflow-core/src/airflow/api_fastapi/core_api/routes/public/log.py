@@ -22,7 +22,7 @@ import textwrap
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
-from pydantic import PositiveInt
+from pydantic import NonNegativeInt, PositiveInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
@@ -75,7 +75,7 @@ def get_log(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    try_number: PositiveInt,
+    try_number: NonNegativeInt,
     accept: HeaderAcceptJsonOrNdjson,
     request: Request,
     dag_bag: DagBagDep,
@@ -112,6 +112,7 @@ def get_log(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.map_index == map_index,
+            TaskInstance.try_number == try_number,
         )
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))

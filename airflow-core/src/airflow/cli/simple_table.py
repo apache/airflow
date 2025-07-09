@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console

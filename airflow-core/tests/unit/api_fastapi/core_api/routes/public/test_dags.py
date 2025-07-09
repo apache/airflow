@@ -21,8 +21,10 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import insert, select
 
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
@@ -264,6 +266,29 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == 2
         assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
 
+    @pytest.mark.parametrize(
+        "setup_favorites, expected_total_entries, expected_ids",
+        [
+            ([], 0, []),
+            ([DAG1_ID], 1, [DAG1_ID]),
+            ([DAG1_ID, DAG2_ID], 2, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_get_dags_filter_favorites(
+        self, session, test_client, setup_favorites, expected_total_entries, expected_ids
+    ):
+        """Test filtering DAGs by is_favorite=true."""
+        for dag_id in setup_favorites:
+            session.add(DagFavorite(user_id="test", dag_id=dag_id))
+        session.commit()
+
+        response = test_client.get("/dags", params={"is_favorite": True})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert sorted([dag["dag_id"] for dag in body["dags"]]) == sorted(expected_ids)
+
     def test_get_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags")
         assert response.status_code == 401
@@ -392,6 +417,85 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == 403
 
 
+class TestFavoriteDag(TestDagEndpoint):
+    """Unit tests for favoriting a DAG."""
+
+    @pytest.mark.parametrize(
+        "dag_id, expected_status_code, expected_exist_in_favorites",
+        [
+            ("fake_dag_id", 404, None),
+            (DAG1_ID, 204, True),
+        ],
+    )
+    def test_favorite_dag(
+        self, test_client, dag_id, expected_status_code, expected_exist_in_favorites, session
+    ):
+        response = test_client.post(f"/dags/{dag_id}/favorite")
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 204:
+            result = session.execute(
+                select(DagFavorite).where(DagFavorite.dag_id == dag_id, DagFavorite.user_id == "test")
+            ).first()
+            assert result is not None if expected_exist_in_favorites else result is None
+            check_last_log(session, dag_id=dag_id, event="favorite_dag", logical_date=None)
+
+    def test_favorite_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 401
+
+    def test_favorite_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 403
+
+    def test_favoriting_already_favorited_dag_returns_409(self, test_client):
+        response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 204
+
+        response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 409
+
+
+class TestUnfavoriteDag(TestDagEndpoint):
+    """Unit tests for unfavoriting a DAG."""
+
+    @pytest.mark.parametrize(
+        "dag_id, expected_status_code, expected_exist_in_favorites",
+        [
+            ("fake_dag_id", 404, None),
+            (DAG1_ID, 204, False),
+        ],
+    )
+    def test_unfavorite_dag(
+        self, test_client, dag_id, expected_status_code, expected_exist_in_favorites, session
+    ):
+        if dag_id != "fake_dag_id":
+            session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id="test"))
+            session.commit()
+
+        response = test_client.post(f"/dags/{dag_id}/unfavorite")
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 204:
+            result = session.execute(
+                select(DagFavorite).where(DagFavorite.dag_id == dag_id, DagFavorite.user_id == "test")
+            ).first()
+            assert result is not None if expected_exist_in_favorites else result is None
+            check_last_log(session, dag_id=dag_id, event="unfavorite_dag", logical_date=None)
+
+    def test_unfavorite_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 401
+
+    def test_unfavorite_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 403
+
+    def test_unfavoriting_dag_that_is_not_favorite_returns_409(self, test_client):
+        response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 409
+
+
 class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
@@ -439,6 +543,7 @@ class TestDagDetails(TestDagEndpoint):
             },
             "description": None,
             "doc_md": "details",
+            "deadline": None,
             "end_date": None,
             "fileloc": __file__,
             "file_token": file_token,
@@ -527,6 +632,7 @@ class TestGetDag(TestDagEndpoint):
             "is_stale": False,
             "owners": ["airflow"],
             "timetable_summary": None,
+            "deadline": None,
             "tags": [],
             "has_task_concurrency_limits": True,
             "next_dagrun_data_interval_start": None,

@@ -18,16 +18,33 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from keycloak import KeycloakOpenID
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+
+try:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+except ImportError:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
+
+from airflow.api_fastapi.common.types import MenuItem
+from airflow.cli.cli_config import CLICommand, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
+    CONF_REALM_KEY,
+    CONF_SECTION_NAME,
+    CONF_SERVER_URL_KEY,
+)
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.utils.helpers import prune_dict
@@ -46,7 +63,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.api_fastapi.common.types import MenuItem
 
 log = logging.getLogger(__name__)
 
@@ -190,10 +206,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def filter_authorized_menu_items(
         self, menu_items: list[MenuItem], *, user: KeycloakAuthManagerUser
     ) -> list[MenuItem]:
-        return menu_items
+        authorized_menus = self._is_batch_authorized(
+            permissions=[
+                (cast("ExtendedResourceMethod", "MENU"), menu_item.value) for menu_item in menu_items
+            ],
+            user=user,
+        )
+        return [MenuItem(menu[1]) for menu in authorized_menus]
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.keycloak.auth_manager.routes.login import login_router
+        from airflow.providers.keycloak.auth_manager.routes.token import token_router
 
         app = FastAPI(
             title="Keycloak auth manager sub application",
@@ -204,8 +227,34 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             ),
         )
         app.include_router(login_router)
+        app.include_router(token_router)
 
         return app
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI."""
+        return [
+            GroupCommand(
+                name="keycloak-auth-manager",
+                help="Manage resources used by Keycloak auth manager",
+                subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
+            ),
+        ]
+
+    @staticmethod
+    def get_keycloak_client() -> KeycloakOpenID:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        return KeycloakOpenID(
+            server_url=server_url,
+            client_id=client_id,
+            client_secret_key=client_secret,
+            realm_name=realm,
+        )
 
     def _is_authorized(
         self,
@@ -216,9 +265,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_id: str | None = None,
         attributes: dict[str, str | None] | None = None,
     ) -> bool:
-        client_id = conf.get("keycloak_auth_manager", "client_id")
-        realm = conf.get("keycloak_auth_manager", "realm")
-        server_url = conf.get("keycloak_auth_manager", "server_url")
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
         context_attributes = prune_dict(attributes or {})
         if resource_id:
@@ -241,6 +290,33 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
+    def _is_batch_authorized(
+        self,
+        *,
+        permissions: list[tuple[ExtendedResourceMethod, str]],
+        user: KeycloakAuthManagerUser,
+    ) -> set[tuple[ExtendedResourceMethod, str]]:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        resp = requests.post(
+            self._get_token_url(server_url, realm),
+            data=self._get_batch_payload(client_id, permissions),
+            headers=self._get_headers(user.access_token),
+        )
+
+        if resp.status_code == 200:
+            return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+        if resp.status_code == 403:
+            return set()
+        if resp.status_code == 400:
+            error = json.loads(resp.text)
+            raise AirflowException(
+                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+            )
+        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+
     @staticmethod
     def _get_token_url(server_url, realm):
         return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
@@ -254,6 +330,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         }
         if attributes:
             payload["context"] = {"attributes": attributes}
+
+        return payload
+
+    @staticmethod
+    def _get_batch_payload(client_id: str, permissions: list[tuple[ExtendedResourceMethod, str]]):
+        payload: dict[str, Any] = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
+            "audience": client_id,
+            "permission": [f"{permission[1]}#{permission[0]}" for permission in permissions],
+            "response_mode": "permissions",
+        }
 
         return payload
 

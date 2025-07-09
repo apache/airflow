@@ -29,10 +29,10 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
-from typing import Any, Callable
+from typing import Any
 
 import jsonschema
 import yaml
@@ -61,6 +61,9 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
+    "airflow.providers.google.cloud.hooks.datacatalog",
+    "airflow.providers.google.cloud.operators.datacatalog",
+    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [

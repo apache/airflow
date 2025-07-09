@@ -36,7 +36,7 @@ export const RecentRuns = ({
 }: {
   readonly latestRuns: DAGWithLatestDagRunsResponse["latest_dag_runs"];
 }) => {
-  const { t: translate } = useTranslation(["dags", "common"]);
+  const { t: translate } = useTranslation();
 
   // Because of the styling (`row-reverse`), we need to reverse the runs so that the most recent run is on the right.
   const reversedRuns = [...latestRuns].reverse();
@@ -62,23 +62,23 @@ export const RecentRuns = ({
           content={
             <Box>
               <Text>
-                {translate("list.runs.state")}: {translate(`common:states.${run.state}`)}
+                {translate("state")}: {translate(`common:states.${run.state}`)}
               </Text>
               <Text>
-                {translate("list.runs.runAfter")}: <Time datetime={run.run_after} />
+                {translate("dagRun.runAfter")}: <Time datetime={run.run_after} />
               </Text>
               {run.start_date === null ? undefined : (
                 <Text>
-                  {translate("list.runs.startDate")}: <Time datetime={run.start_date} />
+                  {translate("startDate")}: <Time datetime={run.start_date} />
                 </Text>
               )}
               {run.end_date === null ? undefined : (
                 <Text>
-                  {translate("list.runs.endDate")}: <Time datetime={run.end_date} />
+                  {translate("endDate")}: <Time datetime={run.end_date} />
                 </Text>
               )}
               <Text>
-                {translate("list.runs.duration")}: {getDuration(run.start_date, run.end_date)}
+                {translate("duration")}: {getDuration(run.start_date, run.end_date)}
               </Text>
             </Box>
           }

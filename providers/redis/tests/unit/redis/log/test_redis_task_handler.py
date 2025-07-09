@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
@@ -31,8 +32,6 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-pytestmark = pytest.mark.db_test
 
 
 class TestRedisTaskHandler:
@@ -64,7 +63,15 @@ class TestRedisTaskHandler:
             session.commit()
             session.refresh(dag_run)
 
-        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=dag_run.run_id)
         ti.dag_run = dag_run
         ti.try_number = 1
         ti.state = State.RUNNING
@@ -74,6 +81,7 @@ class TestRedisTaskHandler:
         with create_session() as session:
             session.query(DagRun).delete()
 
+    @pytest.mark.db_test
     @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
     def test_write(self, ti):
         handler = RedisTaskHandler("any", max_lines=5, ttl_seconds=2)
@@ -94,6 +102,7 @@ class TestRedisTaskHandler:
         pipeline.return_value.expire.assert_called_once_with(key, time=2)
         pipeline.return_value.execute.assert_called_once_with()
 
+    @pytest.mark.db_test
     @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
     def test_read(self, ti):
         handler = RedisTaskHandler("any")

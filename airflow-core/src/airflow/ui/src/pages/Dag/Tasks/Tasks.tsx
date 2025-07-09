@@ -60,7 +60,7 @@ export const Tasks = () => {
         displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Task"
+        modelName={translate("task_one")}
         total={data ? data.total_entries : 0}
       />
     </Box>

@@ -91,16 +91,14 @@ class LazyXComSequence(Sequence[T]):
 
             task = self._xcom_arg.operator
 
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXComCount(
+            msg = SUPERVISOR_COMMS.send(
+                GetXComCount(
                     key=self._xcom_arg.key,
                     dag_id=task.dag_id,
                     run_id=self._ti.run_id,
                     task_id=task.task_id,
                 ),
             )
-            msg = SUPERVISOR_COMMS.get_message()
             if isinstance(msg, ErrorResponse):
                 raise RuntimeError(msg)
             if not isinstance(msg, XComCountResponse):
@@ -127,23 +125,20 @@ class LazyXComSequence(Sequence[T]):
 
         if isinstance(key, slice):
             start, stop, step = _coerce_slice(key)
-            with SUPERVISOR_COMMS.lock:
-                source = (xcom_arg := self._xcom_arg).operator
-                SUPERVISOR_COMMS.send_request(
-                    log=log,
-                    msg=GetXComSequenceSlice(
-                        key=xcom_arg.key,
-                        dag_id=source.dag_id,
-                        task_id=source.task_id,
-                        run_id=self._ti.run_id,
-                        start=start,
-                        stop=stop,
-                        step=step,
-                    ),
-                )
-                msg = SUPERVISOR_COMMS.get_message()
-                if not isinstance(msg, XComSequenceSliceResult):
-                    raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg!r}")
+            source = (xcom_arg := self._xcom_arg).operator
+            msg = SUPERVISOR_COMMS.send(
+                GetXComSequenceSlice(
+                    key=xcom_arg.key,
+                    dag_id=source.dag_id,
+                    task_id=source.task_id,
+                    run_id=self._ti.run_id,
+                    start=start,
+                    stop=stop,
+                    step=step,
+                ),
+            )
+            if not isinstance(msg, XComSequenceSliceResult):
+                raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg!r}")
             return [XCom.deserialize_value(_XComWrapper(value)) for value in msg.root]
 
         if not isinstance(key, int):
@@ -151,19 +146,16 @@ class LazyXComSequence(Sequence[T]):
                 key = index()
             raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
 
-        with SUPERVISOR_COMMS.lock:
-            source = (xcom_arg := self._xcom_arg).operator
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXComSequenceItem(
-                    key=xcom_arg.key,
-                    dag_id=source.dag_id,
-                    task_id=source.task_id,
-                    run_id=self._ti.run_id,
-                    offset=key,
-                ),
-            )
-            msg = SUPERVISOR_COMMS.get_message()
+        source = (xcom_arg := self._xcom_arg).operator
+        msg = SUPERVISOR_COMMS.send(
+            GetXComSequenceItem(
+                key=xcom_arg.key,
+                dag_id=source.dag_id,
+                task_id=source.task_id,
+                run_id=self._ti.run_id,
+                offset=key,
+            ),
+        )
         if isinstance(msg, ErrorResponse):
             raise IndexError(key)
         if not isinstance(msg, XComSequenceIndexResult):

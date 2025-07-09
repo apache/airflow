@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-05-20"
+API_VERSION: Final[str] = "2025-08-10"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -398,6 +398,7 @@ class TaskInstance(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     try_number: Annotated[int, Field(title="Try Number")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
@@ -518,7 +519,7 @@ class TIRunContext(BaseModel):
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
-    should_retry: Annotated[bool, Field(title="Should Retry")]
+    should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
 
 
 class TITerminalStatePayload(BaseModel):

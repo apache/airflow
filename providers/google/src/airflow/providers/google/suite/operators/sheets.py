@@ -19,8 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.providers.google.version_compat import BaseOperator
 
 
 class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
@@ -68,6 +68,6 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         spreadsheet = hook.create_spreadsheet(spreadsheet=self.spreadsheet)
-        self.xcom_push(context, "spreadsheet_id", spreadsheet["spreadsheetId"])
-        self.xcom_push(context, "spreadsheet_url", spreadsheet["spreadsheetUrl"])
+        context["task_instance"].xcom_push(key="spreadsheet_id", value=spreadsheet["spreadsheetId"])
+        context["task_instance"].xcom_push(key="spreadsheet_url", value=spreadsheet["spreadsheetUrl"])
         return spreadsheet

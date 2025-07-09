@@ -23,8 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
 from airflow.utils import timezone
 
 try:

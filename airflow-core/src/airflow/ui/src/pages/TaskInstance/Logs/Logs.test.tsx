@@ -46,18 +46,54 @@ describe("Task log grouping", () => {
     render(
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
     );
-    await waitFor(() => expect(screen.queryByTestId("virtualized-list")).toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByTestId("virtualized-item-0")).toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByTestId("virtualized-item-10")).toBeInTheDocument());
 
-    fireEvent.scroll(screen.getByTestId("virtualized-list"), { target: { scrollTop: ITEM_HEIGHT * 6 } });
-    await waitFor(() => expect(screen.queryByTestId("virtualized-item-16")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("virtualized-list")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("virtualized-item-0")).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.queryByTestId("summary-Pre task execution logs")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTestId("summary-Pre task execution logs")).toBeVisible());
+    fireEvent.scroll(screen.getByTestId("virtualized-list"), { target: { scrollTop: ITEM_HEIGHT * 2 } });
+
+    await waitFor(() => expect(screen.getByTestId("virtualized-item-2")).toBeInTheDocument());
+
+    const summarySource = screen.getByTestId(
+      'summary-Log message source details: sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
+    );
+
+    expect(summarySource).toBeVisible();
+    fireEvent.click(summarySource);
+    await waitFor(() => expect(screen.queryByText(/sources=\[/iu)).toBeVisible());
+
+    const summaryPre = screen.getByTestId("summary-Pre task execution logs");
+
+    expect(summaryPre).toBeVisible();
+    fireEvent.click(summaryPre);
+    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeVisible());
+
+    const summaryPost = screen.getByTestId("summary-Post task execution logs");
+
+    expect(summaryPost).toBeVisible();
+    fireEvent.click(summaryPost);
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
+
+    fireEvent.click(summaryPre);
     await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
-
-    await waitFor(() => screen.getByTestId("summary-Pre task execution logs").click());
+    fireEvent.click(summaryPre);
     await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).toBeVisible());
+
+    fireEvent.click(summaryPost);
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
+    fireEvent.click(summaryPost);
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
+
+    const expandBtn = screen.getByRole("button", { name: /expand\.expand/iu });
+
+    fireEvent.click(expandBtn);
+
+    expect(screen.getByText(/Marking task as SUCCESS/iu)).toBeVisible();
+
+    const collapseBtn = screen.getByRole("button", { name: /expand\.collapse/iu });
+
+    fireEvent.click(collapseBtn);
+    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
   }, 10_000);
 });

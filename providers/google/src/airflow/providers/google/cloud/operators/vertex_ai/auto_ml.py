@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -90,6 +90,13 @@ class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.hook: AutoMLHook | None = None
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
 
     def on_kill(self) -> None:
         """Act as a callback called when the operator is killed; cancel any running job."""
@@ -242,12 +249,12 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
 
@@ -334,12 +341,12 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
 
@@ -457,12 +464,12 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
 
@@ -531,12 +538,12 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
 
@@ -640,6 +647,12 @@ class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -656,5 +669,5 @@ class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAITrainingPipelinesLink.persist(context=context, task_instance=self)
+        VertexAITrainingPipelinesLink.persist(context=context)
         return [TrainingPipeline.to_dict(result) for result in results]

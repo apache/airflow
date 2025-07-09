@@ -22,9 +22,13 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 FUNCTION_NAME = "function_name"
 

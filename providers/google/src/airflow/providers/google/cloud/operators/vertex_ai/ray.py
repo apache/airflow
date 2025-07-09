@@ -188,12 +188,13 @@ class CreateRayClusterOperator(RayBaseOperator):
                 labels=self.labels,
             )
             cluster_id = self.hook.extract_cluster_id(cluster_path)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="cluster_id",
                 value=cluster_id,
             )
-            VertexAIRayClusterLink.persist(context=context, task_instance=self, cluster_id=cluster_id)
+            VertexAIRayClusterLink.persist(
+                context=context, location=self.location, cluster_id=cluster_id, project_id=self.project_id
+            )
             self.log.info("Ray cluster was created.")
         except Exception as error:
             raise AirflowException(error)
@@ -220,7 +221,7 @@ class ListRayClustersOperator(RayBaseOperator):
     operator_extra_links = (VertexAIRayClusterListLink(),)
 
     def execute(self, context: Context):
-        VertexAIRayClusterListLink.persist(context=context, task_instance=self)
+        VertexAIRayClusterListLink.persist(context=context, project_id=self.project_id)
         self.log.info("Listing Clusters from location %s.", self.location)
         try:
             ray_cluster_list = self.hook.list_ray_clusters(
@@ -268,8 +269,9 @@ class GetRayClusterOperator(RayBaseOperator):
     def execute(self, context: Context):
         VertexAIRayClusterLink.persist(
             context=context,
-            task_instance=self,
+            location=self.location,
             cluster_id=self.cluster_id,
+            project_id=self.project_id,
         )
         self.log.info("Getting Cluster: %s", self.cluster_id)
         try:
@@ -325,8 +327,9 @@ class UpdateRayClusterOperator(RayBaseOperator):
     def execute(self, context: Context):
         VertexAIRayClusterLink.persist(
             context=context,
-            task_instance=self,
+            location=self.location,
             cluster_id=self.cluster_id,
+            project_id=self.project_id,
         )
         self.log.info("Updating a Ray cluster.")
         try:

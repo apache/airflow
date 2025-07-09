@@ -20,7 +20,7 @@ import logging
 import time
 from collections.abc import Iterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
@@ -33,9 +33,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.typing_compat import TypeAlias
 
-LogMessages: TypeAlias = Union[list[StructuredLogMessage], str]
+LogMessages: TypeAlias = list[StructuredLogMessage] | str
 LogMetadata: TypeAlias = dict[str, Any]
 
 
@@ -44,11 +45,15 @@ class TaskLogReader:
 
     STREAM_LOOP_SLEEP_SECONDS = 1
     """Time to sleep between loops while waiting for more logs"""
-    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 5
+
+    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 10
     """Number of empty loop iterations before stopping the stream"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: int | None, metadata
+        self,
+        ti: TaskInstance | TaskInstanceHistory,
+        try_number: int | None,
+        metadata: LogMetadata,
     ) -> tuple[LogMessages, LogMetadata]:
         """
         Read chunks of Task Instance logs.
@@ -70,7 +75,12 @@ class TaskLogReader:
         """
         return self.log_handler.read(ti, try_number, metadata=metadata)
 
-    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
+    def read_log_stream(
+        self,
+        ti: TaskInstance | TaskInstanceHistory,
+        try_number: int | None,
+        metadata: LogMetadata,
+    ) -> Iterator[str]:
         """
         Continuously read log to the end.
 
@@ -147,7 +157,7 @@ class TaskLogReader:
     @provide_session
     def render_log_filename(
         self,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstanceHistory,
         try_number: int | None = None,
         *,
         session: Session = NEW_SESSION,

@@ -33,6 +33,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
+    AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -43,8 +44,13 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+
+# Maps each supported Python version to the minimum Airflow version that supports it.
+# Used to filter Airflow versions incompatible with a given Python runtime.
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
@@ -55,14 +61,12 @@ NONE_BACKEND = "none"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = [
-    "kerberos",
-]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
-    "gremlin",
+    "tinkerpop",
     "kafka",
     "mongo",
     "mssql",
@@ -193,7 +197,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.8"
+UV_VERSION = "0.7.19"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -204,6 +208,12 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "task-sdk",
+]
+
+DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/docs/",
+    "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
 
@@ -377,7 +387,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -548,6 +558,19 @@ def get_airflow_version():
     return airflow_version
 
 
+def get_task_sdk_version():
+    task_sdk_init_py_file = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py"
+    task_sdk_version = "unknown"
+    with open(task_sdk_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                task_sdk_version = line.split()[2][1:-1]
+                break
+    if task_sdk_version == "unknown":
+        raise RuntimeError("Unable to determine Task SDK version")
+    return task_sdk_version
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -709,21 +732,21 @@ DEFAULT_EXTRAS = [
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.10.5",
-        "remove-providers": "cloudant common.messaging fab git keycloak",
+        "remove-providers": "common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "cloudant common.messaging fab git keycloak",
+        "remove-providers": "common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "3.0.2",
-        "remove-providers": "cloudant",
+        "remove-providers": "",
         "run-tests": "true",
     },
 ]
