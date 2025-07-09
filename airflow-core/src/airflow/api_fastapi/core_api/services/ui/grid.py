@@ -326,7 +326,7 @@ def agg_state(states):
 
 
 def _get_aggs_for_node(detail):
-    states = [x["state"] for x in detail if x["state"] is not None]
+    states = [x["state"] for x in detail]
     try:
         min_start_date = min(x["start_date"] for x in detail if x["start_date"])
     except ValueError:

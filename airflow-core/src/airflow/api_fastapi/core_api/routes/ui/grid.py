@@ -480,7 +480,6 @@ def get_grid_runs(
             )
         ),
     ],
-    response_model_exclude_none=True,
 )
 def get_grid_ti_summaries(
     dag_id: str,

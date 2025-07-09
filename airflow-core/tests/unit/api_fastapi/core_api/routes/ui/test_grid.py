@@ -1224,9 +1224,27 @@ class TestGetGridDataEndpoint:
             "dag_id": "test_dag_4",
             "run_id": "run_4-1",
             "task_instances": [
-                {"state": "success", "task_id": "t1"},
-                {"state": "success", "task_id": "t2"},
-                {"state": "success", "task_id": "t7"},
+                {
+                    "state": "success",
+                    "task_id": "t1",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "t2",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "t7",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
                 {
                     "child_states": {"success": 2},
                     "max_end_date": "2025-03-02T00:00:12Z",
@@ -1234,7 +1252,13 @@ class TestGetGridDataEndpoint:
                     "state": "success",
                     "task_id": "task_group-1",
                 },
-                {"state": "success", "task_id": "task_group-1.t6"},
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.t6",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
                 {
                     "child_states": {"success": 3},
                     "max_end_date": "2025-03-02T00:00:12Z",
@@ -1242,9 +1266,27 @@ class TestGetGridDataEndpoint:
                     "state": "success",
                     "task_id": "task_group-1.task_group-2",
                 },
-                {"state": "success", "task_id": "task_group-1.task_group-2.t3"},
-                {"state": "success", "task_id": "task_group-1.task_group-2.t4"},
-                {"state": "success", "task_id": "task_group-1.task_group-2.t5"},
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t3",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t4",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t5",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
             ],
         }
         for obj in actual, expected:
@@ -1269,7 +1311,13 @@ class TestGetGridDataEndpoint:
             return out
 
         expected = [
-            {"child_states": {}, "task_id": "mapped_task_2"},
+            {
+                "child_states": {},
+                "task_id": "mapped_task_2",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
             {
                 "child_states": {"running": 1},
                 "max_end_date": "2024-12-30T01:02:03Z",
@@ -1277,12 +1325,48 @@ class TestGetGridDataEndpoint:
                 "state": "running",
                 "task_id": "mapped_task_group",
             },
-            {"state": "running", "task_id": "mapped_task_group.subtask"},
-            {"state": "success", "task_id": "task"},
-            {"child_states": {}, "task_id": "task_group"},
-            {"child_states": {}, "task_id": "task_group.inner_task_group"},
-            {"child_states": {}, "task_id": "task_group.inner_task_group.inner_task_group_sub_task"},
-            {"child_states": {}, "task_id": "task_group.mapped_task"},
+            {
+                "state": "running",
+                "task_id": "mapped_task_group.subtask",
+                "child_states": None,
+                "max_end_date": None,
+                "min_start_date": None,
+            },
+            {
+                "state": "success",
+                "task_id": "task",
+                "child_states": None,
+                "max_end_date": None,
+                "min_start_date": None,
+            },
+            {
+                "child_states": {},
+                "task_id": "task_group",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {},
+                "task_id": "task_group.inner_task_group",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {},
+                "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {},
+                "task_id": "task_group.mapped_task",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
         ]
         expected = sort_dict(expected)
         actual = sort_dict(actual)
