@@ -52,7 +52,7 @@ if AIRFLOW_V_3_0_PLUS:
 
     OsLogMsgType = list[StructuredLogMessage] | str
 else:
-    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,no-redef,misc]
 
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
