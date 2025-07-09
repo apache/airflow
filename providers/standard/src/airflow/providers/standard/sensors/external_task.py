@@ -19,8 +19,8 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
@@ -39,14 +39,16 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+    BaseSensorOperator,
+)
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.state import State, TaskInstanceState
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type:ignore[no-redef]
+if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -54,19 +56,10 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    try:
-        from airflow.sdk import BaseOperator
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.utils.context import Context
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    else:
+        from airflow.utils.context import Context  # type: ignore[no-redef]
 
 
 class ExternalDagLink(BaseOperatorLink):

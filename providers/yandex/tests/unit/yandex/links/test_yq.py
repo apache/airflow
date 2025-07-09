@@ -35,18 +35,15 @@ yandexcloud = pytest.importorskip("yandexcloud")
 
 
 def test_persist():
-    mock_context = mock.MagicMock()
+    mock_ti = mock.MagicMock()
+    mock_context = {"ti": mock_ti}
+    if not AIRFLOW_V_3_0_PLUS:
+        mock_context["task_instance"] = mock_ti
 
-    YQLink.persist(context=mock_context, task_instance=MockOperator(task_id="test_task_id"), web_link="g.com")
+    YQLink.persist(context=mock_context, web_link="g.com")
 
     ti = mock_context["ti"]
-    if AIRFLOW_V_3_0_PLUS:
-        ti.xcom_push.assert_called_once_with(
-            key="web_link",
-            value="g.com",
-        )
-    else:
-        ti.xcom_push.assert_called_once_with(key="web_link", value="g.com", execution_date=None)
+    ti.xcom_push.assert_called_once_with(key="web_link", value="g.com")
 
 
 def test_default_link():
@@ -55,7 +52,10 @@ def test_default_link():
         link = YQLink()
 
         op = MockOperator(task_id="test_task_id")
-        ti = TaskInstance(task=op, run_id="run_id1")
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=op, run_id="run_id1", dag_version_id=mock.MagicMock())
+        else:
+            ti = TaskInstance(task=op, run_id="run_id1")
         assert link.get_link(op, ti_key=ti.key) == "https://yq.cloud.yandex.ru"
 
 
@@ -65,5 +65,8 @@ def test_link():
         link = YQLink()
 
         op = MockOperator(task_id="test_task_id")
-        ti = TaskInstance(task=op, run_id="run_id1")
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=op, run_id="run_id1", dag_version_id=mock.MagicMock())
+        else:
+            ti = TaskInstance(task=op, run_id="run_id1")
         assert link.get_link(op, ti_key=ti.key) == "https://g.com"

@@ -17,66 +17,29 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagServiceGetDagDetails,
-  useGridServiceGridData,
-} from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 export const GroupTaskInstance = () => {
-  const { dagId = "", groupId = "", runId = "" } = useParams();
+  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { t: translate } = useTranslation();
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
-
-  const { data: dagRun } = useDagRunServiceGetDagRun(
-    {
-      dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    { enabled: runId !== "" },
-  );
-
-  // Filter grid data to get only a single dag run
-  const { data, error, isLoading } = useGridServiceGridData(
-    {
-      dagId,
-      limit: 1,
-      offset: 0,
-      runAfterGte: dagRun?.run_after,
-      runAfterLte: dagRun?.run_after,
-    },
-    undefined,
-    {
-      enabled: dagRun !== undefined,
-      refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
-    },
-  );
-
-  const taskInstance = data?.dag_runs
-    .find((dr) => dr.dag_run_id === runId)
-    ?.task_instances.find((ti) => ti.task_id === groupId);
-
-  const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
+  const tabs = [{ icon: <MdOutlineTask />, label: translate("taskInstances_other"), value: "" }];
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
+      <DetailsLayout tabs={tabs}>
         {taskInstance === undefined ? undefined : (
           <Header
             isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}

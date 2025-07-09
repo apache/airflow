@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 from airflow.exceptions import AirflowException
 
 
+def identify_os(ssh_client: SSHClient) -> str:
+    stdin, stdout, stderr = ssh_client.exec_command("uname || ver")
+    return stdout.read().decode().lower()
+
+
 def verify_bteq_installed():
     """Verify if BTEQ is installed and available in the system's PATH."""
     if shutil.which("bteq") is None:
@@ -36,7 +41,23 @@ def verify_bteq_installed():
 
 def verify_bteq_installed_remote(ssh_client: SSHClient):
     """Verify if BTEQ is installed on the remote machine."""
-    stdin, stdout, stderr = ssh_client.exec_command("which bteq")
+    # Detect OS
+    os_info = identify_os(ssh_client)
+
+    if "windows" in os_info:
+        check_cmd = "where bteq"
+    elif "darwin" in os_info:
+        # Check if zsh exists first
+        stdin, stdout, stderr = ssh_client.exec_command("command -v zsh")
+        zsh_path = stdout.read().strip()
+        if zsh_path:
+            check_cmd = 'zsh -l -c "which bteq"'
+        else:
+            check_cmd = "which bteq"
+    else:
+        check_cmd = "which bteq"
+
+    stdin, stdout, stderr = ssh_client.exec_command(check_cmd)
     exit_status = stdout.channel.recv_exit_status()
     output = stdout.read().strip()
     error = stderr.read().strip()
@@ -51,6 +72,20 @@ def transfer_file_sftp(ssh_client, local_path, remote_path):
     sftp = ssh_client.open_sftp()
     sftp.put(local_path, remote_path)
     sftp.close()
+
+
+def get_remote_tmp_dir(ssh_client):
+    os_info = identify_os(ssh_client)
+
+    if "windows" in os_info:
+        # Try getting Windows temp dir
+        stdin, stdout, stderr = ssh_client.exec_command("echo %TEMP%")
+        tmp_dir = stdout.read().decode().strip()
+        if not tmp_dir:
+            tmp_dir = "C:\\Temp"
+    else:
+        tmp_dir = "/tmp"
+    return tmp_dir
 
 
 # We can not pass host details with bteq command when executing on remote machine. Instead, we will prepare .logon in bteq script itself to avoid risk of

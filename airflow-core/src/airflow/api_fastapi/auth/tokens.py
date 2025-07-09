@@ -21,9 +21,9 @@ import os
 import time
 import uuid
 from base64 import urlsafe_b64encode
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import attrs
 import httpx

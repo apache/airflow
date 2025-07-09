@@ -222,6 +222,7 @@ buildType
 burstable
 bytestring
 cacert
+Cadwyn
 callables
 camelCase
 Cancelled
@@ -771,6 +772,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+googleapis
 GoogleDisplayVideo
 gpu
 gpus
@@ -786,6 +788,7 @@ grpc
 GSoD
 gsuite
 Gunicorn
+gunicorn
 gz
 Gzip
 gzipped
@@ -831,6 +834,7 @@ hotfix
 Hou
 howto
 hql
+href
 html
 htmlcontent
 Http
@@ -1549,6 +1553,7 @@ sagemaker
 salesforce
 samesite
 saml
+sandboxed
 sanitization
 sas
 Sasl

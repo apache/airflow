@@ -173,7 +173,7 @@ class XComObjectStorageBackend(BaseXCom):
         try:
             with path.open(mode="rb", compression="infer") as f:
                 return json.load(f, cls=XComDecoder)
-        except (TypeError, ValueError):
+        except (FileNotFoundError, TypeError, ValueError):
             return data
 
     @staticmethod

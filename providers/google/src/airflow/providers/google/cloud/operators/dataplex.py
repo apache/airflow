@@ -2533,8 +2533,7 @@ class DataplexCatalogListEntryGroupsOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("EntryGroup on page: %s", entry_group_on_page)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="entry_group_page",
                 value=ListEntryGroupsResponse.to_dict(entry_group_on_page._response),
             )
@@ -2954,8 +2953,7 @@ class DataplexCatalogListEntryTypesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("EntryType on page: %s", entry_type_on_page)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="entry_type_page",
                 value=ListEntryTypesResponse.to_dict(entry_type_on_page._response),
             )
@@ -3308,8 +3306,7 @@ class DataplexCatalogListAspectTypesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("AspectType on page: %s", aspect_type_on_page)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="aspect_type_page",
                 value=ListAspectTypesResponse.to_dict(aspect_type_on_page._response),
             )
@@ -3803,8 +3800,7 @@ class DataplexCatalogListEntriesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("Entries on page: %s", entries_on_page)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="entry_page",
                 value=ListEntriesResponse.to_dict(entries_on_page._response),
             )
@@ -3901,8 +3897,7 @@ class DataplexCatalogSearchEntriesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("Entries on page: %s", entries_on_page)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="entry_page",
                 value=SearchEntriesResponse.to_dict(entries_on_page._response),
             )
@@ -4048,7 +4043,7 @@ class DataplexCatalogUpdateEntryOperator(DataplexCatalogBaseOperator):
     :param entry_configuration: Required. The updated configuration body of the Entry.
     :param allow_missing: Optional. If set to true and entry doesn't exist, the service will create it.
     :param delete_missing_aspects: Optional. If set to true and the aspect_keys specify aspect
-        ranges, the service deletes any existing aspects from that range that weren't provided
+        ranges, the service deletes any existing aspects from that range that were not provided
         in the request.
     :param aspect_keys: Optional. The map keys of the Aspects which the service should modify.
         It supports the following syntax:

@@ -21,21 +21,22 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import vertexai
 from google.cloud import aiplatform
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
+from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
 from vertexai.preview.evaluation import EvalResult, EvalTask
-from vertexai.preview.generative_models import GenerativeModel as preview_generative_model
 from vertexai.preview.tuning import sft
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
-    from google.cloud.aiplatform_v1 import types as types_v1
     from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
 
 
@@ -50,7 +51,7 @@ class GenerativeModelHook(GoogleBaseHook):
     def get_generative_model(
         self,
         pretrained_model: str,
-        system_instruction: str | None = None,
+        system_instruction: Any | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         tools: list | None = None,
@@ -82,11 +83,11 @@ class GenerativeModelHook(GoogleBaseHook):
     def get_cached_context_model(
         self,
         cached_content_name: str,
-    ) -> preview_generative_model:
+    ) -> Any:
         """Return a Generative Model with Cached Context."""
         cached_content = CachedContent(cached_content_name=cached_content_name)
 
-        cached_context_model = preview_generative_model.from_cached_content(cached_content)
+        cached_context_model = preview_generative_model.GenerativeModel.from_cached_content(cached_content)
         return cached_context_model
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -164,10 +165,10 @@ class GenerativeModelHook(GoogleBaseHook):
         tuned_model_display_name: str | None = None,
         validation_dataset: str | None = None,
         epochs: int | None = None,
-        adapter_size: int | None = None,
+        adapter_size: Literal[1, 4, 8, 16] | None = None,
         learning_rate_multiplier: float | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> types_v1.TuningJob:
+    ) -> Any:
         """
         Use the Supervised Fine Tuning API to create a tuning job.
 
@@ -300,8 +301,8 @@ class GenerativeModelHook(GoogleBaseHook):
         model_name: str,
         location: str,
         ttl_hours: float = 1,
-        system_instruction: str | None = None,
-        contents: list | None = None,
+        system_instruction: Any | None = None,
+        contents: list[Any] | None = None,
         display_name: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
@@ -362,6 +363,11 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook",
+    category=AirflowProviderDeprecationWarning,
+)
 class ExperimentRunHook(GoogleBaseHook):
     """Use the Vertex AI SDK for Python to create and manage your experiment runs."""
 

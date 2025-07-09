@@ -1909,7 +1909,7 @@ class TestGetTaskStates:
             },
         }
 
-    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker, serialized=True):
+    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_logical_dates", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")

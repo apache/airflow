@@ -524,19 +524,19 @@ class Destination(str, Enum):
 
 class ExternalViewResponse(BaseModel):
     """
-    Serializer for IFrame Plugin responses.
+    Serializer for External View Plugin responses.
     """
 
     model_config = ConfigDict(
         extra="allow",
     )
     name: Annotated[str, Field(title="Name")]
-    href: Annotated[str, Field(title="Href")]
     icon: Annotated[str | None, Field(title="Icon")] = None
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+    href: Annotated[str, Field(title="Href")]
 
 
 class ExtraLinkCollectionResponse(BaseModel):
@@ -637,34 +637,6 @@ class PluginImportErrorResponse(BaseModel):
     error: Annotated[str, Field(title="Error")]
 
 
-class PluginResponse(BaseModel):
-    """
-    Plugin serializer.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    macros: Annotated[list[str], Field(title="Macros")]
-    flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
-    fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
-    fastapi_root_middlewares: Annotated[
-        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
-    ]
-    external_views: Annotated[
-        list[ExternalViewResponse],
-        Field(
-            description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.",
-            title="External Views",
-        ),
-    ]
-    appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
-    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
-    global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
-    operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
-    source: Annotated[str, Field(title="Source")]
-    listeners: Annotated[list[str], Field(title="Listeners")]
-    timetables: Annotated[list[str], Field(title="Timetables")]
-
-
 class PoolBody(BaseModel):
     """
     Pool serializer for post bodies.
@@ -729,6 +701,23 @@ class QueuedEventResponse(BaseModel):
     asset_id: Annotated[int, Field(title="Asset Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+
+
+class ReactAppResponse(BaseModel):
+    """
+    Serializer for React App Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+    bundle_url: Annotated[str, Field(title="Bundle Url")]
 
 
 class ReprocessBehavior(str, Enum):
@@ -1358,6 +1347,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None = None
+    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
@@ -1484,15 +1474,6 @@ class PatchTaskInstanceBody(BaseModel):
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
 
 
-class PluginCollectionResponse(BaseModel):
-    """
-    Plugin Collection serializer.
-    """
-
-    plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
-
-
 class PluginImportErrorCollectionResponse(BaseModel):
     """
     Plugin Import Error Collection serializer.
@@ -1500,6 +1481,35 @@ class PluginImportErrorCollectionResponse(BaseModel):
 
     import_errors: Annotated[list[PluginImportErrorResponse], Field(title="Import Errors")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class PluginResponse(BaseModel):
+    """
+    Plugin serializer.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    macros: Annotated[list[str], Field(title="Macros")]
+    flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
+    fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
+    fastapi_root_middlewares: Annotated[
+        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
+    ]
+    external_views: Annotated[
+        list[ExternalViewResponse],
+        Field(
+            description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.",
+            title="External Views",
+        ),
+    ]
+    react_apps: Annotated[list[ReactAppResponse], Field(title="React Apps")]
+    appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
+    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
+    global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
+    operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
+    source: Annotated[str, Field(title="Source")]
+    listeners: Annotated[list[str], Field(title="Listeners")]
+    timetables: Annotated[list[str], Field(title="Timetables")]
 
 
 class PoolCollectionResponse(BaseModel):
@@ -1577,6 +1587,7 @@ class TaskInstanceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_version: DagVersionResponse
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
@@ -1606,7 +1617,6 @@ class TaskInstanceResponse(BaseModel):
     rendered_fields: Annotated[dict[str, Any] | None, Field(title="Rendered Fields")] = None
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
-    dag_version: DagVersionResponse | None = None
 
 
 class TaskResponse(BaseModel):
@@ -1768,6 +1778,15 @@ class DagStatsCollectionResponse(BaseModel):
     """
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class PluginCollectionResponse(BaseModel):
+    """
+    Plugin Collection serializer.
+    """
+
+    plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

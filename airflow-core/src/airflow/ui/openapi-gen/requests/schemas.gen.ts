@@ -2397,6 +2397,17 @@ export const $DAGRunResponse = {
                 }
             ]
         },
+        triggering_user_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Triggering User Name'
+        },
         conf: {
             anyOf: [
                 {
@@ -2444,7 +2455,7 @@ export const $DAGRunResponse = {
         }
     },
     type: 'object',
-    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
+    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
     title: 'DAGRunResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -3268,10 +3279,6 @@ export const $ExternalViewResponse = {
             type: 'string',
             title: 'Name'
         },
-        href: {
-            type: 'string',
-            title: 'Href'
-        },
         icon: {
             anyOf: [
                 {
@@ -3321,13 +3328,17 @@ export const $ExternalViewResponse = {
             enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
             title: 'Destination',
             default: 'nav'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
         }
     },
     additionalProperties: true,
     type: 'object',
     required: ['name', 'href'],
     title: 'ExternalViewResponse',
-    description: 'Serializer for IFrame Plugin responses.'
+    description: 'Serializer for External View Plugin responses.'
 } as const;
 
 export const $ExtraLinkCollectionResponse = {
@@ -3847,6 +3858,13 @@ export const $PluginResponse = {
             title: 'External Views',
             description: "Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here."
         },
+        react_apps: {
+            items: {
+                '$ref': '#/components/schemas/ReactAppResponse'
+            },
+            type: 'array',
+            title: 'React Apps'
+        },
         appbuilder_views: {
             items: {
                 '$ref': '#/components/schemas/AppBuilderViewResponse'
@@ -3896,7 +3914,7 @@ export const $PluginResponse = {
         }
     },
     type: 'object',
-    required: ['name', 'macros', 'flask_blueprints', 'fastapi_apps', 'fastapi_root_middlewares', 'external_views', 'appbuilder_views', 'appbuilder_menu_items', 'global_operator_extra_links', 'operator_extra_links', 'source', 'listeners', 'timetables'],
+    required: ['name', 'macros', 'flask_blueprints', 'fastapi_apps', 'fastapi_root_middlewares', 'external_views', 'react_apps', 'appbuilder_views', 'appbuilder_menu_items', 'global_operator_extra_links', 'operator_extra_links', 'source', 'listeners', 'timetables'],
     title: 'PluginResponse',
     description: 'Plugin serializer.'
 } as const;
@@ -4150,6 +4168,74 @@ export const $QueuedEventResponse = {
     required: ['dag_id', 'asset_id', 'created_at', 'dag_display_name'],
     title: 'QueuedEventResponse',
     description: 'Queued Event serializer for responses..'
+} as const;
+
+export const $ReactAppResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        url_route: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Url Route'
+        },
+        category: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Category'
+        },
+        destination: {
+            type: 'string',
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
+            title: 'Destination',
+            default: 'nav'
+        },
+        bundle_url: {
+            type: 'string',
+            title: 'Bundle Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'bundle_url'],
+    title: 'ReactAppResponse',
+    description: 'Serializer for React App Plugin responses.'
 } as const;
 
 export const $ReprocessBehavior = {
@@ -4555,6 +4641,9 @@ export const $TaskInstanceResponse = {
             type: 'string',
             title: 'Dag Id'
         },
+        dag_version: {
+            '$ref': '#/components/schemas/DagVersionResponse'
+        },
         dag_run_id: {
             type: 'string',
             title: 'Dag Run Id'
@@ -4800,20 +4889,10 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ]
-        },
-        dag_version: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/DagVersionResponse'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_version', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
@@ -6038,6 +6117,49 @@ export const $BaseNodeResponse = {
     description: 'Base Node serializer for responses.'
 } as const;
 
+export const $CalendarTimeRangeCollectionResponse = {
+    properties: {
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/CalendarTimeRangeResponse'
+            },
+            type: 'array',
+            title: 'Dag Runs'
+        }
+    },
+    type: 'object',
+    required: ['total_entries', 'dag_runs'],
+    title: 'CalendarTimeRangeCollectionResponse',
+    description: 'Response model for calendar time range results.'
+} as const;
+
+export const $CalendarTimeRangeResponse = {
+    properties: {
+        date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Date'
+        },
+        state: {
+            type: 'string',
+            enum: ['queued', 'running', 'success', 'failed', 'planned'],
+            title: 'State'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: ['date', 'state', 'count'],
+    title: 'CalendarTimeRangeResponse',
+    description: 'Represents a summary of DAG runs for a specific calendar time range.'
+} as const;
+
 export const $ConfigResponse = {
     properties: {
         page_size: {
@@ -6618,11 +6740,69 @@ export const $ExtraMenuItem = {
     title: 'ExtraMenuItem'
 } as const;
 
-export const $GridDAGRunwithTIs = {
+export const $GridNodeResponse = {
     properties: {
-        dag_run_id: {
+        id: {
             type: 'string',
-            title: 'Dag Run Id'
+            title: 'Id'
+        },
+        label: {
+            type: 'string',
+            title: 'Label'
+        },
+        children: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/GridNodeResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Children'
+        },
+        is_mapped: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Mapped'
+        },
+        setup_teardown_type: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['setup', 'teardown']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Setup Teardown Type'
+        }
+    },
+    type: 'object',
+    required: ['id', 'label', 'is_mapped'],
+    title: 'GridNodeResponse',
+    description: 'Base Node serializer for responses.'
+} as const;
+
+export const $GridRunsResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
         },
         queued_at: {
             anyOf: [
@@ -6666,156 +6846,6 @@ export const $GridDAGRunwithTIs = {
             title: 'Run After'
         },
         state: {
-            '$ref': '#/components/schemas/DagRunState'
-        },
-        run_type: {
-            '$ref': '#/components/schemas/DagRunType'
-        },
-        logical_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Logical Date'
-        },
-        data_interval_start: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Data Interval Start'
-        },
-        data_interval_end: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Data Interval End'
-        },
-        note: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Note'
-        },
-        task_instances: {
-            items: {
-                '$ref': '#/components/schemas/GridTaskInstanceSummary'
-            },
-            type: 'array',
-            title: 'Task Instances'
-        }
-    },
-    type: 'object',
-    required: ['dag_run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'logical_date', 'data_interval_start', 'data_interval_end', 'note', 'task_instances'],
-    title: 'GridDAGRunwithTIs',
-    description: 'DAG Run model for the Grid UI.'
-} as const;
-
-export const $GridResponse = {
-    properties: {
-        dag_runs: {
-            items: {
-                '$ref': '#/components/schemas/GridDAGRunwithTIs'
-            },
-            type: 'array',
-            title: 'Dag Runs'
-        },
-        structure: {
-            '$ref': '#/components/schemas/StructureDataResponse'
-        }
-    },
-    type: 'object',
-    required: ['dag_runs', 'structure'],
-    title: 'GridResponse',
-    description: 'Response model for the Grid UI.'
-} as const;
-
-export const $GridTaskInstanceSummary = {
-    properties: {
-        task_id: {
-            type: 'string',
-            title: 'Task Id'
-        },
-        try_number: {
-            type: 'integer',
-            title: 'Try Number'
-        },
-        start_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Start Date'
-        },
-        end_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'End Date'
-        },
-        queued_dttm: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Queued Dttm'
-        },
-        child_states: {
-            anyOf: [
-                {
-                    additionalProperties: {
-                        type: 'integer'
-                    },
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Child States'
-        },
-        task_count: {
-            type: 'integer',
-            title: 'Task Count'
-        },
-        state: {
             anyOf: [
                 {
                     '$ref': '#/components/schemas/TaskInstanceState'
@@ -6825,22 +6855,43 @@ export const $GridTaskInstanceSummary = {
                 }
             ]
         },
-        note: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Note'
+        run_type: {
+            '$ref': '#/components/schemas/DagRunType'
+        },
+        duration: {
+            type: 'integer',
+            title: 'Duration',
+            readOnly: true
         }
     },
     type: 'object',
-    required: ['task_id', 'try_number', 'start_date', 'end_date', 'queued_dttm', 'child_states', 'task_count', 'state', 'note'],
-    title: 'GridTaskInstanceSummary',
-    description: 'Task Instance Summary model for the Grid UI.'
+    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'duration'],
+    title: 'GridRunsResponse',
+    description: 'Base Node serializer for responses.'
+} as const;
+
+export const $GridTISummaries = {
+    properties: {
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        task_instances: {
+            items: {
+                '$ref': '#/components/schemas/LightGridTaskInstanceSummary'
+            },
+            type: 'array',
+            title: 'Task Instances'
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'dag_id', 'task_instances'],
+    title: 'GridTISummaries',
+    description: 'DAG Run model for the Grid UI.'
 } as const;
 
 export const $HistoricalMetricDataResponse = {
@@ -6859,6 +6910,93 @@ export const $HistoricalMetricDataResponse = {
     required: ['dag_run_types', 'dag_run_states', 'task_instance_states'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
+} as const;
+
+export const $LatestRunResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'run_id', 'run_after'],
+    title: 'LatestRunResponse',
+    description: 'Base Node serializer for responses.'
+} as const;
+
+export const $LightGridTaskInstanceSummary = {
+    properties: {
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        child_states: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'integer'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Child States'
+        },
+        min_start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Min Start Date'
+        },
+        max_end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Max End Date'
+        }
+    },
+    type: 'object',
+    required: ['task_id', 'state', 'child_states', 'min_start_date', 'max_end_date'],
+    title: 'LightGridTaskInstanceSummary',
+    description: 'Task Instance Summary model for the Grid UI.'
 } as const;
 
 export const $MenuItem = {

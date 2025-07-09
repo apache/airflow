@@ -2,13 +2,16 @@
   "backfill": {
     "affected_one": "1 Lauf wird ausgelöst.",
     "affected_other": "{{count}} Läufe werden ausgelöst.",
-    "affectedNone": "Keine Läufe entsprechend en Kriterien.",
+    "affectedNone": "Keine Läufe entsprechen den Kriterien.",
+    "allRuns": "Alle Läufe",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
     "dateRangeFrom": "Von",
     "dateRangeTo": "Bis",
     "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
     "maxRuns": "Anzahl aktiver paralleler Läufe",
+    "missingAndErroredRuns": "Fehlende und Fehlgeschlage Läufe",
+    "missingRuns": "Fehlende Läufe",
     "reprocessBehavior": "Aufffüll-Modus",
     "run": "Auffüllung starten",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
@@ -44,6 +47,7 @@
   },
   "dagWarnings": {
     "error_one": "1 Fehler",
+    "error_other": "{{count}} Fehler",
     "errorAndWarning": "1 Fehler und {{warningText}}",
     "warning_one": "1 Warnung",
     "warning_other": "{{count}} Warnungen"
@@ -59,6 +63,7 @@
     "runDuration": "Laufzeit"
   },
   "fileUpload": {
+    "files_one": "1 Datei",
     "files_other": "{{count}} Dateien"
   },
   "flexibleForm": {

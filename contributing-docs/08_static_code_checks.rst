@@ -40,7 +40,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.9 locally.
+in our development workflow. To install and use it, you need at least Python 3.10 locally.
 
 Installing pre-commit hooks
 ---------------------------
@@ -129,6 +129,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-providers-bug-report-template               | Sort airflow-bug-report provider list                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |
@@ -154,8 +156,6 @@ require Breeze Docker image to be built locally.
 | check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-daysago-import-from-utils                           | days_ago imported from airflow.utils.dates             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -281,8 +281,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| generate-airflowctl-help-images                           | * Generate SVG from Airflow CTL Commands               | *       |
-|                                                           | * Generate SVG from Airflow CTL Commands               |         |
+| generate-airflowctl-help-images                           | Generate SVG from Airflow CTL Commands                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -356,6 +355,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| provider-version-compat                                   | Check for correct version_compat imports in providers  | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn               |         |
@@ -413,6 +414,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-version                                            | Update versions in docs                                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| validate-chart-annotations                                | Validate chart annotations                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

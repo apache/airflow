@@ -1360,3 +1360,6 @@ def assert_is_valid_uri(value: str) -> None:
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value
+
+
+# ruff: noqa: PT028

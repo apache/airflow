@@ -22,13 +22,12 @@ import functools
 import logging
 import re
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 from datetime import datetime, timedelta
 from functools import cache
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     TypeVar,
     Union,
     cast,
@@ -70,6 +69,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import Deadline
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -87,7 +87,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
-from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.settings import json
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -122,14 +122,9 @@ AssetT = TypeVar("AssetT", bound=BaseAsset)
 TAG_MAX_LEN = 100
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    BaseAsset,
-    Collection[Union["Asset", "AssetAlias"]],
-]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[Union["Asset", "AssetAlias"]]
 
 
 class InconsistentDataInterval(AirflowException):
@@ -242,6 +237,7 @@ def _create_orm_dagrun(
     creating_job_id: int | None,
     backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
+    triggering_user_name: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -250,6 +246,9 @@ def _create_orm_dagrun(
             select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
         )
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    if not dag_version:
+        raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
+
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -262,6 +261,7 @@ def _create_orm_dagrun(
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
+        triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
         bundle_version=bundle_version,
     )
@@ -274,7 +274,7 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
+    run.verify_integrity(session=session, dag_version_id=dag_version.id)
     return run
 
 
@@ -859,7 +859,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        state: list[TaskInstanceState] | None = None,
+        state: TaskInstanceState | Sequence[TaskInstanceState] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TaskInstance]:
         if not start_date:
@@ -1518,6 +1518,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
+        triggering_user_name: str | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
@@ -1527,10 +1528,16 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Create a run for this DAG to run its tasks.
 
-        :param start_date: the date this dag run should be evaluated
+        :param run_id: ID of the dag_run
+        :param logical_date: date of execution
+        :param run_after: the datetime before which dag won't run
         :param conf: Dict containing configuration/parameters to pass to the DAG
+        :param triggered_by: the entity which triggers the dag_run
+        :param triggering_user_name: the user name who triggers the dag_run
+        :param start_date: the date this dag run should be evaluated
         :param creating_job_id: ID of the job creating this DagRun
         :param backfill_id: ID of the backfill run if one exists
+        :param session: Unused. Only added in compatibility with database isolation mode
         :return: The created DAG run.
 
         :meta private:
@@ -1578,7 +1585,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-        return _create_orm_dagrun(
+        orm_dagrun = _create_orm_dagrun(
             dag=self,
             run_id=run_id,
             logical_date=logical_date,
@@ -1591,8 +1598,27 @@ class DAG(TaskSDKDag, LoggingMixin):
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             triggered_by=triggered_by,
+            triggering_user_name=triggering_user_name,
             session=session,
         )
+
+        if self.deadline and isinstance(self.deadline.reference, DeadlineReference.TYPES.DAGRUN):
+            session.add(
+                Deadline(
+                    deadline_time=self.deadline.reference.evaluate_with(
+                        session=session,
+                        interval=self.deadline.interval,
+                        dag_id=self.dag_id,
+                        run_id=run_id,
+                    ),
+                    callback=self.deadline.callback,
+                    callback_kwargs=self.deadline.callback_kwargs or {},
+                    dag_id=self.dag_id,
+                    dagrun_id=orm_dagrun.id,
+                )
+            )
+
+        return orm_dagrun
 
     @classmethod
     @provide_session
@@ -2005,7 +2031,7 @@ class DagModel(Base):
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
-        self._deadline = None if value is None else value.serialize_deadline_alert()
+        self._deadline = value if isinstance(value, dict) else value.serialize_deadline_alert()
 
     @property
     def timezone(self):
@@ -2279,6 +2305,7 @@ def _get_or_create_dagrun(
     run_after: datetime,
     conf: dict | None,
     triggered_by: DagRunTriggeredByType,
+    triggering_user_name: str | None,
     start_date: datetime,
     session: Session,
 ) -> DagRun:
@@ -2293,6 +2320,7 @@ def _get_or_create_dagrun(
     :param logical_date: Logical date for finding an existing run.
     :param run_id: Run ID for the new DAG run.
     :param triggered_by: the entity which triggers the dag_run
+    :param triggering_user_name: the user name who triggers the dag_run
 
     :return: The newly created DAG run.
     """
@@ -2311,6 +2339,7 @@ def _get_or_create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
+        triggering_user_name=triggering_user_name,
         start_date=start_date or logical_date,
         session=session,
     )

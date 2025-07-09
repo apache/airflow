@@ -22,9 +22,10 @@ import logging
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pendulum
 from opensearchpy import OpenSearch
@@ -47,13 +48,11 @@ if TYPE_CHECKING:
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from typing import Union
-
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    OsLogMsgType = Union[list[StructuredLogMessage], str]
+    OsLogMsgType = list[StructuredLogMessage] | str
 else:
-    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,no-redef,misc]
 
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")

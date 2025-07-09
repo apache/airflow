@@ -28,17 +28,44 @@ import { Menu } from "src/components/ui";
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 
+// Define existing button categories to filter out
+const existingCategories = ["user", "docs", "admin", "browse"];
+
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
   const { data } = usePluginServiceGetPlugins();
 
-  const menuPlugins =
+  let menuPlugins =
     data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
     [];
 
-  // Only show external plugins in menu if there are more than 2
-  const menuExternalViews = menuPlugins.length > 2 ? menuPlugins : [];
-  const directExternalViews = menuPlugins.length <= 2 ? menuPlugins : [];
+  // Filter out plugins with categories that match existing buttons
+  menuPlugins = menuPlugins.filter((view) => {
+    const category = view.category?.toLowerCase();
+
+    return category === undefined || !existingCategories.includes(category);
+  });
+
+  const hasLegacyViews =
+    (
+      data?.plugins
+        .flatMap((plugin) => plugin.appbuilder_views)
+        // Only include legacy views that have a visible link in the menu. No menu items views
+        // are accessible via direct URLs.
+        .filter((view) => view.name !== undefined && view.name !== null) ?? []
+    ).length >= 1;
+
+  if (hasLegacyViews) {
+    menuPlugins = [
+      ...menuPlugins,
+      {
+        destination: "nav",
+        href: "/pluginsv2",
+        name: translate("nav.legacyFabViews"),
+        url_route: "legacy-fab-views",
+      },
+    ];
+  }
 
   if (data === undefined || menuPlugins.length === 0) {
     return undefined;
@@ -59,40 +86,32 @@ export const PluginMenus = () => {
     return undefined;
   }
 
-  return (
-    <>
-      {directExternalViews.map((externalView) => (
-        <PluginMenuItem {...externalView} key={externalView.name} topLevel={true} />
-      ))}
-      {menuExternalViews.length > 0 && (
-        <Menu.Root positioning={{ placement: "right" }}>
-          <Menu.Trigger>
-            <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
-          </Menu.Trigger>
-          <Menu.Content>
-            {buttons.map((externalView) => (
-              <Menu.Item asChild key={externalView.name} value={externalView.name}>
-                <PluginMenuItem {...externalView} />
-              </Menu.Item>
-            ))}
-            {Object.entries(categories).map(([key, menuButtons]) => (
-              <Menu.Root key={key} positioning={{ placement: "right" }}>
-                <Menu.TriggerItem display="flex" justifyContent="space-between">
-                  {key}
-                  <FiChevronRight />
-                </Menu.TriggerItem>
-                <Menu.Content>
-                  {menuButtons.map((externalView) => (
-                    <Menu.Item asChild key={externalView.name} value={externalView.name}>
-                      <PluginMenuItem {...externalView} />
-                    </Menu.Item>
-                  ))}
-                </Menu.Content>
-              </Menu.Root>
-            ))}
-          </Menu.Content>
-        </Menu.Root>
-      )}
-    </>
+  // Show plugins in menu if there are more than 2
+  return menuPlugins.length > 2 ? (
+    <Menu.Root positioning={{ placement: "right" }}>
+      <Menu.Trigger>
+        <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
+      </Menu.Trigger>
+      <Menu.Content>
+        {buttons.map((externalView) => (
+          <PluginMenuItem key={externalView.name} {...externalView} />
+        ))}
+        {Object.entries(categories).map(([key, menuButtons]) => (
+          <Menu.Root key={key} positioning={{ placement: "right" }}>
+            <Menu.TriggerItem display="flex" justifyContent="space-between">
+              {key}
+              <FiChevronRight />
+            </Menu.TriggerItem>
+            <Menu.Content>
+              {menuButtons.map((externalView) => (
+                <PluginMenuItem {...externalView} key={externalView.name} />
+              ))}
+            </Menu.Content>
+          </Menu.Root>
+        ))}
+      </Menu.Content>
+    </Menu.Root>
+  ) : (
+    menuPlugins.map((plugin) => <PluginMenuItem {...plugin} key={plugin.name} topLevel={true} />)
   );
 };

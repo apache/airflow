@@ -135,10 +135,10 @@ def get_airflow_constraints_location(
     airflow_package_version: str | None,
     github_repository: str,
     python_version: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
 ) -> str | None:
     """For Airflow we determine constraints in this order of preference:
-    * AIRFLOW_SKIP_CONSTRAINTS=true - no constraints
+    * INSTALL_AIRFLOW_WITH_CONSTRAINTS=false - no constraints
     * AIRFLOW_CONSTRAINTS_LOCATION -  constraints from this location (url)
     * AIRFLOW_CONSTRAINTS_REFERENCE + constraints mode if specified
     * if we know airflow version "constraints-VERSION" + constraints mode
@@ -146,7 +146,7 @@ def get_airflow_constraints_location(
     * constraints-main + constraints mode - as fallback
     """
     console.print("[bright_blue]Determining airflow constraints location")
-    if airflow_skip_constraints:
+    if not install_airflow_with_constraints:
         console.print("[bright_blue]Skipping airflow constraints.")
         return None
     if airflow_constraints_location:
@@ -213,7 +213,6 @@ class InstallationSpec(NamedTuple):
     airflow_core_distribution: str | None
     airflow_constraints_location: str | None
     airflow_task_sdk_distribution: str | None
-    airflow_task_sdk_constraints_location: str | None
     airflow_ctl_distribution: str | None
     airflow_ctl_constraints_location: str | None
     provider_distributions: list[str]
@@ -229,7 +228,7 @@ def find_installation_spec(
     airflow_constraints_location: str | None,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
     default_constraints_branch: str,
     github_repository: str,
     install_selected_providers: str,
@@ -283,7 +282,7 @@ def find_installation_spec(
             if airflow_version:
                 console.print(f"[bright_blue]Using airflow version retrieved from package: {airflow_version}")
                 airflow_constraints_location = get_airflow_constraints_location(
-                    airflow_skip_constraints=airflow_skip_constraints,
+                    install_airflow_with_constraints=install_airflow_with_constraints,
                     airflow_constraints_mode=airflow_constraints_mode,
                     airflow_constraints_location=airflow_constraints_location,
                     airflow_constraints_reference=airflow_constraints_reference,
@@ -296,26 +295,13 @@ def find_installation_spec(
                 airflow_distribution_spec += airflow_extras
         # We always install latest task-sdk - it's independent from Airflow
         airflow_task_sdk_spec = find_airflow_task_sdk_package(extension)
-        if airflow_task_sdk_spec:
-            airflow_task_sdk_constraints_location = get_airflow_constraints_location(
-                airflow_skip_constraints=airflow_skip_constraints,
-                airflow_constraints_mode=airflow_constraints_mode,
-                airflow_constraints_location=airflow_constraints_location,
-                airflow_constraints_reference=airflow_constraints_reference,
-                airflow_package_version="main",
-                default_constraints_branch=default_constraints_branch,
-                github_repository=github_repository,
-                python_version=python_version,
-            )
-        else:
-            airflow_task_sdk_constraints_location = None
         airflow_task_sdk_distribution = airflow_task_sdk_spec
 
         # We always install latest ctl - it's independent of Airflow
         airflow_ctl_spec = find_airflow_ctl_sdk_package(extension=extension)
         if airflow_ctl_spec:
             airflow_ctl_constraints_location = get_airflow_constraints_location(
-                airflow_skip_constraints=airflow_skip_constraints,
+                install_airflow_with_constraints=install_airflow_with_constraints,
                 airflow_constraints_mode=airflow_constraints_mode,
                 airflow_constraints_location=airflow_constraints_location,
                 airflow_constraints_reference=airflow_constraints_reference,
@@ -333,7 +319,6 @@ def find_installation_spec(
         airflow_core_distribution_spec = None
         airflow_constraints_location = None
         airflow_task_sdk_distribution = None
-        airflow_task_sdk_constraints_location = None
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
     elif use_airflow_version.startswith(ALLOWED_VCS_PROTOCOLS):
@@ -345,7 +330,7 @@ def find_installation_spec(
             airflow_distribution_spec = use_airflow_version
             airflow_core_distribution_spec = use_airflow_version
         airflow_constraints_location = get_airflow_constraints_location(
-            airflow_skip_constraints=airflow_skip_constraints,
+            install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
@@ -357,7 +342,7 @@ def find_installation_spec(
         console.print(f"\nInstalling airflow task-sdk from remote spec {use_airflow_version}\n")
         airflow_task_sdk_distribution = f"apache-airflow-task-sdk @ {use_airflow_version}"
         airflow_constraints_location = get_airflow_constraints_location(
-            airflow_skip_constraints=airflow_skip_constraints,
+            install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
@@ -366,11 +351,10 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
-        airflow_task_sdk_constraints_location = None
         console.print(f"\nInstalling airflow ctl from remote spec {use_airflow_version}\n")
         airflow_ctl_distribution = f"apache-airflow-ctl @ {use_airflow_version}"
         airflow_ctl_constraints_location = get_airflow_constraints_location(
-            airflow_skip_constraints=airflow_skip_constraints,
+            install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
@@ -391,7 +375,7 @@ def find_installation_spec(
             f"apache-airflow-core=={use_airflow_version}" if not use_airflow_version.startswith("2") else None
         )
         airflow_constraints_location = get_airflow_constraints_location(
-            airflow_skip_constraints=airflow_skip_constraints,
+            install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
@@ -404,7 +388,6 @@ def find_installation_spec(
             "\nDo not install airflow task-sdk. It should be installed automatically if needed by providers."
         )
         airflow_task_sdk_distribution = None
-        airflow_task_sdk_constraints_location = None
 
         console.print(
             "\nDo not install airflow ctl. It should be installed automatically if needed by providers."
@@ -436,7 +419,6 @@ def find_installation_spec(
         airflow_core_distribution=airflow_core_distribution_spec,
         airflow_constraints_location=airflow_constraints_location,
         airflow_task_sdk_distribution=airflow_task_sdk_distribution,
-        airflow_task_sdk_constraints_location=airflow_task_sdk_constraints_location,
         airflow_ctl_distribution=airflow_ctl_distribution,
         airflow_ctl_constraints_location=airflow_ctl_constraints_location,
         provider_distributions=provider_distributions_list,
@@ -492,14 +474,6 @@ FUTURE_CONTENT = "from __future__ import annotations"
     show_default=True,
     envvar="AIRFLOW_EXTRAS",
     help="Airflow extras to install",
-)
-@click.option(
-    "--airflow-skip-constraints",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    envvar="AIRFLOW_SKIP_CONSTRAINTS",
-    help="Skip constraints for airflow installation if set.",
 )
 @click.option(
     "--default-constraints-branch",
@@ -568,7 +542,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
 )
 @click.option(
     "--python-version",
-    default="3.9",
+    default="3.10",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",
@@ -608,7 +582,6 @@ def install_airflow_and_providers(
     airflow_constraints_location: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    airflow_skip_constraints: bool,
     default_constraints_branch: str,
     github_actions: bool,
     github_repository: str,
@@ -630,7 +603,7 @@ def install_airflow_and_providers(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         default_constraints_branch=default_constraints_branch,
         github_repository=github_repository,
         install_selected_providers=install_selected_providers,
@@ -643,163 +616,13 @@ def install_airflow_and_providers(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    if installation_spec.airflow_distribution and install_airflow_with_constraints:
-        console.print("[bright_blue]Installing airflow with constraints")
-        console.print(
-            "[bright_blue]Airflow constraints location: ", installation_spec.airflow_constraints_location
-        )
-        console.print("[bright_blue]Airflow distribution", installation_spec.airflow_distribution)
-        console.print("[bright_blue]Airflow core distribution", installation_spec.airflow_core_distribution)
-        console.print(
-            "[bright_blue]Airflow task-sdk constraints location: ",
-            installation_spec.airflow_task_sdk_constraints_location,
-        )
-        console.print(
-            "[bright_blue]Airflow task-sdk distribution", installation_spec.airflow_task_sdk_distribution
-        )
-        console.print(
-            "[bright_blue]Airflow ctl constraints location: ",
-            installation_spec.airflow_ctl_constraints_location,
-        )
-        console.print("[bright_blue]Airflow ctl distribution", installation_spec.airflow_ctl_distribution)
-        base_install_airflow_cmd = [
-            "/usr/local/bin/uv",
-            "pip",
-            "install",
-        ]
-        if installation_spec.pre_release:
-            console.print("[bright_blue]Allowing pre-release versions of airflow")
-            base_install_airflow_cmd.append("--pre")
-        base_install_airflow_cmd.append(installation_spec.airflow_distribution)
-        console.print(
-            f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} with constraints"
-        )
-        if installation_spec.airflow_core_distribution:
-            console.print(
-                f"\n[bright_blue]Installing airflow core distribution: {installation_spec.airflow_core_distribution} with constraints"
-            )
-            base_install_airflow_cmd.append(installation_spec.airflow_core_distribution)
-        install_airflow_cmd = base_install_airflow_cmd.copy()
-        if installation_spec.airflow_constraints_location:
-            console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
-            install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])
-        console.print()
-        result = run_command(install_airflow_cmd, github_actions=github_actions, check=False)
-        if result.returncode != 0:
-            console.print(
-                "[warning]Installation with constraints failed - might be because pre-installed provider"
-                " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
-            )
-            run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
-        if installation_spec.airflow_task_sdk_distribution:
-            base_install_airflow_task_sdk_cmd = base_install_airflow_cmd.copy()
-            base_install_airflow_task_sdk_cmd[-1] = installation_spec.airflow_task_sdk_distribution
-            console.print(
-                f"\n[bright_blue]Installing airflow task-sdk distribution: "
-                f"{installation_spec.airflow_task_sdk_distribution} with constraints"
-            )
-            # if airflow is also being installed we should add airflow to the base_install_providers_cmd
-            # to avoid accidentally upgrading airflow to a version that is different than installed in the
-            # previous step
-            if installation_spec.airflow_distribution:
-                base_install_airflow_task_sdk_cmd.append(installation_spec.airflow_distribution)
-            install_airflow_task_sdk_cmd = base_install_airflow_task_sdk_cmd.copy()
-            if installation_spec.airflow_task_sdk_constraints_location:
-                console.print(
-                    f"[bright_blue]Use constraints: {installation_spec.airflow_task_sdk_constraints_location}"
-                )
-                install_airflow_task_sdk_cmd.extend(
-                    ["--constraint", installation_spec.airflow_task_sdk_constraints_location]
-                )
-            console.print()
-            run_command(install_airflow_task_sdk_cmd, github_actions=github_actions, check=True)
-            if result.returncode != 0:
-                console.print(
-                    "[warning]Installation with constraints failed - might be because there are"
-                    " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
-                )
-                run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
-        if installation_spec.airflow_ctl_distribution:
-            base_install_airflow_ctl_cmd = base_install_airflow_cmd.copy()
-            base_install_airflow_ctl_cmd[-1] = installation_spec.airflow_ctl_distribution
-            console.print(
-                f"\n[bright_blue]Installing airflow ctl distribution: "
-                f"{installation_spec.airflow_ctl_distribution} with constraints"
-            )
-            # if airflow is also being installed we should add airflow to the base_install_providers_cmd
-            # to avoid accidentally upgrading airflow to a version that is different from installed in the
-            # previous step
-            if installation_spec.airflow_distribution:
-                base_install_airflow_ctl_cmd.append(installation_spec.airflow_distribution)
-            install_airflow_ctl_cmd = base_install_airflow_ctl_cmd.copy()
-            if installation_spec.airflow_ctl_constraints_location:
-                console.print(
-                    f"[bright_blue]Use constraints: {installation_spec.airflow_ctl_constraints_location}"
-                )
-                install_airflow_ctl_cmd.extend(
-                    ["--constraint", installation_spec.airflow_ctl_constraints_location]
-                )
-            console.print()
-            run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=True)
-            if result.returncode != 0:
-                console.print(
-                    "[warning]Installation with constraints failed - might be because there are"
-                    " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
-                )
-                run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
-    if installation_spec.provider_distributions or not install_airflow_with_constraints:
-        console.print("[bright_blue]Installing airflow without constraints")
-        base_install_providers_cmd = [
-            "/usr/local/bin/uv",
-            "pip",
-            "install",
-        ]
-        if installation_spec.pre_release:
-            base_install_providers_cmd.append("--pre")
-        if not install_airflow_with_constraints and installation_spec.airflow_distribution:
-            console.print(
-                f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} without constraints"
-            )
-            base_install_providers_cmd.append(installation_spec.airflow_distribution)
-            if installation_spec.airflow_core_distribution:
-                console.print(
-                    f"\n[bright_blue]Installing airflow core distribution: {installation_spec.airflow_core_distribution} without constraints"
-                )
-                base_install_providers_cmd.append(installation_spec.airflow_core_distribution)
-            if installation_spec.airflow_task_sdk_distribution:
-                console.print(
-                    f"\n[bright_blue]Installing task-sdk distribution: {installation_spec.airflow_task_sdk_distribution} without constraints"
-                )
-                base_install_providers_cmd.append(installation_spec.airflow_task_sdk_distribution)
-        console.print("\n[bright_blue]Installing provider distributions without constraints:")
-        for provider_package in sorted(installation_spec.provider_distributions):
-            console.print(f"  {provider_package}")
-        console.print()
-        for provider_package in installation_spec.provider_distributions:
-            base_install_providers_cmd.append(provider_package)
-        install_providers_command = base_install_providers_cmd.copy()
-        # if airflow is also being installed we should add airflow to the base_install_providers_cmd
-        # to avoid accidentally upgrading airflow to a version that is different than installed in the
-        # previous step
+    if install_airflow_with_constraints:
         if installation_spec.airflow_distribution:
-            base_install_providers_cmd.append(installation_spec.airflow_distribution)
-        if installation_spec.provider_constraints_location:
-            console.print(
-                f"[bright_blue]with constraints: {installation_spec.provider_constraints_location}\n"
-            )
-            install_providers_command.extend(
-                ["--constraint", installation_spec.provider_constraints_location]
-            )
-            console.print()
-            result = run_command(install_providers_command, github_actions=github_actions, check=False)
-            if result.returncode != 0:
-                console.print(
-                    "[warning]Installation with constraints failed - might be because pre-installed provider"
-                    " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
-                )
-                run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
-        else:
-            run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
+            _install_only_airflow_airflow_core_task_sdk_with_constraints(installation_spec, github_actions)
+        if installation_spec.airflow_ctl_distribution:
+            _install_airflow_ctl_with_constraints(installation_spec, github_actions)
+    if installation_spec.provider_distributions or not install_airflow_with_constraints:
+        _install_airflow_and_optionally_providers_together(installation_spec, github_actions)
     if mount_sources in ["tests", "remove"]:
         console.print("[bright_blue]Uninstall editable packages installed in CI image")
         command = [
@@ -852,6 +675,7 @@ def install_airflow_and_providers(
             # providers from the installed separate source packages
             console.print("[yellow]Uninstalling Airflow-3 only providers\n")
             providers_to_uninstall_for_airflow_2 = [
+                "apache-airflow-providers-keycloak",
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
             ]
@@ -879,6 +703,145 @@ def install_airflow_and_providers(
             airflow_providers_common_init_py.write_text(INIT_CONTENT + "\n")
 
     console.print("\n[green]Done!")
+
+
+def _install_airflow_and_optionally_providers_together(
+    installation_spec: InstallationSpec, github_actions: bool
+):
+    console.print("[bright_blue]Installing airflow and optionally providers together")
+    base_install_cmd = [
+        "/usr/local/bin/uv",
+        "pip",
+        "install",
+    ]
+    if installation_spec.pre_release:
+        base_install_cmd.append("--pre")
+    if installation_spec.airflow_distribution:
+        console.print(
+            f"\n[bright_blue]Adding airflow distribution to installation: {installation_spec.airflow_distribution} "
+        )
+        base_install_cmd.append(installation_spec.airflow_distribution)
+    if installation_spec.airflow_core_distribution:
+        console.print(
+            f"\n[bright_blue]Adding airflow core distribution to installation: {installation_spec.airflow_core_distribution}"
+        )
+        base_install_cmd.append(installation_spec.airflow_core_distribution)
+    if installation_spec.airflow_task_sdk_distribution:
+        console.print(
+            f"\n[bright_blue]Adding task-sdk distribution to installation: {installation_spec.airflow_task_sdk_distribution}"
+        )
+        base_install_cmd.append(installation_spec.airflow_task_sdk_distribution)
+    if installation_spec.airflow_ctl_distribution:
+        console.print(
+            f"\n[bright_blue]Adding airflow ctl distribution to installation: {installation_spec.airflow_ctl_distribution}"
+        )
+        base_install_cmd.append(installation_spec.airflow_ctl_distribution)
+    console.print("\n[bright_blue]Adding provider distributions to installation:")
+    for provider_package in sorted(installation_spec.provider_distributions):
+        console.print(f"  {provider_package}")
+    console.print()
+    for provider_package in installation_spec.provider_distributions:
+        base_install_cmd.append(provider_package)
+    install_providers_command = base_install_cmd.copy()
+    if installation_spec.provider_constraints_location:
+        console.print(
+            f"[bright_blue]Installing with provider constraints: {installation_spec.provider_constraints_location}\n"
+        )
+        install_providers_command.extend(["--constraint", installation_spec.provider_constraints_location])
+        console.print()
+        result = run_command(install_providers_command, github_actions=github_actions, check=False)
+        if result.returncode != 0:
+            console.print(
+                "[warning]Installation with constraints failed - might be because pre-installed provider"
+                " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+            )
+            run_command(base_install_cmd, github_actions=github_actions, check=True)
+    else:
+        run_command(base_install_cmd, github_actions=github_actions, check=True)
+
+
+def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, github_actions: bool):
+    console.print(
+        f"\n[bright_blue]Installing airflow ctl distribution: "
+        f"{installation_spec.airflow_ctl_distribution} with constraints"
+    )
+    base_install_airflow_ctl_cmd = [
+        "/usr/local/bin/uv",
+        "pip",
+        "install",
+    ]
+    # if airflow is also being installed we should add airflow to the base_install_providers_cmd
+    # to avoid accidentally upgrading airflow to a version that is different from installed in the
+    # previous step
+    if installation_spec.airflow_distribution:
+        base_install_airflow_ctl_cmd.append(installation_spec.airflow_distribution)
+    install_airflow_ctl_cmd = base_install_airflow_ctl_cmd.copy()
+    if installation_spec.airflow_ctl_constraints_location:
+        console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_ctl_constraints_location}")
+        install_airflow_ctl_cmd.extend(["--constraint", installation_spec.airflow_ctl_constraints_location])
+    console.print()
+    result = run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=True)
+    if result.returncode != 0:
+        console.print(
+            "[warning]Installation with constraints failed - might be because there are"
+            " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+        )
+        run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
+
+
+def _install_only_airflow_airflow_core_task_sdk_with_constraints(
+    installation_spec: InstallationSpec, github_actions: bool
+) -> None:
+    console.print("[bright_blue]Installing airflow core, task-sdk with constraints")
+    console.print(
+        "[bright_blue]Airflow constraints location: ", installation_spec.airflow_constraints_location
+    )
+    console.print("[bright_blue]Airflow distribution", installation_spec.airflow_distribution)
+    console.print("[bright_blue]Airflow core distribution", installation_spec.airflow_core_distribution)
+    console.print(
+        "[bright_blue]Airflow task-sdk distribution", installation_spec.airflow_task_sdk_distribution
+    )
+    console.print(
+        "[bright_blue]Airflow ctl constraints location: ",
+        installation_spec.airflow_ctl_constraints_location,
+    )
+    base_install_airflow_cmd = [
+        "/usr/local/bin/uv",
+        "pip",
+        "install",
+    ]
+    if installation_spec.pre_release:
+        console.print("[bright_blue]Allowing pre-release versions of airflow")
+        base_install_airflow_cmd.append("--pre")
+    if installation_spec.airflow_distribution:
+        console.print(
+            f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} with constraints"
+        )
+        base_install_airflow_cmd.append(installation_spec.airflow_distribution)
+    if installation_spec.airflow_core_distribution:
+        console.print(
+            f"\n[bright_blue]Installing airflow core distribution: {installation_spec.airflow_core_distribution} with constraints"
+        )
+        base_install_airflow_cmd.append(installation_spec.airflow_core_distribution)
+    if installation_spec.airflow_task_sdk_distribution:
+        base_install_airflow_cmd.append(installation_spec.airflow_task_sdk_distribution)
+        console.print(
+            f"\n[bright_blue]Installing airflow task-sdk distribution: "
+            f"{installation_spec.airflow_task_sdk_distribution} with constraints"
+        )
+        console.print()
+    install_airflow_cmd = base_install_airflow_cmd.copy()
+    if installation_spec.airflow_constraints_location:
+        console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
+        install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])
+    console.print()
+    result = run_command(install_airflow_cmd, github_actions=github_actions, check=False)
+    if result.returncode != 0:
+        console.print(
+            "[warning]Installation with constraints failed - might be because pre-installed provider"
+            " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+        )
+        run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
 
 
 if __name__ == "__main__":

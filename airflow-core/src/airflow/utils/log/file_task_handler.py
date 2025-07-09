@@ -22,12 +22,12 @@ from __future__ import annotations
 import itertools
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import pendulum
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
 
 # These types are similar, but have distinct names to make processing them less error prone
-LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
+LogMessages: TypeAlias = list["StructuredLogMessage"] | list[str]
 """The log messages themselves, either in already sturcutured form, or a single string blob to be parsed later"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
@@ -149,7 +149,7 @@ def _parse_log_lines(
         lines = itertools.chain.from_iterable(map(str.splitlines, lines))  # type: ignore[assignment,arg-type]
 
     # https://github.com/python/mypy/issues/8586
-    for idx, line in enumerate[Union[str, StructuredLogMessage]](lines):
+    for idx, line in enumerate[str | StructuredLogMessage](lines):
         if line:
             try:
                 if isinstance(line, StructuredLogMessage):
@@ -482,6 +482,15 @@ class FileTaskHandler(logging.Handler):
         """
         if try_number is None:
             try_number = task_instance.try_number
+
+        if try_number == 0 and task_instance.state == TaskInstanceState.SKIPPED:
+            logs = [
+                StructuredLogMessage(  # type: ignore[call-arg]
+                    event="Task was skipped, no logs available."
+                )
+            ]
+            return logs, {"end_of_log": True}
+
         if try_number is None or try_number < 1:
             logs = [
                 StructuredLogMessage(  # type: ignore[call-arg]

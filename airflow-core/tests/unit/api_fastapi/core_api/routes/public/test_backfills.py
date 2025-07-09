@@ -752,6 +752,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             max_active_runs=2,
             reverse=False,
             dag_run_conf={},
+            triggering_user_name="test_user",
         )
         query = (
             select(DagRun)

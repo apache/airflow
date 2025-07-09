@@ -1,7 +1,7 @@
 {
   "admin": {
     "Config": "설정",
-    "Connections": "연결들",
+    "Connections": "커넥션들",
     "Plugins": "플러그인들",
     "Pools": "풀들",
     "Providers": "제공자들",
@@ -17,6 +17,7 @@
     "auditLog": "감사 로그",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "세부 정보 패널 접기",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
   "dag_one": "Dag",
@@ -54,7 +55,8 @@
     "runAfter": "다음 실행",
     "runType": "실행 유형",
     "sourceAssetEvent": "소스 에셋 이벤트",
-    "triggeredBy": "실행 주체"
+    "triggeredBy": "실행 주체",
+    "triggeringUser": "트리거한 사용자 이름"
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
@@ -75,6 +77,11 @@
     "home": "홈",
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
+  },
+  "expand": {
+    "collapse": "접기",
+    "expand": "펼치기",
+    "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
   "expression": {
     "all": "모두",
@@ -101,6 +108,7 @@
     "dags": "Dags",
     "docs": "문서",
     "home": "홈",
+    "legacyFabViews": "레거시 FAB 뷰",
     "plugins": "플러그인",
     "security": "보안"
   },
@@ -128,6 +136,13 @@
     "manual": "수동",
     "scheduled": "예정됨"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "아래",
+      "top": "위"
+    },
+    "tooltip": "{{hotkey}}를 눌러 {{direction}}로 스크롤"
+  },
   "seconds": "{{count}}초",
   "security": {
     "actions": "작업",
@@ -137,6 +152,7 @@
     "users": "사용자"
   },
   "selectLanguage": "언어 선택",
+  "showDetailsPanel": "세부 정보 패널 펼치기",
   "sourceAssetEvent_one": "소스 에셋 이벤트",
   "sourceAssetEvent_other": "소스 에셋 이벤트",
   "startDate": "시작일",
@@ -260,6 +276,7 @@
       }
     }
   },
+  "total": "총 {{state}} 수",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
   "user": "사용자",

@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, cast
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -46,18 +46,19 @@ from azure.storage.blob.aio import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_async_default_azure_credential,
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
+    from azure.core.credentials import TokenCredential
     from azure.storage.blob._models import BlobProperties
 
-AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
+AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
 
 class WasbHook(BaseHook):
@@ -172,8 +173,8 @@ class WasbHook(BaseHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id = conn.login
-            app_secret = conn.password
+            app_id = cast("str", conn.login)
+            app_secret = cast("str", conn.password)
             token_credential = ClientSecretCredential(
                 tenant_id=tenant, client_id=app_id, client_secret=app_secret, **client_secret_auth_config
             )
@@ -197,7 +198,7 @@ class WasbHook(BaseHook):
             return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
-        credential = conn.password
+        credential: str | TokenCredential | None = conn.password
         if not credential:
             # Check for account_key in extra fields before falling back to DefaultAzureCredential
             account_key = self._get_field(extra, "account_key")

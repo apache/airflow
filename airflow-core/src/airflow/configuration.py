@@ -39,7 +39,7 @@ from copy import deepcopy
 from io import StringIO
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any, Union
+from typing import IO, TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from packaging.version import parse as parse_version
@@ -64,9 +64,9 @@ if not sys.warnoptions:
 
 _SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
-ConfigType = Union[str, int, float, bool]
+ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
-ConfigSectionSourcesType = dict[str, Union[str, tuple[str, str]]]
+ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
@@ -372,6 +372,8 @@ class AirflowConfigParser(ConfigParser):
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
+        ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.1.0"),
+        ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
