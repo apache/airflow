@@ -177,6 +177,13 @@ def create_context(task, dag=None):
     tzinfo = pendulum.timezone("UTC")
     logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dag_version import DagVersion
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        task_instance = TaskInstance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             logical_date=logical_date,
@@ -191,7 +198,7 @@ def create_context(task, dag=None):
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
 
-    task_instance = TaskInstance(task=task)
+        task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.xcom_push = mock.Mock()
     date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
@@ -208,6 +215,7 @@ def create_context(task, dag=None):
     }
 
 
+@pytest.mark.db_test
 class TestSnowflakeSqlApiOperator:
     @pytest.fixture
     def mock_execute_query(self):

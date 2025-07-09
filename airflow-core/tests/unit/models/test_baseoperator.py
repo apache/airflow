@@ -28,7 +28,9 @@ from airflow.models.baseoperator import (
     BaseOperator,
 )
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
@@ -259,17 +261,20 @@ def test_get_task_instances(session):
 
     test_dag = DAG(dag_id="test_dag", schedule=None, start_date=first_logical_date)
     task = BaseOperator(task_id="test_task", dag=test_dag)
+    test_dag.sync_to_db()
+    SerializedDagModel.write_dag(test_dag, bundle_name="testing")
+    dag_version = DagVersion.get_latest_version(test_dag.dag_id)
 
     common_dr_kwargs = {
         "dag_id": test_dag.dag_id,
         "run_type": DagRunType.MANUAL,
     }
     dr1 = DagRun(logical_date=first_logical_date, run_id="test_run_id_1", **common_dr_kwargs)
-    ti_1 = TaskInstance(run_id=dr1.run_id, task=task)
+    ti_1 = TaskInstance(run_id=dr1.run_id, task=task, dag_version_id=dag_version.id)
     dr2 = DagRun(logical_date=second_logical_date, run_id="test_run_id_2", **common_dr_kwargs)
-    ti_2 = TaskInstance(run_id=dr2.run_id, task=task)
+    ti_2 = TaskInstance(run_id=dr2.run_id, task=task, dag_version_id=dag_version.id)
     dr3 = DagRun(logical_date=third_logical_date, run_id="test_run_id_3", **common_dr_kwargs)
-    ti_3 = TaskInstance(run_id=dr3.run_id, task=task)
+    ti_3 = TaskInstance(run_id=dr3.run_id, task=task, dag_version_id=dag_version.id)
     session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
     session.commit()
 
