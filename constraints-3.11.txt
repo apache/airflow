@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-08T14:45:42.137307
+# This constraints file was automatically generated on 2025-07-09T12:35:20.444392
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -80,7 +80,7 @@ aiosignal==1.4.0
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
-alembic==1.16.2
+alembic==1.16.3
 alibabacloud-adb20211201==3.1.2
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
@@ -254,7 +254,7 @@ cadwyn==5.4.3
 cassandra-driver==3.29.2
 cattrs==25.1.1
 celery==5.5.3
-certifi==2025.6.15
+certifi==2025.7.9
 cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.37.2
@@ -284,7 +284,7 @@ curlify==3.0.0
 databricks-sql-connector==4.0.5
 databricks-sqlalchemy==1.0.5
 dataclasses-json==0.6.7
-datadog==0.51.0
+datadog==0.52.0
 db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
@@ -313,7 +313,7 @@ execnet==2.1.1
 executing==2.2.0
 facebook_business==23.0.0
 fastapi-cli==0.0.8
-fastapi-cloud-cli==0.1.1
+fastapi-cloud-cli==0.1.2
 fastapi==0.116.0
 fastavro==1.11.1
 fasteners==0.19
@@ -335,11 +335,11 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.1
 google-api-core==2.25.1
-google-api-python-client==2.175.0
+google-api-python-client==2.176.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.101.0
+google-cloud-aiplatform==1.102.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -524,7 +524,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.93.1
+openai==1.93.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -549,7 +549,7 @@ ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
 packaging==25.0
-pagerduty==2.3.0
+pagerduty==3.0.0
 pandas-gbq==0.29.1
 pandas-stubs==2.3.0.250703
 pandas==2.2.3
@@ -632,7 +632,7 @@ pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
 pytest==8.4.1
-python-arango==8.2.0
+python-arango==8.2.1
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1

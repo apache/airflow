@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-08T14:42:41.311126
+# This constraints file was automatically generated on 2025-07-09T12:32:36.728774
 # via `uv sync --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -22,14 +22,14 @@ SQLAlchemy==1.4.54
 Werkzeug==2.2.3
 a2wsgi==1.10.10
 aiosqlite==0.21.0
-alembic==1.16.2
+alembic==1.16.3
 annotated-types==0.7.0
 anyio==4.9.0
 argcomplete==3.6.2
 asgiref==3.9.1
 attrs==25.3.0
 cadwyn==5.4.3
-certifi==2025.6.15
+certifi==2025.7.9
 cffi==1.17.1
 charset-normalizer==3.4.2
 click==8.1.8
@@ -41,7 +41,7 @@ dill==0.3.1.1
 dnspython==2.7.0
 email_validator==2.2.0
 fastapi-cli==0.0.8
-fastapi-cloud-cli==0.1.1
+fastapi-cloud-cli==0.1.2
 fastapi==0.116.0
 fsspec==2025.5.1
 googleapis-common-protos==1.70.0
@@ -107,7 +107,7 @@ starlette==0.46.2
 structlog==25.4.0
 svcs==25.1.0
 tabulate==0.9.0
-tenacity==9.1.2
+tenacity==8.5.0
 termcolor==3.1.0
 text-unidecode==1.3
 typer==0.16.0
