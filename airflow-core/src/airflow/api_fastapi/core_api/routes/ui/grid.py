@@ -318,8 +318,8 @@ def _get_serdag(dag_id, session) -> SerializedDagModel | None:
         .where(
             DagVersion.dag_id == dag_id,
         )
-        .order_by(DagVersion.id)  # descending for 3.0 upgrade / can be a fix for all dag runs and dag versions
-        .limit(1)                 # with respect to grid appearances & graph colors
+        .order_by(DagVersion.id.desc())  # descending for 3.0 upgrade / can be a fix for all dag runs and dag versions
+        .limit(1)                        # with respect to grid appearances & graph colors
     )
     if not (serdag := version.serialized_dag):
         log.error(
