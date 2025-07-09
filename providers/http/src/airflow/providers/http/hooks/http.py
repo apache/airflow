@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 import aiohttp
@@ -235,7 +235,7 @@ class HttpHook(BaseHook):
         session.stream = self.merged_extra.get("stream", False)
         session.verify = self.merged_extra.get("verify", self.merged_extra.get("verify_ssl", True))
         session.cert = self.merged_extra.get("cert", None)
-        session.max_redirects = self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.max_redirects = cast("int", self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT))
         session.trust_env = self.merged_extra.get("trust_env", True)
 
         try:
