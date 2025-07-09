@@ -209,7 +209,7 @@ export const TaskLogHeader = ({
                 <MdSettings /> {translate("dag:logs.settings")}
               </Button>
             </Menu.Trigger>
-            <Menu.Content>
+            <Menu.Content zIndex={zIndex}>
               <Menu.Item onClick={toggleWrap} value="wrap">
                 <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
                 <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
