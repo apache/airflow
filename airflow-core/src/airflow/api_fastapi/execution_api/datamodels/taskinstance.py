@@ -301,7 +301,7 @@ class TIRunContext(BaseModel):
     dag_run: DagRun
     """DAG run information for the task instance."""
 
-    task_reschedule_count: Annotated[int, Field(default=0)]
+    task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
 
     max_tries: int
@@ -327,7 +327,7 @@ class TIRunContext(BaseModel):
     xcom_keys_to_clear: Annotated[list[str], Field(default_factory=list)]
     """List of Xcom keys that need to be cleared and purged on by the worker."""
 
-    should_retry: bool
+    should_retry: bool = False
     """If the ti encounters an error, whether it should enter retry or failed state."""
 
 

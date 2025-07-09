@@ -61,6 +61,8 @@ class TaskCallbackRequest(BaseCallbackRequest):
     """Simplified Task Instance representation"""
     task_callback_type: TaskInstanceState | None = None
     """Whether on success, on failure, on retry"""
+    context_from_server: ti_datamodel.TIRunContext | None = None
+    """Task execution context from the Server"""
     type: Literal["TaskCallbackRequest"] = "TaskCallbackRequest"
 
     @property
