@@ -421,6 +421,7 @@ class BaseOperator(TaskSDKBaseOperator):
 
         :meta private:
         """
+        self.render_template_fields(context=context)
         return self.start_trigger_args
 
     if TYPE_CHECKING:
