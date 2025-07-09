@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { GridDAGRunwithTIs, GridNodeResponse } from "openapi/requests/types.gen";
-
-export type RunWithDuration = {
-  duration: number;
-} & GridDAGRunwithTIs;
+import type { GridNodeResponse } from "openapi/requests/types.gen";
 
 export type GridTask = {
   depth: number;

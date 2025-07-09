@@ -24,7 +24,6 @@ import {
   UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsUiKey,
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
@@ -40,7 +39,6 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       [useDagServiceGetDagsUiKey],
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
 

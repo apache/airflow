@@ -17,19 +17,17 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useGridServiceGridData,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
@@ -59,14 +57,6 @@ export const TaskInstance = () => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
-
-  const {
     data: taskInstance,
     error,
     isLoading,
@@ -83,25 +73,18 @@ export const TaskInstance = () => {
     },
   );
 
-  // Filter grid data to get only a single dag run
-  const { data } = useGridServiceGridData(
-    {
-      dagId,
-      limit: 1,
-      offset: 0,
-      runAfterGte: taskInstance?.run_after,
-      runAfterLte: taskInstance?.run_after,
-    },
-    undefined,
-    {
-      enabled: taskInstance !== undefined,
-    },
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+
+  const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+  const taskCount = useMemo(
+    () =>
+      Array.isArray(taskInstanceSummary?.child_states)
+        ? taskInstanceSummary.child_states
+            .map((_state: string, count: number) => count)
+            .reduce((acc: number, val: unknown) => acc + (typeof val === "number" ? val : 0), 0)
+        : 0,
+    [taskInstanceSummary],
   );
-
-  const mappedTaskInstance = data?.dag_runs
-    .find((dr) => dr.dag_run_id === runId)
-    ?.task_instances.find((ti) => ti.task_id === taskId);
-
   let newTabs = tabs;
 
   if (taskInstance && taskInstance.map_index > -1) {
@@ -110,7 +93,7 @@ export const TaskInstance = () => {
       {
         icon: <MdOutlineTask />,
         label: translate("tabs.mappedTaskInstances_other", {
-          count: Number(mappedTaskInstance?.task_count ?? 0),
+          count: Number(taskCount),
         }),
         value: "task_instances",
       },
@@ -120,7 +103,7 @@ export const TaskInstance = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={newTabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={newTabs}>
         {taskInstance === undefined ? undefined : (
           <Header
             isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
