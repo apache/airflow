@@ -3,7 +3,7 @@
     "favoriteDags_one": "Erstes favorisiertes DAG",
     "favoriteDags_other": "Top {{count}} favorisierte DAGs",
     "noDagRuns": "Noch kein Lauf für dieses Dag.",
-    "noFavoriteDags": "Keine Favoriten. Mit dem Stern-Symbol neben einem Dag kann man ein Dag in diese Liste hinzufügen."
+    "noFavoriteDags": "Noch keine favorisierten Dags. Mit dem Stern-Symbol neben einem Dag kann man das Dag zu den Favoriten hinzufügen."
   },
   "group": "Gruppe",
   "health": {
