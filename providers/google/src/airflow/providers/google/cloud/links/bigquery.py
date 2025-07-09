@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 BIGQUERY_BASE_LINK = "/bigquery"
 BIGQUERY_DATASET_LINK = (
@@ -47,19 +41,6 @@ class BigQueryDatasetLink(BaseGoogleLink):
     key = "bigquery_dataset"
     format_str = BIGQUERY_DATASET_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        dataset_id: str,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=BigQueryDatasetLink.key,
-            value={"dataset_id": dataset_id, "project_id": project_id},
-        )
-
 
 class BigQueryTableLink(BaseGoogleLink):
     """Helper class for constructing BigQuery Table Link."""
@@ -68,20 +49,6 @@ class BigQueryTableLink(BaseGoogleLink):
     key = "bigquery_table"
     format_str = BIGQUERY_TABLE_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        project_id: str,
-        table_id: str,
-        dataset_id: str | None = None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=BigQueryTableLink.key,
-            value={"dataset_id": dataset_id, "project_id": project_id, "table_id": table_id},
-        )
-
 
 class BigQueryJobDetailLink(BaseGoogleLink):
     """Helper class for constructing BigQuery Job Detail Link."""
@@ -89,17 +56,3 @@ class BigQueryJobDetailLink(BaseGoogleLink):
     name = "BigQuery Job Detail"
     key = "bigquery_job_detail"
     format_str = BIGQUERY_JOB_DETAIL_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        project_id: str,
-        location: str,
-        job_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=BigQueryJobDetailLink.key,
-            value={"project_id": project_id, "location": location, "job_id": job_id},
-        )

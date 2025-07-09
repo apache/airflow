@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
@@ -34,7 +34,7 @@ from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ class Deadline(Base):
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
-    deadline = Column(UtcDateTime, nullable=False)
+    deadline_time = Column(UtcDateTime, nullable=False)
     # The Callback to be called when the Deadline has passed.
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
@@ -64,18 +64,18 @@ class Deadline(Base):
 
     dagrun = relationship("DagRun", back_populates="deadlines")
 
-    __table_args__ = (Index("deadline_idx", deadline, unique=False),)
+    __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
 
     def __init__(
         self,
-        deadline: datetime,
+        deadline_time: datetime,
         callback: str,
         callback_kwargs: dict | None = None,
         dag_id: str | None = None,
         dagrun_id: int | None = None,
     ):
         super().__init__()
-        self.deadline = deadline
+        self.deadline_time = deadline_time
         self.callback = callback
         self.callback_kwargs = callback_kwargs
         self.dag_id = dag_id
@@ -95,14 +95,8 @@ class Deadline(Base):
 
         return (
             f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline} or run: {self.callback}({callback_kwargs})"
+            f"{self.deadline_time} or run: {self.callback}({callback_kwargs})"
         )
-
-    @classmethod
-    @provide_session
-    def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
-        """Add the provided deadline to the table."""
-        session.add(deadline)
 
 
 class ReferenceModels:
@@ -143,7 +137,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, **kwargs: Any) -> datetime:
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -155,10 +149,10 @@ class ReferenceModels:
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
                 self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
 
-            return self._evaluate_with(**filtered_kwargs)
+            return self._evaluate_with(session=session, **filtered_kwargs) + interval
 
         @abstractmethod
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -192,7 +186,7 @@ class ReferenceModels:
 
         _datetime: datetime
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             return self._datetime
 
         def serialize_reference(self) -> dict:
@@ -208,22 +202,23 @@ class ReferenceModels:
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
-            return _fetch_from_db(DagRun.logical_date, **kwargs)
+            return _fetch_from_db(DagRun.logical_date, session=session, **kwargs)
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        @provide_session
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
-            return _fetch_from_db(DagRun.queued_at, **kwargs)
+            return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference

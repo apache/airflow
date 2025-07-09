@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
+
 import { useConnectionServiceHookMetaData } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -41,6 +43,7 @@ export type ConnectionMetaEntry = {
 type ConnectionMeta = Array<ConnectionMetaEntry>;
 
 export const useConnectionTypeMeta = () => {
+  const { t: translate } = useTranslation("admin");
   const { data, error, isPending }: { data?: ConnectionMeta; error?: unknown; isPending: boolean } =
     useConnectionServiceHookMetaData();
 
@@ -51,8 +54,8 @@ export const useConnectionTypeMeta = () => {
         : String(Boolean(error) ? error : ""); // Convert other types (e.g., numbers, strings) to string
 
     toaster.create({
-      description: `Connection Type Meta request failed. Error: ${errorDescription}`,
-      title: "Failed to retrieve Connection Type Meta",
+      description: errorDescription,
+      title: translate("admin:connections.typeMeta.error"),
       type: "error",
     });
   }
@@ -62,12 +65,36 @@ export const useConnectionTypeMeta = () => {
   const keysList: Array<string> = [];
 
   const defaultStandardFields: StandardFieldSpec | undefined = {
-    description: { hidden: false, placeholder: undefined, title: "Description" },
-    host: { hidden: false, placeholder: undefined, title: "Host" },
-    login: { hidden: false, placeholder: undefined, title: "Login" },
-    password: { hidden: false, placeholder: undefined, title: "Password" },
-    port: { hidden: false, placeholder: undefined, title: "Port" },
-    url_schema: { hidden: false, placeholder: undefined, title: "Schema" },
+    description: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.description"),
+    },
+    host: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.host"),
+    },
+    login: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.login"),
+    },
+    password: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.password"),
+    },
+    port: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.port"),
+    },
+    url_schema: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.url_schema"),
+    },
   };
 
   const mergeWithDefaults = (

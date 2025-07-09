@@ -20,6 +20,35 @@
 Changelog
 ---------
 
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Update Cohere for Airflow 3.0 compatibility (#52379)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make Cohere provider Airflow 3 compatible (#51396)``
+
+Misc
+~~~~
+
+* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is ommitted (#51517)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.5.0
 .....
 

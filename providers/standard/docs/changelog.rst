@@ -35,6 +35,64 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for 'PackageIndex' connections in 'PythonVirtualenvOperator' (#52288)``
+* ``Honor 'index_urls' when venv is created with 'uv' in 'PythonVirtualenvOperator' (#52287)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Move compat shim in Standard Provider to 'version_compat.py' (#52567)``
+* ``Add a bunch of no-redef ignores so Mypy is happy (#52507)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``One more redef needing ignore (#52525)``
+   * ``Make sure all test version imports come from test_common (#52425)``
+
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: merge TimeDeltaSensorAsync to TimeDeltaSensor (#51133)``
+* ``Add timezone support for date calculation in TimeSensor (#51043)``
+* ``Merging 'TimeSensorAsync' with 'TimeSensor' (#50864)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Airflow V2 incompatibility in ExternalTaskSensor (#51479)``
+* ``bug fix: DateTimeSensor can't render jinja template if use native obj (#50744)``
+* ``Fix backward compatibility for timeout in defer() with Airflow 2.11 (#50869)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+Doc-only
+~~~~~~~~
+
+* ``Move example_dags in standard provider to example_dags in sources (#51260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace .parent.parent constructs (#51501)``
+   * ``Improve testing for context serialization (#50566)``
+
 1.2.0
 .....
 
@@ -256,7 +314,7 @@ Misc
 * ``AIP-72: Move non-user facing code to '_internal' (#45515)``
 * ``AIP-72: Add support for 'get_current_context' in Task SDK (#45486)``
 * ``Move Literal alias into TYPE_CHECKING block (#45345)``
-* ``AIP-72: Add Taskflow API support & template rendering in Task SDK (#45444)``
+* ``AIP-72: Add TaskFlow API support & template rendering in Task SDK (#45444)``
 * ``Remove tuple_in_condition helpers (#45201)``
 
 .. Below changes are excluded from the changelog. Move them to

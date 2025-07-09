@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   UseGridServiceGridDataKeyFn,
@@ -24,19 +25,13 @@ import {
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePatchTaskInstance,
+  UseGridServiceGetGridRunsKeyFn,
+  UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
-
-const onError = () => {
-  toaster.create({
-    description: "Patch Task Instance request failed",
-    title: "Failed to patch the Task Instance",
-    type: "error",
-  });
-};
 
 export const usePatchTaskInstance = ({
   dagId,
@@ -52,6 +47,17 @@ export const usePatchTaskInstance = ({
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("toaster.update.error", {
+        resourceName: translate("taskInstance_one"),
+      }),
+      type: "error",
+    });
+  };
 
   const onSuccessFn = async () => {
     const queryKeys = [
@@ -61,6 +67,8 @@ export const usePatchTaskInstance = ({
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

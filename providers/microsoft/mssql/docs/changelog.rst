@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+4.3.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``cleanup stale dependency of methodtools (#52310)``
+* ``Bump pymssql version to 2.3.5 (#52307)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add warning in changelog: use OdbcHook for ODBC drivers instead of MsSqlHook (#52646)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.3.0
 .....
 
@@ -129,6 +148,10 @@ Misc
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
+
+.. warning::
+  If you are using an ODBC driver, please use ``airflow.providers.odbc.hooks.OdbcHook`` instead of ``MsSqlHook`` as it is specifically
+  designed to handle ODBC-specific parameters like 'driver' and 'encrypt'.
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the MySQL provider package.

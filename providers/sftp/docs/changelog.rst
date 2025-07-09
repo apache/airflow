@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+5.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: removed cache for proxycommand in SFTPHook (#52641)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for SFTP (#52435)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+
+5.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Updating SFTPSensor to properly handle scenario where file is missing (#51167)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.3.0
 .....
 

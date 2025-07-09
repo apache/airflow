@@ -17,7 +17,7 @@
 # under the License.
 
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "packaging>=23.2",
 #   "requests>=2.28.1",
@@ -63,9 +63,9 @@ def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
             sys.exit(1)
         if airflow_version == latest_version:
             latest = True
-        # find requires-python = "~=VERSION" in pyproject.toml file of airflow
+        # find requires-python = ">=VERSION" in pyproject.toml file of airflow
         pyproject_toml_conntent = (Path(__file__).parents[2] / "pyproject.toml").read_text()
-        matched_version = re.search('requires-python = "~=([0-9]+.[0-9]+)', pyproject_toml_conntent)
+        matched_version = re.search('requires-python = ">=([0-9]+.[0-9]+)', pyproject_toml_conntent)
         if matched_version:
             min_version = matched_version.group(1)
         else:

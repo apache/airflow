@@ -36,12 +36,12 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
 
         log = structlog.get_logger(__name__)
 
-        mock_supervisor_comms.send_request.reset_mock()
+        mock_supervisor_comms.send.reset_mock()
         ti = create_runtime_ti(dag.task_dict[task_id], map_index=map_index)
         run(ti, ti.get_template_context(), log)
 
-        for call in mock_supervisor_comms.send_request.mock_calls:
-            msg = call.kwargs["msg"]
+        for call in mock_supervisor_comms.send.mock_calls:
+            msg = call.kwargs.get("msg") or call.args[0]
             if isinstance(msg, (TaskState, SucceedTask)):
                 return msg.state
         raise RuntimeError("Unable to find call to TaskState")

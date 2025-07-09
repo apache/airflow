@@ -31,10 +31,11 @@ import json
 import logging
 import os
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 import boto3
 import botocore
@@ -43,6 +44,8 @@ import jinja2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from boto3.resources.base import ServiceResource
+from botocore.client import BaseClient
 from botocore.config import Config
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
@@ -54,19 +57,28 @@ from airflow.exceptions import (
     AirflowNotFoundException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
+from airflow.providers.amazon.version_compat import BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
+# We need to set typeignore, sadly without it Sphinx build and mypy don't agree.
+# ideally the code should be:
+# BaseAwsConnection = TypeVar("BaseAwsConnection", bound=BaseClient | ServiceResource)
+# but if we do that Sphinx complains about:
+# TypeError: unsupported operand type(s) for |: 'BaseClient' and 'ServiceResource'
+# If we change to Union syntax then mypy is not happy with UP007 Use `X | Y` for type annotations
+# The only way to workaround it for now is to keep the union syntax with ignore for mypy
+# We should try to resolve this later.
+BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[BaseClient, ServiceResource])  # type: ignore[operator] # noqa: UP007
+
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.exceptions import AirflowRuntimeError
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 if TYPE_CHECKING:
     from aiobotocore.session import AioSession
@@ -607,19 +619,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the Airflow Connection object and wrap it in helper (cached)."""
         connection = None
         if self.aws_conn_id:
-            possible_exceptions: tuple[type[Exception], ...]
-
-            if AIRFLOW_V_3_0_PLUS:
-                possible_exceptions = (AirflowNotFoundException, AirflowRuntimeError)
-            else:
-                possible_exceptions = (AirflowNotFoundException,)
-
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except possible_exceptions as e:
-                if isinstance(
-                    e, AirflowNotFoundException
-                ) or f"Connection with ID {self.aws_conn_id} not found" in str(e):
+            except Exception as e:
+                not_found_exc_via_core = isinstance(e, AirflowNotFoundException)
+                not_found_exc_via_task_sdk = (
+                    AIRFLOW_V_3_0_PLUS
+                    and isinstance(e, AirflowRuntimeError)
+                    and e.error.error == ErrorType.CONNECTION_NOT_FOUND
+                )
+                if not_found_exc_via_core or not_found_exc_via_task_sdk:
                     self.log.warning(
                         "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                     )
@@ -627,7 +636,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                     raise
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
+            conn=connection,  # type: ignore[arg-type]
+            region_name=self._region_name,
+            botocore_config=self._config,
+            verify=self._verify,
         )
 
     def _resolve_service_name(self, is_resource_type: bool = False) -> str:
@@ -1038,7 +1050,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return WaiterModel(model_config).waiter_names
 
 
-class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
+class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):  # type: ignore[operator] # noqa: UP007
     """
     Base class for interact with AWS.
 

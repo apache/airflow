@@ -28,7 +28,7 @@ import os
 import re
 import shutil
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -37,7 +37,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -635,6 +635,10 @@ class S3Hook(AwsBaseHook):
         delimiter: str | None = "/",
     ) -> list[Any]:
         """Get a list of files in the bucket."""
+        # Validate that bucket_keys is in fact a list, otherwise, the characters will be split
+        if isinstance(bucket_keys, str):
+            bucket_keys = [bucket_keys]
+
         keys: list[Any] = []
         for key in bucket_keys:
             prefix = key
@@ -652,7 +656,9 @@ class S3Hook(AwsBaseHook):
             response = paginator.paginate(**params)
             async for page in response:
                 if "Contents" in page:
-                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
+                    keys.extend(
+                        k.get("Key") for k in page["Contents"] if isinstance(k.get("Size"), (int, float))
+                    )
         return keys
 
     async def _list_keys_async(
@@ -1683,3 +1689,80 @@ class S3Hook(AwsBaseHook):
         """
         s3_client = self.get_conn()
         s3_client.delete_bucket_tagging(Bucket=bucket_name)
+
+    def _sync_to_local_dir_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
+        current_s3_keys = {key for key in current_s3_objects}
+
+        for item in local_dir.iterdir():
+            item: Path  # type: ignore[no-redef]
+            absolute_item_path = item.resolve()
+
+            if absolute_item_path not in current_s3_keys:
+                try:
+                    if item.is_file():
+                        item.unlink(missing_ok=True)
+                        self.log.debug("Deleted stale local file: %s", item)
+                    elif item.is_dir():
+                        # delete only when the folder is empty
+                        if not os.listdir(item):
+                            item.rmdir()
+                            self.log.debug("Deleted stale empty directory: %s", item)
+                    else:
+                        self.log.debug("Skipping stale item of unknown type: %s", item)
+                except OSError as e:
+                    self.log.error("Error deleting stale item %s: %s", item, e)
+                    raise e
+
+    def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
+        should_download = False
+        download_msg = ""
+        if not local_target_path.exists():
+            should_download = True
+            download_msg = f"Local file {local_target_path} does not exist."
+        else:
+            local_stats = local_target_path.stat()
+
+            if s3_object.size != local_stats.st_size:
+                should_download = True
+                download_msg = (
+                    f"S3 object size ({s3_object.size}) and local file size ({local_stats.st_size}) differ."
+                )
+
+            s3_last_modified = s3_object.last_modified
+            if local_stats.st_mtime < s3_last_modified.microsecond:
+                should_download = True
+                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
+
+        if should_download:
+            s3_bucket.download_file(s3_object.key, local_target_path)
+            self.log.debug(
+                "%s Downloaded %s to %s", download_msg, s3_object.key, local_target_path.as_posix()
+            )
+        else:
+            self.log.debug(
+                "Local file %s is up-to-date with S3 object %s. Skipping download.",
+                local_target_path.as_posix(),
+                s3_object.key,
+            )
+
+    def sync_to_local_dir(self, bucket_name: str, local_dir: Path, s3_prefix="", delete_stale: bool = True):
+        """Download S3 files from the S3 bucket to the local directory."""
+        self.log.debug("Downloading data from s3://%s/%s to %s", bucket_name, s3_prefix, local_dir)
+
+        local_s3_objects = []
+        s3_bucket = self.get_bucket(bucket_name)
+        for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
+            obj_path = Path(obj.key)
+            local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
+            if not local_target_path.parent.exists():
+                local_target_path.parent.mkdir(parents=True, exist_ok=True)
+                self.log.debug("Created local directory: %s", local_target_path.parent)
+            self._sync_to_local_dir_if_changed(
+                s3_bucket=s3_bucket, s3_object=obj, local_target_path=local_target_path
+            )
+            local_s3_objects.append(local_target_path)
+
+        if delete_stale:
+            self._sync_to_local_dir_delete_stale_local_files(
+                current_s3_objects=local_s3_objects, local_dir=local_dir
+            )

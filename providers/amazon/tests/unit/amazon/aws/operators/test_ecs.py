@@ -332,7 +332,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             ],
         ],
     )
-    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
     @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
     @mock.patch.object(EcsBaseOperator, "client")
@@ -341,7 +340,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock,
         check_mock,
         wait_mock,
-        xcom_mock,
         launch_type,
         capacity_provider_strategy,
         platform_version,
@@ -358,7 +356,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         )
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
-        self.ecs.execute(None)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        self.ecs.execute(mock_context)  # type: ignore[arg-type]
 
         client_mock.run_task.assert_called_once_with(
             cluster="c",
@@ -389,8 +390,11 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         resp_failures["failures"].append("dummy error")
         client_mock.run_task.return_value = resp_failures
 
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
         with pytest.raises(EcsOperatorError):
-            self.ecs.execute(None)
+            self.ecs.execute(mock_context)  # type: ignore[arg-type]
 
         client_mock.run_task.assert_called_once_with(
             cluster="c",
@@ -700,49 +704,62 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
         assert "No active previously launched task found to reattach" in caplog.messages
 
-    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock, xcom_mock):
+    def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
 
         log_fetcher_mock.get_last_log_message.return_value = "Log output"
 
-        assert self.ecs.execute(None) == "Log output"
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
+        assert self.ecs.execute(mock_context) == "Log output"  # type: ignore[arg-type]
+
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock, xcom_mock):
+    def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
 
         log_fetcher_mock.get_last_log_message.return_value = None
 
-        assert self.ecs.execute(None) is None
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
+        assert self.ecs.execute(mock_context) is None  # type: ignore[arg-type]
+
     @mock.patch.object(EcsBaseOperator, "client")
-    def test_execute_xcom_with_no_log_fetcher(self, client_mock, xcom_mock):
+    def test_execute_xcom_with_no_log_fetcher(self, client_mock):
         self.ecs.do_xcom_push = True
-        assert self.ecs.execute(None) is None
+
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        assert self.ecs.execute(mock_context) is None  # type: ignore[arg-type]
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch.object(AwsTaskLogFetcher, "get_last_log_message", return_value="Log output")
     def test_execute_xcom_disabled(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = False
-        assert self.ecs.execute(None) is None
 
-    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        assert self.ecs.execute(mock_context) is None  # type: ignore[arg-type]
+
     @mock.patch.object(EcsRunTaskOperator, "client")
-    def test_with_defer(self, client_mock, xcom_mock):
+    def test_with_defer(self, client_mock):
         self.ecs.deferrable = True
 
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
         with pytest.raises(TaskDeferred) as deferred:
-            self.ecs.execute(None)
+            self.ecs.execute(mock_context)  # type: ignore[arg-type]
 
         assert isinstance(deferred.value.trigger, TaskDoneTrigger)
         assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
@@ -752,7 +769,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         event = {"status": "success", "task_arn": "my_arn", "cluster": "test_cluster"}
         self.ecs.reattach = True
 
-        self.ecs.execute_complete(None, event)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        self.ecs.execute_complete(mock_context, event)  # type: ignore[arg-type]
 
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])

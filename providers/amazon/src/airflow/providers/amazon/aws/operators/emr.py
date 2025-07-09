@@ -984,7 +984,7 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the application.
     :param deferrable: If True, the operator will wait asynchronously for application to be created.
@@ -1128,7 +1128,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the job run.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
@@ -1438,7 +1438,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
         Otherwise, trying to stop an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
         :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         Default is 25.
     :param waiter_delay: Number of seconds between polling the state of the application.
         Default is 60 seconds.
@@ -1573,7 +1573,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         Defaults to 25.
     :param waiter_delay: Number of seconds between polling the state of the application.
         Defaults to 60 seconds.

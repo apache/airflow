@@ -23,6 +23,7 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import ParseDag from "src/components/DagActions/ParseDag";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
@@ -43,18 +44,18 @@ export const Header = ({
   readonly dagWithRuns?: DAGWithLatestDagRunsResponse;
   readonly isRefreshing?: boolean;
 }) => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["common", "dag"]);
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
   const latestRun = dagWithRuns?.latest_dag_runs ? dagWithRuns.latest_dag_runs[0] : undefined;
 
   const stats = [
     {
-      label: translate("header.stats.schedule"),
+      label: translate("dagDetails.schedule"),
       value: dagWithRuns === undefined ? undefined : <Schedule dag={dagWithRuns} />,
     },
     {
-      label: translate("header.stats.latestRun"),
+      label: translate("dagDetails.latestRun"),
       value:
         Boolean(latestRun) && latestRun !== undefined ? (
           <Link asChild color="fg.info">
@@ -71,7 +72,7 @@ export const Header = ({
         ) : undefined,
     },
     {
-      label: translate("header.stats.nextRun"),
+      label: translate("dagDetails.nextRun"),
       value: Boolean(dagWithRuns?.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={dagWithRuns?.next_dagrun_logical_date}
@@ -80,15 +81,15 @@ export const Header = ({
       ) : undefined,
     },
     {
-      label: translate("header.stats.owner"),
+      label: translate("dagDetails.owner"),
       value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
     {
-      label: translate("header.stats.tags"),
+      label: translate("dagDetails.tags"),
       value: <DagTags tags={dag?.tags ?? []} />,
     },
     {
-      label: translate("header.stats.latestDagVersion"),
+      label: translate("dagDetails.latestDagVersion"),
       value: <DagVersion version={dag?.latest_dag_version} />,
     },
   ];
@@ -100,12 +101,13 @@ export const Header = ({
           <>
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
-                header={translate("header.modals.docTitle")}
+                header={translate("dagDetails.documentation")}
                 icon={<FiBookOpen />}
                 mdContent={dag.doc_md}
-                text={translate("header.buttons.dagDocs")}
+                text={translate("dag:header.buttons.dagDocs")}
               />
             )}
+            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
           </>
         )

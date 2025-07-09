@@ -21,13 +21,13 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import sys
 import textwrap
 
 import uvicorn
-from gunicorn.util import daemonize
-from setproctitle import setproctitle
 
 from airflow import settings
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.exceptions import AirflowConfigException
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -40,6 +40,55 @@ log = logging.getLogger(__name__)
 # more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
 
 
+def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
+    """Run the API server."""
+    log.info(
+        textwrap.dedent(
+            f"""\
+            Running the uvicorn with:
+            Apps: {apps}
+            Workers: {num_workers}
+            Host: {args.host}:{args.port}
+            Timeout: {worker_timeout}
+            Logfiles: {args.log_file or "-"}
+            ================================================================="""
+        )
+    )
+    # get ssl cert and key filepaths here instead of passing them as arguments to reduce the number of arguments
+    ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
+
+    # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
+    os_type = sys.platform
+    if os_type == "darwin":
+        log.debug("Mac OS detected, skipping setproctitle")
+    else:
+        from setproctitle import setproctitle
+
+        setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
+
+    uvicorn_kwargs = {
+        "host": args.host,
+        "port": args.port,
+        "workers": num_workers,
+        "timeout_keep_alive": worker_timeout,
+        "timeout_graceful_shutdown": worker_timeout,
+        "ssl_keyfile": ssl_key,
+        "ssl_certfile": ssl_cert,
+        "access_log": True,
+        "proxy_headers": proxy_headers,
+    }
+    # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
+    if args.log_config and args.log_config != "-":
+        # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
+        # So we need to check if the log_config is set to "-" or not; if it is set to "-", we regard it as not set.
+        uvicorn_kwargs["log_config"] = args.log_config
+
+    uvicorn.run(
+        "airflow.api_fastapi.main:app",
+        **uvicorn_kwargs,
+    )
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 def api_server(args):
@@ -47,7 +96,6 @@ def api_server(args):
     print(settings.HEADER)
 
     apps = args.apps
-    access_logfile = args.access_logfile or "-"
     num_workers = args.workers
     worker_timeout = args.worker_timeout
     proxy_headers = args.proxy_headers
@@ -74,6 +122,9 @@ def api_server(args):
         if args.proxy_headers:
             run_args.append("--proxy-headers")
 
+        if args.log_config and args.log_config != "-":
+            run_args.extend(["--log-config", args.log_config])
+
         # There is no way to pass the apps to airflow/api_fastapi/main.py in the development mode
         # because fastapi dev command does not accept any additional arguments
         # so environment variable is being used to pass it
@@ -85,35 +136,16 @@ def api_server(args):
             process.wait()
         os.environ.pop("AIRFLOW_API_APPS")
     else:
-        if args.daemon:
-            daemonize()
-            log.info("Daemonized the API server process PID: %s", os.getpid())
-
-        log.info(
-            textwrap.dedent(
-                f"""\
-                Running the uvicorn with:
-                Apps: {apps}
-                Workers: {num_workers}
-                Host: {args.host}:{args.port}
-                Timeout: {worker_timeout}
-                Logfiles: {access_logfile}
-                ================================================================="""
-            )
-        )
-        ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
-        setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
-        uvicorn.run(
-            "airflow.api_fastapi.main:app",
-            host=args.host,
-            port=args.port,
-            workers=num_workers,
-            timeout_keep_alive=worker_timeout,
-            timeout_graceful_shutdown=worker_timeout,
-            ssl_keyfile=ssl_key,
-            ssl_certfile=ssl_cert,
-            access_log=access_logfile,
-            proxy_headers=proxy_headers,
+        run_command_with_daemon_option(
+            args=args,
+            process_name="api_server",
+            callback=lambda: _run_api_server(
+                args=args,
+                apps=apps,
+                num_workers=num_workers,
+                worker_timeout=worker_timeout,
+                proxy_headers=proxy_headers,
+            ),
         )
 
 

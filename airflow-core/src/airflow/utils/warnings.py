@@ -14,27 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import warnings
-from collections.abc import Generator
-from contextlib import contextmanager
+from airflow.utils import _deprecate_this_module
 
-
-@contextmanager
-def capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, None]:
-    """Capture warnings in context and re-raise it on exit from the context manager."""
-    captured_warnings = []
-    try:
-        with warnings.catch_warnings(record=True) as captured_warnings:
-            yield captured_warnings
-    finally:
-        if captured_warnings:
-            for cw in captured_warnings:
-                warnings.warn_explicit(
-                    message=cw.message,
-                    category=cw.category,
-                    filename=cw.filename,
-                    lineno=cw.lineno,
-                    source=cw.source,
-                )
+__getattr__ = _deprecate_this_module("airflow.utils.warnings is deprecated.")

@@ -104,7 +104,7 @@ class TestConnections:
 
     def test_conn_get(self, mock_supervisor_comms):
         conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
-        mock_supervisor_comms.get_message.return_value = conn_result
+        mock_supervisor_comms.send.return_value = conn_result
 
         conn = Connection.get(conn_id="mysql_conn")
         assert conn is not None

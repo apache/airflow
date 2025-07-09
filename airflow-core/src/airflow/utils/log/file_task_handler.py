@@ -22,19 +22,18 @@ from __future__ import annotations
 import itertools
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.logging_mixin import SetContextPropagate
@@ -45,12 +44,12 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.typing_compat import TypeAlias
 
 
 # These types are similar, but have distinct names to make processing them less error prone
-LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
+LogMessages: TypeAlias = list["StructuredLogMessage"] | list[str]
 """The log messages themselves, either in already sturcutured form, or a single string blob to be parsed later"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
@@ -150,7 +149,7 @@ def _parse_log_lines(
         lines = itertools.chain.from_iterable(map(str.splitlines, lines))  # type: ignore[assignment,arg-type]
 
     # https://github.com/python/mypy/issues/8586
-    for idx, line in enumerate[Union[str, StructuredLogMessage]](lines):
+    for idx, line in enumerate[str | StructuredLogMessage](lines):
         if line:
             try:
                 if isinstance(line, StructuredLogMessage):
@@ -178,32 +177,6 @@ def _interleave_logs(*logs: str | LogMessages) -> Iterable[StructuredLogMessage]
         if msg != last or not timestamp:  # dedupe
             yield msg
         last = msg
-
-
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """
-    Given TI | TIKey, return a TI object.
-
-    Will raise exception if no TI is found in the database.
-    """
-    from airflow.models.taskinstance import TaskInstance
-
-    if isinstance(ti, TaskInstance):
-        return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.task_id == ti.task_id,
-            TaskInstance.dag_id == ti.dag_id,
-            TaskInstance.run_id == ti.run_id,
-            TaskInstance.map_index == ti.map_index,
-        )
-        .one_or_none()
-    )
-    if not val:
-        raise AirflowException(f"Could not find TaskInstance for {ti}")
-    val.try_number = ti.try_number
-    return val
 
 
 class FileTaskHandler(logging.Handler):
@@ -253,7 +226,9 @@ class FileTaskHandler(logging.Handler):
         Some handlers emit "end of log" markers, and may not wish to do so when task defers.
         """
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None | SetContextPropagate:
+    def set_context(
+        self, ti: TaskInstance | TaskInstanceHistory, *, identifier: str | None = None
+    ) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -309,9 +284,10 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     @provide_session
-    def _render_filename(self, ti: TaskInstance, try_number: int, session=NEW_SESSION) -> str:
+    def _render_filename(
+        self, ti: TaskInstance | TaskInstanceHistory, try_number: int, session=NEW_SESSION
+    ) -> str:
         """Return the worker log filename."""
-        ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
 
         date = dag_run.logical_date or dag_run.run_after
@@ -344,8 +320,8 @@ class FileTaskHandler(logging.Handler):
         raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _get_executor_get_task_log(
-        self, ti: TaskInstance
-    ) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
+        self, ti: TaskInstance | TaskInstanceHistory
+    ) -> Callable[[TaskInstance | TaskInstanceHistory, int], tuple[list[str], list[str]]]:
         """
         Get the get_task_log method from executor of current task instance.
 
@@ -367,7 +343,7 @@ class FileTaskHandler(logging.Handler):
 
     def _read(
         self,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstanceHistory,
         try_number: int,
         metadata: dict[str, Any] | None = None,
     ):
@@ -455,7 +431,8 @@ class FileTaskHandler(logging.Handler):
         return logs, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
-    def _get_pod_namespace(ti: TaskInstance):
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance | TaskInstanceHistory):
         pod_override = ti.executor_config.get("pod_override")
         namespace = None
         with suppress(Exception):
@@ -463,7 +440,10 @@ class FileTaskHandler(logging.Handler):
         return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(
-        self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None
+        self,
+        ti: TaskInstance | TaskInstanceHistory,
+        log_relative_path: str,
+        log_type: LogType | None = None,
     ) -> tuple[str, str]:
         """Given TI, generate URL with which to fetch logs from service log server."""
         if log_type == LogType.TRIGGER:
@@ -487,7 +467,7 @@ class FileTaskHandler(logging.Handler):
 
     def read(
         self,
-        task_instance: TaskInstance,
+        task_instance: TaskInstance | TaskInstanceHistory,
         try_number: int | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> tuple[list[StructuredLogMessage] | str, dict[str, Any]]:
@@ -502,6 +482,15 @@ class FileTaskHandler(logging.Handler):
         """
         if try_number is None:
             try_number = task_instance.try_number
+
+        if task_instance.state == TaskInstanceState.SKIPPED:
+            logs = [
+                StructuredLogMessage(  # type: ignore[call-arg]
+                    event="Task was skipped, no logs available."
+                )
+            ]
+            return logs, {"end_of_log": True}
+
         if try_number is None or try_number < 1:
             logs = [
                 StructuredLogMessage(  # type: ignore[call-arg]

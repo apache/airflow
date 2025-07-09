@@ -77,7 +77,7 @@ apache-airflow-providers-telegram package
 `Telegram <https://telegram.org/>`__
 
 
-Release: 4.8.0
+Release: 4.8.1
 
 Provider package
 ----------------

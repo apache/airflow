@@ -28,8 +28,6 @@ from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
 )
 from airflow.utils.session import create_session
 
-pytestmark = pytest.mark.db_test
-
 
 class TestSageMakerNotebookHook:
     @pytest.fixture(autouse=True)
@@ -174,6 +172,7 @@ class TestSageMakerNotebookHook:
         with pytest.raises(AirflowException, match=error_message):
             self.hook._handle_state(execution_id, status, error_message)
 
+    @pytest.mark.db_test
     @patch(
         "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerNotebookHook._set_xcom_files"
     )
@@ -187,6 +186,7 @@ class TestSageMakerNotebookHook:
         with pytest.raises(AirflowException, match="context is required"):
             self.hook._set_xcom_files(self.files, {})
 
+    @pytest.mark.db_test
     @patch(
         "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerNotebookHook._set_xcom_s3_path"
     )

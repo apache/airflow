@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+1.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'KafkaMessageQueueTrigger' for enhanced message queue trigger usability on Kafka queue (#51718)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Update BaseOperator imports for Airflow 3.0 compatibility (#52503)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest db marker apache kafka (#52098)``
+   * ``Updating kafka systests to setup connections using ENV (#52076)``
+   * ``Replace usage of os.environ with conf_vars in kafka IT (#52025)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 1.9.0
 .....
 

@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunsKeyFn,
@@ -25,6 +26,7 @@ import {
   useDagServiceGetDagsUiKey,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
+  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
@@ -32,20 +34,21 @@ import { toaster } from "src/components/ui";
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
-
+  const { t: translate } = useTranslation("components");
   const onSuccess = async () => {
     const queryKeys = [
       [useDagServiceGetDagsUiKey],
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
       UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: "DAG run has been successfully triggered.",
-      title: "DAG Run Request Submitted",
+      description: translate("triggerDag.toaster.success.description"),
+      title: translate("triggerDag.toaster.success.title"),
       type: "success",
     });
     onSuccessConfirm();

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   useDagRunServiceClearDagRun,
@@ -25,18 +26,12 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   UseGridServiceGridDataKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
+  UseGridServiceGetGridRunsKeyFn,
+  UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
-
-const onError = () => {
-  toaster.create({
-    description: "Clear Dag Run request failed",
-    title: "Failed to clear the Dag Run",
-    type: "error",
-  });
-};
 
 export const useClearDagRun = ({
   dagId,
@@ -48,6 +43,15 @@ export const useClearDagRun = ({
   onSuccessConfirm: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("dags");
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("dags:runAndTaskActions.clear.error", { type: translate("dagRun_one") }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -57,6 +61,8 @@ export const useClearDagRun = ({
       [useDagRunServiceGetDagRunsKey],
       [useClearDagRunDryRunKey, dagId],
       UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

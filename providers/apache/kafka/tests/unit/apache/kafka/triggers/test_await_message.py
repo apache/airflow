@@ -24,11 +24,8 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
-from airflow.utils import db
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
-
-pytestmark = pytest.mark.db_test
 
 
 def apply_function_false(message):
@@ -59,8 +56,9 @@ class MockedConsumer:
 
 
 class TestTrigger:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",

@@ -63,7 +63,7 @@ for p in providers_root.glob("**/provider.yaml"):
 
 # Check for missing translations
 EXCEPTIONS = ["en"]
-for p in repo_root.glob("airflow-core/src/airflow/ui/src/i18n/locales/*"):
+for p in repo_root.glob("airflow-core/src/airflow/ui/public/i18n/locales/*"):
     if p.is_dir():
         lang_id = p.name
         expected_key = f"translation:{lang_id}"

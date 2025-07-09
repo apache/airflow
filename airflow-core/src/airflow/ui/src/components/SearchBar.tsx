@@ -74,7 +74,7 @@ export const SearchBar = ({
         <>
           {Boolean(value) ? (
             <CloseButton
-              aria-label={translate("list.clearSearch")}
+              aria-label={translate("search.clear")}
               colorPalette="gray"
               data-testid="clear-search"
               onClick={() => {
@@ -86,10 +86,15 @@ export const SearchBar = ({
           ) : undefined}
           {Boolean(hideAdvanced) ? undefined : (
             <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
-              {translate("list.advancedSearch")}
+              {translate("search.advanced")}
             </Button>
           )}
-          {!hotkeyDisabled && <Kbd size="sm">{metaKey}+K</Kbd>}
+          {!hotkeyDisabled && (
+            <Kbd size="sm">
+              {metaKey}
+              {translate("search.hotkey")}
+            </Kbd>
+          )}
         </>
       }
       startElement={<FiSearch />}

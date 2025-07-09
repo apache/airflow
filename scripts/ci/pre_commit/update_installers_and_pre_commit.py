@@ -50,6 +50,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
 ]
 
@@ -95,12 +96,12 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(uv>=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(UV_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to "
+            r"(\")([0-9.]+)(\"  # Keep this comment to "
             r"allow automatic replacement of uv version)"
         ),
         Quoting.UNQUOTED,
@@ -123,7 +124,7 @@ PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit version)"
         ),
         Quoting.UNQUOTED,
@@ -142,7 +143,7 @@ PRE_COMMIT_UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit-uv version)"
         ),
         Quoting.UNQUOTED,
@@ -169,6 +170,10 @@ UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
+UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", "true").lower() == "true"
+UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true"
+UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
+UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
@@ -205,6 +210,10 @@ if __name__ == "__main__":
     setuptools_version = get_latest_pypi_version("setuptools")
     pre_commit_version = get_latest_pypi_version("pre-commit")
     pre_commit_uv_version = get_latest_pypi_version("pre-commit-uv")
+    hatch_version = get_latest_pypi_version("hatch")
+    pyyaml_version = get_latest_pypi_version("PyYAML")
+    gitpython_version = get_latest_pypi_version("GitPython")
+    rich_version = get_latest_pypi_version("rich")
     node_lts_version = get_latest_lts_node_version()
     for file, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file}")
@@ -252,6 +261,54 @@ if __name__ == "__main__":
                     new_content,
                     keep_length,
                 )
+        if UPGRADE_HATCH:
+            console.print(f"[bright_blue]Latest hatch version: {hatch_version}")
+            new_content = re.sub(
+                r"(HATCH_VERSION = )(\"[0-9.]+\")",
+                f'HATCH_VERSION = "{hatch_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(HATCH_VERSION=)(\"[0-9.]+\")",
+                f'HATCH_VERSION="{hatch_version}"',
+                new_content,
+            )
+        if UPGRADE_PYYAML:
+            console.print(f"[bright_blue]Latest PyYAML version: {pyyaml_version}")
+            new_content = re.sub(
+                r"(PYYAML_VERSION = )(\"[0-9.]+\")",
+                f'PYYAML_VERSION = "{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(PYYAML_VERSION=)(\"[0-9.]+\")",
+                f'PYYAML_VERSION="{pyyaml_version}"',
+                new_content,
+            )
+        if UPGRADE_GITPYTHON:
+            console.print(f"[bright_blue]Latest GitPython version: {gitpython_version}")
+            new_content = re.sub(
+                r"(GITPYTHON_VERSION = )(\"[0-9.]+\")",
+                f'GITPYTHON_VERSION = "{gitpython_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(GITPYTHON_VERSION=)(\"[0-9.]+\")",
+                f'GITPYTHON_VERSION="{gitpython_version}"',
+                new_content,
+            )
+        if UPGRADE_RICH:
+            console.print(f"[bright_blue]Latest rich version: {rich_version}")
+            new_content = re.sub(
+                r"(RICH_VERSION = )(\"[0-9.]+\")",
+                f'RICH_VERSION = "{rich_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(RICH_VERSION=)(\"[0-9.]+\")",
+                f'RICH_VERSION="{rich_version}"',
+                new_content,
+            )
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")

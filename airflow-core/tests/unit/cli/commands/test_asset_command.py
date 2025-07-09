@@ -90,8 +90,9 @@ def test_cli_assets_details(parser: ArgumentParser) -> None:
         "id": None,
         "created_at": None,
         "updated_at": None,
-        "consuming_dags": None,
+        "scheduled_dags": None,
         "producing_tasks": None,
+        "consuming_tasks": None,
     }
 
     assert asset_detail_list[0] | undeterministic == undeterministic | {
@@ -153,5 +154,6 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",
+        "triggering_user_name": "root",
         "run_after": "2025-02-12T19:27:59.066046Z",
     }

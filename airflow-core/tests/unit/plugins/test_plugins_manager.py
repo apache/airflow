@@ -49,7 +49,7 @@ class AirflowTestOnLoadExceptionPlugin(AirflowPlugin):
 
 
 @pytest.fixture(autouse=True, scope="module")
-def clean_plugins():
+def _clean_listeners():
     get_listener_manager().clear()
     yield
     get_listener_manager().clear()
@@ -268,22 +268,20 @@ class TestPluginsManager:
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
-        try:
-            with mock.patch("airflow.plugins_manager.plugins", []):
-                plugins_manager.load_plugins_from_plugin_directory()
-                plugins_manager.integrate_listener_plugins(get_listener_manager())
+        assert not get_listener_manager().has_listeners
+        with mock.patch("airflow.plugins_manager.plugins", []):
+            plugins_manager.load_plugins_from_plugin_directory()
+            plugins_manager.integrate_listener_plugins(get_listener_manager())
 
-                assert get_listener_manager().has_listeners
-                listeners = get_listener_manager().pm.get_plugins()
-                listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
-                # sort names as order of listeners is not guaranteed
-                assert sorted(listener_names) == [
-                    "airflow.example_dags.plugins.event_listener",
-                    "unit.listeners.class_listener.ClassBasedListener",
-                    "unit.listeners.empty_listener",
-                ]
-        finally:
-            get_listener_manager().clear()
+            assert get_listener_manager().has_listeners
+            listeners = get_listener_manager().pm.get_plugins()
+            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+            # sort names as order of listeners is not guaranteed
+            assert sorted(listener_names) == [
+                "airflow.example_dags.plugins.event_listener",
+                "unit.listeners.class_listener.ClassBasedListener",
+                "unit.listeners.empty_listener",
+            ]
 
     @skip_if_force_lowest_dependencies_marker
     def test_should_import_plugin_from_providers(self):

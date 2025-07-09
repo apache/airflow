@@ -28,25 +28,30 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useDagServiceGetDagsUi } from "openapi/queries";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const getTabs = (translate: (key: string) => string) => [
-  { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
-  { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
-  { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
-  { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
-  { icon: <MdOutlineEventNote />, label: translate("tabs.events"), value: "events" },
-  { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
-  { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
-];
-
 export const Dag = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "" } = useParams();
+
+  // Get external views with dag destination
+  const externalTabs = usePluginTabs("dag");
+
+  const tabs = [
+    { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
+    { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
+    { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+    { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
+  ];
 
   const {
     data: dag,
@@ -89,15 +94,15 @@ export const Dag = () => {
     } satisfies DAGWithLatestDagRunsResponse;
   }
 
+  const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
+
   return (
     <ReactFlowProvider>
       <DetailsLayout
         dag={dag}
         error={error ?? runsError}
         isLoading={isLoading || isLoadingRuns}
-        tabs={getTabs(translate).filter(
-          (tab) => !(dag?.timetable_summary === null && tab.value === "backfills"),
-        )}
+        tabs={displayTabs}
       >
         <Header
           dag={dag}
