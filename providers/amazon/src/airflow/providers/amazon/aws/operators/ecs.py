@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart, EcsCannotPullContainerError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -701,6 +701,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         for task in response["tasks"]:
             if task.get("stopCode", "") == "TaskFailedToStart":
+                if "CannotPullContainerError" in task.get('stoppedReason', ''):
+                    raise EcsCannotPullContainerError(f"The task failed to start due to: {task.get('stoppedReason', '')}")
+
                 # Reset task arn here otherwise the retry run will not start
                 # a new task but keep polling the old dead one
                 # I'm not resetting it for other exceptions here because

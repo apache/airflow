@@ -47,6 +47,16 @@ class EcsOperatorError(Exception):
         """Return EcsOperator state and a tuple of failures list and message."""
         return EcsOperatorError, (self.failures, self.message)
 
+class EcsCannotPullContainerError(Exception):
+    """Raise when ECS cannot retrieve the specified container image."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        return self.__class__, (self.message,)
+
 
 class S3HookUriParseFailure(AirflowException):
     """When parse_s3_url fails to parse URL, this error is thrown."""

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart, EcsCannotPullContainerError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import _StringCompareEnum
 
@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 def should_retry(exception: Exception):
     """Check if exception is related to ECS resource quota (CPU, MEM)."""
+    if isinstance(exception, EcsCannotPullContainerError):
+        return False
+
     if isinstance(exception, EcsOperatorError):
         return any(
             quota_reason in failure["reason"]
@@ -40,6 +43,9 @@ def should_retry(exception: Exception):
 
 def should_retry_eni(exception: Exception):
     """Check if exception is related to ENI (Elastic Network Interfaces)."""
+    if isinstance(exception, EcsCannotPullContainerError):
+        return False
+
     if isinstance(exception, EcsTaskFailToStart):
         return any(
             eni_reason in exception.message

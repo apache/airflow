@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart, EcsCannotPullContainerError
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook, should_retry, should_retry_eni
 
 DEFAULT_CONN_ID: str = "aws_default"
@@ -67,6 +67,13 @@ class TestShouldRetryEni:
             EcsTaskFailToStart(
                 "The task failed to start due to: "
                 "Timeout waiting for network interface provisioning to complete."
+            )
+        )
+        assert should_retry_eni(
+            EcsCannotPullContainerError(
+                "The task failed to start due to: "
+                "CannotStartContainerError: "
+                "ResourceInitializationError: failed to create new container runtime task"
             )
         )
 
