@@ -62,5 +62,5 @@ class Neo4jOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing: %s", self.sql)
-        hook = Neo4jHook(conn_id=self.neo4j_conn_id, parameters=self.parameters)
-        hook.run(self.sql)
+        hook = Neo4jHook(conn_id=self.neo4j_conn_id)
+        hook.run(self.sql, self.parameters)

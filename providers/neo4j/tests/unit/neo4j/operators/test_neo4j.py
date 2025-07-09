@@ -36,7 +36,7 @@ class TestNeo4jOperator:
         op = Neo4jOperator(task_id="basic_neo4j", sql=sql)
         op.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(conn_id="neo4j_default")
-        mock_hook.return_value.run.assert_called_once_with(sql)
+        mock_hook.return_value.run.assert_called_once_with(sql, None)
 
     @mock.patch("airflow.providers.neo4j.operators.neo4j.Neo4jHook")
     def test_neo4j_operator_test_with_params(self, mock_hook):
@@ -47,5 +47,4 @@ class TestNeo4jOperator:
         op = Neo4jOperator(task_id="basic_neo4j", sql=sql, parameters=parameters, conn_id="test_conn")
         op.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(conn_id="test_conn")
-        mock_hook.return_value.run.assert_called_once_with(sql=sql)
-        mock_hook.return_value.run.assert_called_once_with(parameters=parameters)
+        mock_hook.return_value.run.assert_called_once_with(sql, parameters)

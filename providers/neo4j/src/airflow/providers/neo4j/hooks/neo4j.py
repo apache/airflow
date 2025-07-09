@@ -47,13 +47,11 @@ class Neo4jHook(BaseHook):
     conn_type = "neo4j"
     hook_name = "Neo4j"
 
-    def __init__(self, conn_id: str = default_conn_name, parameters=None, *args, **kwargs) -> None:
+    def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.neo4j_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client: Driver | None = None
-        self.parameters = parameters
-
 
     def get_conn(self) -> Driver:
         """Initiate a new Neo4j connection with username, password and database schema."""
@@ -115,7 +113,7 @@ class Neo4jHook(BaseHook):
 
         return f"{scheme}{encryption_scheme}://{conn.host}:{7687 if conn.port is None else conn.port}"
 
-    def run(self, query, parameters) -> list[Any]:
+    def run(self, query: str, parameters: dict[str, Any] | None = None) -> list[Any]:
         """
         Create a neo4j session and execute the query in the session.
 
@@ -124,11 +122,14 @@ class Neo4jHook(BaseHook):
         :return: Result
         """
         driver = self.get_conn()
-        if not self.connection.schema:
-            with driver.session() as session:
+        session_paramters = {}
+
+        if db := self.connection.schema:
+            session_paramters["database"] = db
+
+        with driver.session(**session_paramters) as session:
+            if parameters is not None:
                 result = session.run(query, parameters)
-                return result.data()
-        else:
-            with driver.session(database=self.connection.schema) as session:
-                result = session.run(query, parameters)
-                return result.data()
+            else:
+                result = session.run(query)
+            return result.data()

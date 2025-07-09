@@ -97,8 +97,7 @@ class TestNeo4jHookConn:
                     mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
                     mock.call.driver().session(database="schema"),
                     mock.call.driver().session().__enter__(),
-                    mock.call.driver().session().__enter__().run(mock_sql),
-                    mock.call.driver().session().__enter__().run(mock_parameters),
+                    mock.call.driver().session().__enter__().run(mock_sql, mock_parameters),
                     mock.call.driver().session().__enter__().run().data(),
                     mock.call.driver().session().__exit__(None, None, None),
                 ]
@@ -149,8 +148,7 @@ class TestNeo4jHookConn:
                     mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
                     mock.call.driver().session(),
                     mock.call.driver().session().__enter__(),
-                    mock.call.driver().session().__enter__().run(mock_sql),
-                    mock.call.driver().session().__enter__().run(mock_parameters),
+                    mock.call.driver().session().__enter__().run(mock_sql, mock_parameters),
                     mock.call.driver().session().__enter__().run().data(),
                     mock.call.driver().session().__exit__(None, None, None),
                 ]
