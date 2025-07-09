@@ -352,17 +352,19 @@ class RuntimeTaskInstance(TaskInstance):
 
         # If map_indexes is not specified, pull xcoms from all map indexes for each task
         if isinstance(map_indexes, ArgNotSet):
-            xcoms = [
-                value
-                for t_id in task_ids
-                for value in XCom.get_all(
+            xcoms: list[Any] = []
+            for t_id in task_ids:
+                values = XCom.get_all(
                     run_id=run_id,
                     key=key,
                     task_id=t_id,
                     dag_id=dag_id,
                 )
-            ]
 
+                if values is None:
+                    xcoms.append(None)
+                else:
+                    xcoms.extend(values)
             # For single task pulling from unmapped task, return single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
