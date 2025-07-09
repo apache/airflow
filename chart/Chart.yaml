@@ -101,6 +101,11 @@ annotations:
       links:
       - name: '#52269'
         url: https://github.com/apache/airflow/pull/52269
+    - description: Fix for ``fernetkey`` and add test of its value
+      kind: fixed
+      links:
+      - name: '#52977'
+        url: https://github.com/apache/airflow/pull/52977
     - description: 'Docs: Update supported executors in docs'
       kind: changed
       links:

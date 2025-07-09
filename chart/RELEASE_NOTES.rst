@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.18.0 (2025-07-07)
+Airflow Helm Chart 1.18.0 (2025-07-11)
 --------------------------------------
 
 Significant Changes
@@ -43,6 +43,7 @@ Bug Fixes
 - Change default executor in pod template to support executor parameter in task (#49433)
 - Use ``merged`` to render airflow.cfg and include computed defaults (#51828)
 - Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver] secret_key`` (#52269)
+- Fix for ``fernetkey`` and add test of its value (#52977)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^
