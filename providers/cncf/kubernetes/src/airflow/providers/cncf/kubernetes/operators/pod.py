@@ -579,9 +579,6 @@ class KubernetesPodOperator(BaseOperator):
             pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
                 # If pod is terminated then delete the pod an create a new as not possible to get xcom
-                pod_phase = (
-                    pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
-                )
                 pod_phase = pod.status.phase if pod.status and pod.status.phase else None
                 pod_reason = pod.status.reason.lower() if pod.status and pod.status.reason else ""
                 if pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED) and pod_reason != "evicted":
