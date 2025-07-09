@@ -1551,6 +1551,7 @@ class TaskInstance(Base, LoggingMixin):
             timeout = exception.timeout
         elif self.task is not None and self.task.start_trigger_args is not None:
             context = self.get_template_context()
+            self.task.render_template_fields(context=context)
             start_trigger_args = self.task.expand_start_trigger_args(context=context, session=session)
             if start_trigger_args is None:
                 raise TaskDeferralError(
