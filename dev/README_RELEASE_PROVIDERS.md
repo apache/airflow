@@ -755,9 +755,8 @@ svn update .
 Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
 
 ``` shell
-export PATH_TO_SVN=
+export PATH_TO_SVN=<set your path to svn here>
 ```
-
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
 script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
