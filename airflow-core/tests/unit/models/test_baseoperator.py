@@ -36,7 +36,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
 from airflow.sdk import Context, task as task_decorator
-from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.sdk.bases.trigger import StartTriggerArgs
+from airflow.triggers.base import BaseTrigger
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule

@@ -24,8 +24,8 @@ import attrs
 import structlog
 
 from airflow.exceptions import AirflowException
+from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
-from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:
