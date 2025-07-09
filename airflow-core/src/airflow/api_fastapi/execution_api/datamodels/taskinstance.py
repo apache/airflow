@@ -66,6 +66,7 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = TerminalTIState.FAILED
     SKIPPED = TerminalTIState.SKIPPED
     REMOVED = TerminalTIState.REMOVED
+    UPSTREAM_FAILED = "upstream_failed"
 
 
 class TITerminalStatePayload(StrictBaseModel):
