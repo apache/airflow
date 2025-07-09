@@ -65,7 +65,7 @@ async def deferrable_operator(context, operator, session: Session = NEW_SESSION)
             )
         result = operator.execute(context=context)
     except TaskDeferred as deferred:
-        task = deferred
+        task: TaskDeferred | None = deferred
 
         while task:
             events = await run_tigger(task.trigger)
