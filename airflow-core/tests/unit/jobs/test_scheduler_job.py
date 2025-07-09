@@ -573,8 +573,9 @@ class TestSchedulerJob:
         session = settings.Session()
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        dag_version = DagVersion.get_latest_version(dr1.dag_id)
 
-        ti1 = TaskInstance(task1, run_id=dr1.run_id)
+        ti1 = TaskInstance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
         session.merge(ti1)
@@ -2507,11 +2508,8 @@ class TestSchedulerJob:
 
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker):
         """
-        Test if a a dagrun will not be scheduled if max_dag_runs
+        Test if a dagrun will not be scheduled if max_dag_runs
         has been reached and dagrun_timeout is not reached
-
-        Test if a a dagrun would be scheduled if max_dag_runs has
-        been reached but dagrun_timeout is also reached
         """
         with dag_maker(
             dag_id="test_scheduler_verify_max_active_runs_and_dagrun_timeout",
@@ -2574,7 +2572,7 @@ class TestSchedulerJob:
 
     def test_dagrun_timeout_fails_run(self, dag_maker):
         """
-        Test if a a dagrun will be set failed if timeout, even without max_active_runs
+        Test if a dagrun will be set failed if timeout, even without max_active_runs
         """
         session = settings.Session()
         with dag_maker(
@@ -5511,7 +5509,8 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        ti = TaskInstance(task=task1, run_id=dr1_running.run_id)
+        dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id)
+        ti = TaskInstance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
         ti.state = State.SUCCESS
         session.merge(ti)
@@ -6011,10 +6010,10 @@ class TestSchedulerJob:
 
         # We will provision 2 tasks so we can check we only find task instance heartbeat timeouts from this scheduler
         tasks_to_setup = ["branching", "run_this_first"]
-
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
         for task_id in tasks_to_setup:
             task = dag.get_task(task_id=task_id)
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_version.id)
             ti.queued_by_job_id = 999
 
             session.add(ti)

@@ -68,7 +68,7 @@ export const TaskNames = ({ nodes }: Props) => {
     >
       {node.isGroup ? (
         <Flex alignItems="center">
-          <Link data-testid={node.id} display="inline">
+          <Link asChild data-testid={node.id} display="inline">
             <RouterLink
               replace
               to={{

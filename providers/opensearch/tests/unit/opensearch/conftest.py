@@ -21,11 +21,7 @@ from typing import Any
 import pytest
 
 from airflow.models import Connection
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.opensearch.version_compat import BaseHook
 
 try:
     from opensearchpy import OpenSearch

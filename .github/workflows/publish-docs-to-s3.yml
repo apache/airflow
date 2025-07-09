@@ -50,8 +50,8 @@ on:  # yamllint disable-line rule:truthy
       build-sboms:
         description: "Build SBOMs"
         required: false
-        default: 'false'
-        type: string
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -74,9 +74,11 @@ jobs:
       destination-location: ${{ steps.parameters.outputs.destination-location }}
       destination: ${{ steps.parameters.outputs.destination }}
       extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
+      airflow-base-version: ${{ steps.parameters.outputs.airflow-base-version }}
       airflow-version: ${{ steps.parameters.outputs.airflow-version }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
+      default-python-version: "3.10"
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -116,10 +118,13 @@ jobs:
              echo "destination-location=s3://staging-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
           fi
           if [[ " ${INCLUDE_DOCS} " =~ " apache-airflow " ]]; then
-             AIRFLOW_VERSION=$(echo "${REF}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+             AIRFLOW_BASE_VERSION=$(echo "${REF}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+             AIRFLOW_VERSION="${REF}"
+             echo "airflow-base-version=${AIRFLOW_BASE_VERSION}" >> ${GITHUB_OUTPUT}
              echo "airflow-version=${AIRFLOW_VERSION}" >> ${GITHUB_OUTPUT}
           else
              echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
+             echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
 
   build-docs:
@@ -132,14 +137,12 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: 3.10
       VERBOSE: "true"
       EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      # Check out the repo first to run cleanup - in sub-folder
       - name: "Checkout current version first to clean-up stuff"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -158,27 +161,63 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
           fetch-tags: true
-      - name: "Install Breeze"
+      - name: "Install Breeze from the ${{ inputs.ref }} reference"
         uses: ./.github/actions/breeze
         with:
           use-uv: ${{ inputs.use-uv }}
-      - name: "Building docs with --docs-only flag"
+          python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      - name: "Building image from the ${{ inputs.ref }} reference"
+        env:
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+          INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
+        run: >
+          breeze ci-image build
+      - name: "Building docs with --docs-only flag using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only
-      - name: "Build SBOMS"
+      - name: "Checkout current version to run SBOM generation"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
+          path: current-version
+        if: inputs.build-sboms
+      - name: "Reinstall breeze from the current version"
+        run: |
+          breeze setup self-upgrade --use-current-airflow-sources
+        if: inputs.build-sboms
+        working-directory: current-version
+      - name: "Make sure SBOM dir exists and has the right permissions"
+        run: |
+          sudo mkdir -vp ./files/sbom
+          sudo chown -R "${USER}" .
+        working-directory: current-version
+        if: inputs.build-sboms
+      - name: "Prepare SBOMs using current version of Breeze"
         env:
           AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: ${{ needs.build-info.outputs.default-python-version }}
+          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
           FORCE: "true"
         run: >
-          breeze sbom update-sbom-information --airflow-version ${AIRFLOW_VERSION}
+          breeze sbom update-sbom-information
+          --airflow-version ${AIRFLOW_VERSION} --remote-name origin --force
           --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
-        if: inputs.build-sboms == 'true'
-
+        working-directory: current-version
+        if: inputs.build-sboms
+      - name: "Generated SBOM files"
+        run: |
+          echo "Generated SBOM files:"
+          find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
+        if: inputs.build-sboms
+      - name: "Reinstall breeze from ${{ inputs.ref }} reference"
+        run:
+          breeze setup self-upgrade --use-current-airflow-sources
+        if: inputs.build-sboms
       - name: Check disk space available
         run: df -H
       # Here we will create temp airflow-site dir to publish docs
@@ -186,7 +225,7 @@ jobs:
         run: |
           sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
           echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
-      - name: "Publish docs to /mnt/airflow-site directory"
+      - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >

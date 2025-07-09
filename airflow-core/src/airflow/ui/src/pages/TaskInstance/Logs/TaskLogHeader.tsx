@@ -19,6 +19,7 @@
 import {
   Badge,
   Box,
+  ButtonGroup,
   createListCollection,
   HStack,
   IconButton,
@@ -26,7 +27,7 @@ import {
 } from "@chakra-ui/react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineOpenInFull } from "react-icons/md";
+import { MdCompress, MdExpand, MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -37,10 +38,12 @@ import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
+  readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
+  readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
@@ -48,10 +51,12 @@ type Props = {
 };
 
 export const TaskLogHeader = ({
+  expanded,
   isFullscreen = false,
   onSelectTryNumber,
   sourceOptions,
   taskInstance,
+  toggleExpanded,
   toggleFullscreen,
   toggleWrap,
   tryNumber,
@@ -122,7 +127,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between" mb={2}>
+      <HStack justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"
@@ -182,16 +187,43 @@ export const TaskLogHeader = ({
             </Select.Content>
           </Select.Root>
         ) : undefined}
-        <HStack>
+        <HStack gap={1}>
           <Tooltip closeDelay={100} content={translate("wrap.tooltip", { hotkey: "w" })} openDelay={100}>
             <Button
               aria-label={wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
               bg="bg.panel"
+              m={0}
               onClick={toggleWrap}
+              px={4}
+              py={2}
               variant="outline"
             >
               {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
             </Button>
+          </Tooltip>
+          <Tooltip closeDelay={100} content={translate("expand.tooltip", { hotkey: "e" })} openDelay={100}>
+            <ButtonGroup attached size="md" variant="outline">
+              <IconButton
+                aria-label={translate("expand.expand")}
+                bg="bg.panel"
+                disabled={expanded}
+                onClick={expanded ? undefined : toggleExpanded}
+                size="md"
+                variant="surface"
+              >
+                <MdExpand />
+              </IconButton>
+              <IconButton
+                aria-label={translate("expand.collapse")}
+                bg="bg.panel"
+                disabled={!expanded}
+                onClick={expanded ? toggleExpanded : undefined}
+                size="md"
+                variant="outline"
+              >
+                <MdCompress />
+              </IconButton>
+            </ButtonGroup>
           </Tooltip>
           {!isFullscreen && (
             <Tooltip
@@ -202,7 +234,10 @@ export const TaskLogHeader = ({
               <IconButton
                 aria-label={translate("dag:logs.fullscreen.button")}
                 bg="bg.panel"
+                m={0}
                 onClick={toggleFullscreen}
+                px={4}
+                py={2}
                 variant="outline"
               >
                 <MdOutlineOpenInFull />
