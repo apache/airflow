@@ -44,8 +44,7 @@ class HITLOperator(BaseOperator):
 
     :param subject: Headline/subject presented to the user for the interaction task.
     :param options: List of options that the an user can select from to complete the task.
-    :param body: descriptive text that might give background, hints or can provide background or summary of
-        details that are needed to decide.
+    :param body: Descriptive text (with Markdown support) that gives the details that are needed to decide.
     :param default: The default option and the option that is taken if timeout is passed.
     :param multiple: Whether the user can select one or multiple options.
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
