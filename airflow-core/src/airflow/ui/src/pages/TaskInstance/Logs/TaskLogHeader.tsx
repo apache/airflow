@@ -28,6 +28,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MdAccessTime,
+  MdCode,
   MdCompress,
   MdExpand,
   MdOutlineOpenInFull,
@@ -47,11 +48,13 @@ type Props = {
   readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly showSource: boolean;
   readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
+  readonly toggleSource: () => void;
   readonly toggleTimestamp: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
@@ -62,11 +65,13 @@ export const TaskLogHeader = ({
   expanded,
   isFullscreen = false,
   onSelectTryNumber,
+  showSource,
   showTimestamp,
   sourceOptions,
   taskInstance,
   toggleExpanded,
   toggleFullscreen,
+  toggleSource,
   toggleTimestamp,
   toggleWrap,
   tryNumber,
@@ -224,6 +229,10 @@ export const TaskLogHeader = ({
                   </>
                 )}
                 <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleSource} value="source">
+                <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
+                <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
             </Menu.Content>
           </Menu.Root>

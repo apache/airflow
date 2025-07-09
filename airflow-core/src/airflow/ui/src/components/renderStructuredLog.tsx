@@ -45,6 +45,7 @@ type RenderStructuredLogProps = {
   logLevelFilters?: Array<string>;
   logLink: string;
   logMessage: string | StructuredLogMessage;
+  showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   translate: TFunction;
@@ -96,6 +97,7 @@ export const renderStructuredLog = ({
   logLevelFilters,
   logLink,
   logMessage,
+  showSource = true,
   showTimestamp = true,
   sourceFilters,
   translate,
@@ -180,14 +182,16 @@ export const renderStructuredLog = ({
     </chakra.span>,
   );
 
-  for (const key in reStructured) {
-    if (Object.hasOwn(reStructured, key)) {
-      elements.push(
-        ": ",
-        <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
-          {key === "logger" ? "source" : key}={JSON.stringify(reStructured[key])}
-        </chakra.span>,
-      );
+  if (showSource) {
+    for (const key in reStructured) {
+      if (Object.hasOwn(reStructured, key)) {
+        elements.push(
+          ": ",
+          <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
+            {key === "logger" ? "source" : key}={JSON.stringify(reStructured[key])}
+          </chakra.span>,
+        );
+      }
     }
   }
 

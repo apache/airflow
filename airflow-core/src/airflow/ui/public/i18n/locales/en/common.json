@@ -154,6 +154,11 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "source": {
+    "hide": "Hide Source",
+    "hotkey": "s",
+    "show": "Show Source"
+  },
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",
