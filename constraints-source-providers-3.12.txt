@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-09T02:21:59.867857
+# This constraints file was automatically generated on 2025-07-09T07:45:59.925202
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -138,7 +138,7 @@ cadwyn==5.4.3
 cassandra-driver==3.29.2
 cattrs==25.1.1
 celery==5.5.3
-certifi==2025.6.15
+certifi==2025.7.9
 cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.37.2
