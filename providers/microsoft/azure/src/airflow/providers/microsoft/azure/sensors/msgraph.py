@@ -17,9 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
@@ -29,21 +27,6 @@ from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS,
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
-
-try:
-    from airflow.triggers.base import StartTriggerArgs
-except ImportError:
-    # TODO: Remove this when min airflow version is 2.10.0
-    @dataclass
-    class StartTriggerArgs:  # type: ignore[no-redef]
-        """Arguments required for start task execution from triggerer."""
-
-        trigger_cls: str
-        next_method: str
-        trigger_kwargs: dict[str, Any] | None = None
-        next_kwargs: dict[str, Any] | None = None
-        timeout: datetime.timedelta | None = None
-
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseSensorOperator
@@ -130,26 +113,32 @@ class MSGraphSensor(BaseSensorOperator):
         self.event_processor = event_processor
         self.result_processor = result_processor
         self.serializer = serializer()
-        self.start_trigger_args = StartTriggerArgs(
-            trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
-            trigger_kwargs=dict(
-                url=self.url,
-                response_type=self.response_type,
-                path_parameters=self.path_parameters,
-                url_template=self.url_template,
-                method=self.method,
-                query_parameters=self.query_parameters,
-                headers=self.headers,
-                data=self.data,
-                conn_id=self.conn_id,
-                timeout=self.timeout,
-                proxies=self.proxies,
-                scopes=self.scopes,
-                api_version=self.api_version,
-                serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
-            ),
-            next_method=self.execute_complete.__name__,
-        )
+        if self.start_from_trigger:
+            try:
+                from airflow.triggers.base import StartTriggerArgs
+
+                self.start_trigger_args = StartTriggerArgs(
+                    trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+                    trigger_kwargs=dict(
+                        url=self.url,
+                        response_type=self.response_type,
+                        path_parameters=self.path_parameters,
+                        url_template=self.url_template,
+                        method=self.method,
+                        query_parameters=self.query_parameters,
+                        headers=self.headers,
+                        data=self.data,
+                        conn_id=self.conn_id,
+                        timeout=self.timeout,
+                        proxies=self.proxies,
+                        scopes=self.scopes,
+                        api_version=self.api_version,
+                        serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+                    ),
+                    next_method=self.execute_complete.__name__,
+                )
+            except ImportError:
+                self.start_from_trigger = False
 
     def execute(self, context: Context) -> None:
         if not self.start_from_trigger:
