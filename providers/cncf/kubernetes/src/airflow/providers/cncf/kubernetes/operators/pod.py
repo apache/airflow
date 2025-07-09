@@ -582,7 +582,15 @@ class KubernetesPodOperator(BaseOperator):
                 pod_phase = (
                     pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
                 )
-                if pod_phase and pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED):
+                pod_phase = pod.status.phase if pod.status and pod.status.phase else None
+                pod_reason = pod.status.reason.lower() if pod.status and pod.status.reason else ""
+                if pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED) and pod_reason != "evicted":
+                    self.log.info(
+                        "Reusing existing pod '%s' (phase=%s, reason=%s) since it is not terminated or evicted.",
+                        pod.metadata.name,
+                        pod_phase,
+                        pod_reason,
+                    )
                     return pod
 
                 self.log.info(
