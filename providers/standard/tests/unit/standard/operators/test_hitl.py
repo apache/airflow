@@ -47,7 +47,7 @@ class TestHITLOperator:
             subject="This is subject",
             options=["1", "2", "3", "4", "5"],
             body="This is body",
-            default=["1"],
+            defaults=["1"],
             multiple=False,
             params=ParamsDict({"input_1": 1}),
         )
@@ -56,11 +56,15 @@ class TestHITLOperator:
     @pytest.mark.parametrize(
         "extra_kwargs",
         [
-            {"default": None, "execution_timeout": 10},
-            {"default": ["0"]},
-            {"multiple": False, "default": ["1", "2"]},
+            {"defaults": None, "execution_timeout": 10},
+            {"defaults": ["0"]},
+            {"multiple": False, "defaults": ["1", "2"]},
         ],
-        ids=["timeout with no default", "default not in option", "multiple default when multiple is False"],
+        ids=[
+            "timeout with no defaults",
+            "defaults not in option",
+            "multiple defaults when multiple is False",
+        ],
     )
     def test_validate_defaults_with_invalid_defaults(self, extra_kwargs) -> None:
         with pytest.raises(ValueError):
@@ -80,7 +84,7 @@ class TestHITLOperator:
                 subject="This is subject",
                 options=["1", "2", "3", "4", "5"],
                 body="This is body",
-                default=["1"],
+                defaults=["1"],
                 multiple=False,
                 params=ParamsDict({"input_1": 1}),
             )
@@ -92,7 +96,7 @@ class TestHITLOperator:
         assert hitl_detail_model.subject == "This is subject"
         assert hitl_detail_model.options == ["1", "2", "3", "4", "5"]
         assert hitl_detail_model.body == "This is body"
-        assert hitl_detail_model.default == ["1"]
+        assert hitl_detail_model.defaults == ["1"]
         assert hitl_detail_model.multiple is False
         assert hitl_detail_model.params == {"input_1": 1}
         assert hitl_detail_model.response_at is None
@@ -106,7 +110,7 @@ class TestHITLOperator:
         assert registered_trigger.kwargs == {
             "ti_id": ti.id,
             "options": ["1", "2", "3", "4", "5"],
-            "default": ["1"],
+            "defaults": ["1"],
             "params": {"input_1": 1},
             "multiple": False,
             "timeout_datetime": None,
@@ -219,4 +223,4 @@ class TestHITLEntryOperator:
         )
 
         assert op.options == ["OK"]
-        assert op.default == ["OK"]
+        assert op.defaults == ["OK"]

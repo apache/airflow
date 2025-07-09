@@ -111,7 +111,7 @@ class CreateHITLDetailPayload(BaseModel):
     options: Annotated[list[str], Field(title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
-    default: Annotated[list[str] | None, Field(title="Default")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     type: Annotated[Literal["CreateHITLDetailPayload"] | None, Field(title="Type")] = (
@@ -180,7 +180,7 @@ class HITLDetailRequest(BaseModel):
     options: Annotated[list[str], Field(title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
-    default: Annotated[list[str] | None, Field(title="Default")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
 
@@ -193,7 +193,7 @@ class HITLDetailResponse(BaseModel):
     response_received: Annotated[bool, Field(title="Response Received")]
     user_id: Annotated[str | None, Field(title="User Id")] = None
     response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
-    chosen_options: Annotated[list[str] | None, Field(title="Response Content")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -374,7 +374,7 @@ class UpdateHITLDetail(BaseModel):
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
-    chosen_options: Annotated[list[str], Field(title="Response Content")]
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
     type: Annotated[Literal["UpdateHITLDetail"] | None, Field(title="Type")] = "UpdateHITLDetail"
 

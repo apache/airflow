@@ -1237,7 +1237,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 options=msg.options,
                 subject=msg.subject,
                 body=msg.body,
-                default=msg.default,
+                defaults=msg.defaults,
                 params=msg.params,
                 multiple=msg.multiple,
             )

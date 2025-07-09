@@ -33,7 +33,7 @@ class HITLDetailRequest(BaseModel):
     options: list[str]
     subject: str
     body: str | None = None
-    default: list[str] | None = None
+    defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -45,7 +45,7 @@ class GetHITLDetailResponsePayload(BaseModel):
 
 
 class UpdateHITLDetailPayload(BaseModel):
-    """Schema for writing the resposne part of a Human-in-the-loop detail for a specific task instance."""
+    """Schema for writing the response part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
     chosen_options: list[str]

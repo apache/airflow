@@ -45,7 +45,7 @@ class HITLOperator(BaseOperator):
     :param subject: Headline/subject presented to the user for the interaction task.
     :param options: List of options that the an user can select from to complete the task.
     :param body: Descriptive text (with Markdown support) that gives the details that are needed to decide.
-    :param default: The default option and the option that is taken if timeout is passed.
+    :param defaults: The default options and the options that are taken if timeout is passed.
     :param multiple: Whether the user can select one or multiple options.
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
@@ -60,7 +60,7 @@ class HITLOperator(BaseOperator):
         subject: str,
         options: list[str],
         body: str | None = None,
-        default: str | list[str] | None = None,
+        defaults: str | list[str] | None = None,
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
         **kwargs,
@@ -71,7 +71,7 @@ class HITLOperator(BaseOperator):
 
         self.options = options
         # allow defaults to store more than one options when multiple=True
-        self.default = [default] if isinstance(default, str) else default
+        self.defaults = [defaults] if isinstance(defaults, str) else defaults
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
@@ -80,21 +80,21 @@ class HITLOperator(BaseOperator):
 
     def validate_defaults(self) -> None:
         """
-        Validate whether the given default pass the following criteria.
+        Validate whether the given defaults pass the following criteria.
 
         1. When timeout is set, default options should be provided.
         2. Default options should be the subset of options.
         3. When multiple is False, there should only be one option.
         """
-        if self.default is None and self.execution_timeout:
-            raise ValueError('"default" is required when "execution_timeout" is provided.')
+        if self.defaults is None and self.execution_timeout:
+            raise ValueError('"defaults" is required when "execution_timeout" is provided.')
 
-        if self.default is not None:
-            if not set(self.default).issubset(self.options):
-                raise ValueError(f'default "{self.default}" should be a subset of options "{self.options}"')
+        if self.defaults is not None:
+            if not set(self.defaults).issubset(self.options):
+                raise ValueError(f'defaults "{self.defaults}" should be a subset of options "{self.options}"')
 
-            if self.multiple is False and len(self.default) > 1:
-                raise ValueError('More than one default given when "multiple" is set to False.')
+            if self.multiple is False and len(self.defaults) > 1:
+                raise ValueError('More than one defaults given when "multiple" is set to False.')
 
     def execute(self, context: Context):
         """Add a Human-in-the-loop Response and then defer to HITLTrigger and wait for user input."""
@@ -105,7 +105,7 @@ class HITLOperator(BaseOperator):
             options=self.options,
             subject=self.subject,
             body=self.body,
-            default=self.default,
+            defaults=self.defaults,
             multiple=self.multiple,
             params=self.serialzed_params,
         )
@@ -119,7 +119,7 @@ class HITLOperator(BaseOperator):
             trigger=HITLTrigger(
                 ti_id=ti_id,
                 options=self.options,
-                default=self.default,
+                defaults=self.defaults,
                 params=self.serialzed_params,
                 multiple=self.multiple,
                 timeout_datetime=timeout_datetime,
@@ -200,6 +200,6 @@ class HITLEntryOperator(HITLOperator):
     def __init__(self, **kwargs) -> None:
         if "options" not in kwargs:
             kwargs["options"] = ["OK"]
-            kwargs["default"] = ["OK"]
+            kwargs["defaults"] = ["OK"]
 
         super().__init__(**kwargs)

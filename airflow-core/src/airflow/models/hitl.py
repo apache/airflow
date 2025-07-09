@@ -40,7 +40,7 @@ class HITLDetail(Base):
     options = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     subject = Column(Text, nullable=False)
     body = Column(Text, nullable=True)
-    default = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    defaults = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     multiple = Column(Boolean, unique=False, default=False)
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 

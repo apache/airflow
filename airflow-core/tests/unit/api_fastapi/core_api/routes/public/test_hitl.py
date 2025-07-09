@@ -51,7 +51,7 @@ def sample_hitl_detail(session, sample_ti) -> HITLDetail:
         options=["Approve", "Reject"],
         subject="This is subject",
         body="this is body",
-        default=["Approve"],
+        defaults=["Approve"],
         multiple=False,
         params={"input_1": 1},
     )
@@ -65,7 +65,7 @@ def sample_hitl_detail(session, sample_ti) -> HITLDetail:
 def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
     return {
         "body": "this is body",
-        "default": ["Approve"],
+        "defaults": ["Approve"],
         "multiple": False,
         "options": ["Approve", "Reject"],
         "params": {"input_1": 1},

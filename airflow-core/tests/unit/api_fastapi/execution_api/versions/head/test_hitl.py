@@ -50,7 +50,7 @@ def sample_hitl_detail(session, sample_ti) -> HITLDetail:
         options=["Approve", "Reject"],
         subject="This is subject",
         body="this is body",
-        default=["Approve"],
+        defaults=["Approve"],
         multiple=False,
         params={"input_1": 1},
     )
@@ -64,7 +64,7 @@ def sample_hitl_detail(session, sample_ti) -> HITLDetail:
 def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
     return {
         "body": "this is body",
-        "default": ["Approve"],
+        "defaults": ["Approve"],
         "multiple": False,
         "options": ["Approve", "Reject"],
         "params": {"input_1": 1},
@@ -89,7 +89,7 @@ def test_add_hitl_detail(client, create_task_instance, session) -> None:
             "options": ["Approve", "Reject"],
             "subject": "This is subject",
             "body": "this is body",
-            "default": ["Approve"],
+            "defaults": ["Approve"],
             "multiple": False,
             "params": {"input_1": 1},
         },
@@ -100,7 +100,7 @@ def test_add_hitl_detail(client, create_task_instance, session) -> None:
         "options": ["Approve", "Reject"],
         "subject": "This is subject",
         "body": "this is body",
-        "default": ["Approve"],
+        "defaults": ["Approve"],
         "multiple": False,
         "params": {"input_1": 1},
     }
@@ -123,7 +123,7 @@ def test_update_hitl_detail(client, sample_ti) -> None:
         "response_at": "2025-07-03T00:00:00Z",
         "chosen_options": ["Reject"],
         "response_received": True,
-        "user_id": "Fallback to default",
+        "user_id": "Fallback to defaults",
     }
 
 

@@ -9744,13 +9744,13 @@ components:
           - type: string
           - type: 'null'
           title: Body
-        default:
+        defaults:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Default
+          title: Defaults
         multiple:
           type: boolean
           title: Multiple
@@ -9770,13 +9770,13 @@ components:
             format: date-time
           - type: 'null'
           title: Response At
-        response_content:
+        chosen_options:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Response Content
+          title: Chosen Options
         params_input:
           additionalProperties: true
           type: object
@@ -9817,11 +9817,11 @@ components:
           type: string
           format: date-time
           title: Response At
-        response_content:
+        chosen_options:
           items:
             type: string
           type: array
-          title: Response Content
+          title: Chosen Options
         params_input:
           additionalProperties: true
           type: object
@@ -9830,7 +9830,7 @@ components:
       required:
       - user_id
       - response_at
-      - response_content
+      - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
     HTTPExceptionResponse:
@@ -11364,18 +11364,18 @@ components:
       description: Triggerer info serializer for responses.
     UpdateHITLDetailPayload:
       properties:
-        response_content:
+        chosen_options:
           items:
             type: string
           type: array
-          title: Response Content
+          title: Chosen Options
         params_input:
           additionalProperties: true
           type: object
           title: Params Input
       type: object
       required:
-      - response_content
+      - chosen_options
       title: UpdateHITLDetailPayload
       description: Schema for updating the content of a Human-in-the-loop detail.
     ValidationError:

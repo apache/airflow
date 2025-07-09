@@ -51,7 +51,7 @@ class HITLDetail(BaseModel):
     options: list[str]
     subject: str
     body: str | None = None
-    default: list[str] | None = None
+    defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
 

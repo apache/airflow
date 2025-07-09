@@ -641,7 +641,7 @@ class HITLOperations:
         options: list[str],
         subject: str,
         body: str | None = None,
-        default: list[str] | None = None,
+        defaults: list[str] | None = None,
         multiple: bool = False,
         params: dict[str, Any] | None = None,
     ) -> HITLDetailRequestResult:
@@ -651,7 +651,7 @@ class HITLOperations:
             options=options,
             subject=subject,
             body=body,
-            default=default,
+            defaults=defaults,
             multiple=multiple,
             params=params,
         )

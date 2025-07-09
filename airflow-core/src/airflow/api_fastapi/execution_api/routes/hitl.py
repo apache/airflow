@@ -59,7 +59,7 @@ def add_hitl_detail(
         options=payload.options,
         subject=payload.subject,
         body=payload.body,
-        default=payload.default,
+        defaults=payload.defaults,
         multiple=payload.multiple,
         params=payload.params,
     )
@@ -83,7 +83,7 @@ def update_hitl_detail(
             f"Human-in-the-loop detail for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_detail_model.user_id = "Fallback to default"
+    hitl_detail_model.user_id = "Fallback to defaults"
     hitl_detail_model.response_at = datetime.now(timezone.utc)
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input

@@ -1173,7 +1173,7 @@ class TestHITLOperations:
                         "options": ["Approval", "Reject"],
                         "subject": "This is subject",
                         "body": "This is body",
-                        "default": ["Approval"],
+                        "defaults": ["Approval"],
                         "params": None,
                         "multiple": False,
                     },
@@ -1186,7 +1186,7 @@ class TestHITLOperations:
             options=["Approval", "Reject"],
             subject="This is subject",
             body="This is body",
-            default=["Approval"],
+            defaults=["Approval"],
             params=None,
             multiple=False,
         )
@@ -1195,7 +1195,7 @@ class TestHITLOperations:
         assert result.options == ["Approval", "Reject"]
         assert result.subject == "This is subject"
         assert result.body == "This is body"
-        assert result.default == ["Approval"]
+        assert result.defaults == ["Approval"]
         assert result.params is None
         assert result.multiple is False
 

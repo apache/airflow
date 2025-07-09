@@ -35,7 +35,7 @@ def add_hitl_detail(
     options: list[str],
     subject: str,
     body: str | None = None,
-    default: list[str] | None = None,
+    defaults: list[str] | None = None,
     multiple: bool = False,
     params: dict[str, Any] | None = None,
 ) -> None:
@@ -47,7 +47,7 @@ def add_hitl_detail(
             options=options,
             subject=subject,
             body=body,
-            default=default,
+            defaults=defaults,
             params=params,
             multiple=multiple,
         )

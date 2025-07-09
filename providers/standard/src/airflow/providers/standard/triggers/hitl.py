@@ -60,7 +60,7 @@ class HITLTrigger(BaseTrigger):
         ti_id: UUID,
         options: list[str],
         params: dict[str, Any],
-        default: list[str] | None = None,
+        defaults: list[str] | None = None,
         multiple: bool = False,
         timeout_datetime: datetime | None,
         poke_interval: float = 5.0,
@@ -72,7 +72,7 @@ class HITLTrigger(BaseTrigger):
 
         self.options = options
         self.multiple = multiple
-        self.default = default
+        self.defaults = defaults
         self.timeout_datetime = timeout_datetime
 
         self.params = params
@@ -84,7 +84,7 @@ class HITLTrigger(BaseTrigger):
             {
                 "ti_id": self.ti_id,
                 "options": self.options,
-                "default": self.default,
+                "defaults": self.defaults,
                 "params": self.params,
                 "multiple": self.multiple,
                 "timeout_datetime": self.timeout_datetime,
@@ -97,22 +97,22 @@ class HITLTrigger(BaseTrigger):
         while True:
             if self.timeout_datetime and self.timeout_datetime < timezone.utcnow():
                 # This normally should be checked in the HITLOperator
-                if self.default is None:
+                if self.defaults is None:
                     yield TriggerEvent(
                         HITLTriggerEventFailurePayload(
-                            error='default" is required when "execution_timeout" is provided.'
+                            error='defaults" is required when "execution_timeout" is provided.'
                         )
                     )
                     return
 
                 await sync_to_async(update_htil_detail_response)(
                     ti_id=self.ti_id,
-                    chosen_options=self.default,
+                    chosen_options=self.defaults,
                     params_input=self.params,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
-                        chosen_options=self.default,
+                        chosen_options=self.defaults,
                         params_input=self.params,
                     )
                 )
