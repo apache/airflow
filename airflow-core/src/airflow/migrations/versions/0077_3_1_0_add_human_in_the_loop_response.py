@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import sqlalchemy_jsonfield
 from alembic import op
-from sqlalchemy import Boolean, Column, String, Text
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text
 from sqlalchemy.dialects import postgresql
 
 from airflow.settings import json
@@ -63,6 +63,13 @@ def upgrade():
         Column("user_id", String(128), nullable=True),
         Column("response_content", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
+        ForeignKeyConstraint(
+            ["ti_id"],
+            ["task_instance.id"],
+            name="hitl_response_ti_fkey",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
     )
 
 

@@ -110,11 +110,11 @@ class HITLOperator(BaseOperator):
             multiple=self.multiple,
             params=self.serialzed_params,
         )
-        self.log.info("Waiting for response")
         if self.execution_timeout:
             timeout_datetime = datetime.now(timezone.utc) + self.execution_timeout
         else:
             timeout_datetime = None
+        self.log.info("Waiting for response")
         # Defer the Human-in-the-loop response checking process to HITLTrigger
         self.defer(
             trigger=HITLTrigger(

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, String, Text
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.hybrid import hybrid_property
 
@@ -53,6 +53,16 @@ class HITLResponseModel(Base):
         default=None,
     )
     params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (ti_id,),
+            ["task_instance.id"],
+            name="hitl_response_ti_fkey",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+    )
 
     @hybrid_property
     def response_received(self) -> bool:
