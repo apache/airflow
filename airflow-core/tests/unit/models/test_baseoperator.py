@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import copy
 from collections import defaultdict
-from datetime import datetime
+from typing import Any
 
 import pytest
 
@@ -32,7 +32,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
-from airflow.sdk import task as task_decorator
+from airflow.sdk import task as task_decorator, Context
+from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.utils.session import NEW_SESSION
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -140,6 +142,35 @@ class TestBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+    def test_expand_start_trigger_args_with_template_fields(self):
+        class TriggeredOperator(BaseOperator):
+            start_from_trigger = True
+            template_fields = ["operation"]
+
+            def __init__(self, *, operation, **kwargs):
+                super().__init__(**kwargs)
+                self.operation = operation
+                self.start_trigger_args = StartTriggerArgs(
+                    trigger_cls=f"{BaseTrigger.__module__}.{BaseTrigger.__name__}",
+                    trigger_kwargs=dict(
+                        task_id=self.task_id,
+                        operation=self.operation,
+                    ),
+                    next_method=self.execute_complete.__name__,
+                )
+
+            def execute_complete(
+                self,
+                context: Context,
+                event: dict[Any, Any] | None = None,
+            ) -> Any:
+                pass
+
+        op = TriggeredOperator(task_id="test", operation=lambda context, jinja_env: "Say hello")
+        op.render_template_fields(context={})
+
+        assert op.expand_start_trigger_args(context={}, session=NEW_SESSION).trigger_kwargs == {"task_id": "test", "operation": "Say hello"}
 
 
 def test_deepcopy():

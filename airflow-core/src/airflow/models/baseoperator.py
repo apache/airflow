@@ -421,6 +421,10 @@ class BaseOperator(TaskSDKBaseOperator):
 
         :meta private:
         """
+        if self.start_trigger_args.trigger_kwargs:
+            for attr_name in self.template_fields:
+                if attr_name in self.start_trigger_args.trigger_kwargs:
+                    self.start_trigger_args.trigger_kwargs[attr_name] = getattr(self, attr_name)
         return self.start_trigger_args
 
     if TYPE_CHECKING:
