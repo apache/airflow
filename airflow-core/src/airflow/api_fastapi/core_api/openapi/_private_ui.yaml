@@ -2122,8 +2122,6 @@ components:
           anyOf:
           - additionalProperties:
               type: integer
-            propertyNames:
-              $ref: '#/components/schemas/TaskInstanceState'
             type: object
           - type: 'null'
           title: Child States
