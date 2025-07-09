@@ -323,7 +323,7 @@ def agg_state(states):
     for state in state_priority:
         if state in states:
             return state
-    return "no_status"
+    return None
 
 
 def _find_aggregates(
