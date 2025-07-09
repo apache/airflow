@@ -361,6 +361,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             location=self.location,
         )
         result = result if self.callback is None else self.callback(result)
+
+        if isinstance(result, PokeReturnValue):
+            return result
+
         if bool(result):
             return PokeReturnValue(
                 is_done=True,
@@ -488,6 +492,9 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             location=self.location,
         )
         result = result if self.callback is None else self.callback(result)
+        if isinstance(result, PokeReturnValue):
+            return result
+
         if bool(result):
             return PokeReturnValue(
                 is_done=True,
