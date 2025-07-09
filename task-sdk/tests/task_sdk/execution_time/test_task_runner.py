@@ -1512,6 +1512,54 @@ class TestRuntimeTaskInstance:
                 assert mock_get_one.called
                 assert not mock_get_all.called
 
+    @pytest.mark.parametrize(
+        "api_return_value",
+        [
+            pytest.param(("data", "test_value"), id="api returns tuple"),
+            pytest.param({"data": "test_value"}, id="api returns dict"),
+            pytest.param(None, id="api returns None, no xcom found"),
+        ],
+    )
+    def test_xcom_pull_with_no_map_index(
+        self,
+        api_return_value,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test xcom_pull when map_indexes is not specified, so that XCom.get_all is called.
+        The test also tests if the response is deserialized and returned.
+        """
+        test_task_id = "pull_task"
+        task = BaseOperator(task_id=test_task_id)
+        runtime_ti = create_runtime_ti(task=task)
+
+        ser_value = BaseXCom.serialize_value(api_return_value)
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="test_key", value=None)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+        result = runtime_ti.xcom_pull(key="test_key", task_ids="task_a")
+
+        # if the API returns a tuple or dict, the below assertion assures that the value is deserialized correctly by XCom.get_all
+        assert result == api_return_value
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="test_key",
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="task_a",
+                start=None,
+                stop=None,
+                step=None,
+            ),
+        )
+
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
     ):
