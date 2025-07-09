@@ -7189,9 +7189,6 @@ export const $LightGridTaskInstanceSummary = {
                     additionalProperties: {
                         type: 'integer'
                     },
-                    propertyNames: {
-                        '$ref': '#/components/schemas/TaskInstanceState'
-                    },
                     type: 'object'
                 },
                 {
