@@ -420,9 +420,7 @@ class TestSchedulerJob:
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db()
-        # The state will remain in queued here and
-        # will be set to failed in dag parsing process
-        assert ti1.state == State.QUEUED
+        assert ti1.state == State.FAILED
         mock_task_callback.assert_called_once_with(
             filepath=dag.relative_fileloc,
             ti=mock.ANY,
@@ -432,10 +430,11 @@ class TestSchedulerJob:
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
             "finished with state failed, but the task instance's state attribute is queued. "
             "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
+            context_from_server=mock.ANY,
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         scheduler_job.executor.callback_sink.reset_mock()
-        mock_stats_incr.assert_called_once_with(
+        mock_stats_incr.assert_any_call(
             "scheduler.tasks.killed_externally",
             tags={
                 "dag_id": "test_process_executor_events_with_callback",
@@ -5982,6 +5981,11 @@ class TestSchedulerJob:
         assert callback_request.ti.run_id == ti.run_id
         assert callback_request.ti.map_index == ti.map_index
 
+        # Verify context_from_server is passed
+        assert callback_request.context_from_server is not None
+        assert callback_request.context_from_server.dag_run.logical_date == ti.dag_run.logical_date
+        assert callback_request.context_from_server.max_tries == ti.max_tries
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_task_instance_heartbeat_timeout_message(self, session, create_dagrun):
         """
@@ -6048,68 +6052,6 @@ class TestSchedulerJob:
             "Map Index": 2,
             "External Executor Id": "abcdefg",
         }
-
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_find_task_instances_without_heartbeats_handle_failure_callbacks_are_correctly_passed_to_dag_processor(
-        self, create_dagrun, session
-    ):
-        """
-        Check that the same set of failure callbacks for task instances without heartbeats are passed to the dag
-        file processors until the next task instance heartbeat timeout detection logic is invoked.
-        """
-        with conf_vars({("core", "load_examples"): "False"}):
-            dagbag = DagBag(
-                dag_folder=os.path.join(settings.DAGS_FOLDER, "test_example_bash_operator.py"),
-                read_dags_from_db=False,
-            )
-            session.query(Job).delete()
-            dag = dagbag.get_dag("test_example_bash_operator")
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
-            data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-            dag_run = create_dagrun(
-                dag,
-                state=DagRunState.RUNNING,
-                logical_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                data_interval=data_interval,
-            )
-            task = dag.get_task(task_id="run_this_last")
-            dag_version_id = DagVersion.get_latest_version(dag.dag_id).id
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_version_id)
-            ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
-            ti.start_date = timezone.utcnow() - timedelta(minutes=10)
-
-            # TODO: If there was an actual Relationship between TI and Job
-            # we wouldn't need this extra commit
-            session.add(ti)
-            session.flush()
-
-        scheduler_job = Job(executor=self.null_exec)
-        self.job_runner = SchedulerJobRunner(job=scheduler_job)
-
-        self.job_runner._find_and_purge_task_instances_without_heartbeats()
-
-        scheduler_job.executor.callback_sink.send.assert_called_once()
-
-        expected_failure_callback_requests = [
-            TaskCallbackRequest(
-                filepath=dag.relative_fileloc,
-                ti=ti,
-                msg=str(self.job_runner._generate_task_instance_heartbeat_timeout_message_details(ti)),
-                bundle_name="testing",
-                bundle_version=dag_run.bundle_version,
-            )
-        ]
-        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
-        assert len(callback_requests) == 1
-        assert {
-            task_instances_without_heartbeats.ti.id
-            for task_instances_without_heartbeats in expected_failure_callback_requests
-        } == {result.ti.id for result in callback_requests}
-        expected_failure_callback_requests[0].ti = None
-        callback_requests[0].ti = None
-        assert expected_failure_callback_requests[0] == callback_requests[0]
 
     @mock.patch.object(settings, "USE_JOB_SCHEDULE", False)
     def run_scheduler_until_dagrun_terminal(self):
@@ -6620,6 +6562,73 @@ class TestSchedulerJob:
         )
         for i in range(100):
             assert f"it's duplicate {i}" in dag_warning.message
+
+    def test_scheduler_passes_context_from_server_on_heartbeat_timeout(self, dag_maker, session):
+        """Test that scheduler passes context_from_server when handling heartbeat timeouts."""
+        with dag_maker(dag_id="test_dag", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        # Create a task instance that appears to be running but hasn't heartbeat
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        # Set last_heartbeat_at to a time that would trigger timeout
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)  # 10 minutes ago
+        session.merge(ti)
+        session.commit()
+
+        # Run the heartbeat timeout check
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        # Verify TaskCallbackRequest was created with context_from_server
+        mock_executor.send_callback.assert_called_once()
+        callback_request = mock_executor.send_callback.call_args[0][0]
+
+        assert isinstance(callback_request, TaskCallbackRequest)
+        assert callback_request.context_from_server is not None
+        assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
+        assert callback_request.context_from_server.max_tries == ti.max_tries
+
+    def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
+        """Test that scheduler passes context_from_server when handling task failures."""
+        with dag_maker(dag_id="test_dag", session=session):
+            EmptyOperator(task_id="test_task", on_failure_callback=lambda: print("failure"))
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        # Create a task instance that's running
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = TaskInstanceState.RUNNING
+        session.merge(ti)
+        session.commit()
+
+        # Mock the executor to simulate a task failure
+        mock_executor = MagicMock(spec=BaseExecutor)
+        mock_executor.has_task = mock.MagicMock(return_value=False)
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        # Simulate executor reporting task as failed
+        executor_event = {ti.key: (TaskInstanceState.FAILED, None)}
+        mock_executor.get_event_buffer.return_value = executor_event
+
+        # Process the executor events
+        self.job_runner._process_executor_events(mock_executor, session)
+
+        # Verify TaskCallbackRequest was created with context_from_server
+        mock_executor.send_callback.assert_called_once()
+        callback_request = mock_executor.send_callback.call_args[0][0]
+
+        assert isinstance(callback_request, TaskCallbackRequest)
+        assert callback_request.context_from_server is not None
+        assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
+        assert callback_request.context_from_server.max_tries == ti.max_tries
 
 
 @pytest.mark.need_serialized_dag
