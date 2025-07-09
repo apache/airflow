@@ -34,6 +34,7 @@ from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 @pytest.fixture(autouse=True)
@@ -521,6 +522,7 @@ class TestGitDagBundle:
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
+    @pytest.mark.skipif(AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
     @pytest.mark.parametrize(
         "repo_url, extra_conn_kwargs, expected_url",
         [
