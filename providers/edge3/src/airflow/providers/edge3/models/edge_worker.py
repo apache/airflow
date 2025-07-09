@@ -109,7 +109,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         super().__init__()
 
     @property
-    def sysinfo_json(self) -> dict:
+    def sysinfo_json(self) -> dict | None:
         return json.loads(self.sysinfo) if self.sysinfo else None
 
     @property
