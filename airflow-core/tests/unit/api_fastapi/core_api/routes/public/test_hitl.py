@@ -27,7 +27,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import time_machine
-from uuid6 import uuid7
 
 from airflow.models.hitl import HITLDetail
 
@@ -36,7 +35,8 @@ if TYPE_CHECKING:
 
 
 pytestmark = pytest.mark.db_test
-TI_ID = uuid7()
+
+DAG_ID = "test_hitl_dag"
 
 
 @pytest.fixture
@@ -82,9 +82,9 @@ def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
 class TestUpdateHITLDetailEndpoint:
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_should_respond_200_with_existing_response(self, test_client, sample_ti):
+    def test_should_respond_200_with_existing_response(self, test_client, sample_ti, session):
         response = test_client.patch(
-            f"/hitl-details/{sample_ti.id}",
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -97,20 +97,23 @@ class TestUpdateHITLDetailEndpoint:
         }
 
     def test_should_respond_404(self, test_client, sample_ti):
-        response = test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 404
         assert response.json() == {
-            "detail": {
-                "message": "Human-in-the-loop detail not found",
-                "reason": "not_found",
-            },
+            "detail": (
+                f"The Task Instance with dag_id: `{sample_ti.dag_id}`,"
+                f" run_id: `{sample_ti.run_id}`, task_id: `{sample_ti.task.task_id}`"
+                " and map_index: `None` was not found"
+            ),
         }
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_should_respond_409(self, test_client, sample_ti, expected_sample_hitl_detail_dict):
+    def test_should_respond_409(self, test_client, sample_ti):
         response = test_client.patch(
-            f"/hitl-details/{sample_ti.id}",
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -124,7 +127,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == expected_response
 
         response = test_client.patch(
-            f"/hitl-details/{sample_ti.id}",
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 409
@@ -137,11 +140,15 @@ class TestUpdateHITLDetailEndpoint:
         }
 
     def test_should_respond_401(self, unauthenticated_test_client, sample_ti):
-        response = unauthenticated_test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = unauthenticated_test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client, sample_ti):
-        response = unauthorized_test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = unauthorized_test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 403
 
 
@@ -150,26 +157,35 @@ class TestGetHITLDetailEndpoint:
     def test_should_respond_200_with_existing_response(
         self, test_client, sample_ti, expected_sample_hitl_detail_dict
     ):
-        response = test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 200
         assert response.json() == expected_sample_hitl_detail_dict
 
     def test_should_respond_404(self, test_client, sample_ti):
-        response = test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 404
         assert response.json() == {
-            "detail": {
-                "message": "Human-in-the-loop detail not found",
-                "reason": "not_found",
-            },
+            "detail": (
+                f"The Task Instance with dag_id: `{sample_ti.dag_id}`,"
+                f" run_id: `{sample_ti.run_id}`, task_id: `{sample_ti.task.task_id}`"
+                " and map_index: `None` was not found"
+            ),
         }
 
     def test_should_respond_401(self, unauthenticated_test_client, sample_ti):
-        response = unauthenticated_test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = unauthenticated_test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client, sample_ti):
-        response = unauthorized_test_client.get(f"/hitl-details/{sample_ti.id}")
+        response = unauthorized_test_client.get(
+            f"/hitl-details/{sample_ti.dag_id}/{sample_ti.run_id}/{sample_ti.task.task_id}"
+        )
         assert response.status_code == 403
 
 

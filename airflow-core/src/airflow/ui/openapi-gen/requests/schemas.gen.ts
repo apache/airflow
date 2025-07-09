@@ -3436,7 +3436,7 @@ export const $HITLDetail = {
             ],
             title: 'Body'
         },
-        default: {
+        defaults: {
             anyOf: [
                 {
                     items: {
@@ -3448,7 +3448,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'Default'
+            title: 'Defaults'
         },
         multiple: {
             type: 'boolean',
@@ -3483,7 +3483,7 @@ export const $HITLDetail = {
             ],
             title: 'Response At'
         },
-        response_content: {
+        chosen_options: {
             anyOf: [
                 {
                     items: {
@@ -3495,7 +3495,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'Response Content'
+            title: 'Chosen Options'
         },
         params_input: {
             additionalProperties: true,
@@ -3545,12 +3545,12 @@ export const $HITLDetailResponse = {
             format: 'date-time',
             title: 'Response At'
         },
-        response_content: {
+        chosen_options: {
             items: {
                 type: 'string'
             },
             type: 'array',
-            title: 'Response Content'
+            title: 'Chosen Options'
         },
         params_input: {
             additionalProperties: true,
@@ -3559,7 +3559,7 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['user_id', 'response_at', 'response_content'],
+    required: ['user_id', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
 } as const;
@@ -5854,12 +5854,12 @@ export const $TriggererInfoResponse = {
 
 export const $UpdateHITLDetailPayload = {
     properties: {
-        response_content: {
+        chosen_options: {
             items: {
                 type: 'string'
             },
             type: 'array',
-            title: 'Response Content'
+            title: 'Chosen Options'
         },
         params_input: {
             additionalProperties: true,
@@ -5868,7 +5868,7 @@ export const $UpdateHITLDetailPayload = {
         }
     },
     type: 'object',
-    required: ['response_content'],
+    required: ['chosen_options'],
     title: 'UpdateHITLDetailPayload',
     description: 'Schema for updating the content of a Human-in-the-loop detail.'
 } as const;

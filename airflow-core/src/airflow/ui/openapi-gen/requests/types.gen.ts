@@ -925,14 +925,14 @@ export type HITLDetail = {
     options: Array<(string)>;
     subject: string;
     body?: string | null;
-    default?: Array<(string)> | null;
+    defaults?: Array<(string)> | null;
     multiple?: boolean;
     params?: {
         [key: string]: unknown;
     };
     user_id?: string | null;
     response_at?: string | null;
-    response_content?: Array<(string)> | null;
+    chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
     };
@@ -953,7 +953,7 @@ export type HITLDetailCollection = {
 export type HITLDetailResponse = {
     user_id: string;
     response_at: string;
-    response_content: Array<(string)>;
+    chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
     };
@@ -1475,7 +1475,7 @@ export type TriggererInfoResponse = {
  * Schema for updating the content of a Human-in-the-loop detail.
  */
 export type UpdateHITLDetailPayload = {
-    response_content: Array<(string)>;
+    chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
     };
@@ -2900,17 +2900,40 @@ export type GetDagVersionsData = {
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 
 export type UpdateHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
     requestBody: UpdateHITLDetailPayload;
-    taskInstanceId: string;
+    taskId: string;
 };
 
 export type UpdateHitlDetailResponse = HITLDetailResponse;
 
 export type GetHitlDetailData = {
-    taskInstanceId: string;
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
 };
 
 export type GetHitlDetailResponse = HITLDetail;
+
+export type UpdateMappedTiHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
+
+export type GetMappedTiHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetMappedTiHitlDetailResponse = HITLDetail;
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
 
@@ -5860,7 +5883,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{task_instance_id}': {
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
         patch: {
             req: UpdateHitlDetailData;
             res: {
@@ -5892,6 +5915,62 @@ export type $OpenApiTs = {
         };
         get: {
             req: GetHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+        patch: {
+            req: UpdateMappedTiHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetMappedTiHitlDetailData;
             res: {
                 /**
                  * Successful Response

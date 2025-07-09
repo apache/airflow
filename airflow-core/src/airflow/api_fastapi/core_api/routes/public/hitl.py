@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from uuid import UUID
-
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
@@ -42,24 +40,53 @@ hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
 log = structlog.get_logger(__name__)
 
 
-@hitl_router.patch(
-    "/{task_instance_id}",
-    responses=create_openapi_http_exception_doc(
-        [
+def _get_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+    map_index: int | None = None,
+) -> TI:
+    query = select(TI).where(
+        TI.dag_id == dag_id,
+        TI.run_id == dag_run_id,
+        TI.task_id == task_id,
+    )
+
+    if map_index is not None:
+        query = query.where(TI.map_index == map_index)
+
+    task_instance = session.scalar(query)
+    if task_instance is None:
+        raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
-    ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
-)
-def update_hitl_detail(
-    task_instance_id: UUID,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+    if map_index is None and task_instance.map_index != -1:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
+        )
+
+    return task_instance
+
+
+def _update_hitl_detail(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
+    map_index: int | None = None,
 ) -> HITLDetailResponse:
-    """Update a Human-in-the-loop detail."""
-    ti_id_str = str(task_instance_id)
+    task_instance = _get_task_instance(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=map_index,
+    )
+    ti_id_str = str(task_instance.id)
     hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
     if not hitl_detail_model:
         raise HTTPException(
@@ -83,18 +110,28 @@ def update_hitl_detail(
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 
-@hitl_router.get(
-    "/{task_instance_id}",
-    status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
-)
-def get_hitl_detail(
-    task_instance_id: UUID,
+def _get_hitl_detail(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
     session: SessionDep,
+    map_index: int | None = None,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
-    ti_id_str = str(task_instance_id)
+    task_instance = _get_task_instance(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=map_index,
+    )
+    if task_instance is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+
+    ti_id_str = str(task_instance.id)
     hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
     if not hitl_detail_model:
         log.error("Human-in-the-loop detail not found")
@@ -106,6 +143,112 @@ def get_hitl_detail(
             },
         )
     return HITLDetail.model_validate(hitl_detail_model)
+
+
+@hitl_router.patch(
+    "/{dag_id}/{dag_run_id}/{task_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def update_hitl_detail(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    update_hitl_detail_payload: UpdateHITLDetailPayload,
+    user: GetUserDep,
+    session: SessionDep,
+) -> HITLDetailResponse:
+    """Update a Human-in-the-loop detail."""
+    return _update_hitl_detail(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        update_hitl_detail_payload=update_hitl_detail_payload,
+        user=user,
+        map_index=None,
+    )
+
+
+@hitl_router.patch(
+    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def update_mapped_ti_hitl_detail(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    update_hitl_detail_payload: UpdateHITLDetailPayload,
+    user: GetUserDep,
+    session: SessionDep,
+    map_index: int,
+) -> HITLDetailResponse:
+    """Update a Human-in-the-loop detail."""
+    return _update_hitl_detail(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        update_hitl_detail_payload=update_hitl_detail_payload,
+        user=user,
+        map_index=map_index,
+    )
+
+
+@hitl_router.get(
+    "/{dag_id}/{dag_run_id}/{task_id}",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def get_hitl_detail(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+) -> HITLDetail:
+    """Get a Human-in-the-loop detail of a specific task instance."""
+    return _get_hitl_detail(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=None,
+    )
+
+
+@hitl_router.get(
+    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def get_mapped_ti_hitl_detail(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+    map_index: int,
+) -> HITLDetail:
+    """Get a Human-in-the-loop detail of a specific task instance."""
+    return _get_hitl_detail(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=map_index,
+    )
 
 
 @hitl_router.get(

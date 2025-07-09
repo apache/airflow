@@ -37,7 +37,7 @@ def test_add_hitl_detail(mock_supervisor_comms) -> None:
         options=["Approve", "Reject"],
         subject="Subject",
         body="Optional body",
-        default=["Approve", "Reject"],
+        defaults=["Approve", "Reject"],
         params={"input_1": 1},
         multiple=False,
     )
@@ -47,7 +47,7 @@ def test_add_hitl_detail(mock_supervisor_comms) -> None:
             options=["Approve", "Reject"],
             subject="Subject",
             body="Optional body",
-            default=["Approve", "Reject"],
+            defaults=["Approve", "Reject"],
             params={"input_1": 1},
             multiple=False,
         )

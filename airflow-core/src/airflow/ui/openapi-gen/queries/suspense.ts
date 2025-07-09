@@ -1175,13 +1175,34 @@ export const useDagVersionServiceGetDagVersionsSuspense = <TData = Common.DagVer
 * Get Hitl Detail
 * Get a Human-in-the-loop detail of a specific task instance.
 * @param data The data for the request.
-* @param data.taskInstanceId
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
 * @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetHitlDetailSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ taskInstanceId }: {
-  taskInstanceId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ taskInstanceId }) as TData, ...options });
+export const useHumanInTheLoopServiceGetHitlDetailSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) as TData, ...options });
+/**
+* Get Mapped Ti Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetMappedTiHitlDetailSuspense = <TData = Common.HumanInTheLoopServiceGetMappedTiHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
