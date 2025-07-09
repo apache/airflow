@@ -25,17 +25,22 @@ class TestSCCActivation:
     """Tests SCCs."""
 
     @pytest.mark.parametrize(
-        "rbac_enabled,scc_enabled,created",
+        "rbac_enabled,scc_enabled,created,airflow_version",
         [
-            (False, False, False),
-            (False, True, False),
-            (True, True, True),
-            (True, False, False),
+            (False, False, False, "2.11.0"),
+            (False, True, False, "2.11.0"),
+            (True, True, True, "2.11.0"),
+            (True, False, False, "2.11.0"),
+            (False, False, False, "3.0.0"),
+            (False, True, False, "3.0.0"),
+            (True, True, True, "3.0.0"),
+            (True, False, False, "3.0.0"),
         ],
     )
-    def test_create_scc(self, rbac_enabled, scc_enabled, created):
+    def test_create_scc(self, rbac_enabled, scc_enabled, created, airflow_version,):
         docs = render_chart(
             values={
+                "airflowVersion": airflow_version,
                 "multiNamespaceMode": False,
                 "webserver": {"defaultUser": {"enabled": True}},
                 "cleanup": {"enabled": True},
@@ -52,7 +57,10 @@ class TestSCCActivation:
             assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
             assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
             assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
-            assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
+            if airflow_version >= "3.0.0":
+                assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-api-server"
+            else:
+                assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
             assert jmespath.search("subjects[1].name", docs[0]) == "release-name-airflow-worker"
             assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
             assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-statsd"
@@ -91,19 +99,22 @@ class TestSCCActivation:
             assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
 
     @pytest.mark.parametrize(
-        "rbac_enabled,scc_enabled,created",
+        "rbac_enabled,scc_enabled,created,airflow_version",
         [
-            (True, True, True),
+            (True, True, True, "2.11.0"),
+            (True, True, True, "3.0.0"),
         ],
     )
-    def test_create_scc_worker_only(self, rbac_enabled, scc_enabled, created):
+    def test_create_scc_worker_only(self, rbac_enabled, scc_enabled, created, airflow_version):
         docs = render_chart(
             values={
+                "airflowVersion": airflow_version,
                 "multiNamespaceMode": False,
                 "webserver": {"defaultUser": {"enabled": False}},
                 "cleanup": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
+                "dagProcessor": {"enabled": False},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
@@ -115,7 +126,10 @@ class TestSCCActivation:
             assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
             assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
             assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
-            assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
+            if airflow_version >= "3.0.0":
+                assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-api-server"
+            else:
+                assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
             assert jmespath.search("subjects[1].name", docs[0]) == "release-name-airflow-worker"
             assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
             assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-triggerer"
