@@ -197,7 +197,7 @@ class GCSToSambaOperator(BaseOperator):
         )
 
         dir_path = os.path.dirname(destination_path)
-        samba_hook.makedirs(path=dir_path, exist_ok=True)
+        samba_hook.makedirs(dir_path, exist_ok=True)
 
         with NamedTemporaryFile("w") as tmp:
             gcs_hook.download(
