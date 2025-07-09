@@ -188,7 +188,8 @@ class TestFileTaskLogHandler:
         assert log_filename.endswith("0.log"), log_filename
 
         # Return value of read must be a tuple of list and list.
-        logs, metadata = file_handler.read(ti)
+        log_handler_output_stream, metadata = file_handler.read(ti)
+        logs = list(log_handler_output_stream)
         assert logs[0].event == "Task was skipped, no logs available."
 
         # Remove the generated tmp log file.

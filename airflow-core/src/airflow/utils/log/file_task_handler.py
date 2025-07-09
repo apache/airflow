@@ -745,7 +745,7 @@ class FileTaskHandler(logging.Handler):
                     event="Task was skipped, no logs available."
                 )
             ]
-            return logs, {"end_of_log": True}
+            return chain(logs), {"end_of_log": True}
 
         if try_number is None or try_number < 1:
             logs = [
