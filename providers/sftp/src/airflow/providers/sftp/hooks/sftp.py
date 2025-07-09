@@ -34,9 +34,13 @@ from typing import IO, TYPE_CHECKING, Any, cast
 import asyncssh
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.sftp.version_compat import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.providers.standard.exceptions import ConnectionNotOpenedException
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
@@ -72,7 +76,7 @@ class SFTPHook(SSHHook):
     default_conn_name = "sftp_default"
     conn_type = "sftp"
     hook_name = "SFTP"
-    CONNECTION_NOT_OPEN_EXCEPTION: AirflowException = AirflowException(
+    CONNECTION_NOT_OPEN_EXCEPTION: ConnectionNotOpenedException = ConnectionNotOpenedException(
         "Connection not open, use with hook.get_managed_conn() Managed Connection in order to create and open the connection"
     )
 
@@ -135,18 +139,15 @@ class SFTPHook(SSHHook):
             self.conn.close()
             self.conn = None
 
-    def _throw_if_none(self, to_check, exception: Exception):
-        if to_check is None:
-            raise exception
-
-    def _handle_not_managed_conn(self, run_if_success: Callable):
+    def _handle_not_managed_conn(self, run_if_success: Callable) -> tuple[None, bool]:
         """
         Handle the non managed conn, return 2 values.
 
         the return value and whether or not we ran the function.
         """
         if not self.managed_conn:
-            self._throw_if_none(self.conn, self.CONNECTION_NOT_OPEN_EXCEPTION)
+            if self.conn is None:
+                raise self.CONNECTION_NOT_OPEN_EXCEPTION
 
             return run_if_success(), True
 
