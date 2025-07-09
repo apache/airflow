@@ -227,11 +227,13 @@ class GitDagBundle(BaseDagBundle):
         template = self.view_url_template()
         if not template:
             return None
-        return template.format(version=version)
+        return template.format(version=version, subdir=self.subdir)
 
     def view_url_template(self) -> str | None:
         if hasattr(self, "_view_url_template") and self._view_url_template:
-            # Backward compatibility for released Airflow versions
+            # Because we use this method in the view_url method, we need to handle
+            # backward compatibility for Airflow versions that doesn't have the
+            # _view_url_template attribute. Should be removed when we drop support for Airflow 3.0
             return self._view_url_template
 
         if not self.repo_url:
@@ -260,8 +262,14 @@ class GitDagBundle(BaseDagBundle):
             "bitbucket.org": f"{url}/src/{{version}}",
         }
 
-        # Add subdir placeholder if applicable
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
-                return template + self._templated_url_fragment()
+                # Because we use this method in the view_url method, we need to handle
+                # backward compatibility for Airflow versions that doesn't have the
+                # _templated_url_fragment attribute. Should be removed when we drop support for Airflow 3.0
+                if hasattr(self, "_templated_url_fragment"):
+                    return template + self._templated_url_fragment()
+                if self.subdir:
+                    return f"{template}/{self.subdir}"
+                return template
         return None
