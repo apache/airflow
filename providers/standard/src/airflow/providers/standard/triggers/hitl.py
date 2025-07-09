@@ -31,7 +31,7 @@ from uuid import UUID
 from asgiref.sync import sync_to_async
 
 from airflow.sdk.execution_time.hitl import (
-    get_hitl_response_content_detail,
+    get_hitl_detail_content_detail,
     update_htil_response_content_detail,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -118,7 +118,7 @@ class HITLTrigger(BaseTrigger):
                 )
                 return
 
-            resp = await sync_to_async(get_hitl_response_content_detail)(ti_id=self.ti_id)
+            resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
             if resp.response_received and resp.response_content:
                 self.log.info("Responded by %s at %s", resp.user_id, resp.response_at)
                 yield TriggerEvent(

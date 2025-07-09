@@ -29,7 +29,7 @@ if not AIRFLOW_V_3_1_PLUS:
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.models.hitl import HITLResponseModel
+from airflow.models.hitl import HITLDetail
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -44,8 +44,8 @@ def sample_ti(create_task_instance) -> TaskInstance:
 
 
 @pytest.fixture
-def sample_hitl_response(session, sample_ti) -> HITLResponseModel:
-    hitl_response_model = HITLResponseModel(
+def sample_hitl_detail(session, sample_ti) -> HITLDetail:
+    hitl_detail_model = HITLDetail(
         ti_id=sample_ti.id,
         options=["Approve", "Reject"],
         subject="This is subject",
@@ -54,14 +54,14 @@ def sample_hitl_response(session, sample_ti) -> HITLResponseModel:
         multiple=False,
         params={"input_1": 1},
     )
-    session.add(hitl_response_model)
+    session.add(hitl_detail_model)
     session.commit()
 
-    return hitl_response_model
+    return hitl_detail_model
 
 
 @pytest.fixture
-def expected_sample_hitl_response_dict(sample_ti) -> dict[str, Any]:
+def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
     return {
         "body": "this is body",
         "default": ["Approve"],
@@ -78,12 +78,12 @@ def expected_sample_hitl_response_dict(sample_ti) -> dict[str, Any]:
     }
 
 
-def test_add_hitl_response(client, create_task_instance, session) -> None:
+def test_add_hitl_detail(client, create_task_instance, session) -> None:
     ti = create_task_instance()
     session.commit()
 
     response = client.post(
-        f"/execution/hitl-responses/{ti.id}",
+        f"/execution/hitl-details/{ti.id}",
         json={
             "ti_id": ti.id,
             "options": ["Approve", "Reject"],
@@ -107,10 +107,10 @@ def test_add_hitl_response(client, create_task_instance, session) -> None:
 
 
 @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-@pytest.mark.usefixtures("sample_hitl_response")
-def test_update_hitl_response(client, sample_ti) -> None:
+@pytest.mark.usefixtures("sample_hitl_detail")
+def test_update_hitl_detail(client, sample_ti) -> None:
     response = client.patch(
-        f"/execution/hitl-responses/{sample_ti.id}",
+        f"/execution/hitl-details/{sample_ti.id}",
         json={
             "ti_id": sample_ti.id,
             "response_content": ["Reject"],
@@ -127,9 +127,9 @@ def test_update_hitl_response(client, sample_ti) -> None:
     }
 
 
-@pytest.mark.usefixtures("sample_hitl_response")
-def test_get_hitl_response(client, sample_ti) -> None:
-    response = client.get(f"/execution/hitl-responses/{sample_ti.id}")
+@pytest.mark.usefixtures("sample_hitl_detail")
+def test_get_hitl_detail(client, sample_ti) -> None:
+    response = client.get(f"/execution/hitl-details/{sample_ti.id}")
     assert response.status_code == 200
     assert response.json() == {
         "params_input": {},

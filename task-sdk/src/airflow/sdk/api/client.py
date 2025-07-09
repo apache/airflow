@@ -38,10 +38,10 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
-    CreateHITLResponsePayload,
+    CreateHITLDetailPayload,
     DagRunStateResponse,
     DagRunType,
-    HITLResponseContentDetail,
+    HITLDetailResponse,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
@@ -57,7 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TITerminalStatePayload,
     TriggerDAGRunPayload,
-    UpdateHITLResponse,
+    UpdateHITLDetail,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
@@ -69,7 +69,7 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
-    HITLInputRequestResponseResult,
+    HITLDetailRequestResult,
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
@@ -644,9 +644,9 @@ class HITLOperations:
         default: list[str] | None = None,
         multiple: bool = False,
         params: dict[str, Any] | None = None,
-    ) -> HITLInputRequestResponseResult:
+    ) -> HITLDetailRequestResult:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
-        payload = CreateHITLResponsePayload(
+        payload = CreateHITLDetailPayload(
             ti_id=ti_id,
             options=options,
             subject=subject,
@@ -656,10 +656,10 @@ class HITLOperations:
             params=params,
         )
         resp = self.client.post(
-            f"/hitl-responses/{ti_id}",
+            f"/hitl-details/{ti_id}",
             content=payload.model_dump_json(),
         )
-        return HITLInputRequestResponseResult.model_validate_json(resp.read())
+        return HITLDetailRequestResult.model_validate_json(resp.read())
 
     def update_response(
         self,
@@ -667,23 +667,23 @@ class HITLOperations:
         ti_id: uuid.UUID,
         response_content: list[str],
         params_input: dict[str, Any],
-    ) -> HITLResponseContentDetail:
+    ) -> HITLDetailResponse:
         """Update an existing Human-in-the-loop response."""
-        payload = UpdateHITLResponse(
+        payload = UpdateHITLDetail(
             ti_id=ti_id,
             response_content=response_content,
             params_input=params_input,
         )
         resp = self.client.patch(
-            f"/hitl-responses/{ti_id}",
+            f"/hitl-details/{ti_id}",
             content=payload.model_dump_json(),
         )
-        return HITLResponseContentDetail.model_validate_json(resp.read())
+        return HITLDetailResponse.model_validate_json(resp.read())
 
-    def get_response_content_detail(self, ti_id: uuid.UUID) -> HITLResponseContentDetail:
+    def get_response_content_detail(self, ti_id: uuid.UUID) -> HITLDetailResponse:
         """Get content part of a Human-in-the-loop response for a specific Task Instance."""
-        resp = self.client.get(f"/hitl-responses/{ti_id}")
-        return HITLResponseContentDetail.model_validate_json(resp.read())
+        resp = self.client.get(f"/hitl-details/{ti_id}")
+        return HITLDetailResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):

@@ -7122,13 +7122,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-responses/{task_instance_id}:
+  /api/v2/hitl-details/{task_instance_id}:
     patch:
       tags:
       - HumanInTheLoop
-      summary: Update Hitl Response
-      description: Update a Human-in-the-loop response.
-      operationId: update_hitl_response
+      summary: Update Hitl Detail
+      description: Update a Human-in-the-loop detail.
+      operationId: update_hitl_detail
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -7144,14 +7144,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateHITLResponsePayload'
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HITLResponseContentDetail'
+                $ref: '#/components/schemas/HITLDetailResponse'
         '401':
           content:
             application/json:
@@ -7185,9 +7185,9 @@ paths:
     get:
       tags:
       - HumanInTheLoop
-      summary: Get Hitl Response
-      description: Get a Human-in-the-loop Response of a specific task instance.
-      operationId: get_hitl_response
+      summary: Get Hitl Detail
+      description: Get a Human-in-the-loop detail of a specific task instance.
+      operationId: get_hitl_detail
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -7204,7 +7204,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HITLResponseDetail'
+                $ref: '#/components/schemas/HITLDetail'
         '401':
           content:
             application/json:
@@ -7229,20 +7229,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-responses/:
+  /api/v2/hitl-details/:
     get:
       tags:
       - HumanInTheLoop
-      summary: Get Hitl Responses
-      description: Get Human-in-the-loop Responses.
-      operationId: get_hitl_responses
+      summary: Get Hitl Details
+      description: Get Human-in-the-loop details.
+      operationId: get_hitl_details
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HITLResponseDetailCollection'
+                $ref: '#/components/schemas/HITLDetailCollection'
         '401':
           description: Unauthorized
           content:
@@ -9726,32 +9726,7 @@ components:
       - name
       title: FastAPIRootMiddlewareResponse
       description: Serializer for Plugin FastAPI root middleware responses.
-    HITLResponseContentDetail:
-      properties:
-        user_id:
-          type: string
-          title: User Id
-        response_at:
-          type: string
-          format: date-time
-          title: Response At
-        response_content:
-          items:
-            type: string
-          type: array
-          title: Response Content
-        params_input:
-          additionalProperties: true
-          type: object
-          title: Params Input
-      type: object
-      required:
-      - user_id
-      - response_at
-      - response_content
-      title: HITLResponseContentDetail
-      description: Response of updating a Human-in-the-loop response.
-    HITLResponseDetail:
+    HITLDetail:
       properties:
         ti_id:
           type: string
@@ -9815,24 +9790,49 @@ components:
       - ti_id
       - options
       - subject
-      title: HITLResponseDetail
-      description: Schema for Human-in-the-loop response.
-    HITLResponseDetailCollection:
+      title: HITLDetail
+      description: Schema for Human-in-the-loop detail.
+    HITLDetailCollection:
       properties:
-        hitl_responses:
+        hitl_details:
           items:
-            $ref: '#/components/schemas/HITLResponseDetail'
+            $ref: '#/components/schemas/HITLDetail'
           type: array
-          title: Hitl Responses
+          title: Hitl Details
         total_entries:
           type: integer
           title: Total Entries
       type: object
       required:
-      - hitl_responses
+      - hitl_details
       - total_entries
-      title: HITLResponseDetailCollection
-      description: Schema for a collection of Human-in-the-loop responses.
+      title: HITLDetailCollection
+      description: Schema for a collection of Human-in-the-loop details.
+    HITLDetailResponse:
+      properties:
+        user_id:
+          type: string
+          title: User Id
+        response_at:
+          type: string
+          format: date-time
+          title: Response At
+        response_content:
+          items:
+            type: string
+          type: array
+          title: Response Content
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+      type: object
+      required:
+      - user_id
+      - response_at
+      - response_content
+      title: HITLDetailResponse
+      description: Response of updating a Human-in-the-loop detail.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -11362,7 +11362,7 @@ components:
       - latest_triggerer_heartbeat
       title: TriggererInfoResponse
       description: Triggerer info serializer for responses.
-    UpdateHITLResponsePayload:
+    UpdateHITLDetailPayload:
       properties:
         response_content:
           items:
@@ -11376,8 +11376,8 @@ components:
       type: object
       required:
       - response_content
-      title: UpdateHITLResponsePayload
-      description: Schema for updating the content of a Human-in-the-loop response.
+      title: UpdateHITLDetailPayload
+      description: Schema for updating the content of a Human-in-the-loop detail.
     ValidationError:
       properties:
         loc:

@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import HITLResponseContentDetail
-from airflow.sdk.execution_time.comms import CreateHITLResponsePayload
+from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (
-    add_hitl_response,
-    get_hitl_response_content_detail,
+    add_hitl_detail,
+    get_hitl_detail_content_detail,
     update_htil_response_content_detail,
 )
 from airflow.utils import timezone
@@ -31,8 +31,8 @@ from airflow.utils import timezone
 TI_ID = uuid7()
 
 
-def test_add_hitl_response(mock_supervisor_comms) -> None:
-    add_hitl_response(
+def test_add_hitl_detail(mock_supervisor_comms) -> None:
+    add_hitl_detail(
         ti_id=TI_ID,
         options=["Approve", "Reject"],
         subject="Subject",
@@ -42,7 +42,7 @@ def test_add_hitl_response(mock_supervisor_comms) -> None:
         multiple=False,
     )
     mock_supervisor_comms.send.assert_called_with(
-        msg=CreateHITLResponsePayload(
+        msg=CreateHITLDetailPayload(
             ti_id=TI_ID,
             options=["Approve", "Reject"],
             subject="Subject",
@@ -56,7 +56,7 @@ def test_add_hitl_response(mock_supervisor_comms) -> None:
 
 def test_update_htil_response_content_detail(mock_supervisor_comms) -> None:
     timestamp = timezone.utcnow()
-    mock_supervisor_comms.send.return_value = HITLResponseContentDetail(
+    mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=True,
         response_content=["Approve"],
         response_at=timestamp,
@@ -68,7 +68,7 @@ def test_update_htil_response_content_detail(mock_supervisor_comms) -> None:
         response_content=["Approve"],
         params_input={"input_1": 1},
     )
-    assert resp == HITLResponseContentDetail(
+    assert resp == HITLDetailResponse(
         response_received=True,
         response_content=["Approve"],
         response_at=timestamp,
@@ -77,16 +77,16 @@ def test_update_htil_response_content_detail(mock_supervisor_comms) -> None:
     )
 
 
-def test_get_hitl_response_content_detail(mock_supervisor_comms) -> None:
-    mock_supervisor_comms.send.return_value = HITLResponseContentDetail(
+def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
+    mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=False,
         response_content=None,
         response_at=None,
         user_id=None,
         params_input={},
     )
-    resp = get_hitl_response_content_detail(TI_ID)
-    assert resp == HITLResponseContentDetail(
+    resp = get_hitl_detail_content_detail(TI_ID)
+    assert resp == HITLDetailResponse(
         response_received=False,
         response_content=None,
         response_at=None,

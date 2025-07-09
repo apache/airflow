@@ -68,7 +68,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
-    CreateHITLResponsePayload,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -1231,7 +1231,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
-        elif isinstance(msg, CreateHITLResponsePayload):
+        elif isinstance(msg, CreateHITLDetailPayload):
             resp = self.client.hitl.add_response(
                 ti_id=msg.ti_id,
                 options=msg.options,

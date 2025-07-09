@@ -25,11 +25,11 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
-    HITLInputRequestResponse,
-    HITLResponseContentDetail,
+    HITLDetailRequest,
+    HITLDetailResponse,
 )
-from airflow.models.hitl import HITLResponseModel
-from airflow.sdk.execution_time.comms import CreateHITLResponsePayload, UpdateHITLResponse
+from airflow.models.hitl import HITLDetail
+from airflow.sdk.execution_time.comms import CreateHITLDetailPayload, UpdateHITLDetail
 
 router = APIRouter()
 
@@ -40,23 +40,21 @@ log = structlog.get_logger(__name__)
     "/{task_instance_id}",
     status_code=status.HTTP_201_CREATED,
 )
-def add_hitl_response(
+def add_hitl_detail(
     task_instance_id: UUID,
-    payload: CreateHITLResponsePayload,
+    payload: CreateHITLDetailPayload,
     session: SessionDep,
-) -> HITLInputRequestResponse:
-    """Get Human-in-the-loop Response for a specific Task Instance."""
+) -> HITLDetailRequest:
+    """Get Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    hitl_response_model = session.scalar(
-        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
-    )
-    if hitl_response_model:
+    hitl_detail_model = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti_id_str))
+    if hitl_detail_model:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop Input Request for Task Instance with id {ti_id_str} already exists.",
+            f"Human-in-the-loop detail for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_input_request = HITLResponseModel(
+    hitl_detail = HITLDetail(
         ti_id=ti_id_str,
         options=payload.options,
         subject=payload.subject,
@@ -65,60 +63,46 @@ def add_hitl_response(
         multiple=payload.multiple,
         params=payload.params,
     )
-    session.add(hitl_input_request)
+    session.add(hitl_detail)
     session.commit()
-    return HITLInputRequestResponse.model_validate(hitl_input_request)
+    return HITLDetailRequest.model_validate(hitl_detail)
 
 
 @router.patch("/{task_instance_id}")
-def update_hitl_response(
+def update_hitl_detail(
     task_instance_id: UUID,
-    payload: UpdateHITLResponse,
+    payload: UpdateHITLDetail,
     session: SessionDep,
-) -> HITLResponseContentDetail:
-    """Get Human-in-the-loop Response for a specific Task Instance."""
+) -> HITLDetailResponse:
+    """Update the response part of a Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    hitl_response_model = session.execute(
-        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
-    ).scalar()
-    if hitl_response_model.response_received:
+    hitl_detail_model = session.execute(select(HITLDetail).where(HITLDetail.ti_id == ti_id_str)).scalar()
+    if hitl_detail_model.response_received:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop Response Content for Task Instance with id {ti_id_str} already exists.",
+            f"Human-in-the-loop detail for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_response_model.user_id = "Fallback to default"
-    hitl_response_model.response_content = payload.response_content
-    hitl_response_model.params_input = payload.params_input
-    hitl_response_model.response_at = datetime.now(timezone.utc)
-    session.add(hitl_response_model)
+    hitl_detail_model.user_id = "Fallback to default"
+    hitl_detail_model.response_at = datetime.now(timezone.utc)
+    hitl_detail_model.response_content = payload.response_content
+    hitl_detail_model.params_input = payload.params_input
+    session.add(hitl_detail_model)
     session.commit()
-    return HITLResponseContentDetail(
-        response_received=hitl_response_model.response_received,
-        response_at=hitl_response_model.response_at,
-        user_id=hitl_response_model.user_id,
-        response_content=hitl_response_model.response_content,
-        params_input=hitl_response_model.params_input,
-    )
+    return HITLDetailResponse.from_hitl_detail_orm(hitl_detail_model)
 
 
 @router.get(
     "/{task_instance_id}",
     status_code=status.HTTP_200_OK,
 )
-def get_hitl_response(
+def get_hitl_detail(
     task_instance_id: UUID,
     session: SessionDep,
-) -> HITLResponseContentDetail:
-    """Get Human-in-the-loop Response for a specific Task Instance."""
+) -> HITLDetailResponse:
+    """Get Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    hitl_response_model = session.execute(
-        select(HITLResponseModel).where(HITLResponseModel.ti_id == ti_id_str)
+    hitl_detail_model = session.execute(
+        select(HITLDetail).where(HITLDetail.ti_id == ti_id_str),
     ).scalar()
-    return HITLResponseContentDetail(
-        response_received=hitl_response_model.response_received,
-        response_at=hitl_response_model.response_at,
-        user_id=hitl_response_model.user_id,
-        response_content=hitl_response_model.response_content,
-        params_input=hitl_response_model.params_input or {},
-    )
+    return HITLDetailResponse.from_hitl_detail_orm(hitl_detail_model)

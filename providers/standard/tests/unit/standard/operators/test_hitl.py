@@ -27,7 +27,7 @@ from sqlalchemy import select
 
 from airflow.exceptions import DownstreamTasksSkipped
 from airflow.models import Trigger
-from airflow.models.hitl import HITLResponseModel
+from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.hitl import (
     ApprovalOperator,
     HITLEntryOperator,
@@ -87,20 +87,18 @@ class TestHITLOperator:
         dr = dag_maker.create_dagrun()
         ti = dag_maker.run_ti(task.task_id, dr)
 
-        hitl_response_model = session.scalar(
-            select(HITLResponseModel).where(HITLResponseModel.ti_id == ti.id)
-        )
-        assert hitl_response_model.ti_id == ti.id
-        assert hitl_response_model.subject == "This is subject"
-        assert hitl_response_model.options == ["1", "2", "3", "4", "5"]
-        assert hitl_response_model.body == "This is body"
-        assert hitl_response_model.default == ["1"]
-        assert hitl_response_model.multiple is False
-        assert hitl_response_model.params == {"input_1": 1}
-        assert hitl_response_model.response_at is None
-        assert hitl_response_model.user_id is None
-        assert hitl_response_model.response_content is None
-        assert hitl_response_model.params_input == {}
+        hitl_detail_model = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti.id))
+        assert hitl_detail_model.ti_id == ti.id
+        assert hitl_detail_model.subject == "This is subject"
+        assert hitl_detail_model.options == ["1", "2", "3", "4", "5"]
+        assert hitl_detail_model.body == "This is body"
+        assert hitl_detail_model.default == ["1"]
+        assert hitl_detail_model.multiple is False
+        assert hitl_detail_model.params == {"input_1": 1}
+        assert hitl_detail_model.response_at is None
+        assert hitl_detail_model.user_id is None
+        assert hitl_detail_model.response_content is None
+        assert hitl_detail_model.params_input == {}
 
         registered_trigger = session.scalar(
             select(Trigger).where(Trigger.classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger")

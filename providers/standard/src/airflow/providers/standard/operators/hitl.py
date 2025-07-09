@@ -32,7 +32,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.exceptions import HITLTriggerEventError
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.execution_time.hitl import add_hitl_response
+from airflow.sdk.execution_time.hitl import add_hitl_detail
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -100,7 +100,7 @@ class HITLOperator(BaseOperator):
         """Add a Human-in-the-loop Response and then defer to HITLTrigger and wait for user input."""
         ti_id = context["task_instance"].id
         # Write Human-in-the-loop input request to DB
-        add_hitl_response(
+        add_hitl_detail(
             ti_id=ti_id,
             options=self.options,
             subject=self.subject,

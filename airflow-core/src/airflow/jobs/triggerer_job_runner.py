@@ -43,7 +43,7 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
-from airflow.sdk.api.datamodels._generated import HITLResponseContentDetail
+from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
@@ -53,14 +53,14 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
-    GetHITLResponseContentDetail,
+    GetHITLDetailResponse,
     GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
     TaskStatesResult,
     TICount,
-    UpdateHITLResponse,
+    UpdateHITLDetail,
     VariableResult,
     XComResult,
     _RequestFrame,
@@ -212,13 +212,13 @@ class messages:
         to_cancel: set[int]
 
 
-class HITLResponseContentDetailResult(HITLResponseContentDetail):
-    """Response to GetHITLResponseContentDetail request."""
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
 
-    type: Literal["HITLResponseContentDetailResult"] = "HITLResponseContentDetailResult"
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
 
     @classmethod
-    def from_api_response(cls, response: HITLResponseContentDetail) -> HITLResponseContentDetailResult:
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
         """
         Create result class from API Response.
 
@@ -226,7 +226,7 @@ class HITLResponseContentDetailResult(HITLResponseContentDetail):
         for communication between the Supervisor and the task process since it needs a
         discriminator field.
         """
-        return cls(**response.model_dump(exclude_defaults=True), type="HITLResponseContentDetailResult")
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
 
 
 ToTriggerRunner = Annotated[
@@ -239,7 +239,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
-    | HITLResponseContentDetailResult
+    | HITLDetailResponseResult
     | ErrorResponse,
     Field(discriminator="type"),
 ]
@@ -258,8 +258,8 @@ ToTriggerSupervisor = Annotated[
     | GetTaskStates
     | GetDagRunState
     | GetDRCount
-    | GetHITLResponseContentDetail
-    | UpdateHITLResponse,
+    | GetHITLDetailResponse
+    | UpdateHITLDetail,
     Field(discriminator="type"),
 ]
 """
@@ -471,16 +471,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
-        elif isinstance(msg, UpdateHITLResponse):
+        elif isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
                 response_content=msg.response_content,
                 params_input=msg.params_input,
             )
-            resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
-        elif isinstance(msg, GetHITLResponseContentDetail):
+            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_response_content_detail(ti_id=msg.ti_id)
-            resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
+            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

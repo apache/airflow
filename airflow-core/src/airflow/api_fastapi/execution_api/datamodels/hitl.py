@@ -23,10 +23,11 @@ from uuid import UUID
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.models.hitl import HITLDetail
 
 
-class HITLInputRequestResponse(BaseModel):
-    """Schema for the input request part of a Human-in-the-loop Response for a specific task instance."""
+class HITLDetailRequest(BaseModel):
+    """Schema for the request part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
     options: list[str]
@@ -37,25 +38,35 @@ class HITLInputRequestResponse(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
-class GetHITLResponseContentDetailPayload(BaseModel):
-    """Schema for getting a Human-in-the-loop response content detail for a specific task instance."""
+class GetHITLDetailResponsePayload(BaseModel):
+    """Schema for getting the response part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
 
 
-class UpdateHITLResponsePayload(BaseModel):
-    """Schema for writing a Human-in-the-loop response content detail for a specific task instance."""
+class UpdateHITLDetailPayload(BaseModel):
+    """Schema for writing the resposne part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
     response_content: list[str]
     params_input: dict[str, Any] = Field(default_factory=dict)
 
 
-class HITLResponseContentDetail(BaseModel):
-    """Schema for Human-in-the-loop response content detail for a specific task instance."""
+class HITLDetailResponse(BaseModel):
+    """Schema for the response part of a Human-in-the-loop detail for a specific task instance."""
 
     response_received: bool
     user_id: str | None
     response_at: datetime | None
     response_content: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
+
+    @classmethod
+    def from_hitl_detail_orm(cls, hitl_detail: HITLDetail) -> HITLDetailResponse:
+        return HITLDetailResponse(
+            response_received=hitl_detail.response_received,
+            response_at=hitl_detail.response_at,
+            user_id=hitl_detail.user_id,
+            response_content=hitl_detail.response_content,
+            params_input=hitl_detail.params_input or {},
+        )

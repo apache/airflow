@@ -21,16 +21,16 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from airflow.sdk.execution_time.comms import (
-    CreateHITLResponsePayload,
-    GetHITLResponseContentDetail,
-    UpdateHITLResponse,
+    CreateHITLDetailPayload,
+    GetHITLDetailResponse,
+    UpdateHITLDetail,
 )
 
 if TYPE_CHECKING:
-    from airflow.api_fastapi.execution_api.datamodels.hitl import HITLResponseContentDetail
+    from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
 
 
-def add_hitl_response(
+def add_hitl_detail(
     ti_id: UUID,
     options: list[str],
     subject: str,
@@ -42,7 +42,7 @@ def add_hitl_response(
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     SUPERVISOR_COMMS.send(
-        msg=CreateHITLResponsePayload(
+        msg=CreateHITLDetailPayload(
             ti_id=ti_id,
             options=options,
             subject=subject,
@@ -58,26 +58,26 @@ def update_htil_response_content_detail(
     ti_id: UUID,
     response_content: list[str],
     params_input: dict[str, Any],
-) -> HITLResponseContentDetail:
+) -> HITLDetailResponse:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     response = SUPERVISOR_COMMS.send(
-        msg=UpdateHITLResponse(
+        msg=UpdateHITLDetail(
             ti_id=ti_id,
             response_content=response_content,
             params_input=params_input,
         ),
     )
     if TYPE_CHECKING:
-        assert isinstance(response, HITLResponseContentDetail)
+        assert isinstance(response, HITLDetailResponse)
     return response
 
 
-def get_hitl_response_content_detail(ti_id: UUID) -> HITLResponseContentDetail:
+def get_hitl_detail_content_detail(ti_id: UUID) -> HITLDetailResponse:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    response = SUPERVISOR_COMMS.send(msg=GetHITLResponseContentDetail(ti_id=ti_id))
+    response = SUPERVISOR_COMMS.send(msg=GetHITLDetailResponse(ti_id=ti_id))
 
     if TYPE_CHECKING:
-        assert isinstance(response, HITLResponseContentDetail)
+        assert isinstance(response, HITLDetailResponse)
     return response

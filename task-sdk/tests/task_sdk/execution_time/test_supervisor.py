@@ -60,7 +60,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     CommsDecoder,
     ConnectionResult,
-    CreateHITLResponsePayload,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -82,7 +82,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceItem,
     GetXComSequenceSlice,
-    HITLInputRequestResponseResult,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     OKResponse,
     PrevSuccessfulDagRunResult,
@@ -1773,7 +1773,7 @@ class TestHandleRequest:
                 id="get_xcom_seq_slice",
             ),
             pytest.param(
-                CreateHITLResponsePayload(
+                CreateHITLDetailPayload(
                     ti_id=TI_ID,
                     options=["Approve", "Reject"],
                     subject="This is subject",
@@ -1790,7 +1790,7 @@ class TestHandleRequest:
                     "default": ["Approve"],
                     "multiple": False,
                     "params": {},
-                    "type": "HITLInputRequestResponseResult",
+                    "type": "HITLDetailRequestResult",
                 },
                 "hitl.add_response",
                 (),
@@ -1803,7 +1803,7 @@ class TestHandleRequest:
                     "subject": "This is subject",
                     "ti_id": TI_ID,
                 },
-                HITLInputRequestResponseResult(
+                HITLDetailRequestResult(
                     ti_id=TI_ID,
                     options=["Approve", "Reject"],
                     subject="This is subject",
@@ -1813,7 +1813,7 @@ class TestHandleRequest:
                     params={},
                 ),
                 None,
-                id="create_hitl_response_payload",
+                id="create_hitl_detail_payload",
             ),
         ],
     )

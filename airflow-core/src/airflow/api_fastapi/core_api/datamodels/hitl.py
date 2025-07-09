@@ -26,15 +26,15 @@ from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.sdk import Param
 
 
-class UpdateHITLResponsePayload(BaseModel):
-    """Schema for updating the content of a Human-in-the-loop response."""
+class UpdateHITLDetailPayload(BaseModel):
+    """Schema for updating the content of a Human-in-the-loop detail."""
 
     response_content: list[str]
     params_input: Mapping = Field(default_factory=dict)
 
 
-class HITLResponseContentDetail(BaseModel):
-    """Response of updating a Human-in-the-loop response."""
+class HITLDetailResponse(BaseModel):
+    """Response of updating a Human-in-the-loop detail."""
 
     user_id: str
     response_at: datetime
@@ -42,12 +42,12 @@ class HITLResponseContentDetail(BaseModel):
     params_input: Mapping = Field(default_factory=dict)
 
 
-class HITLResponseDetail(BaseModel):
-    """Schema for Human-in-the-loop response."""
+class HITLDetail(BaseModel):
+    """Schema for Human-in-the-loop detail."""
 
     ti_id: str
 
-    # Input Request
+    # User Request Detail
     options: list[str]
     subject: str
     body: str | None = None
@@ -70,8 +70,8 @@ class HITLResponseDetail(BaseModel):
         return {k: v.dump() if isinstance(v, Param) else v for k, v in params.items()}
 
 
-class HITLResponseDetailCollection(BaseModel):
-    """Schema for a collection of Human-in-the-loop responses."""
+class HITLDetailCollection(BaseModel):
+    """Schema for a collection of Human-in-the-loop details."""
 
-    hitl_responses: list[HITLResponseDetail]
+    hitl_details: list[HITLDetail]
     total_entries: int

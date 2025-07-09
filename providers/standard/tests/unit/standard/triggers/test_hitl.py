@@ -30,7 +30,7 @@ from unittest import mock
 
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.hitl import HITLResponseContentDetail
+from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.timezone import utcnow
@@ -74,7 +74,7 @@ class TestHITLTrigger:
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
             poke_interval=5,
         )
-        mock_supervisor_comms.send.return_value = HITLResponseContentDetail(
+        mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
             user_id=None,
             response_at=None,
@@ -106,7 +106,7 @@ class TestHITLTrigger:
             timeout_datetime=None,
             poke_interval=5,
         )
-        mock_supervisor_comms.send.return_value = HITLResponseContentDetail(
+        mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
             user_id="test",
             response_at=utcnow(),

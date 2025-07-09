@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add Human In the Loop Response table.
+Add Human In the Loop Detail table.
 
 Revision ID: 40f7c30a228b
 Revises: 5d3072c51bac
@@ -44,9 +44,9 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Add Human In the Loop Response table."""
+    """Add Human In the Loop Detail table."""
     op.create_table(
-        "hitl_response",
+        "hitl_detail",
         Column(
             "ti_id",
             String(length=36).with_variant(postgresql.UUID(), "postgresql"),
@@ -66,7 +66,7 @@ def upgrade():
         ForeignKeyConstraint(
             ["ti_id"],
             ["task_instance.id"],
-            name="hitl_response_ti_fkey",
+            name="hitl_detail_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
@@ -74,5 +74,5 @@ def upgrade():
 
 
 def downgrade():
-    """Response Human In the Loop Response table."""
-    op.drop_table("hitl_response")
+    """Response Human In the Loop Detail table."""
+    op.drop_table("hitl_detail")

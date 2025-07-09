@@ -36,7 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
-    HITLResponseContentDetail,
+    HITLDetailResponse,
     VariableResponse,
     XComResponse,
 )
@@ -44,7 +44,7 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
-    HITLInputRequestResponseResult,
+    HITLDetailRequestResult,
     OKResponse,
     RescheduleTask,
     TaskRescheduleStartDate,
@@ -1165,7 +1165,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-responses/{ti_id}"):
+            if request.url.path in (f"/hitl-details/{ti_id}"):
                 return httpx.Response(
                     status_code=201,
                     json={
@@ -1190,7 +1190,7 @@ class TestHITLOperations:
             params=None,
             multiple=False,
         )
-        assert isinstance(result, HITLInputRequestResponseResult)
+        assert isinstance(result, HITLDetailRequestResult)
         assert result.ti_id == ti_id
         assert result.options == ["Approval", "Reject"]
         assert result.subject == "This is subject"
@@ -1204,7 +1204,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-responses/{ti_id}"):
+            if request.url.path in (f"/hitl-details/{ti_id}"):
                 return httpx.Response(
                     status_code=200,
                     json={
@@ -1223,7 +1223,7 @@ class TestHITLOperations:
             response_content=["Approve"],
             params_input={},
         )
-        assert isinstance(result, HITLResponseContentDetail)
+        assert isinstance(result, HITLDetailResponse)
         assert result.response_received is True
         assert result.response_content == ["Approval"]
         assert result.params_input == {}
@@ -1235,7 +1235,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-responses/{ti_id}"):
+            if request.url.path in (f"/hitl-details/{ti_id}"):
                 return httpx.Response(
                     status_code=200,
                     json={
@@ -1250,7 +1250,7 @@ class TestHITLOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.hitl.get_response_content_detail(ti_id=ti_id)
-        assert isinstance(result, HITLResponseContentDetail)
+        assert isinstance(result, HITLDetailResponse)
         assert result.response_received is True
         assert result.response_content == ["Approval"]
         assert result.params_input == {}

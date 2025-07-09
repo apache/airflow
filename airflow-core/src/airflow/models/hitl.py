@@ -26,10 +26,10 @@ from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class HITLResponseModel(Base):
-    """Human-in-the-loop received response."""
+class HITLDetail(Base):
+    """Human-in-the-loop request and corresponding response."""
 
-    __tablename__ = "hitl_response"
+    __tablename__ = "hitl_detail"
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         primary_key=True,
@@ -58,7 +58,7 @@ class HITLResponseModel(Base):
         ForeignKeyConstraint(
             (ti_id,),
             ["task_instance.id"],
-            name="hitl_response_ti_fkey",
+            name="hitl_detail_ti_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),

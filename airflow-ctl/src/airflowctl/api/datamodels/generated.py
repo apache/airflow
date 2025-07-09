@@ -573,20 +573,9 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
-class HITLResponseContentDetail(BaseModel):
+class HITLDetail(BaseModel):
     """
-    Response of updating a Human-in-the-loop response.
-    """
-
-    user_id: Annotated[str, Field(title="User Id")]
-    response_at: Annotated[datetime, Field(title="Response At")]
-    response_content: Annotated[list[str], Field(title="Response Content")]
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-
-
-class HITLResponseDetail(BaseModel):
-    """
-    Schema for Human-in-the-loop response.
+    Schema for Human-in-the-loop detail.
     """
 
     ti_id: Annotated[str, Field(title="Ti Id")]
@@ -603,13 +592,24 @@ class HITLResponseDetail(BaseModel):
     response_received: Annotated[bool | None, Field(title="Response Received")] = False
 
 
-class HITLResponseDetailCollection(BaseModel):
+class HITLDetailCollection(BaseModel):
     """
-    Schema for a collection of Human-in-the-loop responses.
+    Schema for a collection of Human-in-the-loop details.
     """
 
-    hitl_responses: Annotated[list[HITLResponseDetail], Field(title="Hitl Responses")]
+    hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Response of updating a Human-in-the-loop detail.
+    """
+
+    user_id: Annotated[str, Field(title="User Id")]
+    response_at: Annotated[datetime, Field(title="Response At")]
+    response_content: Annotated[list[str], Field(title="Response Content")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class HTTPExceptionResponse(BaseModel):
@@ -938,9 +938,9 @@ class TriggererInfoResponse(BaseModel):
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")] = None
 
 
-class UpdateHITLResponsePayload(BaseModel):
+class UpdateHITLDetailPayload(BaseModel):
     """
-    Schema for updating the content of a Human-in-the-loop response.
+    Schema for updating the content of a Human-in-the-loop detail.
     """
 
     response_content: Annotated[list[str], Field(title="Response Content")]
