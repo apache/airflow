@@ -24,7 +24,6 @@ import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   UseDagServiceGetDagDetailsKeyFn,
-  UseGridServiceGridDataKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
@@ -60,7 +59,6 @@ export const useClearDagRun = ({
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useClearDagRunDryRunKey, dagId],
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
     ];
