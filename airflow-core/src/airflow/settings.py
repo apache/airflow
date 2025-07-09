@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
     from airflow.api_fastapi.common.types import UIAlert
+    from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
@@ -225,8 +226,12 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
-    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
+
+    SQL_ALCHEMY_CONN = conf.get("database", "sql_alchemy_conn")
+    if conf.has_option("database", "sql_alchemy_conn_async"):
+        SQL_ALCHEMY_CONN_ASYNC = conf.get("database", "sql_alchemy_conn_async")
+    else:
+        SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -321,6 +326,16 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
+def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
+    key = {
+        "sync": "sql_alchemy_connect_args",
+        "async": "sql_alchemy_connect_args_async",
+    }[mode]
+    if conf.has_option("database", key):
+        return conf.getimport("database", key)
+    return {}
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -347,19 +362,24 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
-    if conf.has_option("database", "sql_alchemy_connect_args"):
-        connect_args = conf.getimport("database", "sql_alchemy_connect_args")
-    else:
-        connect_args = {}
-
+    connect_args = _get_connect_args("sync")
     if SQL_ALCHEMY_CONN.startswith("sqlite"):
         # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
-    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+    engine = create_engine(
+        SQL_ALCHEMY_CONN,
+        connect_args=connect_args,
+        **engine_args,
+        future=True,
+    )
+    async_engine = create_async_engine(
+        SQL_ALCHEMY_CONN_ASYNC,
+        connect_args=_get_connect_args("async"),
+        future=True,
+    )
     AsyncSession = sessionmaker(
         bind=async_engine,
         autocommit=False,
