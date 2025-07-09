@@ -151,6 +151,48 @@ class TestPluginsManager:
             ),
         ]
 
+    def test_should_warning_about_conflicting_url_route(self, caplog):
+        class TestPluginA(AirflowPlugin):
+            name = "test_plugin_a"
+
+            external_views = [{"url_route": "/test_route"}]
+
+        class TestPluginB(AirflowPlugin):
+            name = "test_plugin_b"
+
+            external_views = [{"url_route": "/test_route"}]
+            react_apps = [{"url_route": "/test_route"}]
+
+        with (
+            mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager.initialize_ui_plugins()
+
+            # Verify that the conflicting external view and react app are not loaded
+            plugin_b = next(plugin for plugin in plugins_manager.plugins if plugin.name == "test_plugin_b")
+            assert plugin_b.external_views == []
+            assert plugin_b.react_apps == []
+            assert len(plugins_manager.external_views) == 1
+            assert len(plugins_manager.react_apps) == 0
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_plugin_b' has an external view with an URL route '/test_route' "
+                "that conflicts with another plugin 'test_plugin_a'. The view will not be loaded.",
+            ),
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_plugin_b' has a React App with an URL route '/test_route' "
+                "that conflicts with another plugin 'test_plugin_a'. The React App will not be loaded.",
+            ),
+        ]
+
     def test_should_not_warning_about_fab_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
