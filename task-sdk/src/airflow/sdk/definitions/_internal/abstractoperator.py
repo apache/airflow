@@ -400,7 +400,11 @@ class AbstractOperator(Templater, DAGNode):
             else:
                 setattr(parent, attr_name, rendered_content)
 
-                if self.start_from_trigger and self.start_trigger_args and self.start_trigger_args.trigger_kwargs:
+                if (
+                    self.start_from_trigger
+                    and self.start_trigger_args
+                    and self.start_trigger_args.trigger_kwargs
+                ):
                     if attr_name in self.start_trigger_args.trigger_kwargs:
                         self.start_trigger_args.trigger_kwargs[attr_name] = rendered_content
 

@@ -35,7 +35,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
-from airflow.sdk import task as task_decorator, Context
+from airflow.sdk import Context, task as task_decorator
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.task_group import TaskGroup
@@ -173,7 +173,10 @@ class TestBaseOperator:
         op = GreetingOperator(task_id="greet", say=lambda context, jinja_env: "Hello Airflow!")
         op.render_template_fields(context={})
 
-        assert op.expand_start_trigger_args(context={}, session=NEW_SESSION).trigger_kwargs == {"task_id": "greet", "say": "Hello Airflow!"}
+        assert op.expand_start_trigger_args(context={}, session=NEW_SESSION).trigger_kwargs == {
+            "task_id": "greet",
+            "say": "Hello Airflow!",
+        }
 
 
 def test_deepcopy():
