@@ -6859,14 +6859,7 @@ export const $GridRunsResponse = {
             '$ref': '#/components/schemas/DagRunType'
         },
         duration: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'integer',
             title: 'Duration',
             readOnly: true
         }

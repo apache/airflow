@@ -65,7 +65,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
           color="white"
           dagId={dagId}
           flexDir="column"
-          height={`${((run.duration ?? 0) / max) * BAR_HEIGHT}px`}
+          height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
           label={run.run_after}
           minHeight="14px"
