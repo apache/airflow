@@ -217,9 +217,9 @@ class BundleUsageTrackingManager:
         This isn't really necessary on worker types that don't share storage
         with other processes.
         """
-        log.info("checking for stale bundle versions locally")
-
         from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+        log.info("checking for stale bundle versions locally")
 
         bundles = list(DagBundlesManager().get_all_dag_bundles())
         for bundle in bundles:

@@ -149,7 +149,9 @@ class S3DagBundle(BaseDagBundle):
         if self.version:
             raise AirflowException("S3 url with version is not supported")
         if hasattr(self, "_view_url_template") and self._view_url_template:
-            # Backward compatibility for released Airflow versions
+            # Because we use this method in the view_url method, we need to handle
+            # backward compatibility for Airflow versions that doesn't have the
+            # _view_url_template attribute. Should be removed when we drop support for Airflow 3.0
             return self._view_url_template
         # https://<bucket-name>.s3.<region>.amazonaws.com/<object-key>
         url = f"https://{self.bucket_name}.s3"
