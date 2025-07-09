@@ -56,7 +56,9 @@ async def deferrable_operator(context, operator, session: Session = NEW_SESSION)
         operator.render_template_fields(context=context)
         if operator.expand_start_from_trigger(context=context, session=session):
             trigger_cls = import_string(operator.start_trigger_args.trigger_cls)
-            trigger = trigger_cls(**operator.expand_start_trigger_args(context=context, session=session).trigger_kwargs)
+            trigger = trigger_cls(
+                **operator.expand_start_trigger_args(context=context, session=session).trigger_kwargs
+            )
             raise TaskDeferred(
                 trigger=trigger,
                 method_name=operator.start_trigger_args.next_method,

@@ -26,18 +26,18 @@ from typing import (
     Any,
 )
 
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_1_PLUS, BaseOperator
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from io import BytesIO
+
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
