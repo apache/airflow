@@ -70,7 +70,7 @@ def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
         "params": {"input_1": 1},
         "params_input": {},
         "response_at": None,
-        "response_content": None,
+        "chosen_options": None,
         "response_received": False,
         "subject": "This is subject",
         "ti_id": sample_ti.id,
@@ -113,7 +113,7 @@ def test_update_hitl_detail(client, sample_ti) -> None:
         f"/execution/hitl-details/{sample_ti.id}",
         json={
             "ti_id": sample_ti.id,
-            "response_content": ["Reject"],
+            "chosen_options": ["Reject"],
             "params_input": {"input_1": 2},
         },
     )
@@ -121,7 +121,7 @@ def test_update_hitl_detail(client, sample_ti) -> None:
     assert response.json() == {
         "params_input": {"input_1": 2},
         "response_at": "2025-07-03T00:00:00Z",
-        "response_content": ["Reject"],
+        "chosen_options": ["Reject"],
         "response_received": True,
         "user_id": "Fallback to default",
     }
@@ -134,7 +134,7 @@ def test_get_hitl_detail(client, sample_ti) -> None:
     assert response.json() == {
         "params_input": {},
         "response_at": None,
-        "response_content": None,
+        "chosen_options": None,
         "response_received": False,
         "user_id": None,
     }

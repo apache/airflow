@@ -1172,23 +1172,23 @@ export const ensureUseDagVersionServiceGetDagVersionsData = (queryClient: QueryC
   versionNumber?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) });
 /**
-* Get Hitl Response
-* Get a Human-in-the-loop Response of a specific task instance.
+* Get Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
 * @param data The data for the request.
 * @param data.taskInstanceId
-* @returns HITLResponseDetail Successful Response
+* @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetHitlResponseData = (queryClient: QueryClient, { taskInstanceId }: {
+export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: QueryClient, { taskInstanceId }: {
   taskInstanceId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponseKeyFn({ taskInstanceId }), queryFn: () => HumanInTheLoopService.getHitlResponse({ taskInstanceId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ taskInstanceId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ taskInstanceId }) });
 /**
-* Get Hitl Responses
-* Get Human-in-the-loop Responses.
-* @returns HITLResponseDetailCollection Successful Response
+* Get Hitl Details
+* Get Human-in-the-loop details.
+* @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetHitlResponsesData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(), queryFn: () => HumanInTheLoopService.getHitlResponses() });
+export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(), queryFn: () => HumanInTheLoopService.getHitlDetails() });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

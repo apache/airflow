@@ -63,7 +63,7 @@ class TestHITLTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_response_content_detail")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
     async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_supervisor_comms):
         trigger = HITLTrigger(
             ti_id=TI_ID,
@@ -78,7 +78,7 @@ class TestHITLTrigger:
             response_received=False,
             user_id=None,
             response_at=None,
-            response_content=None,
+            chosen_options=None,
             params_input={},
         )
 
@@ -88,14 +88,14 @@ class TestHITLTrigger:
         event = await trigger_task
         assert event == TriggerEvent(
             HITLTriggerEventSuccessPayload(
-                response_content=["1"],
+                chosen_options=["1"],
                 params_input={"input": 1},
             )
         )
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_response_content_detail")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
     async def test_run(self, mock_update, mock_supervisor_comms):
         trigger = HITLTrigger(
             ti_id=TI_ID,
@@ -110,7 +110,7 @@ class TestHITLTrigger:
             response_received=True,
             user_id="test",
             response_at=utcnow(),
-            response_content=["3"],
+            chosen_options=["3"],
             params_input={"input": 50},
         )
 
@@ -120,7 +120,7 @@ class TestHITLTrigger:
         event = await trigger_task
         assert event == TriggerEvent(
             HITLTriggerEventSuccessPayload(
-                response_content=["3"],
+                chosen_options=["3"],
                 params_input={"input": 50},
             )
         )

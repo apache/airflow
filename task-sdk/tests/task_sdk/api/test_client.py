@@ -1208,7 +1208,7 @@ class TestHITLOperations:
                 return httpx.Response(
                     status_code=200,
                     json={
-                        "response_content": ["Approval"],
+                        "chosen_options": ["Approval"],
                         "params_input": {},
                         "user_id": "admin",
                         "response_received": True,
@@ -1220,17 +1220,17 @@ class TestHITLOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.hitl.update_response(
             ti_id=ti_id,
-            response_content=["Approve"],
+            chosen_options=["Approve"],
             params_input={},
         )
         assert isinstance(result, HITLDetailResponse)
         assert result.response_received is True
-        assert result.response_content == ["Approval"]
+        assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
         assert result.user_id == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
-    def test_get_response_content_detail(self, time_machine: TimeMachineFixture) -> None:
+    def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
         ti_id = uuid7()
 
@@ -1239,7 +1239,7 @@ class TestHITLOperations:
                 return httpx.Response(
                     status_code=200,
                     json={
-                        "response_content": ["Approval"],
+                        "chosen_options": ["Approval"],
                         "params_input": {},
                         "user_id": "admin",
                         "response_received": True,
@@ -1249,10 +1249,10 @@ class TestHITLOperations:
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.hitl.get_response_content_detail(ti_id=ti_id)
+        result = client.hitl.get_detail_response(ti_id=ti_id)
         assert isinstance(result, HITLDetailResponse)
         assert result.response_received is True
-        assert result.response_content == ["Approval"]
+        assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
         assert result.user_id == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

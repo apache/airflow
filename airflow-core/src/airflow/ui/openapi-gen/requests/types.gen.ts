@@ -918,21 +918,9 @@ export type FastAPIRootMiddlewareResponse = {
 };
 
 /**
- * Response of updating a Human-in-the-loop response.
+ * Schema for Human-in-the-loop detail.
  */
-export type HITLResponseContentDetail = {
-    user_id: string;
-    response_at: string;
-    response_content: Array<(string)>;
-    params_input?: {
-        [key: string]: unknown;
-    };
-};
-
-/**
- * Schema for Human-in-the-loop response.
- */
-export type HITLResponseDetail = {
+export type HITLDetail = {
     ti_id: string;
     options: Array<(string)>;
     subject: string;
@@ -952,11 +940,23 @@ export type HITLResponseDetail = {
 };
 
 /**
- * Schema for a collection of Human-in-the-loop responses.
+ * Schema for a collection of Human-in-the-loop details.
  */
-export type HITLResponseDetailCollection = {
-    hitl_responses: Array<HITLResponseDetail>;
+export type HITLDetailCollection = {
+    hitl_details: Array<HITLDetail>;
     total_entries: number;
+};
+
+/**
+ * Response of updating a Human-in-the-loop detail.
+ */
+export type HITLDetailResponse = {
+    user_id: string;
+    response_at: string;
+    response_content: Array<(string)>;
+    params_input?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -1472,9 +1472,9 @@ export type TriggererInfoResponse = {
 };
 
 /**
- * Schema for updating the content of a Human-in-the-loop response.
+ * Schema for updating the content of a Human-in-the-loop detail.
  */
-export type UpdateHITLResponsePayload = {
+export type UpdateHITLDetailPayload = {
     response_content: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
@@ -2899,20 +2899,20 @@ export type GetDagVersionsData = {
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 
-export type UpdateHitlResponseData = {
-    requestBody: UpdateHITLResponsePayload;
+export type UpdateHitlDetailData = {
+    requestBody: UpdateHITLDetailPayload;
     taskInstanceId: string;
 };
 
-export type UpdateHitlResponseResponse = HITLResponseContentDetail;
+export type UpdateHitlDetailResponse = HITLDetailResponse;
 
-export type GetHitlResponseData = {
+export type GetHitlDetailData = {
     taskInstanceId: string;
 };
 
-export type GetHitlResponseResponse = HITLResponseDetail;
+export type GetHitlDetailResponse = HITLDetail;
 
-export type GetHitlResponsesResponse = HITLResponseDetailCollection;
+export type GetHitlDetailsResponse = HITLDetailCollection;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -5860,14 +5860,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-responses/{task_instance_id}': {
+    '/api/v2/hitl-details/{task_instance_id}': {
         patch: {
-            req: UpdateHitlResponseData;
+            req: UpdateHitlDetailData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: HITLResponseContentDetail;
+                200: HITLDetailResponse;
                 /**
                  * Unauthorized
                  */
@@ -5891,12 +5891,12 @@ export type $OpenApiTs = {
             };
         };
         get: {
-            req: GetHitlResponseData;
+            req: GetHitlDetailData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: HITLResponseDetail;
+                200: HITLDetail;
                 /**
                  * Unauthorized
                  */
@@ -5916,13 +5916,13 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-responses/': {
+    '/api/v2/hitl-details/': {
         get: {
             res: {
                 /**
                  * Successful Response
                  */
-                200: HITLResponseDetailCollection;
+                200: HITLDetailCollection;
                 /**
                  * Unauthorized
                  */

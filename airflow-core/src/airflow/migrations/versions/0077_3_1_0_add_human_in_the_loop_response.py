@@ -61,7 +61,7 @@ def upgrade():
         Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         Column("response_at", UtcDateTime, nullable=True),
         Column("user_id", String(128), nullable=True),
-        Column("response_content", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        Column("chosen_options", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         ForeignKeyConstraint(
             ["ti_id"],

@@ -24,7 +24,7 @@ from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (
     add_hitl_detail,
     get_hitl_detail_content_detail,
-    update_htil_response_content_detail,
+    update_htil_detail_response,
 )
 from airflow.utils import timezone
 
@@ -54,23 +54,23 @@ def test_add_hitl_detail(mock_supervisor_comms) -> None:
     )
 
 
-def test_update_htil_response_content_detail(mock_supervisor_comms) -> None:
+def test_update_htil_detail_response(mock_supervisor_comms) -> None:
     timestamp = timezone.utcnow()
     mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=True,
-        response_content=["Approve"],
+        chosen_options=["Approve"],
         response_at=timestamp,
         user_id="admin",
         params_input={"input_1": 1},
     )
-    resp = update_htil_response_content_detail(
+    resp = update_htil_detail_response(
         ti_id=TI_ID,
-        response_content=["Approve"],
+        chosen_options=["Approve"],
         params_input={"input_1": 1},
     )
     assert resp == HITLDetailResponse(
         response_received=True,
-        response_content=["Approve"],
+        chosen_options=["Approve"],
         response_at=timestamp,
         user_id="admin",
         params_input={"input_1": 1},
@@ -80,7 +80,7 @@ def test_update_htil_response_content_detail(mock_supervisor_comms) -> None:
 def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
     mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=False,
-        response_content=None,
+        chosen_options=None,
         response_at=None,
         user_id=None,
         params_input={},
@@ -88,7 +88,7 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
     resp = get_hitl_detail_content_detail(TI_ID)
     assert resp == HITLDetailResponse(
         response_received=False,
-        response_content=None,
+        chosen_options=None,
         response_at=None,
         user_id=None,
         params_input={},

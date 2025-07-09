@@ -620,16 +620,16 @@ export const UseDagVersionServiceGetDagVersionsKeyFn = ({ bundleName, bundleVers
   orderBy?: string;
   versionNumber?: number;
 }, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionsKey, ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }])];
-export type HumanInTheLoopServiceGetHitlResponseDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlResponse>>;
-export type HumanInTheLoopServiceGetHitlResponseQueryResult<TData = HumanInTheLoopServiceGetHitlResponseDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useHumanInTheLoopServiceGetHitlResponseKey = "HumanInTheLoopServiceGetHitlResponse";
-export const UseHumanInTheLoopServiceGetHitlResponseKeyFn = ({ taskInstanceId }: {
+export type HumanInTheLoopServiceGetHitlDetailDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetail>>;
+export type HumanInTheLoopServiceGetHitlDetailQueryResult<TData = HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlDetailKey = "HumanInTheLoopServiceGetHitlDetail";
+export const UseHumanInTheLoopServiceGetHitlDetailKeyFn = ({ taskInstanceId }: {
   taskInstanceId: string;
-}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlResponseKey, ...(queryKey ?? [{ taskInstanceId }])];
-export type HumanInTheLoopServiceGetHitlResponsesDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlResponses>>;
-export type HumanInTheLoopServiceGetHitlResponsesQueryResult<TData = HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useHumanInTheLoopServiceGetHitlResponsesKey = "HumanInTheLoopServiceGetHitlResponses";
-export const UseHumanInTheLoopServiceGetHitlResponsesKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlResponsesKey, ...(queryKey ?? [])];
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailKey, ...(queryKey ?? [{ taskInstanceId }])];
+export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetails>>;
+export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
+export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
@@ -762,7 +762,7 @@ export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolS
 export type XcomServiceUpdateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.updateXcomEntry>>;
 export type VariableServicePatchVariableMutationResult = Awaited<ReturnType<typeof VariableService.patchVariable>>;
 export type VariableServiceBulkVariablesMutationResult = Awaited<ReturnType<typeof VariableService.bulkVariables>>;
-export type HumanInTheLoopServiceUpdateHitlResponseMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.updateHitlResponse>>;
+export type HumanInTheLoopServiceUpdateHitlDetailMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.updateHitlDetail>>;
 export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>>;

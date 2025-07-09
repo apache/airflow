@@ -665,13 +665,13 @@ class HITLOperations:
         self,
         *,
         ti_id: uuid.UUID,
-        response_content: list[str],
+        chosen_options: list[str],
         params_input: dict[str, Any],
     ) -> HITLDetailResponse:
         """Update an existing Human-in-the-loop response."""
         payload = UpdateHITLDetail(
             ti_id=ti_id,
-            response_content=response_content,
+            chosen_options=chosen_options,
             params_input=params_input,
         )
         resp = self.client.patch(
@@ -680,7 +680,7 @@ class HITLOperations:
         )
         return HITLDetailResponse.model_validate_json(resp.read())
 
-    def get_response_content_detail(self, ti_id: uuid.UUID) -> HITLDetailResponse:
+    def get_detail_response(self, ti_id: uuid.UUID) -> HITLDetailResponse:
         """Get content part of a Human-in-the-loop response for a specific Task Instance."""
         resp = self.client.get(f"/hitl-details/{ti_id}")
         return HITLDetailResponse.model_validate_json(resp.read())

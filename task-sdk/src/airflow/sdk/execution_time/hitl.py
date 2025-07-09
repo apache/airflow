@@ -54,9 +54,9 @@ def add_hitl_detail(
     )
 
 
-def update_htil_response_content_detail(
+def update_htil_detail_response(
     ti_id: UUID,
-    response_content: list[str],
+    chosen_options: list[str],
     params_input: dict[str, Any],
 ) -> HITLDetailResponse:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -64,7 +64,7 @@ def update_htil_response_content_detail(
     response = SUPERVISOR_COMMS.send(
         msg=UpdateHITLDetail(
             ti_id=ti_id,
-            response_content=response_content,
+            chosen_options=chosen_options,
             params_input=params_input,
         ),
     )

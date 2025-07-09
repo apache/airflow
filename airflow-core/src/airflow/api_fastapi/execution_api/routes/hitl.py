@@ -85,7 +85,7 @@ def update_hitl_detail(
 
     hitl_detail_model.user_id = "Fallback to default"
     hitl_detail_model.response_at = datetime.now(timezone.utc)
-    hitl_detail_model.response_content = payload.response_content
+    hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input
     session.add(hitl_detail_model)
     session.commit()

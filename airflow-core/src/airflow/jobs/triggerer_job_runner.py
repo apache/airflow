@@ -474,12 +474,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
-                response_content=msg.response_content,
+                chosen_options=msg.chosen_options,
                 params_input=msg.params_input,
             )
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, GetHITLDetailResponse):
-            api_resp = self.client.hitl.get_response_content_detail(ti_id=msg.ti_id)
+            api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")

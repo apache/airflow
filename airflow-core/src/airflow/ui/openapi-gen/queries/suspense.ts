@@ -1172,23 +1172,23 @@ export const useDagVersionServiceGetDagVersionsSuspense = <TData = Common.DagVer
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
 /**
-* Get Hitl Response
-* Get a Human-in-the-loop Response of a specific task instance.
+* Get Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
 * @param data The data for the request.
 * @param data.taskInstanceId
-* @returns HITLResponseDetail Successful Response
+* @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetHitlResponseSuspense = <TData = Common.HumanInTheLoopServiceGetHitlResponseDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ taskInstanceId }: {
+export const useHumanInTheLoopServiceGetHitlDetailSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ taskInstanceId }: {
   taskInstanceId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponseKeyFn({ taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlResponse({ taskInstanceId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ taskInstanceId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ taskInstanceId }) as TData, ...options });
 /**
-* Get Hitl Responses
-* Get Human-in-the-loop Responses.
-* @returns HITLResponseDetailCollection Successful Response
+* Get Hitl Details
+* Get Human-in-the-loop details.
+* @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetHitlResponsesSuspense = <TData = Common.HumanInTheLoopServiceGetHitlResponsesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlResponsesKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlResponses() as TData, ...options });
+export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails() as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

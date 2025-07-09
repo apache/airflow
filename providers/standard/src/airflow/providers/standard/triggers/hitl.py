@@ -32,7 +32,7 @@ from asgiref.sync import sync_to_async
 
 from airflow.sdk.execution_time.hitl import (
     get_hitl_detail_content_detail,
-    update_htil_response_content_detail,
+    update_htil_detail_response,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -41,7 +41,7 @@ from airflow.utils import timezone
 class HITLTriggerEventSuccessPayload(TypedDict, total=False):
     """Minimum required keys for a success Human-in-the-loop TriggerEvent."""
 
-    response_content: list[str]
+    chosen_options: list[str]
     params_input: dict[str, Any]
 
 
@@ -105,25 +105,25 @@ class HITLTrigger(BaseTrigger):
                     )
                     return
 
-                await sync_to_async(update_htil_response_content_detail)(
+                await sync_to_async(update_htil_detail_response)(
                     ti_id=self.ti_id,
-                    response_content=self.default,
+                    chosen_options=self.default,
                     params_input=self.params,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
-                        response_content=self.default,
+                        chosen_options=self.default,
                         params_input=self.params,
                     )
                 )
                 return
 
             resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
-            if resp.response_received and resp.response_content:
+            if resp.response_received and resp.chosen_options:
                 self.log.info("Responded by %s at %s", resp.user_id, resp.response_at)
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
-                        response_content=resp.response_content,
+                        chosen_options=resp.chosen_options,
                         params_input=resp.params_input,
                     )
                 )

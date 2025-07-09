@@ -587,7 +587,7 @@ class HITLDetail(BaseModel):
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     user_id: Annotated[str | None, Field(title="User Id")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
-    response_content: Annotated[list[str] | None, Field(title="Response Content")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Response Content")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
     response_received: Annotated[bool | None, Field(title="Response Received")] = False
 
@@ -608,7 +608,7 @@ class HITLDetailResponse(BaseModel):
 
     user_id: Annotated[str, Field(title="User Id")]
     response_at: Annotated[datetime, Field(title="Response At")]
-    response_content: Annotated[list[str], Field(title="Response Content")]
+    chosen_options: Annotated[list[str], Field(title="Response Content")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -943,7 +943,7 @@ class UpdateHITLDetailPayload(BaseModel):
     Schema for updating the content of a Human-in-the-loop detail.
     """
 
-    response_content: Annotated[list[str], Field(title="Response Content")]
+    chosen_options: Annotated[list[str], Field(title="Response Content")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 

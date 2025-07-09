@@ -71,7 +71,7 @@ def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
         "params": {"input_1": 1},
         "params_input": {},
         "response_at": None,
-        "response_content": None,
+        "chosen_options": None,
         "response_received": False,
         "subject": "This is subject",
         "ti_id": sample_ti.id,
@@ -85,13 +85,13 @@ class TestUpdateHITLDetailEndpoint:
     def test_should_respond_200_with_existing_response(self, test_client, sample_ti):
         response = test_client.patch(
             f"/hitl-details/{sample_ti.id}",
-            json={"response_content": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
         assert response.status_code == 200
         assert response.json() == {
             "params_input": {"input_1": 2},
-            "response_content": ["Approve"],
+            "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
         }
@@ -111,12 +111,12 @@ class TestUpdateHITLDetailEndpoint:
     def test_should_respond_409(self, test_client, sample_ti, expected_sample_hitl_detail_dict):
         response = test_client.patch(
             f"/hitl-details/{sample_ti.id}",
-            json={"response_content": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
         expected_response = {
             "params_input": {"input_1": 2},
-            "response_content": ["Approve"],
+            "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
         }
@@ -125,7 +125,7 @@ class TestUpdateHITLDetailEndpoint:
 
         response = test_client.patch(
             f"/hitl-details/{sample_ti.id}",
-            json={"response_content": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 409
         assert response.json() == {

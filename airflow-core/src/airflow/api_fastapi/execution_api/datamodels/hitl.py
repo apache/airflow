@@ -48,7 +48,7 @@ class UpdateHITLDetailPayload(BaseModel):
     """Schema for writing the resposne part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
-    response_content: list[str]
+    chosen_options: list[str]
     params_input: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -58,7 +58,7 @@ class HITLDetailResponse(BaseModel):
     response_received: bool
     user_id: str | None
     response_at: datetime | None
-    response_content: list[str] | None
+    chosen_options: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
@@ -67,6 +67,6 @@ class HITLDetailResponse(BaseModel):
             response_received=hitl_detail.response_received,
             response_at=hitl_detail.response_at,
             user_id=hitl_detail.user_id,
-            response_content=hitl_detail.response_content,
+            chosen_options=hitl_detail.chosen_options,
             params_input=hitl_detail.params_input or {},
         )

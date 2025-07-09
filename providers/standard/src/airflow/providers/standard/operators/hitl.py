@@ -135,18 +135,18 @@ class HITLOperator(BaseOperator):
         if "error" in event:
             raise HITLTriggerEventError(event["error"])
 
-        response_content = event["response_content"]
+        chosen_options = event["chosen_options"]
         params_input = event["params_input"] or {}
-        self.validate_response_content(response_content)
+        self.validate_chosen_options(chosen_options)
         self.validate_params_input(params_input)
         return HITLTriggerEventSuccessPayload(
-            response_content=response_content,
+            chosen_options=chosen_options,
             params_input=params_input,
         )
 
-    def validate_response_content(self, response_content: list[str]) -> None:
+    def validate_chosen_options(self, chosen_options: list[str]) -> None:
         """Check whether user provide valid response."""
-        if diff := set(response_content) - set(self.options):
+        if diff := set(chosen_options) - set(self.options):
             raise ValueError(f"Responses {diff} not in {self.options}")
 
     def validate_params_input(self, params_input: Mapping) -> None:

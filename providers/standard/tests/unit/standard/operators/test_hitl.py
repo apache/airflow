@@ -97,7 +97,7 @@ class TestHITLOperator:
         assert hitl_detail_model.params == {"input_1": 1}
         assert hitl_detail_model.response_at is None
         assert hitl_detail_model.user_id is None
-        assert hitl_detail_model.response_content is None
+        assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
 
         registered_trigger = session.scalar(
@@ -142,13 +142,13 @@ class TestHITLOperator:
 
         ret = hitl_op.execute_complete(
             context={},
-            event={"response_content": ["1"], "params_input": {"input": 2}},
+            event={"chosen_options": ["1"], "params_input": {"input": 2}},
         )
 
-        assert ret["response_content"] == ["1"]
+        assert ret["chosen_options"] == ["1"]
         assert ret["params_input"] == {"input": 2}
 
-    def test_validate_response_content_with_invalid_content(self) -> None:
+    def test_validate_chosen_options_with_invalid_content(self) -> None:
         hitl_op = HITLOperator(
             task_id="hitl_test",
             subject="This is subject",
@@ -161,7 +161,7 @@ class TestHITLOperator:
             hitl_op.execute_complete(
                 context={},
                 event={
-                    "response_content": ["not exists"],
+                    "chosen_options": ["not exists"],
                     "params_input": {"input": 2},
                 },
             )
@@ -179,7 +179,7 @@ class TestHITLOperator:
             hitl_op.execute_complete(
                 context={},
                 event={
-                    "response_content": ["1"],
+                    "chosen_options": ["1"],
                     "params_input": {"no such key": 2, "input": 333},
                 },
             )
