@@ -224,6 +224,9 @@ class GitDagBundle(BaseDagBundle):
         template = self.view_url_template()
         if not template:
             return None
+        if not self.subdir:
+            # remove {subdir} from the template if subdir is not set
+            template = template.replace("/{subdir}", "")
         return template.format(version=version, subdir=self.subdir)
 
     def view_url_template(self) -> str | None:
