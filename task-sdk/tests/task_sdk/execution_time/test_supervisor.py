@@ -148,6 +148,67 @@ def client_with_ti_start(make_ti_context):
 
 
 @pytest.mark.usefixtures("disable_capturing")
+class TestSupervisor:
+    # @patch("airflow.sdk.execution_time.supervisor.mask_secret")
+    @pytest.mark.parametrize(
+        "server, dry_run, error_pattern",
+        [
+            ("/execution/", False, "Invalid execution API server URL"),
+            ("", False, "Invalid execution API server URL"),
+            ("http://localhost:8080", True, "Can only specify one of"),
+            (None, True, None),
+            ("http://localhost:8080/execution/", False, None),
+            ("https://localhost:8080/execution/", False, None),
+        ],
+    )
+    def test_supervise(
+        self,
+        # mock_mask_secret,
+        patched_secrets_masker,
+        server,
+        dry_run,
+        error_pattern,
+        test_dags_dir,
+        client_with_ti_start,
+    ):
+        """
+        Test that the supervisor validates server URL and dry_run parameter combinations correctly.
+        """
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            if error_pattern:
+                with pytest.raises(ValueError, match=error_pattern):
+                    supervise(
+                        ti=ti,
+                        dag_rel_path="super_basic_deferred_run.py",
+                        token="",
+                        bundle_info=bundle_info,
+                        dry_run=dry_run,
+                        server=server,
+                    )
+            else:
+                supervise(
+                    ti=ti,
+                    dag_rel_path="super_basic_deferred_run.py",
+                    token="",
+                    bundle_info=bundle_info,
+                    dry_run=dry_run,
+                    server=server,
+                    client=client_with_ti_start,
+                )
+
+
+@pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
     @pytest.fixture(autouse=True)
     def disable_log_upload(self, spy_agency):

@@ -1633,12 +1633,18 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+        if not dry_run and (not server or not server.startswith(("http://", "https://"))):
+            raise ValueError(
+                "Invalid execution API server URL. Please ensure that a valid URL is configured."
+            )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")
