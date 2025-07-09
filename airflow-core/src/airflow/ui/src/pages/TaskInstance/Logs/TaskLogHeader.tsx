@@ -206,7 +206,7 @@ export const TaskLogHeader = ({
           <Menu.Root>
             <Menu.Trigger asChild>
               <Button variant="outline">
-                <MdSettings /> {translate("dag:logs.settings.menu")}
+                <MdSettings /> {translate("dag:logs.settings")}
               </Button>
             </Menu.Trigger>
             <Menu.Content>
