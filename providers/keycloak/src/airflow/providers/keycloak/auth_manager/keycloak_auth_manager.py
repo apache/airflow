@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import requests
@@ -207,9 +207,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         self, menu_items: list[MenuItem], *, user: KeycloakAuthManagerUser
     ) -> list[MenuItem]:
         authorized_menus = self._is_batch_authorized(
-            permissions=[
-                (cast("ExtendedResourceMethod", "MENU"), menu_item.value) for menu_item in menu_items
-            ],
+            permissions=[("MENU", menu_item.value) for menu_item in menu_items],
             user=user,
         )
         return [MenuItem(menu[1]) for menu in authorized_menus]
