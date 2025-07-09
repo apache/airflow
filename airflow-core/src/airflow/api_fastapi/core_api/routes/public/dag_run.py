@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import textwrap
 from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -51,6 +53,7 @@ from airflow.api_fastapi.common.parameters import (
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunClearBody,
@@ -72,6 +75,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_asset,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
@@ -436,6 +440,57 @@ def trigger_dag_run(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     except ParamValidationError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+@dag_run_router.get(
+    "/{dag_run_id}/wait",
+    tags=["experimental"],
+    summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
+    description="🚧 This is an experimental endpoint and may change or be removed without notice.",
+    responses={
+        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": {
+                Mimetype.NDJSON: {
+                    "schema": {
+                        "type": "string",
+                        "example": textwrap.dedent(
+                            """\
+                {"state": "running"}
+                {"state": "success", "results": {"op": 42}}
+                """
+                        ),
+                    }
+                }
+            },
+        },
+    },
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+)
+def wait_dag_run_until_finished(
+    dag_id: str,
+    dag_run_id: str,
+    session: SessionDep,
+    interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
+    result_task_ids: Annotated[
+        list[str] | None,
+        Query(alias="result", description="Collect result XCom from task. Can be set multiple times."),
+    ] = None,
+):
+    "Wait for a dag run until it finishes, and return its result(s)."
+    if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
+        )
+    waiter = DagRunWaiter(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        interval=interval,
+        result_task_ids=result_task_ids,
+    )
+    return StreamingResponse(waiter.wait())
 
 
 @dag_run_router.post(
