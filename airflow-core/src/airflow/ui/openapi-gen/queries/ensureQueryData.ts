@@ -302,16 +302,16 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
 * @param data.dagId
 * @param data.dagRunId
 * @param data.interval Seconds to wait between dag run state checks
-* @param data.collect Collect return value XCom from task. Can be set multiple times.
+* @param data.result Collect result XCom from task. Can be set multiple times.
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const ensureUseDagRunServiceWaitDagRunUntilFinishedData = (queryClient: QueryClient, { collect, dagId, dagRunId, interval }: {
-  collect?: string[];
+export const ensureUseDagRunServiceWaitDagRunUntilFinishedData = (queryClient: QueryClient, { dagId, dagRunId, interval, result }: {
   dagId: string;
   dagRunId: string;
   interval: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ collect, dagId, dagRunId, interval }), queryFn: () => DagRunService.waitDagRunUntilFinished({ collect, dagId, dagRunId, interval }) });
+  result?: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => DagRunService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
@@ -319,16 +319,16 @@ export const ensureUseDagRunServiceWaitDagRunUntilFinishedData = (queryClient: Q
 * @param data.dagId
 * @param data.dagRunId
 * @param data.interval Seconds to wait between dag run state checks
-* @param data.collect Collect return value XCom from task. Can be set multiple times.
+* @param data.result Collect result XCom from task. Can be set multiple times.
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const ensureUseExperimentalServiceWaitDagRunUntilFinishedData = (queryClient: QueryClient, { collect, dagId, dagRunId, interval }: {
-  collect?: string[];
+export const ensureUseExperimentalServiceWaitDagRunUntilFinishedData = (queryClient: QueryClient, { dagId, dagRunId, interval, result }: {
   dagId: string;
   dagRunId: string;
   interval: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ collect, dagId, dagRunId, interval }), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ collect, dagId, dagRunId, interval }) });
+  result?: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
 * Get Dag Source
 * Get source code using file token.

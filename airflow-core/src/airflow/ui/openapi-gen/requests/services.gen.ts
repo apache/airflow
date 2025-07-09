@@ -1057,7 +1057,7 @@ export class DagRunService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.interval Seconds to wait between dag run state checks
-     * @param data.collect Collect return value XCom from task. Can be set multiple times.
+     * @param data.result Collect result XCom from task. Can be set multiple times.
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -1071,7 +1071,7 @@ export class DagRunService {
             },
             query: {
                 interval: data.interval,
-                collect: data.collect
+                result: data.result
             },
             errors: {
                 401: 'Unauthorized',
@@ -1119,7 +1119,7 @@ export class ExperimentalService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.interval Seconds to wait between dag run state checks
-     * @param data.collect Collect return value XCom from task. Can be set multiple times.
+     * @param data.result Collect result XCom from task. Can be set multiple times.
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -1133,7 +1133,7 @@ export class ExperimentalService {
             },
             query: {
                 interval: data.interval,
-                collect: data.collect
+                result: data.result
             },
             errors: {
                 401: 'Unauthorized',

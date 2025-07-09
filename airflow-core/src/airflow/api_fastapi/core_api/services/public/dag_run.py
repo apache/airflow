@@ -42,7 +42,7 @@ class DagRunWaiter:
     dag_id: str
     run_id: str
     interval: float
-    collect_task_ids: list[str] | None
+    result_task_ids: list[str] | None
 
     async def _get_dag_run(self) -> DagRun:
         async with create_session_async() as session:
@@ -52,7 +52,7 @@ class DagRunWaiter:
         xcom_query = XComModel.get_many(
             run_id=self.run_id,
             key=XCOM_RETURN_KEY,
-            task_ids=self.collect_task_ids,
+            task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
         xcom_query = xcom_query.order_by(XComModel.task_id, XComModel.map_index)
@@ -72,8 +72,8 @@ class DagRunWaiter:
         resp = {"state": dag_run.state}
         if dag_run.state not in State.finished_dr_states:
             return json.dumps(resp)
-        if self.collect_task_ids:
-            resp["returns"] = self._serialize_xcoms()
+        if self.result_task_ids:
+            resp["results"] = self._serialize_xcoms()
         return json.dumps(resp)
 
     async def wait(self) -> AsyncGenerator[str, None]:

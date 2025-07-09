@@ -1670,8 +1670,8 @@ class TestWaitDagRun:
 
     def test_collect_task(self, test_client):
         response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1", "collect": "task_1"}
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1", "result": "task_1"}
         )
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": DagRunState.SUCCESS, "returns": {"task_1": '"result_1"'}}
+        assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}

@@ -2181,7 +2181,7 @@ paths:
           description: Seconds to wait between dag run state checks
           title: Interval
         description: Seconds to wait between dag run state checks
-      - name: collect
+      - name: result
         in: query
         required: false
         schema:
@@ -2190,9 +2190,9 @@ paths:
             items:
               type: string
           - type: 'null'
-          description: Collect return value XCom from task. Can be set multiple times.
-          title: Collect
-        description: Collect return value XCom from task. Can be set multiple times.
+          description: Collect result XCom from task. Can be set multiple times.
+          title: Result
+        description: Collect result XCom from task. Can be set multiple times.
       responses:
         '200':
           description: Successful Response
@@ -2204,7 +2204,7 @@ paths:
                 type: string
                 example: '{"state": "running"}
 
-                  {"state": "success", "returns": {"op": 42}}
+                  {"state": "success", "results": {"op": 42}}
 
                   '
         '401':

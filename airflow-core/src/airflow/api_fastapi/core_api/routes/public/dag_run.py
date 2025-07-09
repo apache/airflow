@@ -458,7 +458,7 @@ def trigger_dag_run(
                         "example": textwrap.dedent(
                             """\
                 {"state": "running"}
-                {"state": "success", "returns": {"op": 42}}
+                {"state": "success", "results": {"op": 42}}
                 """
                         ),
                     }
@@ -473,12 +473,12 @@ def wait_dag_run_until_finished(
     dag_run_id: str,
     session: SessionDep,
     interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
-    collect_task_ids: Annotated[
+    result_task_ids: Annotated[
         list[str] | None,
-        Query(alias="collect", description="Collect return value XCom from task. Can be set multiple times."),
+        Query(alias="result", description="Collect result XCom from task. Can be set multiple times."),
     ] = None,
 ):
-    "Wait for a dag run until it finishes, and return its return value."
+    "Wait for a dag run until it finishes, and return its result(s)."
     if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -488,7 +488,7 @@ def wait_dag_run_until_finished(
         dag_id=dag_id,
         run_id=dag_run_id,
         interval=interval,
-        collect_task_ids=collect_task_ids,
+        result_task_ids=result_task_ids,
     )
     return StreamingResponse(waiter.wait())
 

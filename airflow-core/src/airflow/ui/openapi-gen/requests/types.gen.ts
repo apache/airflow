@@ -2217,16 +2217,16 @@ export type TriggerDagRunData = {
 export type TriggerDagRunResponse = DAGRunResponse;
 
 export type WaitDagRunUntilFinishedData = {
-    /**
-     * Collect return value XCom from task. Can be set multiple times.
-     */
-    collect?: Array<(string)> | null;
     dagId: string;
     dagRunId: string;
     /**
      * Seconds to wait between dag run state checks
      */
     interval: number;
+    /**
+     * Collect result XCom from task. Can be set multiple times.
+     */
+    result?: Array<(string)> | null;
 };
 
 export type WaitDagRunUntilFinishedResponse = unknown;
