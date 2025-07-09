@@ -1953,9 +1953,7 @@ components:
         run_type:
           $ref: '#/components/schemas/DagRunType'
         duration:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          type: integer
           title: Duration
           readOnly: true
       type: object

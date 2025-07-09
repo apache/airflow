@@ -1778,7 +1778,7 @@ export type GridRunsResponse = {
     run_after: string;
     state: TaskInstanceState | null;
     run_type: DagRunType;
-    readonly duration: number | null;
+    readonly duration: number;
 };
 
 /**
