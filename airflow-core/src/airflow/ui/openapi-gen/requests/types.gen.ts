@@ -1260,6 +1260,7 @@ export type TaskInstanceResponse = {
     id: string;
     task_id: string;
     dag_id: string;
+    dag_version: DagVersionResponse;
     dag_run_id: string;
     map_index: number;
     logical_date: string | null;
@@ -1291,7 +1292,6 @@ export type TaskInstanceResponse = {
     };
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
-    dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -2195,6 +2195,10 @@ export type GetDagRunsData = {
     orderBy?: string;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     runType?: Array<(string)>;
     startDateGte?: string | null;
     startDateLte?: string | null;
@@ -2211,6 +2215,21 @@ export type TriggerDagRunData = {
 };
 
 export type TriggerDagRunResponse = DAGRunResponse;
+
+export type WaitDagRunUntilFinishedData = {
+    dagId: string;
+    dagRunId: string;
+    /**
+     * Seconds to wait between dag run state checks
+     */
+    interval: number;
+    /**
+     * Collect result XCom from task. Can be set multiple times.
+     */
+    result?: Array<(string)> | null;
+};
+
+export type WaitDagRunUntilFinishedResponse = unknown;
 
 export type GetListDagRunsBatchData = {
     dagId: "~";
@@ -3968,6 +3987,33 @@ export type $OpenApiTs = {
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait': {
+        get: {
+            req: WaitDagRunUntilFinishedData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
