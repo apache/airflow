@@ -29,6 +29,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
+import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
@@ -75,6 +76,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
         <Flex gap={1}>
           <SearchDagsButton />
           {dag === undefined ? undefined : <TriggerDAGButton dag={dag} />}
+          {dag === undefined ? undefined : (
+            <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
+          )}
         </Flex>
       </HStack>
       <Toaster />
