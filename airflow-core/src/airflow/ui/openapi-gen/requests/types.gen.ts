@@ -2216,6 +2216,21 @@ export type TriggerDagRunData = {
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
+export type WaitDagRunUntilFinishedData = {
+    dagId: string;
+    dagRunId: string;
+    /**
+     * Seconds to wait between dag run state checks
+     */
+    interval: number;
+    /**
+     * Collect result XCom from task. Can be set multiple times.
+     */
+    result?: Array<(string)> | null;
+};
+
+export type WaitDagRunUntilFinishedResponse = unknown;
+
 export type GetListDagRunsBatchData = {
     dagId: "~";
     requestBody: DAGRunsBatchBody;
@@ -3972,6 +3987,33 @@ export type $OpenApiTs = {
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait': {
+        get: {
+            req: WaitDagRunUntilFinishedData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
