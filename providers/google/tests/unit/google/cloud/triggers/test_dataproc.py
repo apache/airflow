@@ -172,13 +172,8 @@ class TestDataprocClusterTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
     @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_async_cluster_trigger_run_returns_error_event(
-        self, mock_log, mock_auth, mock_get_async_hook, cluster_trigger
+        self, mock_log, mock_get_async_hook, cluster_trigger
     ):
-        mock_credentials = mock.MagicMock()
-        mock_credentials.universe_domain = "googleapis.com"
-
-        mock_auth.return_value = (mock_credentials, "project-id")
-
         # Mock delete_cluster to return a Future
         mock_delete_future = asyncio.Future()
         mock_delete_future.set_result(None)
