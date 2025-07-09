@@ -25,6 +25,7 @@ export enum SearchParamsKeys {
   LOG_LEVEL = "log_level",
   NAME_PATTERN = "name_pattern",
   OFFSET = "offset",
+  OWNERS = "owners",
   PAUSED = "paused",
   POOL = "pool",
   RUN_ID_PATTERN = "run_id_pattern",
