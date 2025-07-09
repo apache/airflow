@@ -23,15 +23,10 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, BaseSensorOperator
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from datetime import timedelta
