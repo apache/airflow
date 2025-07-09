@@ -263,7 +263,5 @@ class GitDagBundle(BaseDagBundle):
         # Add subdir placeholder if applicable
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
-                if self.subdir:
-                    return f"{template}/{self.subdir}"
-                return template
+                return template + self._templated_url_fragment()
         return None

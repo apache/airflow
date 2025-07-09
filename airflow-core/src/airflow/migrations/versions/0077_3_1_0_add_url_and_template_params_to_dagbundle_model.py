@@ -20,7 +20,7 @@
 Add url template and template params to DagBundleModel.
 
 Revision ID: 3bda03debd04
-Revises: ffdb0566c7c0
+Revises: 5d3072c51bac
 Create Date: 2025-07-04 10:12:12.711292
 
 """
