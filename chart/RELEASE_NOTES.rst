@@ -35,6 +35,7 @@ Improvements
 ^^^^^^^^^^^^
 - Allow ConfigMap and Secret references in ``apiServer.env`` (#51191)
 - Add custom annotations to JWT Secret (#52166)
+- Allow ``valuesFrom`` in ``gitSync.env`` (#50228)
 
 Bug Fixes
 ^^^^^^^^^

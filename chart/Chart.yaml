@@ -73,6 +73,11 @@ annotations:
       links:
       - name: '#52166'
         url: https://github.com/apache/airflow/pull/52166
+    - description: Allow ``valuesFrom`` in ``gitSync.env``
+      kind: changed
+      links:
+      - name: '#50228'
+        url: https://github.com/apache/airflow/pull/50228
     - description: Fix JWT secret name
       kind: fixed
       links:
