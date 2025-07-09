@@ -1251,13 +1251,13 @@ class TestGetGridDataEndpoint:
 
         expected = [
             {"task_id": "mapped_task_group", "state": "running"},
-            {"task_id": "task_group.inner_task_group"},
-            {"task_id": "task_group"},
-            {"task_id": "mapped_task_2"},
+            {"task_id": "task_group.inner_task_group", "state": "None"},
+            {"task_id": "task_group", "state": "None"},
+            {"task_id": "mapped_task_2", "state": "None"},
             {"task_id": "mapped_task_group.subtask", "state": "running"},
             {"task_id": "task", "state": "success"},
-            {"task_id": "task_group.inner_task_group.inner_task_group_sub_task"},
-            {"task_id": "task_group.mapped_task"},
+            {"task_id": "task_group.inner_task_group.inner_task_group_sub_task", "state": "None"},
+            {"task_id": "task_group.mapped_task", "state": "None"},
         ]
         expected = sort_dict(expected)
         actual = sort_dict(actual)
