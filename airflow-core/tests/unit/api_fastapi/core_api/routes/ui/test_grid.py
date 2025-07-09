@@ -1312,7 +1312,7 @@ class TestGetGridDataEndpoint:
 
         expected = [
             {
-                "child_states": {},
+                "child_states": {"None": 1},
                 "task_id": "mapped_task_2",
                 "max_end_date": None,
                 "min_start_date": None,
@@ -1340,28 +1340,28 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {},
+                "child_states": {"None": 2},
                 "task_id": "task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
             },
             {
-                "child_states": {},
+                "child_states": {"None": 1},
                 "task_id": "task_group.inner_task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
             },
             {
-                "child_states": {},
+                "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
             },
             {
-                "child_states": {},
+                "child_states": {"None": 4},
                 "task_id": "task_group.mapped_task",
                 "max_end_date": None,
                 "min_start_date": None,
