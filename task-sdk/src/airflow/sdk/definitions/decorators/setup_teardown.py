@@ -79,8 +79,10 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
         if isinstance(func, _TaskGroupFactory):
             raise AirflowException("Task groups cannot be marked as setup or teardown.")
         func = cast("_TaskDecorator", func)
-        func.is_teardown = True  # type: ignore[attr-defined]  # TODO: Remove this once mypy is bump to 1.16.1
-        func.on_failure_fail_dagrun = on_failure_fail_dagrun
+
+        # TODO: Remove below attr-defined once mypy is bump to 1.16.1
+        func.is_teardown = True  # type: ignore[attr-defined]
+        func.on_failure_fail_dagrun = on_failure_fail_dagrun  # type: ignore[attr-defined]
         return func
 
     if _func is None:
