@@ -31,9 +31,10 @@ import { flattenNodes } from "./Grid/utils";
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { t: translate } = useTranslation();
   const { openGroupIds, setOpenGroupIds } = useOpenGroups();
-  const { dagId = "" } = useParams();
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
-  const { data: dagStructure } = useGridStructure({ limit });
+  const { dagId = "", runId = "" } = useParams();
+
+  // debugger;
+  const { data: dagStructure } = useGridStructure({ limit: 1 });
   const { allGroupIds } = useMemo(
     () => flattenNodes(dagStructure, openGroupIds),
     [dagStructure, openGroupIds],

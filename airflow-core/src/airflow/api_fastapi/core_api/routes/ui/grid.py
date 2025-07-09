@@ -53,6 +53,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.task_group import (
+    TaskGroup,
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
@@ -169,6 +170,57 @@ def get_dag_structure(
         _merge_node_dicts(merged_nodes, nodes)
 
     return merged_nodes
+
+
+@grid_router.get(
+    "/group_ids/{dag_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+    ],
+    response_model_exclude_none=True,
+)
+def get_dag_structure(
+    dag_id: str,
+    session: SessionDep,
+    run_id: str | None = None,
+) -> list[str]:
+    """Return dag structure for grid view."""
+    dr = None
+    dag = None
+    versions = None
+    if run_id:
+        dr: DagRun = session.scalar(
+            select(DagRun).where(
+                DagRun.run_id == run_id,
+                DagRun.dag_id == dag_id,
+            )
+        )
+    if dr:
+        versions = session.scalars(
+            select(TaskInstance.dag_version_id.distinct()).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+            )
+        )
+    if versions:
+        serdag = session.scalar(
+            select(SerializedDagModel).where(SerializedDagModel.dag_version_id.in_(versions)).order_by(SerializedDagModel.created_at.desc()).limit(1)
+        )
+        dag = serdag.dag
+    if not dag:
+        latest_serdag = _get_latest_serdag(dag_id, session)
+        dag = latest_serdag.dag
+
+    task_group_sort = get_task_group_children_getter()
+
+    group_ids = []
+    for node in task_group_sort(dag.task_group):
+        if isinstance(node, TaskGroup):
+            group_ids.append(node.group_id)
+
+    return group_ids
 
 
 @grid_router.get(
