@@ -19,7 +19,8 @@
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
-    }
+    },
+    "runIdPatternFilter": "Dag Läufe suchen"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
