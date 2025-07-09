@@ -203,7 +203,7 @@ class MSGraphAsyncOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> None:
-        if not AIRFLOW_V_3_1_PLUS:
+        if not self.start_from_trigger:
             self.defer(
                 trigger=MSGraphTrigger(
                     url=self.url,
