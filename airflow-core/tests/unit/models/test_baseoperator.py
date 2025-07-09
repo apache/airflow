@@ -146,18 +146,18 @@ class TestBaseOperator:
             )
 
     def test_expand_start_trigger_args_with_template_fields(self):
-        class TriggeredOperator(BaseOperator):
+        class GreetingOperator(BaseOperator):
             start_from_trigger = True
-            template_fields = ["operation"]
+            template_fields = ["say"]
 
-            def __init__(self, *, operation, **kwargs):
+            def __init__(self, *, say, **kwargs):
                 super().__init__(**kwargs)
-                self.operation = operation
+                self.say = say
                 self.start_trigger_args = StartTriggerArgs(
                     trigger_cls=f"{BaseTrigger.__module__}.{BaseTrigger.__name__}",
                     trigger_kwargs=dict(
                         task_id=self.task_id,
-                        operation=self.operation,
+                        say=self.say,
                     ),
                     next_method=self.execute_complete.__name__,
                 )
@@ -169,10 +169,10 @@ class TestBaseOperator:
             ) -> Any:
                 pass
 
-        op = TriggeredOperator(task_id="test", operation=lambda context, jinja_env: "Say hello")
+        op = GreetingOperator(task_id="greet", say=lambda context, jinja_env: "Hello Airflow!")
         op.render_template_fields(context={})
 
-        assert op.expand_start_trigger_args(context={}, session=NEW_SESSION).trigger_kwargs == {"task_id": "test", "operation": "Say hello"}
+        assert op.expand_start_trigger_args(context={}, session=NEW_SESSION).trigger_kwargs == {"task_id": "greet", "say": "Hello Airflow!"}
 
 
 def test_deepcopy():
