@@ -478,8 +478,7 @@ class Connection(Base, LoggingMixin):
                 return conn
             except AirflowRuntimeError as e:
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                    log.debug("Unable to retrieve connection from MetastoreBackend using Task SDK")
-                    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+                    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
 
         # check cache first

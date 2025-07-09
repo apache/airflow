@@ -355,7 +355,7 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors != {}
         if result.import_errors:
-            assert "CONNECTION_NOT_FOUND" in next(iter(result.import_errors.values()))
+            assert "The conn_id `my_conn` isn't defined" in next(iter(result.import_errors.values()))
 
     def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client):
         tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
