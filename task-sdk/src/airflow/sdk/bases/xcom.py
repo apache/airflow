@@ -43,6 +43,8 @@ class TIKeyProtocol(Protocol):
 class BaseXCom:
     """BaseXcom is an interface now to interact with XCom backends."""
 
+    XCOM_RETURN_KEY = "return_value"
+
     @classmethod
     def set(
         cls,

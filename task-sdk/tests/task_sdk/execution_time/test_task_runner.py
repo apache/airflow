@@ -1795,7 +1795,9 @@ class TestXComAfterTaskExecution:
         spy_agency.assert_spy_called(_push_xcom_if_needed)
 
         if should_push_xcom:
-            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, "return_value", expected_xcom_value)
+            spy_agency.assert_spy_called_with(
+                _xcom_push, runtime_ti, BaseXCom.XCOM_RETURN_KEY, expected_xcom_value
+            )
         else:
             spy_agency.assert_spy_not_called(_xcom_push)
 
@@ -1819,7 +1821,7 @@ class TestXComAfterTaskExecution:
         expected_calls = [
             ("key1", "value1"),
             ("key2", "value2"),
-            ("return_value", result),
+            (BaseXCom.XCOM_RETURN_KEY, result),
         ]
         spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
         for key, value in expected_calls:
@@ -1841,9 +1843,9 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch.object(XCom, "set") as mock_xcom_set:
-            _xcom_push(runtime_ti, "return_value", result, 7)
+            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, 7)
             mock_xcom_set.assert_called_once_with(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 value=result,
                 dag_id=runtime_ti.dag_id,
                 task_id=runtime_ti.task_id,
@@ -1911,7 +1913,7 @@ class TestXComAfterTaskExecution:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_xcom_backend.set.assert_called_once_with(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             value="pushing to xcom backend!",
             dag_id="test_dag",
             task_id="pull_task",
