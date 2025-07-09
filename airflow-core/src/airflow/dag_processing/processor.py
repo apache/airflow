@@ -262,6 +262,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             dag_id=request.ti.dag_id,
             task_id=request.ti.task_id,
             run_id=request.ti.run_id,
+            ti_id=request.ti.id,
         )
         return
 
