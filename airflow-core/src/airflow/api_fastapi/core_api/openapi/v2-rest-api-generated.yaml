@@ -2041,6 +2041,18 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -6608,7 +6620,7 @@ paths:
         required: true
         schema:
           type: integer
-          exclusiveMinimum: 0
+          minimum: 0
           title: Try Number
       - name: full_content
         in: query
@@ -10377,6 +10389,8 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_version:
+          $ref: '#/components/schemas/DagVersionResponse'
         dag_run_id:
           type: string
           title: Dag Run Id
@@ -10504,15 +10518,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
-        dag_version:
-          anyOf:
-          - $ref: '#/components/schemas/DagVersionResponse'
-          - type: 'null'
       type: object
       required:
       - id
       - task_id
       - dag_id
+      - dag_version
       - dag_run_id
       - map_index
       - logical_date
@@ -10541,7 +10552,6 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
-      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:

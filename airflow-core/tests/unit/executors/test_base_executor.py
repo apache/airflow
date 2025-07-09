@@ -57,7 +57,7 @@ def test_invalid_slotspool():
 
 def test_get_task_log():
     executor = BaseExecutor()
-    ti = TaskInstance(task=BaseOperator(task_id="dummy"))
+    ti = TaskInstance(task=BaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock())
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 

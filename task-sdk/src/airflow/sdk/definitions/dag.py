@@ -1241,6 +1241,7 @@ def _run_task(*, ti, run_triggerer=False):
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
                 ),
                 task=ti.task,
             )
