@@ -255,16 +255,16 @@ def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
 
 
 def _get_serdag(ti, session):
-    dag_version = ti.dag_version
-    if not dag_version:
-        dag_version = session.scalar(
-            select(DagVersion)
-            .where(
-                DagVersion.dag_id == ti.dag_id,
-            )
-            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-            .limit(1)
+    # dag_version = ti.dag_version
+    # if not dag_version:
+    dag_version = session.scalar(
+        select(DagVersion)
+        .where(
+            DagVersion.dag_id == ti.dag_id,
         )
+        .order_by(DagVersion.id.desc())  # descending for 3.0 upgrade / can be a fix for all dag runs and dag versions
+        .limit(1)                        # with respect to grid appearances & graph colors
+    )
     if not dag_version:
         raise RuntimeError("No dag_version object could be found.")
     if not dag_version.serialized_dag:

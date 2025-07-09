@@ -176,16 +176,16 @@ def grid_data(
 
     for tis in tis_by_run_id.values():
         # this is a simplification - we account for structure based on the first task
-        version = tis[0].dag_version
-        if not version:
-            version = session.scalar(
-                select(DagVersion)
-                .where(
-                    DagVersion.dag_id == tis[0].dag_id,
-                )
-                .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-                .limit(1)
+        # version = tis[0].dag_version
+        # if not version:
+        version = session.scalar(
+            select(DagVersion)
+            .where(
+                DagVersion.dag_id == tis[0].dag_id,
             )
+            .order_by(DagVersion.id.desc())  # descending for 3.0 upgrade / can be a fix for all dag runs and dag versions
+            .limit(1)                        # with respect to grid appearances & graph colors
+        )
         if not version.serialized_dag:
             log.error(
                 "No serialized dag found",
@@ -288,18 +288,39 @@ def _get_latest_serdag(dag_id, session):
     return serdag
 
 
-def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
+# def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
+#     # this is a simplification - we account for structure based on the first task
+#     version = session.scalar(select(DagVersion).where(DagVersion.id == dag_version_id))
+#     if not version:
+#         version = session.scalar(
+#             select(DagVersion)
+#             .where(
+#                 DagVersion.dag_id == dag_id,
+#             )
+#             .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
+#             .limit(1)
+#         )
+#     if not (serdag := version.serialized_dag):
+#         log.error(
+#             "No serialized dag found",
+#             dag_id=dag_id,
+#             version_id=version.id,
+#             version_number=version.version_number,
+#         )
+#     return serdag
+
+def _get_serdag(dag_id, session) -> SerializedDagModel | None:
     # this is a simplification - we account for structure based on the first task
-    version = session.scalar(select(DagVersion).where(DagVersion.id == dag_version_id))
-    if not version:
-        version = session.scalar(
-            select(DagVersion)
-            .where(
-                DagVersion.dag_id == dag_id,
-            )
-            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-            .limit(1)
+    # version = session.scalar(select(DagVersion).where(DagVersion.id == dag_version_id))
+    # if not version:
+    version = session.scalar(
+        select(DagVersion)
+        .where(
+            DagVersion.dag_id == dag_id,
         )
+        .order_by(DagVersion.id)  # descending for 3.0 upgrade / can be a fix for all dag runs and dag versions
+        .limit(1)                 # with respect to grid appearances & graph colors
+    )
     if not (serdag := version.serialized_dag):
         log.error(
             "No serialized dag found",
@@ -536,7 +557,6 @@ def get_grid_ti_summaries(
         )
     serdag = _get_serdag(
         dag_id=dag_id,
-        dag_version_id=task_instances[0].dag_version_id,
         session=session,
     )
     if TYPE_CHECKING:
