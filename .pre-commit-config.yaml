@@ -1596,7 +1596,7 @@ repos:
       - id: provider-version-compat
         name: Check for correct version_compat imports in providers
         entry: ./scripts/ci/pre_commit/check_provider_version_compat.py
-        language: system
+        language: python
         types: [python]
         files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
