@@ -17,5 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-# needed to work against airflow "safe mode" parsing
-from airflow.models import DAG  # noqa: F401
+from datetime import datetime
+
+from airflow.models.dag import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+
+DEFAULT_DATE = datetime(2019, 12, 1)
+
+dag = DAG(dag_id="test_dag_under_subdir1", start_date=DEFAULT_DATE, schedule=None)
+task = BashOperator(task_id="task1", bash_command='echo "test dag under sub directory subdir2"', dag=dag)

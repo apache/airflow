@@ -48,12 +48,10 @@ class _IgnoreRule(Protocol):
 
         ``base_dir`` and ``definition_file`` should be absolute paths.
         """
-        ...
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
         """Match a candidate absolute path against a list of rules."""
-        ...
 
 
 class _RegexpIgnoreRule(NamedTuple):
