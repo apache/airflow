@@ -75,7 +75,7 @@ class HITLOperator(BaseOperator):
         self.default = [default] if isinstance(default, str) else default
         self.multiple = multiple
 
-        self.params: ParamsDict | dict = params or {}
+        self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
 
         self.validate_defaults()
 
