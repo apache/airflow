@@ -28,9 +28,8 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.exceptions import (
     EcsCannotPullContainerError,
     EcsOperatorError,
-    EcsTaskFailToStart    
+    EcsTaskFailToStart,
 )
-
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsBaseOperator,
@@ -465,7 +464,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         with pytest.raises(EcsCannotPullContainerError) as ctx:
             self.ecs._check_success_task()
 
-        assert str(ctx.value) == "The task failed to start due to: CannotPullContainerError: ResourceInitializationError: failed to create new container runtime task"
+        assert (
+            str(ctx.value)
+            == "The task failed to start due to: CannotPullContainerError: ResourceInitializationError: failed to create new container runtime task"
+        )
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
