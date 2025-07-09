@@ -2147,6 +2147,90 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait:
+    get:
+      tags:
+      - DagRun
+      - experimental
+      summary: 'Experimental: Wait for a dag run to complete, and return task results
+        if requested.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice."
+      operationId: wait_dag_run_until_finished
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: interval
+        in: query
+        required: true
+        schema:
+          type: number
+          exclusiveMinimum: 0.0
+          description: Seconds to wait between dag run state checks
+          title: Interval
+        description: Seconds to wait between dag run state checks
+      - name: result
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          description: Collect result XCom from task. Can be set multiple times.
+          title: Result
+        description: Collect result XCom from task. Can be set multiple times.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+            application/x-ndjson:
+              schema:
+                type: string
+                example: '{"state": "running"}
+
+                  {"state": "success", "results": {"op": 42}}
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/list:
     post:
       tags:
