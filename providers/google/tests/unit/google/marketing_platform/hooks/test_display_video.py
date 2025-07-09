@@ -19,11 +19,14 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-API_VERSION = "v2"
+API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
 
 
@@ -40,7 +43,8 @@ class TestGoogleDisplayVideo360Hook:
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.display_video.build")
     def test_gen_conn(self, mock_build, mock_authorize):
-        result = self.hook.get_conn()
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "doubleclickbidmanager",
             API_VERSION,
@@ -73,8 +77,8 @@ class TestGoogleDisplayVideo360Hook:
         get_conn_mock.return_value.queries.return_value.create.return_value.execute.return_value = (
             return_value
         )
-
-        result = self.hook.create_query(query=body)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.create_query(query=body)
 
         get_conn_mock.return_value.queries.return_value.create.assert_called_once_with(body=body)
 
@@ -90,8 +94,8 @@ class TestGoogleDisplayVideo360Hook:
         get_conn_mock.return_value.queries.return_value.delete.return_value.execute.return_value = (
             return_value
         )
-
-        self.hook.delete_query(query_id=query_id)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.delete_query(query_id=query_id)
 
         get_conn_mock.return_value.queries.return_value.delete.assert_called_once_with(queryId=query_id)
 
@@ -103,8 +107,8 @@ class TestGoogleDisplayVideo360Hook:
 
         return_value = "TEST"
         get_conn_mock.return_value.queries.return_value.get.return_value.execute.return_value = return_value
-
-        result = self.hook.get_query(query_id=query_id)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.get_query(query_id=query_id)
 
         get_conn_mock.return_value.queries.return_value.get.assert_called_once_with(queryId=query_id)
 
@@ -117,8 +121,8 @@ class TestGoogleDisplayVideo360Hook:
         queries = ["test"]
         return_value = {"queries": queries}
         get_conn_mock.return_value.queries.return_value.list.return_value.execute.return_value = return_value
-
-        result = self.hook.list_queries()
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.list_queries()
 
         get_conn_mock.return_value.queries.return_value.list.assert_called_once_with()
 
@@ -130,8 +134,8 @@ class TestGoogleDisplayVideo360Hook:
     def test_run_query(self, get_conn_mock):
         query_id = "QUERY_ID"
         params = {"params": "test"}
-
-        self.hook.run_query(query_id=query_id, params=params)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.run_query(query_id=query_id, params=params)
 
         get_conn_mock.return_value.queries.return_value.run.assert_called_once_with(
             queryId=query_id, body=params
@@ -147,7 +151,8 @@ class TestGoogleDisplayVideo360Hook:
             "format": "format",
             "fileSpec": "file_spec",
         }
-        self.hook.download_line_items(request_body=request_body)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.download_line_items(request_body=request_body)
         get_conn_mock.return_value.lineitems.return_value.downloadlineitems.assert_called_once()
 
     @mock.patch(
@@ -160,7 +165,8 @@ class TestGoogleDisplayVideo360Hook:
             "format": "format",
             "fileSpec": "file_spec",
         }
-        self.hook.download_line_items(request_body=request_body)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.download_line_items(request_body=request_body)
 
         get_conn_mock.return_value.lineitems.return_value.downloadlineitems.assert_called_once_with(
             body=request_body
@@ -183,8 +189,8 @@ class TestGoogleDisplayVideo360Hook:
         get_conn_mock.return_value.lineitems.return_value \
             .downloadlineitems.return_value.execute.return_value = response
         # fmt: on
-
-        result = self.hook.download_line_items(request_body)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.download_line_items(request_body)
         assert line_item == result
 
     @mock.patch(
@@ -192,8 +198,8 @@ class TestGoogleDisplayVideo360Hook:
     )
     def test_upload_line_items_should_be_called_once(self, get_conn_mock):
         line_items = ["this", "is", "super", "awesome", "test"]
-
-        self.hook.upload_line_items(line_items)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.upload_line_items(line_items)
         get_conn_mock.return_value.lineitems.return_value.uploadlineitems.assert_called_once()
 
     @mock.patch(
@@ -206,8 +212,8 @@ class TestGoogleDisplayVideo360Hook:
             "dryRun": False,
             "format": "CSV",
         }
-
-        self.hook.upload_line_items(line_items)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.upload_line_items(line_items)
 
         get_conn_mock.return_value.lineitems.return_value.uploadlineitems.assert_called_once_with(
             body=request_body
@@ -223,7 +229,8 @@ class TestGoogleDisplayVideo360Hook:
         get_conn_mock.return_value.lineitems.return_value \
             .uploadlineitems.return_value.execute.return_value = return_value
         # fmt: on
-        result = self.hook.upload_line_items(line_items)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.upload_line_items(line_items)
 
         assert return_value == result
 
@@ -371,7 +378,8 @@ class TestGoogleDisplayVideo360v2Hook:
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.display_video.build")
     def test_gen_conn(self, mock_build, mock_authorize):
-        result = self.hook.get_conn()
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "doubleclickbidmanager",
             self.api_version,
@@ -404,8 +412,8 @@ class TestGoogleDisplayVideo360v2Hook:
         get_conn_mock.return_value.queries.return_value.create.return_value.execute.return_value = (
             return_value
         )
-
-        result = self.hook.create_query(query=body)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.create_query(query=body)
 
         get_conn_mock.return_value.queries.return_value.create.assert_called_once_with(body=body)
 
@@ -421,8 +429,8 @@ class TestGoogleDisplayVideo360v2Hook:
         get_conn_mock.return_value.queries.return_value.delete.return_value.execute.return_value = (
             return_value
         )
-
-        self.hook.delete_query(query_id=query_id)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.delete_query(query_id=query_id)
 
         get_conn_mock.return_value.queries.return_value.delete.assert_called_once_with(queryId=query_id)
 
@@ -434,8 +442,8 @@ class TestGoogleDisplayVideo360v2Hook:
 
         return_value = "TEST"
         get_conn_mock.return_value.queries.return_value.get.return_value.execute.return_value = return_value
-
-        result = self.hook.get_query(query_id=query_id)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.get_query(query_id=query_id)
 
         get_conn_mock.return_value.queries.return_value.get.assert_called_once_with(queryId=query_id)
 
@@ -448,8 +456,8 @@ class TestGoogleDisplayVideo360v2Hook:
         queries = ["test"]
         return_value = {"queries": queries}
         get_conn_mock.return_value.queries.return_value.list.return_value.execute.return_value = return_value
-
-        result = self.hook.list_queries()
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.hook.list_queries()
 
         get_conn_mock.return_value.queries.return_value.list.assert_called_once_with()
 
@@ -461,8 +469,8 @@ class TestGoogleDisplayVideo360v2Hook:
     def test_run_query(self, get_conn_mock):
         query_id = "QUERY_ID"
         params = {"params": "test"}
-
-        self.hook.run_query(query_id=query_id, params=params)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.run_query(query_id=query_id, params=params)
 
         get_conn_mock.return_value.queries.return_value.run.assert_called_once_with(
             queryId=query_id, body=params
@@ -477,8 +485,8 @@ class TestGoogleDisplayVideo360v2Hook:
 
         return_value = "TEST"
         get_conn_mock.return_value.queries.return_value.reports.return_value.get.return_value.execute.return_value = return_value
-
-        self.hook.get_report(query_id=query_id, report_id=report_id)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.get_report(query_id=query_id, report_id=report_id)
 
         get_conn_mock.return_value.queries.return_value.reports.return_value.get.assert_called_once_with(
             queryId=query_id, reportId=report_id

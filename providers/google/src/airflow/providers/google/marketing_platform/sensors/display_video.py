@@ -21,7 +21,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -64,7 +65,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
     def __init__(
         self,
         operation_name: str,
-        api_version: str = "v1",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         mode: str = "reschedule",
         poke_interval: int = 60 * 5,
@@ -95,6 +96,12 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         return False
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed. "
+    "Reports were replaced with SDF export task in v4 of API.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360RunQuerySensor(BaseSensorOperator):
     """
     Sensor for detecting the completion of DV360 reports for API v2.
