@@ -55,3 +55,7 @@ class ExternalDagFailedError(AirflowExternalTaskSensorException):
 
 class DuplicateStateError(AirflowExternalTaskSensorException):
     """Raised when duplicate states are provided across allowed, skipped and failed states."""
+
+
+class ConnectionNotOpenedException(AirflowException):
+    """Raised when a connection i.e sftp or ssh has not been opened and we decided to opt out of managed connections."""
