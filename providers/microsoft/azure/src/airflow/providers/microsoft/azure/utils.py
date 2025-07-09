@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import warnings
 from functools import partial, wraps
-from typing import TypeAlias
+from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
@@ -62,7 +62,7 @@ def _get_default_azure_credential(
     managed_identity_client_id: str | None = None,
     workload_identity_tenant_id: str | None = None,
     use_async: bool = False,
-) -> DefaultAzureCredential | AsyncDefaultAzureCredential:
+) -> Any:
     """
     Get DefaultAzureCredential based on provided arguments.
 
@@ -81,14 +81,12 @@ def _get_default_azure_credential(
     return credential_cls()
 
 
-AzureCredentialType: TypeAlias = DefaultAzureCredential | AsyncDefaultAzureCredential
-
-get_sync_default_azure_credential: partial[AzureCredentialType] = partial(
+get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(
     _get_default_azure_credential,  #  type: ignore[arg-type]
     use_async=False,
 )
 
-get_async_default_azure_credential: partial[AzureCredentialType] = partial(
+get_async_default_azure_credential: partial[AsyncDefaultAzureCredential] = partial(
     _get_default_azure_credential,  #  type: ignore[arg-type]
     use_async=True,
 )
