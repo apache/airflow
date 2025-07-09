@@ -44,6 +44,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
+    TaskStateChangeCallback,
 )
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -53,7 +54,7 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
-from airflow.typing_compat import Literal
+from airflow.typing_compat import Literal, TypeAlias, TypeGuard
 from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -75,13 +76,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
-    from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
-TaskStateChangeCallbackAttrType = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
+TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 ValidationSource = Literal["expand"] | Literal["partial"]
 
 # AIP-88: https://cwiki.apache.org/confluence/display/AIRFLOW/%5BWIP%5D+AIP-88%3A+Lazy+task+expansion

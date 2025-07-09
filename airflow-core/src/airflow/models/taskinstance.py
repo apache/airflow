@@ -24,8 +24,9 @@ import logging
 import math
 import operator
 import os
+import uuid
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -122,7 +123,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions._internal.abstractoperator import Operator, TaskStateChangeCallback
+    from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
@@ -155,28 +156,6 @@ def _add_log(
             **kwargs,
         )
     )
-
-
-@contextlib.contextmanager
-def set_current_context(context: Context) -> Generator[Context, None, None]:
-    """
-    Set the current execution context to the provided context object.
-
-    This method should be called once per Task execution, before calling operator.execute.
-    """
-    from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
-
-    _CURRENT_CONTEXT.append(context)
-    try:
-        yield context
-    finally:
-        expected_state = _CURRENT_CONTEXT.pop()
-        if expected_state != context:
-            log.warning(
-                "Current context is not equal to the state at context stack. Expected=%s, got=%s",
-                context,
-                expected_state,
-            )
 
 
 def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
@@ -413,38 +392,6 @@ def _get_email_subject_content(
     return subject, html_content, html_content_err
 
 
-def _run_finished_callback(
-    *,
-    callbacks: None | TaskStateChangeCallback | Sequence[TaskStateChangeCallback],
-    context: Context,
-) -> None:
-    """
-    Run callback after task finishes.
-
-    :param callbacks: callbacks to run
-    :param context: callbacks context
-
-    :meta private:
-    """
-    if callbacks:
-        callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
-
-        def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
-            with contextlib.suppress(AttributeError):
-                return callback.__name__
-            with contextlib.suppress(AttributeError):
-                return callback.__class__.__name__
-            return callback
-
-        for idx, callback in enumerate(callbacks):
-            callback_repr = get_callback_representation(callback)
-            log.info("Executing callback at index %d: %s", idx, callback_repr)
-            try:
-                callback(context)
-            except Exception:
-                log.exception("Error in callback at index %d: %s", idx, callback_repr)
-
-
 def _log_state(*, task_instance: TaskInstance, lead_msg: str = "") -> None:
     """
     Log task state.
@@ -567,8 +514,7 @@ class TaskInstance(Base, LoggingMixin):
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(
-        UUIDType(binary=False),
-        ForeignKey("dag_version.id", ondelete="RESTRICT"),
+        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="RESTRICT"), nullable=False
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
@@ -633,10 +579,10 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
+        dag_version_id: UUIDType | uuid.UUID,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
-        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
@@ -646,7 +592,6 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_task(task)
         if TYPE_CHECKING:
             assert self.task
-
         # init_on_load will config the log
         self.init_on_load()
 
@@ -676,7 +621,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType | None
+        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -684,7 +629,7 @@ class TaskInstance(Base, LoggingMixin):
         :meta private:
         """
         priority_weight = task.weight_rule.get_weight(
-            TaskInstance(task=task, run_id=run_id, map_index=map_index)
+            TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
 
         return {
@@ -739,6 +684,7 @@ class TaskInstance(Base, LoggingMixin):
             run_id=runtime_ti.run_id,
             task=runtime_ti.task,  # type: ignore[arg-type]
             map_index=runtime_ti.map_index,
+            dag_version_id=runtime_ti.dag_version_id,
         )
 
         if TYPE_CHECKING:
@@ -761,6 +707,7 @@ class TaskInstance(Base, LoggingMixin):
             hostname=self.hostname,
             _ti_context_from_server=context_from_server,
             start_date=self.start_date,
+            dag_version_id=self.dag_version_id,
         )
 
         return runtime_ti
@@ -1709,10 +1656,8 @@ class TaskInstance(Base, LoggingMixin):
     def fetch_handle_failure_context(
         cls,
         ti: TaskInstance,
-        error: None | str | BaseException,
+        error: None | str,
         test_mode: bool | None = None,
-        context: Context | None = None,
-        force_fail: bool = False,
         *,
         session: Session,
         fail_fast: bool = False,
@@ -1723,8 +1668,6 @@ class TaskInstance(Base, LoggingMixin):
         :param ti: TaskInstance
         :param error: if specified, log the specific exception if thrown
         :param test_mode: doesn't record success or failure in the DB if True
-        :param context: Jinja2 context
-        :param force_fail: if True, task does not retry
         :param session: SQLAlchemy ORM Session
         :param fail_fast: if True, fail all downstream tasks
         """
@@ -1746,8 +1689,9 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
+        context = None
         # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
-        if context is None and getattr(ti, "task", None):
+        if getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
         if context is not None:
@@ -1774,7 +1718,7 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
 
-        if force_fail or not ti.is_eligible_to_retry():
+        if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
@@ -1818,20 +1762,16 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: None | str | BaseException,
+        error: None | str,
         test_mode: bool | None = None,
-        context: Context | None = None,
-        force_fail: bool = False,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Handle Failure for a task instance.
 
         :param error: if specified, log the specific exception if thrown
-        :param session: SQLAlchemy ORM Session
         :param test_mode: doesn't record success or failure in the DB if True
-        :param context: Jinja2 context
-        :param force_fail: if True, task does not retry
+        :param session: SQLAlchemy ORM Session
         """
         if TYPE_CHECKING:
             assert self.task
@@ -1846,13 +1786,11 @@ class TaskInstance(Base, LoggingMixin):
             ti=self,  # type: ignore[arg-type]
             error=error,
             test_mode=test_mode,
-            context=context,
-            force_fail=force_fail,
             session=session,
             fail_fast=fail_fast,
         )
 
-        _log_state(task_instance=self, lead_msg="Immediate failure requested. " if force_fail else "")
+        _log_state(task_instance=self)
         if (
             failure_context["task"]
             and failure_context["email_for_state"](failure_context["task"])
@@ -1862,12 +1800,6 @@ class TaskInstance(Base, LoggingMixin):
                 self.email_alert(error, failure_context["task"])
             except Exception:
                 log.exception("Failed to send email to: %s", failure_context["task"].email)
-
-        if failure_context["callbacks"] and failure_context["context"]:
-            _run_finished_callback(
-                callbacks=failure_context["callbacks"],
-                context=failure_context["context"],
-            )
 
         if not test_mode:
             TaskInstance.save_to_db(failure_context["ti"], session)
@@ -1907,7 +1839,6 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
 
-        from airflow import macros
         from airflow.models.abstractoperator import NotMapped
         from airflow.models.baseoperator import BaseOperator
         from airflow.sdk.api.datamodels._generated import (
@@ -1922,8 +1853,6 @@ class TaskInstance(Base, LoggingMixin):
             OutletEventAccessors,
             VariableAccessor,
         )
-
-        integrate_macros_plugins()
 
         task = self.task
         if TYPE_CHECKING:
@@ -2000,7 +1929,6 @@ class TaskInstance(Base, LoggingMixin):
             {
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(task.inlets),
-                "macros": macros,
                 "params": validated_params,
                 "prev_data_interval_start_success": get_prev_data_interval_start_success(),
                 "prev_data_interval_end_success": get_prev_data_interval_end_success(),

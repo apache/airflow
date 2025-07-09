@@ -4641,6 +4641,9 @@ export const $TaskInstanceResponse = {
             type: 'string',
             title: 'Dag Id'
         },
+        dag_version: {
+            '$ref': '#/components/schemas/DagVersionResponse'
+        },
         dag_run_id: {
             type: 'string',
             title: 'Dag Run Id'
@@ -4886,20 +4889,10 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ]
-        },
-        dag_version: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/DagVersionResponse'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_version', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
@@ -6122,6 +6115,49 @@ export const $BaseNodeResponse = {
     required: ['id', 'label', 'type'],
     title: 'BaseNodeResponse',
     description: 'Base Node serializer for responses.'
+} as const;
+
+export const $CalendarTimeRangeCollectionResponse = {
+    properties: {
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/CalendarTimeRangeResponse'
+            },
+            type: 'array',
+            title: 'Dag Runs'
+        }
+    },
+    type: 'object',
+    required: ['total_entries', 'dag_runs'],
+    title: 'CalendarTimeRangeCollectionResponse',
+    description: 'Response model for calendar time range results.'
+} as const;
+
+export const $CalendarTimeRangeResponse = {
+    properties: {
+        date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Date'
+        },
+        state: {
+            type: 'string',
+            enum: ['queued', 'running', 'success', 'failed', 'planned'],
+            title: 'State'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: ['date', 'state', 'count'],
+    title: 'CalendarTimeRangeResponse',
+    description: 'Represents a summary of DAG runs for a specific calendar time range.'
 } as const;
 
 export const $ConfigResponse = {
