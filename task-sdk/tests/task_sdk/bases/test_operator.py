@@ -250,13 +250,13 @@ class TestBaseOperator:
             )
 
     def test_warnings_are_properly_propagated(self):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(DeprecationWarning, match="deprecated") as warnings:
             DeprecatedOperator(task_id="test")
-            assert len(warnings) == 1
-            warning = warnings[0]
-            # Here we check that the trace points to the place
-            # where the deprecated class was used
-            assert warning.filename == __file__
+        assert len(warnings) == 1
+        warning = warnings[0]
+        # Here we check that the trace points to the place
+        # where the deprecated class was used
+        assert warning.filename == __file__
 
     def test_setattr_performs_no_custom_action_at_execute_time(self, spy_agency):
         op = MockOperator(task_id="test_task")
@@ -680,8 +680,8 @@ class TestBaseOperator:
         with pytest.warns(UserWarning, match=warning_message) as warnings:
             task = StringTemplateFieldsOperator(task_id="op1")
 
-            assert len(warnings) == 1
-            assert isinstance(task.template_fields, list)
+        assert len(warnings) == 1
+        assert isinstance(task.template_fields, list)
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""

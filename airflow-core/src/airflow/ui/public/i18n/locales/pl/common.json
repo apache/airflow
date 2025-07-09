@@ -65,7 +65,8 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
-    "triggeredBy": "Uruchomiony przez"
+    "triggeredBy": "Uruchomiony jako",
+    "triggeringUser": "Użytkownik który uruchomił"
   },
   "dagRun_few": "Wykonania Dagów",
   "dagRun_many": "Wykonań Dagów",
@@ -88,6 +89,11 @@
     "home": "Strona główna",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
+  },
+  "expand": {
+    "collapse": "Zwiń",
+    "expand": "Rozwiń",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
   "expression": {
     "all": "Wszystkie",
@@ -114,6 +120,7 @@
     "dags": "Dagi",
     "docs": "Pomoc",
     "home": "Pulpit",
+    "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
@@ -291,6 +298,7 @@
       }
     }
   },
+  "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Profil",

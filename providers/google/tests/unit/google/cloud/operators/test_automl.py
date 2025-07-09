@@ -91,7 +91,7 @@ class TestAutoMLTrainModelOperator:
                 project_id=GCP_PROJECT_ID,
                 task_id=TASK_ID,
             )
-            op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
 
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
@@ -194,7 +194,9 @@ class TestAutoMLPredictOperator:
                 task_id=TASK_ID,
                 operation_params={"TEST_KEY": "TEST_VALUE"},
             )
+        with pytest.warns(AirflowProviderDeprecationWarning):
             assert isinstance(op.hook, CloudAutoMLHook)
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = AutoMLPredictOperator(
                 endpoint_id="endpoint_id",
                 location=GCP_LOCATION,
@@ -203,7 +205,7 @@ class TestAutoMLPredictOperator:
                 task_id=TASK_ID,
                 operation_params={"TEST_KEY": "TEST_VALUE"},
             )
-            assert isinstance(op.hook, PredictionServiceHook)
+        assert isinstance(op.hook, PredictionServiceHook)
 
 
 class TestAutoMLCreateImportOperator:
@@ -218,7 +220,7 @@ class TestAutoMLCreateImportOperator:
                 project_id=GCP_PROJECT_ID,
                 task_id=TASK_ID,
             )
-            op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
 
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,

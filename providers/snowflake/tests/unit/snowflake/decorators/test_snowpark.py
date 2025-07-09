@@ -24,8 +24,9 @@ from unittest import mock
 import pytest
 
 from airflow.decorators import task
-from airflow.providers.snowflake.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from snowflake.snowpark import Session

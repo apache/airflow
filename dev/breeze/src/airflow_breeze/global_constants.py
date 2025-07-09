@@ -61,14 +61,12 @@ NONE_BACKEND = "none"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = [
-    "kerberos",
-]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
-    "gremlin",
+    "tinkerpop",
     "kafka",
     "mongo",
     "mssql",
@@ -199,7 +197,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.16"
+UV_VERSION = "0.7.19"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -732,7 +730,26 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = []
+PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
+    {
+        "python-version": "3.10",
+        "airflow-version": "2.10.5",
+        "remove-providers": "common.messaging fab git keycloak",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "2.11.0",
+        "remove-providers": "common.messaging fab git keycloak",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.0.2",
+        "remove-providers": "",
+        "run-tests": "true",
+    },
+]
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5

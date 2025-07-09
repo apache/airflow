@@ -51,6 +51,8 @@ from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogUpdateTagTemplateOperator,
 )
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 if TYPE_CHECKING:
     from google.api_core.gapic_v1.method import _MethodDefault
 
@@ -163,6 +165,8 @@ class TestCloudDataCatalogCreateEntryOperator:
             )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -205,6 +209,8 @@ class TestCloudDataCatalogCreateEntryOperator:
             )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -257,6 +263,8 @@ class TestCloudDataCatalogCreateEntryGroupOperator:
             )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -301,6 +309,8 @@ class TestCloudDataCatalogCreateTagOperator:
             )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -345,6 +355,8 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
             )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -388,6 +400,8 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
             )
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,

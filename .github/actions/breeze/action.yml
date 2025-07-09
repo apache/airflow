@@ -41,6 +41,8 @@ runs:
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: "${{ inputs.python-version }}"
     - name: "Free space"
       shell: bash
       run: breeze ci free-space

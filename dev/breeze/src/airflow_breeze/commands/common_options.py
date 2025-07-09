@@ -30,6 +30,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
@@ -207,12 +208,13 @@ option_github_repository = click.option(
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
 )
-option_historical_python_version = click.option(
-    "--python",
+option_historical_python_versions = click.option(
+    "--python-versions",
     type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
     required=False,
-    envvar="PYTHON_VERSION",
-    help="Python version to update sbom from. (defaults to all historical python versions)",
+    envvar="PYTHON_VERSIONS",
+    help="Comma separate list of Python versions to update sbom from "
+    "(defaults to all historical python versions)",
 )
 option_include_removed_providers = click.option(
     "--include-removed-providers",
@@ -380,11 +382,26 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_tty = click.option(
+    "--tty",
+    envvar="TTY",
+    type=BetterChoice(ALLOWED_TTY),
+    default=ALLOWED_TTY[0],
+    show_default=True,
+    help="Whether to allocate pseudo-tty when running docker command"
+    " (useful for pre-commit and CI to force-enable it).",
+)
 option_upgrade_boto = click.option(
     "--upgrade-boto",
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_upgrade_sqlalchemy = click.option(
+    "--upgrade-sqlalchemy",
+    help="Upgrade SQLAlchemy to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_SQLALCHEMY",
 )
 option_use_uv = click.option(
     "--use-uv/--no-use-uv",

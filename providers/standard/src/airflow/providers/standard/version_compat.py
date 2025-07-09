@@ -32,5 +32,31 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
     return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+AIRFLOW_V_3_0_PLUS: bool = get_base_airflow_version_tuple() >= (3, 0, 0)
+AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
+
+# BaseOperator is not imported from SDK from 3.0 (and only done from 3.1) due to a bug with
+# DecoratedOperator -- where `DecoratedOperator._handle_output` needed `xcom_push` to exist on `BaseOperator`
+# even though it wasn't used.
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseHook, BaseOperator
+else:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
+
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_1_PLUS",
+    "BaseOperator",
+    "BaseOperatorLink",
+    "BaseHook",
+    "BaseSensorOperator",
+    "PokeReturnValue",
+]

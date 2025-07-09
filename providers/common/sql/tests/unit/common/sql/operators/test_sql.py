@@ -24,9 +24,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -1094,6 +1104,33 @@ class TestSqlBranch:
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+
+    def get_ti(self, task_id, dr=None):
+        if dr is None:
+            if AIRFLOW_V_3_0_PLUS:
+                dagrun_kwargs = {
+                    "logical_date": DEFAULT_DATE,
+                    "run_after": DEFAULT_DATE,
+                    "triggered_by": DagRunTriggeredByType.TEST,
+                }
+            else:
+                dagrun_kwargs = {"execution_date": DEFAULT_DATE}
+            dr = self.dag.create_dagrun(
+                run_id=f"manual__{timezone.utcnow().isoformat()}",
+                run_type=DagRunType.MANUAL,
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **dagrun_kwargs,
+            )
+
+        ti = dr.get_task_instance(task_id)
+        ti.task = self.dag.get_task(ti.task_id)
+
+        return ti
 
     def teardown_method(self):
         with create_session() as session:
@@ -1124,7 +1161,7 @@ class TestSqlBranch:
         )
 
         with pytest.raises(AirflowException):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute({})
 
     def test_invalid_conn(self):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
@@ -1138,7 +1175,7 @@ class TestSqlBranch:
         )
 
         with pytest.raises(AirflowException):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute({})
 
     def test_invalid_follow_task_true(self):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
@@ -1150,9 +1187,8 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-
         with pytest.raises(AirflowException):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute({})
 
     def test_invalid_follow_task_false(self):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
@@ -1164,14 +1200,14 @@ class TestSqlBranch:
             follow_task_ids_if_false=[],
             dag=self.dag,
         )
-
         with pytest.raises(AirflowException):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute({})
 
     @pytest.mark.backend("mysql")
     def test_sql_branch_operator_mysql(self, branch_op):
         """Check if BranchSQLOperator works with backend"""
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        branch_op.execute({"ti": mock.MagicMock(task=branch_op)})
 
     @pytest.mark.backend("postgres")
     def test_sql_branch_operator_postgres(self):
@@ -1184,7 +1220,7 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        self.get_ti(branch_op.task_id).run()
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook, branch_op):
@@ -1223,8 +1259,9 @@ class TestSqlBranch:
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.get_ti(branch_op.task_id, dr).run()
             tis = dr.get_task_instances()
+
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
@@ -1267,11 +1304,11 @@ class TestSqlBranch:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                branch_op.execute({})
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.get_ti(branch_op.task_id, dr).run()
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1315,11 +1352,12 @@ class TestSqlBranch:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                branch_op.execute({})
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.get_ti(branch_op.task_id, dr).run()
             tis = dr.get_task_instances()
+
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
@@ -1375,7 +1413,7 @@ class TestSqlBranch:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_3", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.get_ti(branch_op.task_id, dr).run()
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1416,7 +1454,7 @@ class TestSqlBranch:
         mock_get_records.return_value = ["Invalid Value"]
 
         with pytest.raises(AirflowException):
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            branch_op.execute({})
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook, branch_op):
@@ -1447,7 +1485,7 @@ class TestSqlBranch:
         for true_value in SUPPORTED_TRUE_VALUES:
             mock_get_records.return_value = [true_value]
 
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.get_ti(branch_op.task_id, dr).run()
 
             tis = dr.get_task_instances()
             for ti in tis:
@@ -1493,7 +1531,7 @@ class TestSqlBranch:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.get_ti(branch_op.task_id, dr).run()
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1527,7 +1565,7 @@ class TestBaseSQLOperatorSubClass:
     @pytest.mark.parametrize(
         "operator_class", [NewStyleBaseSQLOperatorSubClass, OldStyleBaseSQLOperatorSubClass]
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_new_style_subclass(self, mock_get_connection, operator_class):
         from airflow.providers.common.sql.hooks.sql import DbApiHook
 

@@ -29,7 +29,7 @@ import sys
 import time
 import weakref
 from collections import deque
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -37,7 +37,6 @@ from socket import socket, socketpair
 from typing import (
     TYPE_CHECKING,
     BinaryIO,
-    Callable,
     ClassVar,
     NoReturn,
     TextIO,
@@ -1016,11 +1015,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
-                self._handle_heartbeat_failures()
-        except Exception:
-            self._handle_heartbeat_failures()
+                self._handle_heartbeat_failures(e)
+        except Exception as e:
+            self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self):
+    def _handle_heartbeat_failures(self, exc: Exception | None):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -1028,7 +1027,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exc_info=True,
+            exception=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:

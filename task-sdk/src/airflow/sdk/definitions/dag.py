@@ -25,15 +25,13 @@ import os
 import sys
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, MutableSet
+from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Union,
     cast,
     overload,
 )
@@ -93,7 +91,7 @@ __all__ = [
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -1116,6 +1114,7 @@ class DAG:
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
+                triggering_user_name="dag_test",
             )
             # Start a mock span so that one is present and not started downstream. We
             # don't care about otel in dag.test and starting the span during dagrun update
@@ -1242,6 +1241,7 @@ def _run_task(*, ti, run_triggerer=False):
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
                 ),
                 task=ti.task,
             )
@@ -1284,12 +1284,7 @@ def _run_inline_trigger(trigger):
     import asyncio
 
     async def _run_inline_trigger_main():
-        # We can replace it with `return await anext(trigger.run(), default=None)`
-        # when we drop support for Python 3.9
-        try:
-            return await trigger.run().__anext__()
-        except StopAsyncIteration:
-            return None
+        return await anext(trigger.run(), None)
 
     return asyncio.run(_run_inline_trigger_main())
 

@@ -5,15 +5,18 @@
     "affected_one": "Dotyczy 1 wykonania.",
     "affected_other": "Dotyczy {{count}} wykonań.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
+    "allRuns": "Wszystkie wykonania",
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
     "dateRangeFrom": "Od",
     "dateRangeTo": "Do",
     "errorStartDateBeforeEndDate": "Data początkowa musi być wcześniejsza niż data końcowa",
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
+    "missingAndErroredRuns": "Brakujące i błędne wykonania",
+    "missingRuns": "Brakujące wykonania",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
-    "selectDescription": "Uruchom ten DAG dla zakresu dat",
+    "selectDescription": "Uruchom ten Dag dla zakresu dat",
     "selectLabel": "Wypełnienie wsteczne",
     "title": "Uruchom uzupełnienie wsteczne",
     "toaster": {
@@ -141,7 +144,7 @@
     "versionId": "Identyfikator wersji"
   },
   "versionSelect": {
-    "dagVersion": "Wersja DAG",
+    "dagVersion": "Wersja Daga",
     "versionCode": "v{{versionCode}}"
   }
 }

@@ -54,7 +54,7 @@ __all__ = [
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | SchedulerXComArg]:
     from airflow.models.xcom_arg import SchedulerXComArg
 
-    return isinstance(v, MappedArgument | SchedulerXComArg)
+    return isinstance(v, (MappedArgument, SchedulerXComArg))
 
 
 @attrs.define

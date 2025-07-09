@@ -259,7 +259,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def convert_value(self, value: Any | None) -> Any | None:
         """Convert value to BQ type."""
-        if not value or isinstance(value, str | int | float | bool | dict):
+        if not value or isinstance(value, (str, int, float, bool, dict)):
             return value
         if isinstance(value, bytes):
             return b64encode(value).decode("ascii")
@@ -267,13 +267,13 @@ class CassandraToGCSOperator(BaseOperator):
             if self.encode_uuid:
                 return b64encode(value.bytes).decode("ascii")
             return str(value)
-        if isinstance(value, datetime | Date):
+        if isinstance(value, (datetime, Date)):
             return str(value)
         if isinstance(value, Decimal):
             return float(value)
         if isinstance(value, Time):
             return str(value).split(".")[0]
-        if isinstance(value, list | SortedSet):
+        if isinstance(value, (list, SortedSet)):
             return self.convert_array_types(value)
         if hasattr(value, "_fields"):
             return self.convert_user_type(value)

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 from unittest import mock
 
 import pytest

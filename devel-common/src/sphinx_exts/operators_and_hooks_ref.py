@@ -287,7 +287,7 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
         if isinstance(child, ast.ClassDef):
             analyze_decorators(child, file_path, object_type="class")
             deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=child.name))
-        elif isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
+        elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
             analyze_decorators(
                 child, file_path, _class_name=class_name, object_type="method" if class_name else "function"
             )

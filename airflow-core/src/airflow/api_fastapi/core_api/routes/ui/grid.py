@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import collections
 import itertools
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -507,6 +507,8 @@ def get_grid_ti_summaries(
                 TaskInstance.task_id,
                 TaskInstance.state,
                 TaskInstance.dag_version_id,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
             )
             .where(TaskInstance.dag_id == dag_id)
             .where(
@@ -519,29 +521,43 @@ def get_grid_ti_summaries(
         return_total_entries=False,
     )
     task_instances = list(session.execute(tis_of_dag_runs))
-    task_id_states = collections.defaultdict(list)
+    if not task_instances:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
+        )
+    ti_details = collections.defaultdict(list)
     for ti in task_instances:
-        task_id_states[ti.task_id].append(ti.state)
-
+        ti_details[ti.task_id].append(
+            {
+                "state": ti.state,
+                "start_date": ti.start_date,
+                "end_date": ti.end_date,
+            }
+        )
     serdag = _get_serdag(
         dag_id=dag_id,
         dag_version_id=task_instances[0].dag_version_id,
         session=session,
     )
-    if not serdag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-    tis = list(
-        _find_aggregates(
+    if TYPE_CHECKING:
+        assert serdag
+
+    def get_node_sumaries():
+        for node in _find_aggregates(
             node=serdag.dag.task_group,
             parent_node=None,
-            ti_states=task_id_states,
-        )
-    )
+            ti_details=ti_details,
+        ):
+            if node["type"] == "task":
+                node["child_states"] = None
+                node["min_start_date"] = None
+                node["max_end_date"] = None
+            yield node
 
     return {  # type: ignore[return-value]
         "run_id": run_id,
         "dag_id": dag_id,
-        "task_instances": list(tis),
+        "task_instances": list(get_node_sumaries()),
     }
 
 

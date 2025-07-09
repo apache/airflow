@@ -19,8 +19,8 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.amazon.aws.links.athena import AthenaQueryResultsLink
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:

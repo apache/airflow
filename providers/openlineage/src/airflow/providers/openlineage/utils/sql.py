@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
     from sqlalchemy.sql import ClauseElement
 
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk import BaseHook
 
 
 log = logging.getLogger(__name__)

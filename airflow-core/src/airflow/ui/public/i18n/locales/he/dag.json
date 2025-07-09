@@ -23,8 +23,19 @@
     }
   },
   "logs": {
+    "allLevels": "כל רמות הרישום",
+    "allSources": "כל המקורות",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "מסך מלא",
+      "tooltip": "לחץ {{hotkey}} למסך מלא"
+    },
+    "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
-    "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})"
+    "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
+    "warning": "WARNING"
   },
   "overview": {
     "buttons": {
@@ -98,13 +109,5 @@
   "taskGroups": {
     "collapseAll": "כווץ את כל קבוצות המשימות",
     "expandAll": "הרחב את כל קבוצות המשימות"
-  },
-  "taskLogs": {
-    "allLogLevels": "כל רמות הרישום",
-    "allSources": "כל המקורות",
-    "fullscreen": {
-      "button": "מסך מלא",
-      "tooltip": "לחץ {{hotkey}} למסך מלא"
-    }
   }
 }

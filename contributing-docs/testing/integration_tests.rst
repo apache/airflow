@@ -64,8 +64,6 @@ core or provider type of test.
 +--------------+-------------------------------------------------------+
 | drill        | Integration required for drill operator and hook.     |
 +--------------+-------------------------------------------------------+
-| gremlin      | Integration required for gremlin operator and hook.   |
-+--------------+-------------------------------------------------------+
 | kafka        | Integration required for Kafka hooks.                 |
 +--------------+-------------------------------------------------------+
 | kerberos     | Integration that provides Kerberos authentication.    |
@@ -87,6 +85,8 @@ core or provider type of test.
 | redis        | Integration required for Redis tests.                 |
 +--------------+-------------------------------------------------------+
 | statsd       | Integration required for Statsd hooks.                |
++--------------+-------------------------------------------------------+
+| tinkerpop    | Integration required for gremlin operator and hook.   |
 +--------------+-------------------------------------------------------+
 | trino        | Integration required for Trino hooks.                 |
 +--------------+-------------------------------------------------------+
