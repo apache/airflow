@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import methodtools
 
+from airflow.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
 
 TaskStateChangeCallback = Callable[[Context], None]
 
-DEFAULT_OWNER: str = "airflow"
+DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_POOL_NAME = "default_pool"
 DEFAULT_PRIORITY_WEIGHT: int = 1
@@ -61,17 +62,23 @@ DEFAULT_PRIORITY_WEIGHT: int = 1
 MINIMUM_PRIORITY_WEIGHT: int = -2147483648
 MAXIMUM_PRIORITY_WEIGHT: int = 2147483647
 DEFAULT_EXECUTOR: str | None = None
-DEFAULT_QUEUE: str = "default"
+DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = False
 DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING: bool = False
-DEFAULT_RETRIES: int = 0
-DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
-MAX_RETRY_DELAY: int = 24 * 60 * 60
+DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
+    seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
+)
+MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
-DEFAULT_WEIGHT_RULE: WeightRule = WeightRule.DOWNSTREAM
-DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = None
+DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
+    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+)
+DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
+    "core", "default_task_execution_timeout"
+)
 
 log = logging.getLogger(__name__)
 
@@ -426,7 +433,7 @@ class AbstractOperator(Templater, DAGNode):
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
-            if not isinstance(child, MappedOperator | MappedTaskGroup):
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child

@@ -192,7 +192,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
         if logical_date is NOTSET:
             self.logical_date = NOTSET
-        elif logical_date is None or isinstance(logical_date, str | datetime.datetime):
+        elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
             self.logical_date = logical_date
         else:
             raise TypeError(

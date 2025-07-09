@@ -130,6 +130,7 @@ PRE_COMMIT_LIST = [
     "mypy-task-sdk",
     "pretty-format-json",
     "prevent-deprecated-sqlalchemy-usage",
+    "provider-version-compat",
     "pylint",
     "python-no-log-warn",
     "replace-bad-characters",

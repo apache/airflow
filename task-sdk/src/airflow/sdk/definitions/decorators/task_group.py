@@ -150,7 +150,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> DAGNode:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
-                if not isinstance(item, XComArg | Mapping):
+                if not isinstance(item, (XComArg, Mapping)):
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")

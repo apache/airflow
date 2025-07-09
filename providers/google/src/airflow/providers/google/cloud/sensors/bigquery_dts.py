@@ -112,7 +112,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.location = location
 
     def _normalize_state_list(self, states) -> set[TransferState]:
-        states = {states} if isinstance(states, str | TransferState | int) else states
+        states = {states} if isinstance(states, (str, TransferState, int)) else states
         result = set()
         for state in states:
             if isinstance(state, str):

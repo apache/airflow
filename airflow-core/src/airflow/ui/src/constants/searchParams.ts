@@ -19,6 +19,7 @@
 export enum SearchParamsKeys {
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
+  FAVORITE = "favorite",
   LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
   LOG_LEVEL = "log_level",
@@ -26,6 +27,7 @@ export enum SearchParamsKeys {
   OFFSET = "offset",
   PAUSED = "paused",
   POOL = "pool",
+  RUN_ID_PATTERN = "run_id_pattern",
   RUN_TYPE = "run_type",
   SORT = "sort",
   SOURCE = "log_source",

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 import pytest
@@ -65,6 +66,7 @@ class TestCallbackRequest:
                 ),
                 run_id="fake_run",
                 state=State.RUNNING,
+                dag_version_id=uuid.uuid4(),
             )
             ti.start_date = timezone.utcnow()
 
