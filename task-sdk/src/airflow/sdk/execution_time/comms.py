@@ -304,7 +304,7 @@ class AssetEventSourceTaskInstance:
     def xcom_pull(
         self,
         *,
-        key: str = "return_value",  # TODO: Make this a constant; see RuntimeTaskInstance.
+        key: str = "return_value",
         default: Any = None,
     ) -> Any:
         from airflow.sdk.execution_time.xcom import XCom
