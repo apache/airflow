@@ -306,10 +306,10 @@ class TerminalStateNonSuccess(str, Enum):
     TaskInstance states that can be reported without extra information.
     """
 
-    TERMINAL_STATE_NON_SUCCESS_REMOVED = "TerminalStateNonSuccess.REMOVED"
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+    UPSTREAM_FAILED = "upstream_failed"
 
 
 class TriggerDAGRunPayload(BaseModel):
