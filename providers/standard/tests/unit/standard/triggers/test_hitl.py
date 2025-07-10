@@ -31,7 +31,11 @@ from unittest import mock
 from uuid6 import uuid7
 
 from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
-from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
+from airflow.providers.standard.triggers.hitl import (
+    HITLTrigger,
+    HITLTriggerEventFailurePayload,
+    HITLTriggerEventSuccessPayload,
+)
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.timezone import utcnow
 
@@ -60,6 +64,37 @@ class TestHITLTrigger:
             "timeout_datetime": None,
             "poke_interval": 50.0,
         }
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
+    async def test_run_failed_due_to_timeout(self, mock_update, mock_supervisor_comms):
+        trigger = HITLTrigger(
+            ti_id=TI_ID,
+            options=["1", "2", "3", "4", "5"],
+            params={"input": 1},
+            multiple=False,
+            timeout_datetime=utcnow() + timedelta(seconds=0.1),
+            poke_interval=5,
+        )
+        mock_supervisor_comms.send.return_value = HITLDetailResponse(
+            response_received=False,
+            user_id=None,
+            response_at=None,
+            chosen_options=None,
+            params_input={},
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        await asyncio.sleep(0.3)
+        event = await trigger_task
+        assert event == TriggerEvent(
+            HITLTriggerEventFailurePayload(
+                error="The timeout has passed, and the response has not yet been received.",
+                error_type="timeout",
+            )
+        )
 
     @pytest.mark.db_test
     @pytest.mark.asyncio

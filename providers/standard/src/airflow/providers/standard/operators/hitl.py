@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.exceptions import HITLTriggerEventError
+from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.sdk.definitions.param import ParamsDict
@@ -84,13 +84,9 @@ class HITLOperator(BaseOperator):
         """
         Validate whether the given defaults pass the following criteria.
 
-        1. When timeout is set, default options should be provided.
-        2. Default options should be the subset of options.
-        3. When multiple is False, there should only be one option.
+        1. Default options should be the subset of options.
+        2. When multiple is False, there should only be one option.
         """
-        if self.defaults is None and self.execution_timeout:
-            raise ValueError('"defaults" is required when "execution_timeout" is provided.')
-
         if self.defaults is not None:
             if not set(self.defaults).issubset(self.options):
                 raise ValueError(f'defaults "{self.defaults}" should be a subset of options "{self.options}"')
@@ -135,7 +131,7 @@ class HITLOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
-            raise HITLTriggerEventError(event["error"])
+            self.process_trigger_event_error(event)
 
         chosen_options = event["chosen_options"]
         params_input = event["params_input"] or {}
@@ -145,6 +141,12 @@ class HITLOperator(BaseOperator):
             chosen_options=chosen_options,
             params_input=params_input,
         )
+
+    def process_trigger_event_error(self, event: dict[str, Any]) -> None:
+        if "error_type" == "timeout":
+            raise HITLTimeoutError(event)
+
+        raise HITLTriggerEventError(event)
 
     def validate_chosen_options(self, chosen_options: list[str]) -> None:
         """Check whether user provide valid response."""

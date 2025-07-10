@@ -61,20 +61,25 @@ class TestHITLOperator:
         hitl_op.validate_defaults()
 
     @pytest.mark.parametrize(
-        "extra_kwargs",
+        "extra_kwargs, expected_error_msg",
         [
-            {"defaults": None, "execution_timeout": 10},
-            {"defaults": ["0"]},
-            {"multiple": False, "defaults": ["1", "2"]},
+            ({"defaults": ["0"]}, r'defaults ".*" should be a subset of options ".*"'),
+            (
+                {"multiple": False, "defaults": ["1", "2"]},
+                'More than one defaults given when "multiple" is set to False.',
+            ),
         ],
         ids=[
-            "timeout with no defaults",
             "defaults not in option",
             "multiple defaults when multiple is False",
         ],
     )
-    def test_validate_defaults_with_invalid_defaults(self, extra_kwargs) -> None:
-        with pytest.raises(ValueError):
+    def test_validate_defaults_with_invalid_defaults(
+        self,
+        extra_kwargs: dict[str, Any],
+        expected_error_msg: str,
+    ) -> None:
+        with pytest.raises(ValueError, match=expected_error_msg):
             HITLOperator(
                 task_id="hitl_test",
                 subject="This is subject",

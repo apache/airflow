@@ -25,7 +25,7 @@ if not AIRFLOW_V_3_1_PLUS:
 import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
@@ -49,6 +49,7 @@ class HITLTriggerEventFailurePayload(TypedDict):
     """Minimum required keys for a failed Human-in-the-loop TriggerEvent."""
 
     error: str
+    error_type: Literal["timeout", "unknown"]
 
 
 class HITLTrigger(BaseTrigger):
@@ -96,11 +97,11 @@ class HITLTrigger(BaseTrigger):
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
             if self.timeout_datetime and self.timeout_datetime < timezone.utcnow():
-                # This normally should be checked in the HITLOperator
                 if self.defaults is None:
                     yield TriggerEvent(
                         HITLTriggerEventFailurePayload(
-                            error='defaults" is required when "execution_timeout" is provided.'
+                            error="The timeout has passed, and the response has not yet been received.",
+                            error_type="timeout",
                         )
                     )
                     return

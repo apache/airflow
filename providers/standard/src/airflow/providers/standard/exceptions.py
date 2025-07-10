@@ -59,3 +59,7 @@ class DuplicateStateError(AirflowExternalTaskSensorException):
 
 class HITLTriggerEventError(AirflowException):
     """Raised when TriggerEvent contains error."""
+
+
+class HITLTimeoutError(HITLTriggerEventError):
+    """Raised when HILTOperator timeouts."""
