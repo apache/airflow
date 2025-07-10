@@ -150,8 +150,19 @@ class TrinoHook(DbApiHook):
         extra = db.extra_dejson
         auth = None
         user = db.login
-        if db.password and extra.get("auth") in ("kerberos", "certs"):
-            raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
+        auth_methods = []
+        if db.password:
+            auth_methods.append("password")
+        if extra.get("auth") == "jwt":
+            auth_methods.append("jwt")
+        if extra.get("auth") == "certs":
+            auth_methods.append("certs")
+        if extra.get("auth") == "kerberos":
+            auth_methods.append("kerberos")
+        if len(auth_methods) > 1:
+            raise AirflowException(
+                f"Multiple authentication methods specified: {auth_methods}. Only one is allowed."
+            )
         if db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "jwt":
