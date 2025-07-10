@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -27,10 +29,10 @@ from collections.abc import Collection, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import SkipMixin
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.exceptions import HITLTriggerEventError
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
+from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import add_hitl_detail
 
@@ -159,29 +161,52 @@ class HITLOperator(BaseOperator):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
 
 
-class ApprovalOperator(HITLOperator):
+class ApprovalOperator(HITLOperator, SkipMixin):
     """Human-in-the-loop Operator that has only 'Approval' and 'Reject' options."""
 
-    def __init__(self, **kwargs) -> None:
-        if "options" in kwargs:
-            raise ValueError("Passing options to ApprovalOperator is not allowed.")
-        super().__init__(options=["Approve", "Reject"], **kwargs)
+    inherits_from_skipmixin = True
 
+    FIXED_ARGS = ["options", "multiple"]
 
-class HITLTerminationOperator(HITLOperator, SkipMixin):
-    """
-    Human-in-the-loop Operator that has only 'Stop' and 'Proceed' options.
+    def __init__(self, ignore_downstream_trigger_rules: bool = False, **kwargs) -> None:
+        for arg in self.FIXED_ARGS:
+            if arg in kwargs:
+                raise ValueError(f"Passing {arg} to ApprovalOperator is not allowed.")
 
-    When 'Stop' is selected by user, the dag run terminates like ShortCirquitOperator.
-    """
+        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
-    def __init__(self, **kwargs) -> None:
-        if "options" in kwargs:
-            raise ValueError("Passing options to HITLTerminationOperator is not allowed.")
-        super().__init__(options=["Stop", "Proceed"], **kwargs)
+        super().__init__(options=["Approve", "Reject"], multiple=False, **kwargs)
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        raise NotImplementedError
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        ret = super().execute_complete(context=context, event=event)
+
+        chosen_option = ret["chosen_options"][0]
+        if chosen_option == "Approve":
+            self.log.info("Approved. Proceeding with downstream tasks...")
+            return ret
+
+        if not self.downstream_task_ids:
+            self.log.info("No downstream tasks; nothing to do.")
+            return ret
+
+        def get_tasks_to_skip():
+            if self.ignore_downstream_trigger_rules is True:
+                tasks = context["task"].get_flat_relatives(upstream=False)
+            else:
+                tasks = context["task"].get_direct_relatives(upstream=False)
+
+            yield from (t for t in tasks if not t.is_teardown)
+
+        tasks_to_skip = get_tasks_to_skip()
+
+        # this lets us avoid an intermediate list unless debug logging
+        if self.log.getEffectiveLevel() <= logging.DEBUG:
+            self.log.debug("Downstream task IDs %s", tasks_to_skip := list(get_tasks_to_skip()))
+
+        self.log.info("Skipping downstream tasks")
+        self.skip(ti=context["ti"], tasks=tasks_to_skip)
+
+        return ret
 
 
 class HITLBranchOperator(HITLOperator):

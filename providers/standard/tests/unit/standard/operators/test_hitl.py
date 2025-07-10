@@ -23,19 +23,26 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
 
+from typing import TYPE_CHECKING, Any
+
 from sqlalchemy import select
 
 from airflow.exceptions import DownstreamTasksSkipped
 from airflow.models import Trigger
 from airflow.models.hitl import HITLDetail
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
     ApprovalOperator,
     HITLEntryOperator,
     HITLOperator,
-    HITLTerminationOperator,
 )
 from airflow.sdk import Param
 from airflow.sdk.definitions.param import ParamsDict
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
 
@@ -77,7 +84,7 @@ class TestHITLOperator:
                 **extra_kwargs,
             )
 
-    def test_execute(self, dag_maker, session) -> None:
+    def test_execute(self, dag_maker: DagMaker, session: Session) -> None:
         with dag_maker("test_dag"):
             task = HITLOperator(
                 task_id="hitl_test",
@@ -125,7 +132,7 @@ class TestHITLOperator:
             (None, {}),
         ],
     )
-    def test_serialzed_params(self, input_params, expected_params) -> None:
+    def test_serialzed_params(self, input_params, expected_params: dict[str, Any]) -> None:
         hitl_op = HITLOperator(
             task_id="hitl_test",
             subject="This is subject",
@@ -190,7 +197,7 @@ class TestHITLOperator:
 
 
 class TestApprovalOperator:
-    def test_init(self):
+    def test_init_with_options(self) -> None:
         with pytest.raises(ValueError):
             ApprovalOperator(
                 task_id="hitl_test",
@@ -200,21 +207,52 @@ class TestApprovalOperator:
                 params={"input": 1},
             )
 
-
-class TestHITLTerminationOperator:
-    def test_init(self):
+    def test_init_with_multiple_set_to_true(self) -> None:
         with pytest.raises(ValueError):
-            HITLTerminationOperator(
+            ApprovalOperator(
                 task_id="hitl_test",
                 subject="This is subject",
-                body="This is body",
-                options=["1", "2", "3", "4", "5"],
                 params={"input": 1},
+                multiple=True,
             )
+
+    def test_execute_complete(self) -> None:
+        hitl_op = ApprovalOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+        )
+
+        ret = hitl_op.execute_complete(
+            context={},
+            event={"chosen_options": ["Approve"], "params_input": {}},
+        )
+
+        assert ret == {
+            "chosen_options": ["Approve"],
+            "params_input": {},
+        }
+
+    def test_execute_complete_with_downstream_tasks(self, dag_maker) -> None:
+        with dag_maker("hitl_test_dag", serialized=True):
+            hitl_op = ApprovalOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+            )
+            (hitl_op >> EmptyOperator(task_id="op1"))
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("hitl_test")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            hitl_op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={"chosen_options": ["Reject"], "params_input": {}},
+            )
+        assert set(exc_info.value.tasks) == {"op1"}
 
 
 class TestHITLEntryOperator:
-    def test_init(self):
+    def test_init(self) -> None:
         op = HITLEntryOperator(
             task_id="hitl_test",
             subject="This is subject",
