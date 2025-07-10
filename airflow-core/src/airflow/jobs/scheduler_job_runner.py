@@ -38,6 +38,7 @@ from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, sele
 from sqlalchemy.sql import expression
 
 from airflow import settings
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
@@ -945,10 +946,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
                         msg=msg,
+                        context_from_server=TIRunContext(
+                            dag_run=ti.dag_run,
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
                     )
                     executor.send_callback(request)
-                else:
-                    ti.handle_failure(error=msg, session=session)
+                ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
 
@@ -2296,6 +2303,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 bundle_version=ti.dag_run.bundle_version,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
+                context_from_server=TIRunContext(
+                    dag_run=ti.dag_run,
+                    max_tries=ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
+                ),
             )
             session.add(
                 Log(
