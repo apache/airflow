@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-09T18:23:02.218006
+# This constraints file was automatically generated on 2025-07-10T14:41:20.339424
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -50,7 +50,7 @@ aiobotocore==2.23.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.13
+aiohttp==3.12.14
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
@@ -150,7 +150,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.1.1
-cohere==5.15.0
+cohere==5.16.1
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
@@ -327,7 +327,7 @@ jeepney==0.9.0
 jiter==0.10.0
 jmespath==0.10.0
 joblib==1.5.1
-joserfc==1.2.0
+joserfc==1.2.1
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -404,7 +404,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.93.3
+openai==1.94.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -572,14 +572,14 @@ shapely==2.1.1
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.17.0
-slack_sdk==3.35.0
+slack_sdk==3.36.0
 smart_open==7.3.0.post1
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.16.0
-snowflake-sqlalchemy==1.7.5
+snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
 soupsieve==2.7
 sphinx-argparse==0.5.2
@@ -646,7 +646,7 @@ types-aiofiles==24.1.0.20250708
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250626
-types-docutils==0.21.0.20250708
+types-docutils==0.21.0.20250710
 types-paramiko==3.5.0.20250708
 types-protobuf==6.30.2.20250703
 types-pyOpenSSL==24.1.0.20240722
@@ -686,7 +686,7 @@ websockets==14.2
 wheel==0.45.1
 wirerope==1.0.0
 wrapt==1.17.2
-xmlsec==1.3.14
+xmlsec==1.3.16
 xmltodict==0.14.2
 yamllint==1.37.1
 yandex-query-client==0.1.4
