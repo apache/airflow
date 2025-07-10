@@ -31,6 +31,7 @@ Currently, **officially** using Airflow:
 1. [90 Seconds](https://90seconds.tv/) [[@aaronmak](https://github.com/aaronmak)]
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
 1. [Accenture](https://www.accenture.com/au-en) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]
+1. [Acciona Energia France](https://solutions.acciona-energia.fr/) [[@MohamedEqinov](https://github.com/MohamedEqinov)]
 1. [AdBOOST](https://www.adboost.sk) [[AdBOOST](https://github.com/AdBOOST)]
 1. [Adobe](https://www.adobe.com/) [[@mishikaSingh](https://github.com/mishikaSingh), [@ramandumcs](https://github.com/ramandumcs), [@vardancse](https://github.com/vardancse)]
 1. [Adyen](https://www.adyen.com/) [[@jorricks](https://github.com/jorricks), [@MaicoTimmerman](https://github.com/MaicoTimmerman)]
