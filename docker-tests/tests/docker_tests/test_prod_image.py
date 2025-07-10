@@ -176,7 +176,7 @@ class TestPythonPackages:
         "hashicorp": ["hvac"],
         "ldap": ["ldap"],
         "mysql": ["MySQLdb", *(["mysql"] if bool(find_spec("mysql")) else [])],
-        "postgres": ["psycopg2"],
+        "postgres": ["psycopg"],
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
         "sendgrid": ["sendgrid"],

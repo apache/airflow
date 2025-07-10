@@ -347,11 +347,11 @@ class TestJdbcHook:
                 {
                     "conn_params": {
                         "extra": json.dumps(
-                            {"sqlalchemy_scheme": "postgresql", "sqlalchemy_driver": "psycopg2"}
+                            {"sqlalchemy_scheme": "postgresql", "sqlalchemy_driver": "psycopg"}
                         )
                     }
                 },
-                "postgresql+psycopg2://login:password@host:1234/schema",
+                "postgresql+psycopg://login:password@host:1234/schema",
                 id="sqlalchemy-scheme-with-driver",
             ),
             pytest.param(

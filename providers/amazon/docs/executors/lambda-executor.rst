@@ -324,7 +324,7 @@ Finally create the function:
 
 .. code-block:: bash
 
-   postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
+   postgresql+psycopg://<username>:<password>@<endpoint>/<database_name>
 
 
 - ``AIRFLOW__LAMBDA_EXECUTOR__QUEUE_URL``, with the value being the URL of the SQS queue created above.
