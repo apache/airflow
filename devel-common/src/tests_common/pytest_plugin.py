@@ -100,6 +100,7 @@ if not keep_env_variables:
         # Keep per enabled integrations
         "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
         "kerberos": {"kerberos": {"*"}},
+        "redis": {"redis": {"*"}},
     }
     _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
     _KEEP_CONFIGS: dict[str, set[str]] = {}
@@ -302,7 +303,7 @@ def pytest_addoption(parser: pytest.Parser):
         dest="integration",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino,redis]. ",
     )
     group.addoption(
         "--keep-env-variables",
@@ -2295,6 +2296,7 @@ def create_runtime_ti(mocked_parse):
                 run_id=run_id,
                 try_number=try_number,
                 map_index=map_index,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),

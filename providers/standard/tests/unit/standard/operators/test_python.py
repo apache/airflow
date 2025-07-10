@@ -47,14 +47,8 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
     DeserializingResultError,
 )
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
+from airflow.models.connection import Connection
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -68,7 +62,7 @@ from airflow.providers.standard.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -77,6 +71,14 @@ from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+    from airflow.sdk.execution_time.context import set_current_context
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
+
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -1321,17 +1323,69 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, system_site_packages=False, op_args=[4])
 
-    def test_with_index_urls(self):
+    @mock.patch(
+        "airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess",
+        wraps=execute_in_subprocess,
+    )
+    def test_with_index_urls(self, wrapped_execute_in_subprocess):
+        def f(a):
+            import sys
+            from pathlib import Path
+
+            pip_conf = (Path(sys.executable).parents[1] / "pip.conf").read_text()
+            assert "first.package.index" in pip_conf
+            assert "second.package.index" in pip_conf
+            assert "third.package.index" in pip_conf
+            return a
+
+        self.run_as_task(
+            f,
+            index_urls=[
+                "https://first.package.index",
+                "http://second.package.index",
+                "http://third.package.index",
+            ],
+            op_args=[4],
+        )
+
+        # first call creates venv, second call installs packages
+        package_install_call_args = wrapped_execute_in_subprocess.call_args[1]
+        assert package_install_call_args["env"]["UV_DEFAULT_INDEX"] == "https://first.package.index"
+        assert (
+            package_install_call_args["env"]["UV_INDEX"]
+            == "http://second.package.index http://third.package.index"
+        )
+
+    def test_with_index_url_from_connection(self, monkeypatch):
+        class MockConnection(Connection):
+            """Mock for the Connection class."""
+
+            def __init__(self, host: str | None, login: str | None, password: str | None):
+                super().__init__()
+                self.host = host
+                self.login = login
+                self.password = password
+
+        monkeypatch.setattr(
+            "airflow.providers.standard.hooks.package_index.PackageIndexHook.get_connection",
+            lambda *_: MockConnection("https://my.package.index", "my_username", "my_password"),
+        )
+
         def f(a):
             import sys
             from pathlib import Path
 
             pip_conf = (Path(sys.executable).parents[1] / "pip.conf").read_text()
             assert "abc.def.de" in pip_conf
-            assert "xyz.abc.de" in pip_conf
+            assert "https://my_username:my_password@my.package.index" in pip_conf
             return a
 
-        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+        self.run_as_task(
+            f,
+            index_urls=["https://abc.def.de"],
+            index_urls_from_connection_ids=["my_connection"],
+            op_args=[4],
+        )
 
     def test_caching(self):
         def f(a):
@@ -1942,8 +1996,8 @@ class TestCurrentContext:
         with set_current_context(example_context):
             pass
         if AIRFLOW_V_3_0_PLUS:
-            with pytest.warns(AirflowProviderDeprecationWarning):
-                with pytest.raises(RuntimeError):
+            with pytest.raises(RuntimeError):
+                with pytest.warns(AirflowProviderDeprecationWarning):
                     get_current_context()
         else:
             with pytest.raises(RuntimeError):
@@ -1965,13 +2019,13 @@ class TestCurrentContext:
             ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
         if AIRFLOW_V_3_0_PLUS:
-            with pytest.warns(AirflowProviderDeprecationWarning):
-                for i in reversed(range(max_stack_depth)):
-                    # Iterate over contexts in reverse order - stack is LIFO
+            for i in reversed(range(max_stack_depth)):
+                # Iterate over contexts in reverse order - stack is LIFO
+                with pytest.warns(AirflowProviderDeprecationWarning):
                     ctx = get_current_context()
-                    assert ctx["ContextId"] == i
-                    # End of with statement
-                    ctx_list[i].__exit__(None, None, None)
+                assert ctx["ContextId"] == i
+                # End of with statement
+                ctx_list[i].__exit__(None, None, None)
         else:
             for i in reversed(range(max_stack_depth)):
                 # Iterate over contexts in reverse order - stack is LIFO

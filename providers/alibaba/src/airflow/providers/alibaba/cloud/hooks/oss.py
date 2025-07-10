@@ -27,10 +27,13 @@ import oss2
 from oss2.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.alibaba.version_compat import BaseHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 T = TypeVar("T", bound=Callable)
 

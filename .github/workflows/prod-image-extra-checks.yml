@@ -69,7 +69,7 @@ jobs:
       upload-package-artifact: "false"
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
+      default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
@@ -90,7 +90,7 @@ jobs:
       upload-package-artifact: "false"
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
+      default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"

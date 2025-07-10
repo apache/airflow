@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
@@ -24,13 +25,17 @@ import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
-export const Iframe = () => {
-  const { page } = useParams();
+export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
+  const { t: translate } = useTranslation();
+  const { dagId, mapIndex, page, runId, taskId } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
-  const iframeView = pluginData?.plugins
-    .flatMap((plugin) => plugin.external_views)
-    .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
+  const iframeView =
+    page === "legacy-fab-views"
+      ? { href: "/pluginsv2/", name: translate("nav.legacyFabViews") }
+      : pluginData?.plugins
+          .flatMap((plugin) => plugin.external_views)
+          .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
 
   if (!iframeView) {
     if (isLoading) {
@@ -44,12 +49,41 @@ export const Iframe = () => {
     return <ErrorPage />;
   }
 
+  // Build the href URL with context parameters if the view has a destination
+  let src = iframeView.href;
+
+  if (iframeView.destination !== undefined && iframeView.destination !== "nav") {
+    // Check if the href contains placeholders that need to be replaced
+    if (dagId !== undefined) {
+      src = src.replaceAll("{DAG_ID}", dagId);
+    }
+    if (runId !== undefined) {
+      src = src.replaceAll("{RUN_ID}", runId);
+    }
+    if (taskId !== undefined) {
+      src = src.replaceAll("{TASK_ID}", taskId);
+    }
+    if (mapIndex !== undefined) {
+      src = src.replaceAll("{MAP_INDEX}", mapIndex);
+    }
+  }
+
   return (
-    <Box flexGrow={1} m={-3}>
+    <Box
+      flexGrow={1}
+      height="100%"
+      m={-2} // Compensate for parent padding
+      minHeight={0}
+    >
       <iframe
-        sandbox="allow-same-origin allow-forms"
-        src={iframeView.href}
-        style={{ height: "100%", width: "100%" }}
+        sandbox={sandbox}
+        src={src}
+        style={{
+          border: "none",
+          display: "block",
+          height: "100%",
+          width: "100%",
+        }}
         title={iframeView.name}
       />
     </Box>

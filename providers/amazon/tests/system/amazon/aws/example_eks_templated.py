@@ -17,9 +17,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -30,6 +29,18 @@ from airflow.providers.amazon.aws.operators.eks import (
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain
+    else:
+        # Airflow 2.10 compat
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

@@ -49,6 +49,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -288,7 +289,7 @@ class RuntimeTaskInstance(TaskInstance):
         self,
         task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
-        key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
+        key: str = BaseXCom.XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
@@ -340,8 +341,8 @@ class RuntimeTaskInstance(TaskInstance):
         if run_id is None:
             run_id = self.run_id
 
-        single_task_requested = isinstance(task_ids, str | type(None))
-        single_map_index_requested = isinstance(map_indexes, int | type(None))
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
 
         if task_ids is None:
             # default to the current task if not provided
@@ -351,17 +352,19 @@ class RuntimeTaskInstance(TaskInstance):
 
         # If map_indexes is not specified, pull xcoms from all map indexes for each task
         if isinstance(map_indexes, ArgNotSet):
-            xcoms = [
-                value
-                for t_id in task_ids
-                for value in XCom.get_all(
+            xcoms: list[Any] = []
+            for t_id in task_ids:
+                values = XCom.get_all(
                     run_id=run_id,
                     key=key,
                     task_id=t_id,
                     dag_id=dag_id,
                 )
-            ]
 
+                if values is None:
+                    xcoms.append(None)
+                else:
+                    xcoms.extend(values)
             # For single task pulling from unmapped task, return single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -618,7 +621,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         )
         exit(1)
 
-    if not isinstance(task, BaseOperator | MappedOperator):
+    if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
@@ -1221,8 +1224,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         for k, v in result.items():
             ti.xcom_push(k, v)
 
-    # TODO: Use constant for XCom return key & use serialize_value from Task SDK
-    _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
+    _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
 def finalize(

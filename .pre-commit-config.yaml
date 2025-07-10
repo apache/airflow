@@ -50,7 +50,7 @@ repos:
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     # replace hash with version once PR #103 merged comes in a release
-    rev: fd3fbe825390abc682953165e9aa58f5f1bf7339
+    rev: abdd8b62891099da34162217ecb3872d22184a51
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -364,7 +364,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.7.0
+    rev: v1.11.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -427,7 +427,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.11.13']
+        additional_dependencies: ['ruff==0.12.1']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -437,7 +437,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.11.13']
+        additional_dependencies: ['ruff==0.12.1']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -1590,7 +1590,14 @@ repos:
         name: Check imports in providers
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.11.13']
+        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.1']
         files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
+        require_serial: true
+      - id: provider-version-compat
+        name: Check for correct version_compat imports in providers
+        entry: ./scripts/ci/pre_commit/check_provider_version_compat.py
+        language: python
+        types: [python]
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

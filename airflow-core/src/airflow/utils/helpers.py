@@ -300,7 +300,7 @@ def prune_dict(val: Any, mode="strict"):
         for k, v in val.items():
             if is_empty(v):
                 continue
-            if isinstance(v, list | dict):
+            if isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
                 if not is_empty(new_val):
                     new_dict[k] = new_val
@@ -312,7 +312,7 @@ def prune_dict(val: Any, mode="strict"):
         for v in val:
             if is_empty(v):
                 continue
-            if isinstance(v, list | dict):
+            if isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
                 if not is_empty(new_val):
                     new_list.append(new_val)

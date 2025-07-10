@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -162,17 +162,17 @@ class SparkJDBCHook(SparkSubmitHook):
         conn_data = {"url": "", "schema": "", "conn_prefix": "", "user": "", "password": ""}
         try:
             conn = self.get_connection(self._jdbc_conn_id)
-            if "/" in conn.host:
+            if conn.host is not None and "/" in conn.host:
                 raise ValueError("The jdbc host should not contain a '/'")
-            if "?" in conn.schema:
+            if conn.schema is not None and "?" in conn.schema:
                 raise ValueError("The jdbc schema should not contain a '?'")
-            if conn.port:
-                conn_data["url"] = f"{conn.host}:{conn.port}"
+            if conn.port is not None:
+                conn_data["url"] = f"{cast('str', conn.host)}:{conn.port}"
             else:
-                conn_data["url"] = conn.host
-            conn_data["schema"] = conn.schema
-            conn_data["user"] = conn.login
-            conn_data["password"] = conn.password
+                conn_data["url"] = cast("str", conn.host)
+            conn_data["schema"] = cast("str", conn.schema)
+            conn_data["user"] = cast("str", conn.login)
+            conn_data["password"] = cast("str", conn.password)
             extra = conn.extra_dejson
             conn_data["conn_prefix"] = extra.get("conn_prefix", "")
         except AirflowException:

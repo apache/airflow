@@ -44,6 +44,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -404,7 +405,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, create_task_instance, session=None):
+    def test_ti_updates_with_task(self, create_task_instance, session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -425,7 +426,7 @@ class TestTaskInstance:
             dag=dag,
         )
 
-        ti2 = TI(task=task2, run_id=ti.run_id)
+        ti2 = TI(task=task2, run_id=ti.run_id, dag_version_id=ti.dag_version_id)
         session.add(ti2)
         session.flush()
 
@@ -800,12 +801,12 @@ class TestTaskInstance:
         ti.task = task
 
         # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         ti.refresh_from_db()
         assert ti.state is None
 
         # ignore first depends_on_past to allow the run
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -837,7 +838,7 @@ class TestTaskInstance:
         # With catchup=False, depends_on_past behavior is different:
         # The task ignores historical dependencies since catchup=False means
         # "only consider runs from now forward"
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=False)
         ti.refresh_from_db()
 
         # The task runs successfully even with depends_on_past=True because
@@ -845,7 +846,7 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
 
         # ignore_first_depends_on_past should still allow the run with catchup=False
-        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        dag_maker.run_ti(task.task_id, dr, ignore_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -1225,7 +1226,9 @@ class TestTaskInstance:
         base_task = ti.task
 
         for map_index in range(1, 5):
-            ti = TaskInstance(base_task, run_id=dr.run_id, map_index=map_index)
+            ti = TaskInstance(
+                base_task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id
+            )
             session.add(ti)
             ti.dag_run = dr
         session.flush()
@@ -1269,14 +1272,14 @@ class TestTaskInstance:
     )
     @provide_session
     def test_are_dependents_done(
-        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session=None
+        self, downstream_ti_state, expected_are_dependents_done, create_task_instance, session
     ):
         ti = create_task_instance(session=session)
         dag = ti.task.dag
         downstream_task = EmptyOperator(task_id="downstream_task", dag=dag)
         ti.task >> downstream_task
 
-        downstream_ti = TI(downstream_task, run_id=ti.run_id)
+        downstream_ti = TI(downstream_task, run_id=ti.run_id, dag_version_id=ti.dag_version_id)
 
         downstream_ti.set_state(downstream_ti_state, session)
         session.flush()
@@ -1310,7 +1313,9 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI(
+            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
 
         assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution()
@@ -1331,7 +1336,9 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI(
+            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
 
         assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
@@ -1349,7 +1356,9 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI(
+            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
 
         assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
@@ -1369,7 +1378,9 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
+        ti2 = TI(
+            task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
         assert not ti2.check_and_change_state_before_execution()
 
     def test_check_and_change_state_before_execution_dep_not_met_already_running(
@@ -1383,7 +1394,9 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI(
+            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.RUNNING
@@ -1400,7 +1413,9 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI(
+            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.FAILED
@@ -1554,7 +1569,7 @@ class TestTaskInstance:
 
     def test_set_duration(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
-        ti = TI(task=task)
+        ti = TI(task=task, dag_version_id=mock.MagicMock())
         ti.start_date = datetime.datetime(2018, 10, 1, 1)
         ti.end_date = datetime.datetime(2018, 10, 1, 2)
         ti.set_duration()
@@ -1562,7 +1577,7 @@ class TestTaskInstance:
 
     def test_set_duration_empty_dates(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
-        ti = TI(task=task)
+        ti = TI(task=task, dag_version_id=mock.MagicMock())
         ti.set_duration()
         assert ti.duration is None
 
@@ -2288,7 +2303,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
     @provide_session
-    def test_handle_failure(self, dag_maker, session=None):
+    def test_handle_failure_calls_listener(self, dag_maker, session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
@@ -2300,19 +2315,9 @@ class TestTaskInstance:
         listener_callback_on_error = mock.MagicMock()
         get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
 
-        mock_on_failure_1 = mock.Mock(
-            __name__="mock_on_failure_1",
-            __call__=mock.MagicMock(),
-        )
-        mock_on_retry_1 = mock.Mock(
-            __name__="mock_on_retry_1",
-            __call__=mock.MagicMock(),
-        )
         with dag_maker(dag_id="test_handle_failure", start_date=start_date, schedule=None) as dag:
             task1 = CustomOp(
                 task_id="test_handle_failure_on_failure",
-                on_failure_callback=mock_on_failure_1,
-                on_retry_callback=mock_on_retry_1,
             )
 
         dag_maker.create_dagrun(session=session, run_type=DagRunType.MANUAL, start_date=start_date)
@@ -2342,65 +2347,6 @@ class TestTaskInstance:
         callback_args = listener_callback_on_error.call_args.kwargs
         assert "error" in callback_args
         assert callback_args["error"] == error_message
-
-        context_arg_1 = mock_on_failure_1.call_args.args[0]
-        assert context_arg_1
-        assert "task_instance" in context_arg_1
-        mock_on_retry_1.assert_not_called()
-
-        mock_on_failure_2 = mock.Mock(
-            __name__="mock_on_failure_2",
-            __call__=mock.MagicMock(),
-        )
-        mock_on_retry_2 = mock.Mock(
-            __name__="mock_on_retry_2",
-            __call__=mock.MagicMock(),
-        )
-        task2 = CustomOp(
-            task_id="test_handle_failure_on_retry",
-            on_failure_callback=mock_on_failure_2,
-            on_retry_callback=mock_on_retry_2,
-            retries=1,
-            dag=dag,
-        )
-        ti2 = TI(task=task2, run_id=dr.run_id)
-        ti2.state = State.FAILED
-        session.add(ti2)
-        session.flush()
-        ti2.handle_failure("test retry handling")
-
-        mock_on_failure_2.assert_not_called()
-
-        context_arg_2 = mock_on_retry_2.call_args.args[0]
-        assert context_arg_2
-        assert "task_instance" in context_arg_2
-
-        # test the scenario where normally we would retry but have been asked to fail
-        mock_on_failure_3 = mock.Mock(
-            __name__="mock_on_failure_3",
-            __call__=mock.MagicMock(),
-        )
-        mock_on_retry_3 = mock.Mock(
-            __name__="mock_on_retry_3",
-            __call__=mock.MagicMock(),
-        )
-        task3 = CustomOp(
-            task_id="test_handle_failure_on_force_fail",
-            on_failure_callback=mock_on_failure_3,
-            on_retry_callback=mock_on_retry_3,
-            retries=1,
-            dag=dag,
-        )
-        ti3 = TI(task=task3, run_id=dr.run_id)
-        session.add(ti3)
-        session.flush()
-        ti3.state = State.FAILED
-        ti3.handle_failure("test force_fail handling", force_fail=True)
-
-        context_arg_3 = mock_on_failure_3.call_args.args[0]
-        assert context_arg_3
-        assert "task_instance" in context_arg_3
-        mock_on_retry_3.assert_not_called()
 
     def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):
         session = settings.Session()
@@ -2497,13 +2443,13 @@ class TestTaskInstance:
         tasks = []
         for i, state in enumerate(states):
             op = CustomOp(task_id=f"reg_Task{i}", dag=dag)
-            ti = TI(task=op, run_id=dr.run_id)
+            ti = TI(task=op, run_id=dr.run_id, dag_version_id=ti1.dag_version_id)
             ti.state = state
             session.add(ti)
             tasks.append(ti)
 
         fail_task = CustomOp(task_id="fail_Task", dag=dag)
-        ti_ff = TI(task=fail_task, run_id=dr.run_id)
+        ti_ff = TI(task=fail_task, run_id=dr.run_id, dag_version_id=ti1.dag_version_id)
         ti_ff.state = State.FAILED
         session.add(ti_ff)
         session.commit()
@@ -2635,7 +2581,7 @@ class TestTaskInstance:
         mock_task.task_id = expected_values["task_id"]
         mock_task.dag_id = expected_values["dag_id"]
 
-        ti = TI(task=mock_task, run_id="test")
+        ti = TI(task=mock_task, run_id="test", dag_version_id=ti.dag_version_id)
         ti.refresh_from_db()
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
@@ -2656,7 +2602,7 @@ class TestTaskInstance:
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "EmptyOperator"
         # Verify that ti.operator field renders correctly "with" Serialization
-        ser_ti = TI(task=deserialized_op, run_id=None)
+        ser_ti = TI(task=deserialized_op, run_id=None, dag_version_id=ti.dag_version_id)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
 
@@ -2796,7 +2742,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         retries=30,
         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}},
     )
-    ti = TI(task, run_id=None)
+    ti = TI(task, run_id=None, dag_version_id=mock.MagicMock())
     ti.refresh_from_task(task, pool_override=pool_override)
 
     assert ti.queue == expected_queue
@@ -3162,7 +3108,6 @@ def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, sessio
     """
     Ensure that deleting a DagVersion with existing TaskInstance references is restricted (ON DELETE RESTRICT).
     """
-    from airflow.models.dag_version import DagVersion
 
     with dag_maker(dag_id="test_dag_restrict", session=session) as dag:
         EmptyOperator(task_id="task1")

@@ -405,7 +405,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management generate-providers-metadata": [
         {
             "name": "Generate providers metadata flags",
-            "options": ["--refresh-constraints", "--github-token", "--python"],
+            "options": ["--refresh-constraints", "--github-token"],
         }
     ],
     "breeze release-management start-rc-process": [
@@ -468,5 +468,30 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-write-to-stable-folder",
             ],
         }
+    ],
+    "breeze release-management constraints-version-check": [
+        {
+            "name": "Constraints options.",
+            "options": [
+                "--python",
+                "--airflow-constraints-mode",
+                "--github-repository",
+                "--github-token",
+            ],
+        },
+        {
+            "name": "Comparison mode.",
+            "options": [
+                "--diff-mode",
+                "--package",
+                "--explain-why",
+            ],
+        },
+        {
+            "name": "Build options.",
+            "options": [
+                "--builder",
+            ],
+        },
     ],
 }

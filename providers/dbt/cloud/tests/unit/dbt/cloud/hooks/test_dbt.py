@@ -257,7 +257,7 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_get_account(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_get_account(self, mock_paginate, mock_http_run, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
         hook.get_account(account_id=account_id)
 

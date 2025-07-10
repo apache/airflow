@@ -272,7 +272,9 @@ class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
-        return _get_connection(conn_id)
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection.get(conn_id)
 
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
@@ -529,7 +531,7 @@ class InletEventsAccessors(
         msg: ToSupervisor
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
-            if not isinstance(obj, Asset | AssetAlias | AssetRef):
+            if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
                 raise IndexError(key)
         else:
             obj = key

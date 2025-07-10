@@ -30,9 +30,10 @@ from typing import TYPE_CHECKING, Protocol, cast
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
@@ -47,6 +48,7 @@ from airflow.utils.cli import (
     get_dags,
     suppress_logs_and_warning,
 )
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
@@ -120,6 +122,11 @@ def _get_dag_run(
         else None
     )
     run_after = data_interval.end if data_interval else timezone.utcnow()
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
     if create_if_necessary == "memory":
         dag_run = DagRun(
             dag_id=dag.dag_id,
@@ -129,6 +136,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=user,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
@@ -141,6 +149,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=user,
             session=session,
             start_date=logical_date or run_after,
             conf=None,
@@ -192,7 +201,13 @@ def _get_ti(
                 f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if not dag_version:
+            # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
+            raise ValueError(
+                f"Cannot create TaskInstance for {dag.dag_id} because the Dag is not serialized."
+            )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
         if dag_run in session:
             session.add(ti)
         ti.dag_run = dag_run

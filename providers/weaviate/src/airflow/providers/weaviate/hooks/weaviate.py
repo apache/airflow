@@ -33,7 +33,7 @@ from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.weaviate.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -131,14 +131,14 @@ class WeaviateHook(BaseHook):
         http_secure = extras.pop("http_secure", False)
         grpc_secure = extras.pop("grpc_secure", False)
         return weaviate.connect_to_custom(
-            http_host=conn.host,
+            http_host=conn.host,  # type: ignore[arg-type]
             http_port=conn.port or 443 if http_secure else 80,
             http_secure=http_secure,
             grpc_host=extras.pop("grpc_host", conn.host),
             grpc_port=extras.pop("grpc_port", 443 if grpc_secure else 80),
             grpc_secure=grpc_secure,
             headers=extras.pop("additional_headers", {}),
-            auth_credentials=self._extract_auth_credentials(conn),
+            auth_credentials=self._extract_auth_credentials(conn),  # type: ignore[arg-type]
         )
 
     def _extract_auth_credentials(self, conn: Connection) -> AuthCredentials:
