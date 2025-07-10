@@ -39,6 +39,7 @@ class BulkAction(str, enum.Enum):
 
     CREATE = "create"
     DELETE = "delete"
+    DELETE_WITH_ENTITY = "delete_with_entity"
     UPDATE = "update"
 
 
@@ -87,6 +88,16 @@ class BulkDeleteAction(BulkBaseAction[T]):
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
+class BulkDeleteWithEntityAction(BulkBaseAction[T]):
+    """Bulk Delete entity serializer for request bodies with entity objects."""
+
+    action: Literal[BulkAction.DELETE_WITH_ENTITY] = Field(
+        description="The action to be performed on the entities."
+    )
+    entities: list[T] = Field(..., description="A list of entities to be deleted.")
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+
+
 def _action_discriminator(action: Any) -> str:
     return BulkAction(action["action"]).value
 
@@ -100,6 +111,7 @@ class BulkBody(StrictBaseModel, Generic[T]):
                 Annotated[BulkCreateAction[T], Tag(BulkAction.CREATE.value)],
                 Annotated[BulkUpdateAction[T], Tag(BulkAction.UPDATE.value)],
                 Annotated[BulkDeleteAction[T], Tag(BulkAction.DELETE.value)],
+                Annotated[BulkDeleteWithEntityAction[T], Tag(BulkAction.DELETE_WITH_ENTITY.value)],
             ],
             Discriminator(_action_discriminator),
         ]
@@ -142,6 +154,11 @@ class BulkResponse(BaseModel):
         description="Details of the bulk update operation, including successful keys and errors.",
     )
     delete: BulkActionResponse | None = Field(
+        default=None,
+        description="Details of the bulk delete operation, including successful keys and errors.",
+    )
+
+    delete_with_entity: BulkActionResponse | None = Field(
         default=None,
         description="Details of the bulk delete operation, including successful keys and errors.",
     )

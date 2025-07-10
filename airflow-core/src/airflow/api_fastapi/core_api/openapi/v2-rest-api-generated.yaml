@@ -7642,6 +7642,7 @@ components:
             - $ref: '#/components/schemas/BulkCreateAction_BulkTaskInstanceBody_'
             - $ref: '#/components/schemas/BulkUpdateAction_BulkTaskInstanceBody_'
             - $ref: '#/components/schemas/BulkDeleteAction_BulkTaskInstanceBody_'
+            - $ref: '#/components/schemas/BulkDeleteWithEntityAction_BulkTaskInstanceBody_'
           type: array
           title: Actions
       additionalProperties: false
@@ -7657,6 +7658,7 @@ components:
             - $ref: '#/components/schemas/BulkCreateAction_ConnectionBody_'
             - $ref: '#/components/schemas/BulkUpdateAction_ConnectionBody_'
             - $ref: '#/components/schemas/BulkDeleteAction_ConnectionBody_'
+            - $ref: '#/components/schemas/BulkDeleteWithEntityAction_ConnectionBody_'
           type: array
           title: Actions
       additionalProperties: false
@@ -7672,6 +7674,7 @@ components:
             - $ref: '#/components/schemas/BulkCreateAction_PoolBody_'
             - $ref: '#/components/schemas/BulkUpdateAction_PoolBody_'
             - $ref: '#/components/schemas/BulkDeleteAction_PoolBody_'
+            - $ref: '#/components/schemas/BulkDeleteWithEntityAction_PoolBody_'
           type: array
           title: Actions
       additionalProperties: false
@@ -7687,6 +7690,7 @@ components:
             - $ref: '#/components/schemas/BulkCreateAction_VariableBody_'
             - $ref: '#/components/schemas/BulkUpdateAction_VariableBody_'
             - $ref: '#/components/schemas/BulkDeleteAction_VariableBody_'
+            - $ref: '#/components/schemas/BulkDeleteWithEntityAction_VariableBody_'
           type: array
           title: Actions
       additionalProperties: false
@@ -7870,6 +7874,94 @@ components:
       - action
       - entities
       title: BulkDeleteAction[VariableBody]
+    BulkDeleteWithEntityAction_BulkTaskInstanceBody_:
+      properties:
+        action:
+          type: string
+          const: delete_with_entity
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkTaskInstanceBody'
+          type: array
+          title: Entities
+          description: A list of entities to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteWithEntityAction[BulkTaskInstanceBody]
+    BulkDeleteWithEntityAction_ConnectionBody_:
+      properties:
+        action:
+          type: string
+          const: delete_with_entity
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Entities
+          description: A list of entities to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteWithEntityAction[ConnectionBody]
+    BulkDeleteWithEntityAction_PoolBody_:
+      properties:
+        action:
+          type: string
+          const: delete_with_entity
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/PoolBody'
+          type: array
+          title: Entities
+          description: A list of entities to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteWithEntityAction[PoolBody]
+    BulkDeleteWithEntityAction_VariableBody_:
+      properties:
+        action:
+          type: string
+          const: delete_with_entity
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Entities
+          description: A list of entities to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteWithEntityAction[VariableBody]
     BulkResponse:
       properties:
         create:
@@ -7885,6 +7977,12 @@ components:
           description: Details of the bulk update operation, including successful
             keys and errors.
         delete:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk delete operation, including successful
+            keys and errors.
+        delete_with_entity:
           anyOf:
           - $ref: '#/components/schemas/BulkActionResponse'
           - type: 'null'
