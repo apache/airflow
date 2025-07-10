@@ -29,7 +29,7 @@ import functools
 import inspect
 import warnings
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, overload
 
 import attr
 
@@ -43,7 +43,6 @@ from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.typing_compat import ParamSpec
 from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:

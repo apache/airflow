@@ -109,6 +109,7 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import Literal
 
     import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
@@ -126,7 +127,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.typing_compat import Literal
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 

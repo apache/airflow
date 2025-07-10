@@ -29,11 +29,12 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
-    from airflow.typing_compat import TypeAlias
     from airflow.utils.log.file_task_handler import LogHandlerOutputStream, LogMetadata
 
 LogReaderOutputStream: TypeAlias = Generator[str, None, None]

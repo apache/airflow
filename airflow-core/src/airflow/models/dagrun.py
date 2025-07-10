@@ -91,6 +91,7 @@ from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import Literal
 
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
@@ -102,7 +103,6 @@ if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
     from airflow.sdk import DAG as SDKDAG, Context
-    from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
