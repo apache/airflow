@@ -14,29 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from datetime import datetime
+from airflow.utils.serve_logs.core import serve_logs
+from airflow.utils.serve_logs.log_server import create_app
 
-from pydantic import BaseModel
-
-from airflow.utils.state import TaskInstanceState
-
-
-class LightGridTaskInstanceSummary(BaseModel):
-    """Task Instance Summary model for the Grid UI."""
-
-    task_id: str
-    state: TaskInstanceState | None
-    child_states: dict[TaskInstanceState | None, int] | None
-    min_start_date: datetime | None
-    max_end_date: datetime | None
-
-
-class GridTISummaries(BaseModel):
-    """DAG Run model for the Grid UI."""
-
-    run_id: str
-    dag_id: str
-    task_instances: list[LightGridTaskInstanceSummary]
+__all__ = ["serve_logs", "create_app"]
