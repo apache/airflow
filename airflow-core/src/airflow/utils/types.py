@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import airflow.sdk.definitions._internal.types
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
+    from typing import TypeAlias
 
 ArgNotSet: TypeAlias = airflow.sdk.definitions._internal.types.ArgNotSet
 

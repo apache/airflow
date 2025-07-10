@@ -106,6 +106,8 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
@@ -113,7 +115,6 @@ if TYPE_CHECKING:
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
-    from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
