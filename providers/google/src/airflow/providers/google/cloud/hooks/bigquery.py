@@ -1660,10 +1660,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.job_id = job.job_id
         self.location = self.location or job.location
         query_results = self._get_query_result()
-        if "schema" in query_results:
-            self.description = _format_schema_for_description(query_results["schema"])
-        else:
-            self.description = []
+        self.description = _format_schema_for_description(query_results.get("schema"))
 
     def executemany(self, operation: str, seq_of_parameters: list) -> None:
         """
@@ -2051,19 +2048,26 @@ def _validate_src_fmt_configs(
     return src_fmt_configs
 
 
-def _format_schema_for_description(schema: dict) -> list:
+def _format_schema_for_description(schema) -> list[tuple[str, str, None, None, None, None, bool]]:
     """
     Reformat the schema to match cursor description standard.
 
-    The description should be a tuple of 7 elemenbts: name, type, display_size,
+    The description should be a list of 7-element tuples: name, type, display_size,
     internal_size, precision, scale, null_ok.
     """
-    description = []
-    for field in schema["fields"]:
+    if not isinstance(schema, dict):
+        return []
+
+    fields = schema.get("fields")
+    if not isinstance(fields, list):
+        return []
+
+    description: list[tuple[str, str, None, None, None, None, bool]] = []
+    for field in fields:
         mode = field.get("mode", "NULLABLE")
         field_description = (
-            field["name"],
-            field["type"],
+            field.get("name", ""),
+            field.get("type", ""),
             None,
             None,
             None,
@@ -2071,6 +2075,7 @@ def _format_schema_for_description(schema: dict) -> list:
             mode == "NULLABLE",
         )
         description.append(field_description)
+
     return description
 
 
