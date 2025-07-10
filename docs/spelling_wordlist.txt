@@ -1699,6 +1699,7 @@ StrictUndefined
 Stringified
 stringified
 Struct
+StructuredLogMessage
 STS
 subchart
 subclassed
