@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.0.3 (2025-07-08)
+Airflow 3.0.3 (2025-07-14)
 --------------------------
 
 Significant Changes
@@ -80,6 +80,13 @@ Bug Fixes
 - Fixing bad cadwyn migration for upstream map indexes (#52797)
 - Run trigger expansion logic only when ``start_from_trigger`` is True (#52873)
 - Fix example dag ``example_external_task_parent_deferrable.py`` imports (#52957)
+- Fixes pagination in DAG run lists (#52989)
+- Fix db downgrade check condition (#53005)
+- Fix log viewing for skipped task (#53028,#53101)
+- Fixes Grid view refresh after user actions (#53086)
+- Fix ``no_status`` and ``duration`` for grid summaries (#53092)
+- Fix ``ti.log_url`` not in Task Context (#50376)
+- Fix XCom data deserialization when using ``XCom.get_all()`` method (#53102)
 
 Miscellaneous
 """""""""""""
@@ -99,6 +106,7 @@ Doc Only Changes
 - Add http-only warning when running behind proxy in documentation (#52699)
 - Publish separate docs for Task SDK (#52682)
 - Streamline Taskflow examples and link to core tutorial (#52709)
+- Refresh Public Interface & align how-to guides for Airflow 3.0+ (#53011)
 
 Airflow 3.0.2 (2025-06-10)
 --------------------------
