@@ -239,6 +239,9 @@ packages = []
 "google" = [
     "apache-airflow-providers-google>=10.24.0"
 ]
+"greatexpectations" = [
+    "apache-airflow-providers-greatexpectations>=1.0.0"
+]
 "grpc" = [
     "apache-airflow-providers-grpc>=3.7.0"
 ]
@@ -1393,6 +1396,7 @@ apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-git = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
 apache-airflow-providers-google = { workspace = true }
+apache-airflow-providers-greatexpectations = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
@@ -1513,6 +1517,7 @@ members = [
     "providers/git",
     "providers/github",
     "providers/google",
+    "providers/greatexpectations",
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
