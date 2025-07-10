@@ -296,7 +296,7 @@ class BaseOperator(TaskSDKBaseOperator):
         def dag(self) -> SchedulerDAG:  # type: ignore[override]
             return super().dag  # type: ignore[return-value]
 
-        @dag.setter
+        @dag.setter  # type: ignore[override]
         def dag(self, val: SchedulerDAG):
             # For type checking only
             ...
