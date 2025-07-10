@@ -2443,6 +2443,29 @@ class TestTaskRunnerCallsCallbacks:
         assert state == expected_state
         assert collected_results == expected_results
 
+    def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
+        """Test that on_failure_callback context has end_date and duration."""
+        from airflow.exceptions import AirflowException
+
+        def failure_callback(context):
+            ti = context["task_instance"]
+            assert isinstance(ti.end_date, datetime)
+            assert ti.duration is not None
+            assert ti.duration >= 0
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowException("Failing task")
+
+        task = FailingOperator(task_id="failing_task", on_failure_callback=failure_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.FAILED
+
     @pytest.mark.parametrize(
         "callback_to_test, execute_impl, should_retry, expected_state, expected_results, extra_exceptions",
         [
