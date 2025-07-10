@@ -76,9 +76,9 @@ from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import ParamSpec
 
     from airflow.sdk.execution_time.comms import RescheduleTask
-    from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
     T = TypeVar("T")

@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, TextIO, TypeAlias, TypeVar
 from airflow import settings
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeGuard
+    from typing import TypeGuard
 
 V1EnvVar = TypeVar("V1EnvVar")
 Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list[Any]
