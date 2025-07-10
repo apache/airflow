@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
@@ -52,7 +52,7 @@ class Neo4jOperator(BaseOperator):
         *,
         sql: str,
         neo4j_conn_id: str = "neo4j_default",
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
