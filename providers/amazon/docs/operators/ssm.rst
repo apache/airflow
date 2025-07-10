@@ -20,7 +20,7 @@ Amazon Simple Systems Manager (SSM)
 ===================================
 
 `Amazon Simple Systems Manager (Amazon SSM) <https://aws.amazon.com/systems-manager/>`__ is a service
-that helps centrally view, manage, and operate nodes at scale in AWS, on-premises, and multicloud
+that helps centrally view, manage, and operate nodes at scale in AWS, on-premises, and multi-cloud
 environments. Systems Manager consolidates various tools to help complete common node tasks across AWS
 accounts and Regions.
 To use Systems Manager, nodes must be managed, which means SSM Agent is installed on the machine and

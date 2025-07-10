@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import time
 
 import boto3
+from botocore.exceptions import ClientError
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -32,14 +34,11 @@ from airflow.utils.trigger_rule import TriggerRule
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.ec2 import get_latest_ami_id
 
-ROLE_ARN_KEY = "ROLE_ARN"
-INSTANCE_PROFILE_NAME_KEY = "INSTANCE_PROFILE_NAME"
-
-sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(INSTANCE_PROFILE_NAME_KEY).build()
-)
-
 DAG_ID = "example_ssm"
+
+ROLE_ARN_KEY = "ROLE_ARN"
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
+
 USER_DATA = """
     #!/bin/bash
     set -e
@@ -68,6 +67,47 @@ USER_DATA = """
 
     shutdown -h +8
 """
+
+log = logging.getLogger(__name__)
+
+
+@task
+def get_role_name(arn: str) -> str:
+    return arn.split("/")[-1]
+
+
+@task
+def create_instance_profile(role_name: str, instance_profile_name: str):
+    client = boto3.client("iam")
+
+    try:
+        client.create_instance_profile(InstanceProfileName=instance_profile_name)
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "EntityAlreadyExists":
+            raise
+
+    instance_profile = client.get_instance_profile(InstanceProfileName=instance_profile_name)
+
+    attached_roles = [role["RoleName"] for role in instance_profile["InstanceProfile"]["Roles"]]
+    if role_name not in attached_roles:
+        client.add_role_to_instance_profile(InstanceProfileName=instance_profile_name, RoleName=role_name)
+
+
+@task
+def delete_instance_profile(instance_profile_name, role_name):
+    client = boto3.client("iam")
+
+    try:
+        client.remove_role_from_instance_profile(
+            InstanceProfileName=instance_profile_name, RoleName=role_name
+        )
+    except client.exceptions.NoSuchEntityException:
+        log.info("Role %s not attached to %s or already removed.", role_name, instance_profile_name)
+
+    try:
+        client.delete_instance_profile(InstanceProfileName=instance_profile_name)
+    except client.exceptions.NoSuchEntityException:
+        log.info("Instance profile %s already deleted.", instance_profile_name)
 
 
 @task
@@ -117,7 +157,8 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     instance_name = f"{env_id}-instance"
     image_id = get_latest_ami_id()
-    instance_profile_name = test_context[INSTANCE_PROFILE_NAME_KEY]
+    role_name = get_role_name(test_context[ROLE_ARN_KEY])
+    instance_profile_name = f"{env_id}-ssm-instance-profile"
 
     config = {
         "InstanceType": "t2.micro",
@@ -143,6 +184,8 @@ with DAG(
         min_count=1,
         config=config,
         wait_for_completion=True,
+        retries=5,
+        retry_delay=datetime.timedelta(seconds=15),
     )
 
     instance_id = extract_instance_id(create_instance.output)
@@ -174,6 +217,8 @@ with DAG(
         # TEST SETUP
         test_context,
         image_id,
+        role_name,
+        create_instance_profile(role_name, instance_profile_name),
         create_instance,
         instance_id,
         run_command_kwargs,
@@ -183,6 +228,7 @@ with DAG(
         await_run_command,
         # TEST TEARDOWN
         delete_instance,
+        delete_instance_profile(instance_profile_name, role_name),
     )
 
     from tests_common.test_utils.watcher import watcher
