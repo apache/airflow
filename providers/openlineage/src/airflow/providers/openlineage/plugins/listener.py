@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
-from setproctitle import getproctitle, setproctitle
+from setproctitle import getproctitle
 
 from airflow import settings
 from airflow.listeners import hookimpl
@@ -53,6 +53,11 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
+
+try:
+    from airflow.utils.setproctitle import setproctitle
+except ImportError:
+    from setproctitle import setproctitle
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance

@@ -101,6 +101,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
+from airflow.utils.setproctitle import setproctitle
 from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -680,14 +681,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     if not isinstance(msg, StartupDetails):
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-    # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
-    os_type = sys.platform
-    if os_type == "darwin":
-        log.debug("Mac OS detected, skipping setproctitle")
-    else:
-        from setproctitle import setproctitle
 
-        setproctitle(f"airflow worker -- {msg.ti.id}")
+    setproctitle(f"airflow worker -- {msg.ti.id}")
 
     try:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())

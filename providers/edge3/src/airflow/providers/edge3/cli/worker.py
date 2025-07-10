@@ -176,7 +176,10 @@ class EdgeWorker:
         def _run_job_via_supervisor(
             workload: ExecuteTask,
         ) -> int:
-            from setproctitle import setproctitle
+            try:
+                from airflow.utils.setproctitle import setproctitle
+            except ImportError:
+                from setproctitle import setproctitle
 
             from airflow.sdk.execution_time.supervisor import supervise
 
