@@ -106,10 +106,9 @@ class KubernetesResourceBaseOperator(BaseOperator):
         group = api_version[0 : api_version.find("/")]
         version = api_version[api_version.find("/") + 1 :]
 
-        namespace = None
-        if body.get("metadata"):
-            metadata: dict = body.get("metadata", None)
-            namespace = metadata.get("namespace", None)
+        metadata = body.get("metadata", {}) if body else None
+        namespace = metadata.get("namespace") if metadata else None
+
         if namespace is None:
             namespace = self.get_namespace()
 
