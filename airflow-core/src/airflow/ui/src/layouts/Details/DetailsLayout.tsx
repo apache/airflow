@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Flex, useDisclosure, IconButton } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useRef, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
@@ -44,6 +44,15 @@ import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
+const PANEL_RESET_DELAY = 10;
+const DEFAULT_GRAPH_SIZES = [70, 30] as const;
+const DEFAULT_GRID_SIZES = [20, 80] as const;
+
+type PanelSizes = readonly [number, number];
+
+const isPanelSizes = (value: unknown): value is PanelSizes =>
+  Array.isArray(value) && value.length === 2 && value.every((size) => typeof size === "number" && size > 0);
+
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
@@ -56,7 +65,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
-  const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
@@ -67,6 +75,61 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   });
   const { onClose, onOpen, open } = useDisclosure();
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+
+  const getDefaultSizes = useCallback(
+    (): PanelSizes => (dagView === "graph" ? DEFAULT_GRAPH_SIZES : DEFAULT_GRID_SIZES),
+    [dagView],
+  );
+
+  const getSavedSizes = useCallback((): PanelSizes => {
+    const storageKey = `panel-${dagId}-${dagView}`;
+
+    try {
+      const cached = sessionStorage.getItem(storageKey);
+
+      if (cached !== null && cached !== "") {
+        const parsed: unknown = JSON.parse(cached);
+
+        if (isPanelSizes(parsed)) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Failed to parse saved panel sizes - fallback to default
+    }
+
+    return getDefaultSizes();
+  }, [dagId, dagView, getDefaultSizes]);
+
+  const savePanelSizes = useCallback(
+    (sizes: Array<number>) => {
+      try {
+        const storageKey = `panel-${dagId}-${dagView}`;
+
+        sessionStorage.setItem(storageKey, JSON.stringify(sizes));
+      } catch {
+        // Failed to save panel sizes - continue silently
+      }
+    },
+    [dagId, dagView],
+  );
+
+  const [currentSizes, setCurrentSizes] = useState<PanelSizes>(getSavedSizes);
+
+  const [showPanel, setShowPanel] = useState(false);
+
+  useEffect(() => {
+    const newSizes = getSavedSizes();
+
+    setCurrentSizes(newSizes);
+
+    setShowPanel(false);
+    const timer = setTimeout(() => {
+      setShowPanel(true);
+    }, PANEL_RESET_DELAY);
+
+    return () => clearTimeout(timer);
+  }, [dagView, dagId, getSavedSizes]);
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -99,92 +162,100 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             </IconButton>
           </Tooltip>
         ) : undefined}
-        <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box height="100%" overflowY="auto" position="relative" pr={2}>
-              <PanelButtons
-                dagView={dagView}
-                limit={limit}
-                panelGroupRef={panelGroupRef}
-                setDagView={setDagView}
-                setLimit={setLimit}
-              />
-              {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
-            </Box>
-          </Panel>
-          {!isRightPanelCollapsed && (
-            <PanelResizeHandle
-              className="resize-handle"
-              onDragging={(isDragging) => {
-                if (!isDragging) {
-                  const zoom = getZoom();
-
-                  void fitView({ maxZoom: zoom, minZoom: zoom });
-                }
-              }}
-            >
-              <Box
-                alignItems="center"
-                bg="fg.subtle"
-                cursor="col-resize"
-                display="flex"
-                h="100%"
-                justifyContent="center"
-                position="relative"
-                w={0.5}
-              >
-                <Tooltip content={translate("common:collapseDetailsPanel")}>
-                  <IconButton
-                    aria-label={translate("common:collapseDetailsPanel")}
-                    bg="bg.surface"
-                    borderRadius="full"
-                    boxShadow="md"
-                    cursor="pointer"
-                    onClick={() => setIsRightPanelCollapsed(true)}
-                    size="xs"
-                    zIndex={2}
-                  >
-                    <FaChevronRight />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </PanelResizeHandle>
-          )}
-          {!isRightPanelCollapsed && (
-            <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
-              <Box display="flex" flexDirection="column" h="100%">
-                {children}
-                {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                  <>
-                    <ActionButton
-                      actionName={translate("common:dagWarnings")}
-                      colorPalette={Boolean(error) ? "red" : "orange"}
-                      icon={<LuFileWarning />}
-                      margin="2"
-                      marginBottom="-1"
-                      onClick={onOpen}
-                      rounded="full"
-                      text={String(warningData?.total_entries ?? 0 + Number(error))}
-                      variant="solid"
-                    />
-
-                    <DAGWarningsModal
-                      error={error}
-                      onClose={onClose}
-                      open={open}
-                      warnings={warningData?.dag_warnings}
-                    />
-                  </>
-                ) : undefined}
-                <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                <NavTabs tabs={tabs} />
-                <Box flexGrow={1} overflow="auto" px={2}>
-                  <Outlet />
-                </Box>
+        {showPanel ? (
+          <PanelGroup
+            direction="horizontal"
+            onLayout={(sizes) => {
+              if (isPanelSizes(sizes)) {
+                setCurrentSizes(sizes);
+                savePanelSizes(sizes);
+              }
+            }}
+          >
+            <Panel defaultSize={currentSizes[0]} id="main-panel" minSize={6} order={1}>
+              <Box height="100%" overflowY="auto" position="relative" pr={2}>
+                <PanelButtons dagView={dagView} limit={limit} setDagView={setDagView} setLimit={setLimit} />
+                {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
               </Box>
             </Panel>
-          )}
-        </PanelGroup>
+            {!isRightPanelCollapsed && (
+              <PanelResizeHandle
+                className="resize-handle"
+                onDragging={(isDragging) => {
+                  if (!isDragging) {
+                    const zoom = getZoom();
+
+                    void fitView({ maxZoom: zoom, minZoom: zoom });
+                  }
+                }}
+              >
+                <Box
+                  alignItems="center"
+                  bg="fg.subtle"
+                  cursor="col-resize"
+                  display="flex"
+                  h="100%"
+                  justifyContent="center"
+                  position="relative"
+                  w={0.5}
+                >
+                  <Tooltip content={translate("common:collapseDetailsPanel")}>
+                    <IconButton
+                      aria-label={translate("common:collapseDetailsPanel")}
+                      bg="bg.surface"
+                      borderRadius="full"
+                      boxShadow="md"
+                      cursor="pointer"
+                      onClick={() => setIsRightPanelCollapsed(true)}
+                      size="xs"
+                      zIndex={2}
+                    >
+                      <FaChevronRight />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </PanelResizeHandle>
+            )}
+            {!isRightPanelCollapsed && (
+              <Panel defaultSize={currentSizes[1]} id="details-panel" minSize={20} order={2}>
+                <Box display="flex" flexDirection="column" h="100%">
+                  {children}
+                  {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                    <>
+                      <ActionButton
+                        actionName={translate("common:dagWarnings")}
+                        colorPalette={Boolean(error) ? "red" : "orange"}
+                        icon={<LuFileWarning />}
+                        margin="2"
+                        marginBottom="-1"
+                        onClick={onOpen}
+                        rounded="full"
+                        text={String(warningData?.total_entries ?? 0 + Number(error))}
+                        variant="solid"
+                      />
+
+                      <DAGWarningsModal
+                        error={error}
+                        onClose={onClose}
+                        open={open}
+                        warnings={warningData?.dag_warnings}
+                      />
+                    </>
+                  ) : undefined}
+                  <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+                  <NavTabs tabs={tabs} />
+                  <Box flexGrow={1} overflow="auto" px={2}>
+                    <Outlet />
+                  </Box>
+                </Box>
+              </Panel>
+            )}
+          </PanelGroup>
+        ) : (
+          <Box alignItems="center" display="flex" h="100%" justifyContent="center">
+            Loading panel...
+          </Box>
+        )}
       </Box>
     </OpenGroupsProvider>
   );
