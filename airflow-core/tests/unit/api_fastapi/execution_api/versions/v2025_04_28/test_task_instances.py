@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+from airflow.models.dagbag import SchedulerDagBag
 from airflow.utils import timezone
 from airflow.utils.state import State
 

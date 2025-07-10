@@ -39,7 +39,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
-from airflow.models import DAG, DagRun as DR
+from airflow.models import DagRun as DR
 from airflow.models.xcom import XComModel
 
 xcom_router = AirflowRouter(
@@ -188,8 +188,15 @@ def create_xcom_entry(
     dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Create an XCom entry."""
+    from airflow.models.dagrun import DagRun
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+    if not dag_run:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
+        )
     # Validate DAG ID
-    dag: DAG = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(dag_run, session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
 
@@ -199,13 +206,6 @@ def create_xcom_entry(
     except TaskNotFound:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
-        )
-
-    # Validate DAG Run ID
-    dag_run = dag.get_dagrun(dag_run_id, session)
-    if not dag_run:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
         )
 
     # Check existing XCom
