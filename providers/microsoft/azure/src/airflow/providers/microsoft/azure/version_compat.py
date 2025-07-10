@@ -57,4 +57,5 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "Connection",
 ]
