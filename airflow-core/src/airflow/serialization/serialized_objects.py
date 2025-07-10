@@ -2165,7 +2165,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
                 ports_getter = self._get_mapped_operator_ports
             else:
                 ports_getter = self._get_base_operator_ports
-            directions = ("inlets",) if inlets else ()
+            directions: tuple[str, ...] = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:

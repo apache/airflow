@@ -273,7 +273,12 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
                 class_version,
             )
 
-        return cls(**deserialize(value))
+        deserialize_value = deserialize(value)
+        if not isinstance(deserialize_value, dict):
+            raise TypeError(
+                f"deserialized value for {classname} is not a dict, got {type(deserialize_value)}"
+            )
+        return cls(**deserialize_value)  # type: ignore[operator]
 
     # no deserializer available
     raise TypeError(f"No deserializer found for {classname}")
