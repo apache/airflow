@@ -17,16 +17,12 @@
  * under the License.
  */
 import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { MdExpand, MdCompress } from "react-icons/md";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
 
+import { useGraphServiceGetGroupIds } from "openapi/queries";
 import { useOpenGroups } from "src/context/openGroups";
-import { useGridStructure } from "src/queries/useGridStructure.ts";
-
-import { flattenNodes } from "./Grid/utils";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { t: translate } = useTranslation();
@@ -34,14 +30,12 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
   const { dagId = "", runId = "" } = useParams();
 
   // debugger;
-  const { data: dagStructure } = useGridStructure({ limit: 1 });
-  const { allGroupIds } = useMemo(
-    () => flattenNodes(dagStructure, openGroupIds),
-    [dagStructure, openGroupIds],
-  );
+  const { data: allGroupIds } = useGraphServiceGetGroupIds({ dagId, runId: runId || undefined });
 
   // Don't show button if the DAG has no task groups
-  if (!allGroupIds.length) {
+  if (allGroupIds === undefined) {
+    return undefined;
+  } else if (!allGroupIds.length) {
     return undefined;
   }
 

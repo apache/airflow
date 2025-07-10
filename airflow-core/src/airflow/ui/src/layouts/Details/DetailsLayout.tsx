@@ -99,9 +99,20 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             </IconButton>
           </Tooltip>
         ) : undefined}
-        <PanelGroup data-testid="debug-panel-group" autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
+        <PanelGroup
+          autoSaveId={dagId}
+          data-testid="debug-panel-group"
+          direction="horizontal"
+          ref={panelGroupRef}
+        >
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box data-testid="debug-panel-group-box" height="100%" overflowY="auto" position="relative" pr={2}>
+            <Box
+              data-testid="debug-panel-group-box"
+              height="100%"
+              overflowY="auto"
+              position="relative"
+              pr={2}
+            >
               <PanelButtons
                 dagView={dagView}
                 data-testid="debug-panel-buttons"

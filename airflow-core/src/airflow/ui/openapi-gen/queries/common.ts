@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GraphService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -707,6 +707,13 @@ export const useGridServiceGetLatestRunKey = "GridServiceGetLatestRun";
 export const UseGridServiceGetLatestRunKeyFn = ({ dagId }: {
   dagId: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetLatestRunKey, ...(queryKey ?? [{ dagId }])];
+export type GraphServiceGetGroupIdsDefaultResponse = Awaited<ReturnType<typeof GraphService.getGroupIds>>;
+export type GraphServiceGetGroupIdsQueryResult<TData = GraphServiceGetGroupIdsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGraphServiceGetGroupIdsKey = "GraphServiceGetGroupIds";
+export const UseGraphServiceGetGroupIdsKeyFn = ({ dagId, runId }: {
+  dagId: string;
+  runId?: string;
+}, queryKey?: Array<unknown>) => [useGraphServiceGetGroupIdsKey, ...(queryKey ?? [{ dagId, runId }])];
 export type CalendarServiceGetCalendarDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendar>>;
 export type CalendarServiceGetCalendarQueryResult<TData = CalendarServiceGetCalendarDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useCalendarServiceGetCalendarKey = "CalendarServiceGetCalendar";

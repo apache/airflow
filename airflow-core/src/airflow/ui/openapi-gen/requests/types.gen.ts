@@ -2926,6 +2926,13 @@ export type GetLatestRunData = {
 
 export type GetLatestRunResponse = LatestRunResponse | null;
 
+export type GetGroupIdsData = {
+    dagId: string;
+    runId?: string | null;
+};
+
+export type GetGroupIdsResponse = Array<(string)>;
+
 export type GetCalendarData = {
     dagId: string;
     granularity?: 'hourly' | 'daily';
@@ -6005,6 +6012,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: LatestRunResponse | null;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/graph/group_ids/{dag_id}': {
+        get: {
+            req: GetGroupIdsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<(string)>;
                 /**
                  * Bad Request
                  */

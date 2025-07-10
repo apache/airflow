@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GraphService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1343,6 +1343,19 @@ export const prefetchUseGridServiceGetGridTiSummaries = (queryClient: QueryClien
 export const prefetchUseGridServiceGetLatestRun = (queryClient: QueryClient, { dagId }: {
   dagId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }), queryFn: () => GridService.getLatestRun({ dagId }) });
+/**
+* Get Group Ids
+* Return dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runId
+* @returns string Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGraphServiceGetGroupIds = (queryClient: QueryClient, { dagId, runId }: {
+  dagId: string;
+  runId?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGraphServiceGetGroupIdsKeyFn({ dagId, runId }), queryFn: () => GraphService.getGroupIds({ dagId, runId }) });
 /**
 * Get Calendar
 * Get calendar data for a DAG including historical and planned DAG runs.
