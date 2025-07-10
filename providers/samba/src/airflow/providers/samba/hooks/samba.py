@@ -104,15 +104,17 @@ class SambaHook(BaseHook):
     def lstat(self, path):
         return smbclient.lstat(self._join_path(path), **self._conn_kwargs)
 
-    @wraps(smbclient.makedirs)
     def makedirs(self, path, exist_ok=False):
+        self._makedirs(path, exist_ok)
+
+    @wraps(smbclient.makedirs)
+    def _makedirs(self, path, exist_ok):
         return smbclient.makedirs(self._join_path(path), exist_ok=exist_ok, **self._conn_kwargs)
 
     @wraps(smbclient.mkdir)
     def mkdir(self, path):
         return smbclient.mkdir(self._join_path(path), **self._conn_kwargs)
 
-    @wraps(smbclient.open_file)
     def open_file(
         self,
         path,
@@ -124,6 +126,33 @@ class SambaHook(BaseHook):
         share_access=None,
         desired_access=None,
         file_attributes=None,
+        file_type="file",
+    ):
+        self._open_file(
+            path,
+            mode,
+            buffering,
+            encoding,
+            errors,
+            newline,
+            share_access,
+            desired_access,
+            file_attributes,
+            file_type,
+        )
+
+    @wraps(smbclient.open_file)
+    def _open_file(
+        self,
+        path,
+        mode,
+        buffering,
+        encoding,
+        errors,
+        newline,
+        share_access,
+        desired_access,
+        file_attributes,
         file_type="file",
     ):
         return smbclient.open_file(
