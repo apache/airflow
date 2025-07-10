@@ -1262,6 +1262,9 @@ leveldb = [
 [tool.uv]
 required-version = ">=0.6.3"
 no-build-isolation-package = ["sphinx-redoc"]
+# this is needed in order to avoid libxml and xmlsec using different version of libxml2 (binary lxml embeds
+# its own libxml2, while xmlsec uses system one). See https://bugs.launchpad.net/lxml/+bug/2110068
+no-binary-package = ["lxml", "xmlsec"]
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
