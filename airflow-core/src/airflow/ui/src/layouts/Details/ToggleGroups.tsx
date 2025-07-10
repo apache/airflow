@@ -19,23 +19,15 @@
 import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdExpand, MdCompress } from "react-icons/md";
-import { useParams } from "react-router-dom";
 
-import { useGraphServiceGetGroupIds } from "openapi/queries";
 import { useOpenGroups } from "src/context/openGroups";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { t: translate } = useTranslation();
-  const { openGroupIds, setOpenGroupIds } = useOpenGroups();
-  const { dagId = "", runId = "" } = useParams();
-
-  // debugger;
-  const { data: allGroupIds } = useGraphServiceGetGroupIds({ dagId, runId: runId || undefined });
+  const { allGroupIds, openGroupIds, setOpenGroupIds } = useOpenGroups();
 
   // Don't show button if the DAG has no task groups
-  if (allGroupIds === undefined) {
-    return undefined;
-  } else if (!allGroupIds.length) {
+  if (!allGroupIds.length) {
     return undefined;
   }
 
