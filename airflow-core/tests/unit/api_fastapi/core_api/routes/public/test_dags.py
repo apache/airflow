@@ -507,7 +507,104 @@ class TestDagDetails(TestDagEndpoint):
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
     def test_dag_details(
+        self,
+        mock_hasattr,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
+        owner_links,
+    ):
+        mock_hasattr.return_value = False
+        response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
+        assert response.status_code == expected_status_code
+        if expected_status_code != 200:
+            return
+
+        # Match expected and actual responses below.
+        res_json = response.json()
+        last_parsed = res_json["last_parsed"]
+        last_parsed_time = res_json["last_parsed_time"]
+        file_token = res_json["file_token"]
+        expected = {
+            "bundle_name": "dag_maker",
+            "bundle_version": None,
+            "asset_expression": None,
+            "catchup": False,
+            "concurrency": 16,
+            "dag_id": dag_id,
+            "dag_display_name": dag_display_name,
+            "dag_run_timeout": None,
+            "default_args": {
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": "PT5M",
+            },
+            "description": None,
+            "doc_md": "details",
+            "deadline": None,
+            "end_date": None,
+            "fileloc": __file__,
+            "file_token": file_token,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_stale": False,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
+            "latest_dag_version": {
+                "bundle_name": "dag_maker",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": mock.ANY,
+                "dag_id": "test_dag2",
+                "id": mock.ANY,
+                "version_number": 1,
+                "dag_display_name": dag_display_name,
+            },
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": last_parsed_time,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
+            "next_dagrun_logical_date": None,
+            "next_dagrun_run_after": None,
+            "owners": ["airflow"],
+            "owner_links": {},
+            "params": {
+                "foo": {
+                    "__class": "airflow.sdk.definitions.param.Param",
+                    "description": None,
+                    "schema": {},
+                    "value": 1,
+                }
+            },
+            "relative_fileloc": "test_dags.py",
+            "render_template_as_native_obj": False,
+            "timetable_summary": None,
+            "start_date": start_date,
+            "tags": [],
+            "template_search_path": None,
+            "timetable_description": "Never, external triggers only",
+            "timezone": UTC_JSON_REPR,
+        }
+        assert res_json == expected
+
+    @pytest.mark.parametrize(
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
+        [
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_dag_details_with_view_url_template(
         self,
         test_client,
         query_params,
@@ -554,7 +651,7 @@ class TestDagDetails(TestDagEndpoint):
             "is_paused_upon_creation": None,
             "latest_dag_version": {
                 "bundle_name": "dag_maker",
-                "bundle_url": None,
+                "bundle_url": "http://test_host.github.com/tree/None/dags",
                 "bundle_version": None,
                 "created_at": mock.ANY,
                 "dag_id": "test_dag2",
