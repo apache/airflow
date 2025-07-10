@@ -122,9 +122,8 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
 ]
 
-PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(v[0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(\| *`AIRFLOW_PYTHON_VERSION` *\| *)(`v[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+PYTHON_PATTERNS: list[tuple[str, Quoting]] = [
+    (r"(\"{python_major_minor}\": \")(v[0-9.]+)(\")", Quoting.UNQUOTED),
 ]
 
 GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -213,7 +212,7 @@ UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() 
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
 
-PYTHON_VERSION: str = os.environ.get("PYTHON_VERSION", "3.10")
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
 GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
 
@@ -247,7 +246,6 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 if __name__ == "__main__":
     changed = False
-    python_version = get_latest_python_version(PYTHON_VERSION, GITHUB_TOKEN)
     golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
@@ -265,12 +263,22 @@ if __name__ == "__main__":
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
                 )
-        if UPGRADE_PYTHON and python_version:
-            console.print(f"[bright_blue]Latest python {PYTHON_VERSION} version: {python_version}")
-            for line_pattern, quoting in PYTHON_PATTERNS:
-                new_content = replace_version(
-                    line_pattern, get_replacement(python_version, quoting), new_content, keep_length
-                )
+        if UPGRADE_PYTHON:
+            for python_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
+                latest_python_version = get_latest_python_version(python_version, GITHUB_TOKEN)
+                if latest_python_version:
+                    console.print(
+                        f"[bright_blue]Latest python {python_version} version: {latest_python_version}"
+                    )
+                    for line_format, quoting in PYTHON_PATTERNS:
+                        line_pattern = re.compile(line_format.format(python_major_minor=python_version))
+                        console.print(line_pattern)
+                        new_content = replace_version(
+                            line_pattern,
+                            get_replacement(latest_python_version, quoting),
+                            new_content,
+                            keep_length,
+                        )
         if UPGRADE_GOLANG:
             console.print(f"[bright_blue]Latest golang version: {golang_version}")
             for line_pattern, quoting in GOLANG_PATTERNS:
