@@ -518,7 +518,7 @@ class TIRunContext(BaseModel):
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
-    should_retry: Annotated[bool, Field(title="Should Retry")]
+    should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
 
 
 class TITerminalStatePayload(BaseModel):
