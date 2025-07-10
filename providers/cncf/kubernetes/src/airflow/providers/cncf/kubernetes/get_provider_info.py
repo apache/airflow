@@ -276,6 +276,13 @@ def get_provider_info():
                         "example": None,
                         "default": "0",
                     },
+                    "running_pod_log_lines": {
+                        "description": "The number of the log lines starting from the end to get from of the running pod.\n-1 for unlimited lines.\n",
+                        "version_added": None,
+                        "type": "integer",
+                        "example": None,
+                        "default": "100",
+                    },
                 },
             },
         },
