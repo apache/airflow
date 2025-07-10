@@ -267,6 +267,8 @@ jobs:
           skip-pre-commits: ${{ inputs.skip-pre-commits }}
       - name: "Autoupdate all pre-commits"
         run: pre-commit autoupdate
+      - name: "Autoupdate Lucas-C/pre-commit-hooks to bleeding edge"
+        run: pre-commit autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       - name: "Run automated upgrade for black"
         run: >
           pre-commit run
@@ -284,7 +286,7 @@ jobs:
       # For UV we are not failing the upgrade installers check if it is updated because
       # it is upgraded very frequently, so we want to manually upgrade it rather than
       # get notified about it - until it stabilizes in 1.* version
-      - name: "Run automated upgrade for uv (open to see if new version is updated)"
+      - name: "Run automated upgrade for uv (not failing - just informational)"
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose
@@ -297,7 +299,7 @@ jobs:
           UPGRADE_PIP: "false"
           UPGRADE_PRE_COMMIT: "false"
           UPGRADE_NODE_LTS: "false"
-      - name: "Run automated upgrade for pip, pre-commit and node"
+      - name: "Run automated upgrade for pip, pre-commit and node (failing if needed)"
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose

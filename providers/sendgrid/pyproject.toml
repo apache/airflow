@@ -49,7 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -58,9 +58,10 @@ requires-python = "~=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     # workaround conflicts with fab for Python 3.12 https://github.com/apache/airflow/pull/50221#issuecomment-2926765112
-    # can be set to sendgrid>=6.12.3 when we upgrade to fab 5
+    # can be set to sendgrid>=6.12.3 when we upgrade to fab 5 and remove Werkzeug dependency
     "sendgrid>=6.12.3; python_version < '3.12'",
     "sendgrid>=6.0.0,<6.12.3; python_version >= '3.12'",
+    "werkzeug>=2.2,<4; python_version >= '3.12'",
 ]
 
 [dependency-groups]

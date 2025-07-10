@@ -26,11 +26,7 @@ from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
 )
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 
 class AzureBaseHook(BaseHook):

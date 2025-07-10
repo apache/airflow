@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import attrs
 import methodtools
 
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -53,7 +54,6 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.typing_compat import Literal, TypeAlias, TypeGuard
 from airflow.utils.helpers import is_container, prevent_duplicates
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import datetime
@@ -118,7 +118,7 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
 
     if isinstance(arg, XComArg):
         for operator, key in arg.iter_references():
-            if key != XCOM_RETURN_KEY:
+            if key != BaseXCom.XCOM_RETURN_KEY:
                 raise ValueError(f"cannot map over XCom with custom key {key!r} from {operator}")
     elif not is_container(arg):
         return

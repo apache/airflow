@@ -2296,6 +2296,7 @@ def create_runtime_ti(mocked_parse):
                 run_id=run_id,
                 try_number=try_number,
                 map_index=map_index,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
