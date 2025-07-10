@@ -26,8 +26,8 @@ import { ProgressBar } from "src/components/ui";
 import { ErrorPage } from "./Error";
 
 export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
-  const { t: translate } = useTranslation("common");
-  const { page } = useParams();
+  const { t: translate } = useTranslation();
+  const { dagId, mapIndex, page, runId, taskId } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
   const iframeView =
@@ -49,12 +49,41 @@ export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly
     return <ErrorPage />;
   }
 
+  // Build the href URL with context parameters if the view has a destination
+  let src = iframeView.href;
+
+  if (iframeView.destination !== undefined && iframeView.destination !== "nav") {
+    // Check if the href contains placeholders that need to be replaced
+    if (dagId !== undefined) {
+      src = src.replaceAll("{DAG_ID}", dagId);
+    }
+    if (runId !== undefined) {
+      src = src.replaceAll("{RUN_ID}", runId);
+    }
+    if (taskId !== undefined) {
+      src = src.replaceAll("{TASK_ID}", taskId);
+    }
+    if (mapIndex !== undefined) {
+      src = src.replaceAll("{MAP_INDEX}", mapIndex);
+    }
+  }
+
   return (
-    <Box flexGrow={1} m={-3}>
+    <Box
+      flexGrow={1}
+      height="100%"
+      m={-2} // Compensate for parent padding
+      minHeight={0}
+    >
       <iframe
         sandbox={sandbox}
-        src={iframeView.href}
-        style={{ height: "100%", width: "100%" }}
+        src={src}
+        style={{
+          border: "none",
+          display: "block",
+          height: "100%",
+          width: "100%",
+        }}
         title={iframeView.name}
       />
     </Box>

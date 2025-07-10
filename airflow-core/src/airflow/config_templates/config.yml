@@ -1233,6 +1233,13 @@ traces:
       type: boolean
       example: ~
       default: "False"
+    otel_debug_traces_on:
+      description: |
+        If True, then traces from Airflow internal methods are exported. Defaults to False.
+      version_added: 3.1.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -1364,13 +1371,14 @@ api:
       type: integer
       example: ~
       default: "120"
-    access_logfile:
+    log_config:
       description: |
-        Log files for the api server. '-' means log to stderr.
+        Path to the logging configuration file for the uvicorn server.
+        If not set, the default uvicorn logging configuration will be used.
       version_added: ~
       type: string
-      example: ~
-      default: "-"
+      example: path/to/logging_config.yaml
+      default: ~
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
@@ -1549,7 +1557,7 @@ workers:
         Number of seconds to wait after a task process exits before forcibly closing any
         remaining communication sockets. This helps prevent the task supervisor from hanging
         indefinitely due to missed EOF signals.
-      version_added: 3.0.2
+      version_added: 3.0.3
       type: float
       example: ~
       default: "60.0"

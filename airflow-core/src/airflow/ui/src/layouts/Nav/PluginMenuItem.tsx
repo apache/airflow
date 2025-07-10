@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link, Image } from "@chakra-ui/react";
+import { Link, Image, Menu } from "@chakra-ui/react";
+import { FiExternalLink } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
@@ -28,68 +29,51 @@ import { NavButton } from "./NavButton";
 type Props = { readonly topLevel?: boolean } & ExternalViewResponse;
 
 export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: urlRoute }: Props) => {
-  // External Link
-  if (urlRoute === undefined || urlRoute === null) {
-    return topLevel ? (
-      <NavButton
-        icon={
-          typeof icon === "string" ? (
-            <Image height="1.75rem" src={icon} width="1.75rem" />
-          ) : (
-            <LuPlug size="1.75rem" />
-          )
-        }
-        isExternal={true}
-        key={name}
-        title={name}
-        to={href}
-      />
+  const pluginIcon =
+    typeof icon === "string" ? (
+      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={icon} width="1.25rem" />
+    ) : urlRoute === "legacy-fab-views" ? (
+      <RiArchiveStackLine size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
     ) : (
-      <Box alignItems="center" display="flex" gap={2} outline="none" px={2} py="6px">
-        <Link
-          aria-label={name}
-          fontSize="sm"
-          href={href}
-          rel="noopener noreferrer"
-          target="_blank"
-          width="100%"
-        >
-          {name}
-        </Link>
-      </Box>
+      <LuPlug size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
     );
-  }
 
-  // Embedded External Link via iframes
+  const isExternal = urlRoute === undefined || urlRoute === null;
+
   if (topLevel) {
     return (
       <NavButton
-        icon={
-          typeof icon === "string" ? (
-            <Image height="1.75rem" src={icon} width="1.75rem" />
-          ) : (
-            <LuPlug size="1.75rem" />
-          )
-        }
+        icon={pluginIcon}
+        isExternal={isExternal}
         key={name}
         title={name}
-        to={`plugin/${urlRoute}`}
+        to={isExternal ? href : `plugin/${urlRoute}`}
       />
     );
   }
 
   return (
-    <RouterLink to={`plugin/${urlRoute}`}>
-      <Box alignItems="center" display="flex" fontSize="sm" gap={2} px={2} py="6px">
-        {typeof icon === "string" ? (
-          <Image height="1.25rem" src={icon} width="1.25rem" />
-        ) : urlRoute === "legacy-fab-views" ? (
-          <RiArchiveStackLine size="1.25rem" />
-        ) : (
-          <LuPlug size="1.25rem" />
-        )}
-        {name}
-      </Box>
-    </RouterLink>
+    <Menu.Item asChild value={name}>
+      {isExternal ? (
+        <Link
+          aria-label={name}
+          fontSize="sm"
+          href={href}
+          outline="none"
+          rel="noopener noreferrer"
+          target="_blank"
+          width="100%"
+        >
+          {pluginIcon}
+          {name}
+          <FiExternalLink />
+        </Link>
+      ) : (
+        <RouterLink style={{ outline: "none" }} to={`plugin/${urlRoute}`}>
+          {pluginIcon}
+          {name}
+        </RouterLink>
+      )}
+    </Menu.Item>
   );
 };

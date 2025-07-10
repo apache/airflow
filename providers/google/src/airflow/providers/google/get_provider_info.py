@@ -470,6 +470,15 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/looker.rst"],
                 "tags": ["gcp"],
             },
+            {
+                "integration-name": "Google Cloud Logging Sink",
+                "external-doc-url": "https://cloud.google.com/logging",
+                "logo": "/docs/integration-logos/Cloud-Logging-Sink.png",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-google/operators/cloud/cloud_logging_sink.rst"
+                ],
+                "tags": ["gcp"],
+            },
         ],
         "operators": [
             {
@@ -666,6 +675,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.operators.vertex_ai.auto_ml",
                     "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service",
+                    "airflow.providers.google.cloud.operators.vertex_ai.experiment_service",
                     "airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.model_service",
                     "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job",
@@ -689,6 +699,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Managed Service for Apache Kafka",
                 "python-modules": ["airflow.providers.google.cloud.operators.managed_kafka"],
+            },
+            {
+                "integration-name": "Google Cloud Logging Sink",
+                "python-modules": ["airflow.providers.google.cloud.operators.cloud_logging_sink"],
             },
         ],
         "sensors": [
@@ -1028,6 +1042,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.auto_ml",
                     "airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job",
                     "airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.experiment_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job",
                     "airflow.providers.google.cloud.hooks.vertex_ai.model_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job",
@@ -1052,6 +1067,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Managed Service for Apache Kafka",
                 "python-modules": ["airflow.providers.google.cloud.hooks.managed_kafka"],
+            },
+            {
+                "integration-name": "Google Cloud Logging",
+                "python-modules": ["airflow.providers.google.cloud.hooks.cloud_logging"],
             },
         ],
         "triggers": [
