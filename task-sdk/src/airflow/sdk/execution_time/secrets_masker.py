@@ -154,7 +154,7 @@ def _get_v1_env_var_type() -> type:
     return V1EnvVar
 
 
-# mypy crashing on this line, if we use TypeGuard[V1EnvVar]
+# TODO update return type to TypeGuard[V1EnvVar] once mypy 1.17.0 is available
 def _is_v1_env_var(v: Any) -> bool:
     return isinstance(v, _get_v1_env_var_type())
 
