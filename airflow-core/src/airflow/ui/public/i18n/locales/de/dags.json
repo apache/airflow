@@ -6,7 +6,7 @@
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     }
   },
-  "favoriteDag": "Dag in die Favoriten aufnehmen",
+  "favoriteDag": "Dag als Favorit hinzufügen",
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
