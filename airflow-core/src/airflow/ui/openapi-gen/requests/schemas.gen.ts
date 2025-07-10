@@ -5623,7 +5623,6 @@ export const $TriggerDAGRunPostBody = {
     },
     additionalProperties: false,
     type: 'object',
-    required: ['logical_date'],
     title: 'TriggerDAGRunPostBody',
     description: 'Trigger DAG Run Serializer for POST body.'
 } as const;

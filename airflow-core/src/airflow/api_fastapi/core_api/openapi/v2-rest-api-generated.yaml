@@ -11069,8 +11069,6 @@ components:
           title: Note
       additionalProperties: false
       type: object
-      required:
-      - logical_date
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
     TriggerResponse:
