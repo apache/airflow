@@ -83,6 +83,11 @@ Variable                                    Type                  Description
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.
                                                                   | Added in version 2.4.
+``{{ mark_success_url }}``                  str | None            |URL to mark the DAG run as successful in the Airflow UI.
+``{{ log_url }}``                           str | None            |URL to the log for the current DAG run or task instance.
+``{{ dag_run_url }}``                       str | None            |URL to the DAG run details page in the Airflow UI.
+``{{ end_date }}``                          DateTime | None       |The end date/time of the DAG run.
+``{{ max_tries }}``                         int | None            |The maximum number of tries for the task instance.
 =========================================== ===================== ===================================================================
 
 The following are only available when the DagRun has a ``logical_date``

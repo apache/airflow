@@ -86,6 +86,11 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "ts_nodash_with_tz",
     "try_number",
     "var",
+    "dag_run_url",
+    "end_date",
+    "log_url",
+    "mark_success_url",
+    "max_tries",
 }
 
 
