@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-09T07:47:13.710798
+# This constraints file was automatically generated on 2025-07-10T19:45:25.446637
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiobotocore==2.23.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.13
+aiohttp==3.12.14
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
@@ -59,8 +59,8 @@ aiosignal==1.4.0
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
-alembic==1.16.3
-alibabacloud-adb20211201==3.1.2
+alembic==1.16.4
+alibabacloud-adb20211201==3.1.3
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -95,7 +95,7 @@ atlassian-python-api==4.0.4
 attrs==25.3.0
 aws-sam-translator==1.99.0
 aws-xray-sdk==2.14.0
-awswrangler==3.11.0
+awswrangler==3.12.1
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.35.0
@@ -153,7 +153,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.0.0
-cohere==5.15.0
+cohere==5.16.1
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
@@ -236,20 +236,20 @@ google-cloud-bigquery-storage==2.32.0
 google-cloud-bigquery==3.34.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.2
-google-cloud-compute==1.31.0
+google-cloud-compute==1.32.0
 google-cloud-container==2.57.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.2
-google-cloud-dataplex==2.10.2
+google-cloud-dataplex==2.11.0
 google-cloud-dataproc-metastore==1.18.3
 google-cloud-dataproc==5.21.0
 google-cloud-dlp==3.31.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.2
 google-cloud-logging==3.12.1
-google-cloud-managedkafka==0.1.11
+google-cloud-managedkafka==0.1.12
 google-cloud-memcache==1.12.2
 google-cloud-monitoring==2.27.2
 google-cloud-orchestration-airflow==1.17.5
@@ -285,7 +285,6 @@ grpcio-status==1.62.3
 grpcio-tools==1.62.3
 grpcio==1.65.5
 gssapi==1.9.0
-gunicorn==23.0.0
 h11==0.16.0
 h2==4.2.0
 hatch==1.14.1
@@ -334,7 +333,7 @@ jeepney==0.9.0
 jiter==0.10.0
 jmespath==0.10.0
 joblib==1.5.1
-joserfc==1.2.0
+joserfc==1.2.1
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -361,10 +360,10 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
-litellm==1.74.0.post1
+litellm==1.74.1
 lockfile==0.12.2
 looker-sdk==25.10.0
-lxml==5.3.2
+lxml==6.0.0
 lz4==4.4.4
 markdown-it-py==3.0.0
 marshmallow-sqlalchemy==1.4.2
@@ -412,7 +411,7 @@ nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.93.2
+openai==1.95.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -436,9 +435,9 @@ oracledb==3.2.0
 ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
-packaging==24.2
+packaging==25.0
 pagerduty==3.0.0
-pandas-gbq==0.29.1
+pandas-gbq==0.29.2
 pandas-stubs==2.3.0.250703
 pandas==2.2.3
 pandocfilters==1.5.1
@@ -452,9 +451,8 @@ pdbr==0.9.2
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
-pinecone-plugin-assistant==1.7.0
 pinecone-plugin-interface==0.0.7
-pinecone==7.3.0
+pinecone==7.0.1
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
@@ -539,7 +537,7 @@ ray==2.42.0
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
-redshift-connector==2.1.8
+redshift-connector==2.1.7
 referencing==0.36.2
 regex==2024.11.6
 requests-file==2.1.0
@@ -582,7 +580,7 @@ shapely==2.1.1
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.17.0
-slack_sdk==3.35.0
+slack_sdk==3.36.0
 smart_open==7.3.0.post1
 smbprotocol==1.15.0
 smmap==5.0.2
@@ -590,7 +588,7 @@ sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.16.0
 snowflake-snowpark-python==1.33.0
-snowflake-sqlalchemy==1.7.5
+snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
 soupsieve==2.7
 sphinx-argparse==0.5.2
@@ -656,7 +654,7 @@ types-aiofiles==24.1.0.20250708
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250626
-types-docutils==0.21.0.20250708
+types-docutils==0.21.0.20250710
 types-paramiko==3.5.0.20250708
 types-protobuf==6.30.2.20250703
 types-pyOpenSSL==24.1.0.20240722
@@ -695,7 +693,7 @@ websocket-client==1.8.0
 websockets==14.2
 wirerope==1.0.0
 wrapt==1.17.2
-xmlsec==1.3.14
+xmlsec==1.3.16
 xmltodict==0.14.2
 yamllint==1.37.1
 yandex-query-client==0.1.4
