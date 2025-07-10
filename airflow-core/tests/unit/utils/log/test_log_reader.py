@@ -41,6 +41,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.file_task_handler import convert_list_to_stream
 
 pytestmark = pytest.mark.db_test
 
@@ -127,6 +128,7 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         logs, metadata = task_log_reader.read_log_chunks(ti=ti, try_number=1, metadata={})
 
+        logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
         assert logs[0].sources == [
             f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log"
@@ -141,6 +143,7 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         logs, metadata = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
 
+        logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
         assert logs[0].sources == [
             f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log"
@@ -180,16 +183,31 @@ class TestLogView:
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_support_multiple_chunks(self, mock_read):
-        first_return = (["1st line"], {})
-        second_return = (["2nd line"], {"end_of_log": False})
-        third_return = (["3rd line"], {"end_of_log": True})
-        fourth_return = (["should never be read"], {"end_of_log": True})
+        from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+        first_return = (convert_list_to_stream([StructuredLogMessage(event="1st line")]), {})
+        second_return = (
+            convert_list_to_stream([StructuredLogMessage(event="2nd line")]),
+            {"end_of_log": False},
+        )
+        third_return = (
+            convert_list_to_stream([StructuredLogMessage(event="3rd line")]),
+            {"end_of_log": True},
+        )
+        fourth_return = (
+            convert_list_to_stream([StructuredLogMessage(event="should never be read")]),
+            {"end_of_log": True},
+        )
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
-        assert list(log_stream) == ["1st line\n", "2nd line\n", "3rd line\n"]
+        assert list(log_stream) == [
+            '{"timestamp":null,"event":"1st line"}\n',
+            '{"timestamp":null,"event":"2nd line"}\n',
+            '{"timestamp":null,"event":"3rd line"}\n',
+        ]
 
         # as the metadata is now updated in place, when the latest run update metadata.
         # the metadata stored in the mock_read will also be updated
@@ -205,11 +223,18 @@ class TestLogView:
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_read_each_try_in_turn(self, mock_read):
-        mock_read.side_effect = [(["try_number=3."], {"end_of_log": True})]
+        from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+        mock_read.side_effect = [
+            (
+                convert_list_to_stream([StructuredLogMessage(event="try_number=3.")]),
+                {"end_of_log": True},
+            )
+        ]
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert list(log_stream) == ["try_number=3.\n"]
+        assert list(log_stream) == ['{"timestamp":null,"event":"try_number=3."}\n']
 
         mock_read.assert_has_calls(
             [
@@ -220,8 +245,10 @@ class TestLogView:
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_no_end_of_log_marker(self, mock_read):
+        from airflow.utils.log.file_task_handler import StructuredLogMessage
+
         mock_read.side_effect = [
-            (["hello"], {"end_of_log": False}),
+            ([StructuredLogMessage(event="hello")], {"end_of_log": False}),
             *[([], {"end_of_log": False}) for _ in range(10)],
         ]
 
@@ -230,7 +257,7 @@ class TestLogView:
         task_log_reader.STREAM_LOOP_SLEEP_SECONDS = 0.001  # to speed up the test
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert list(log_stream) == [
-            "hello\n",
+            '{"timestamp":null,"event":"hello"}\n',
             "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
         ]
         assert mock_read.call_count == 11
