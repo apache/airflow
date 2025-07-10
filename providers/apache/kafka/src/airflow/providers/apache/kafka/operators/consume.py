@@ -133,11 +133,19 @@ class ConsumeFromTopicOperator(BaseOperator):
         if isinstance(self.apply_function_batch, str):
             self.apply_function_batch = import_string(self.apply_function_batch)
 
+        if self.apply_function is not None and not callable(self.apply_function):
+            raise TypeError(f"apply_function is not a callable, got {type(self.apply_function)} instead.")
+
         if self.apply_function:
             apply_callable = partial(
                 self.apply_function,  # type: ignore
                 *self.apply_function_args,
                 **self.apply_function_kwargs,
+            )
+
+        if self.apply_function_batch is not None and not callable(self.apply_function_batch):
+            raise TypeError(
+                f"apply_function_batch is not a callable, got {type(self.apply_function_batch)} instead."
             )
 
         if self.apply_function_batch:
