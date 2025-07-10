@@ -22,7 +22,7 @@ from io import StringIO as StringBuffer
 
 import pytest
 
-from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
@@ -53,11 +53,11 @@ class TestDockerDecorator:
             return [random.random() for _ in range(100)]
 
         with dag_maker(session=session):
-            ret = f()
+            f()
         session.commit()
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+        dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert len(ti.xcom_pull()) == 100
 
@@ -70,11 +70,11 @@ class TestDockerDecorator:
             return [random.random() for _ in range(num_results)]
 
         with dag_maker(session=session):
-            ret = f(50)
+            f(50)
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
+        dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         result = ti.xcom_pull(session=session)
         assert isinstance(result, list)
@@ -82,7 +82,14 @@ class TestDockerDecorator:
 
     @pytest.mark.db_test
     def test_basic_docker_operator_with_template_fields(self, dag_maker):
-        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
+        from docker.types import Mount
+
+        @task.docker(
+            image="python:3.9-slim",
+            container_name="python_{{dag_run.dag_id}}",
+            auto_remove="force",
+            mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
+        )
         def f():
             raise RuntimeError("Should not executed")
 
@@ -90,9 +97,13 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+        else:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{dr.dag_id}"
+        assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
 
     @pytest.mark.db_test
     def test_basic_docker_operator_multiple_output(self, dag_maker, session):
@@ -102,13 +113,11 @@ class TestDockerDecorator:
 
         test_number = 10
         with dag_maker(session=session):
-            ret = return_dict(test_number)
+            return_dict(test_number)
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
-
+        dag_maker.run_ti("return_dict", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert ti.xcom_pull(key="number", session=session) == test_number + 1
         assert ti.xcom_pull(key="43", session=session) == 43
@@ -121,12 +130,11 @@ class TestDockerDecorator:
             pass
 
         with dag_maker(session=session):
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+        dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert ti.xcom_pull(session=session) is None
 
@@ -174,15 +182,16 @@ class TestDockerDecorator:
             raise SystemExit(exit_code)
 
         with dag_maker(session=session):
-            ret = f(actual_exit_code)
+            f(actual_exit_code)
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(AirflowException):
-                ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+                dag_maker.run_ti("f", dr)
+
         else:
-            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+            dag_maker.run_ti("f", dr)
             ti = dr.get_task_instances(session=session)[0]
             assert ti.state == expected_state
 
@@ -343,13 +352,13 @@ class TestDockerDecorator:
         ch = logging.StreamHandler(log_capture_string)
         docker_operator_logger.addHandler(ch)
         with dag_maker(session=session):
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
 
         with pytest.raises(AirflowException):
-            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+            dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert ti.state == TaskInstanceState.FAILED
 

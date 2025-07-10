@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from airflow.serialization.typing import is_pydantic_model
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
-
     from airflow.serialization.serde import U
 
 serializers = [
@@ -48,8 +46,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not is_pydantic_model(o):
         return "", "", 0, False
 
-    model = cast("BaseModel", o)  # for mypy
-    data = model.model_dump()
+    data = o.model_dump()  # type: ignore
 
     return data, qualname(o), __version__, True
 
@@ -75,5 +72,4 @@ def deserialize(cls: type, version: int, data: dict):
         raise TypeError(f"No deserializer found for {qualname(cls)}")
 
     # Perform validation-based reconstruction
-    model = cast("BaseModel", cls)  # for mypy
-    return model.model_validate(data)
+    return cls.model_validate(data)  # type: ignore

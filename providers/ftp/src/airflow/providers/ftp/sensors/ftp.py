@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.ftp.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

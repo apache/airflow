@@ -29,8 +29,9 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
 from airflow.dag_processing.bundles.manager import DagBundlesManager

@@ -752,13 +752,21 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+
+``` shell
+export PATH_TO_SVN=<set your path to svn here>
+```
+
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
 script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
 may help with verifying installation of the packages.
 
+Once you have cloned/updated the SVN repository, copy the pypi URLs shared in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
+directory and cd into it.
+
 ```shell script
-# Copy the list of packages (pypi urls) into `packages.txt` then run:
-uv run check_files.py providers -p {PATH_TO_SVN}
+uv run check_files.py providers -p ${PATH_TO_SVN}
 ```
 
 After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
@@ -812,7 +820,7 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd {PATH_TO_SVN}
+cd ${PATH_TO_SVN}
 cd airflow/providers
 ```
 
@@ -888,7 +896,9 @@ where `.rat-excludes` is the file in the root of Airflow source code.
 Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
-You can import the whole KEYS file:
+Download the KEYS file from the above link and save it locally.
+
+You can import the whole KEYS file into gpg by running the following command:
 
 ```shell script
 gpg --import KEYS
@@ -1002,7 +1012,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.9 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.10 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 

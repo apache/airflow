@@ -35,7 +35,7 @@ if AIRFLOW_V_3_0_PLUS:
         return ExecuteTask.model_validate_json(command)
 else:
     # Mock the external dependencies
-    from typing import Callable
+    from collections.abc import Callable
 
     from connexion import ProblemException
 

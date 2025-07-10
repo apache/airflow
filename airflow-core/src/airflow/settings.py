@@ -22,11 +22,11 @@ import functools
 import json
 import logging
 import os
-import platform
 import sys
 import warnings
+from collections.abc import Callable
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pluggy
 from packaging.version import Version
@@ -320,6 +320,20 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
+def _configure_async_session():
+    global async_engine
+    global AsyncSession
+
+    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+    AsyncSession = sessionmaker(
+        bind=async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=SAAsyncSession,
+        expire_on_commit=False,
+    )
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -334,8 +348,6 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    global async_engine
-    global AsyncSession
     global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
@@ -358,34 +370,24 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         connect_args["check_same_thread"] = False
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
-    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
-    AsyncSession = sessionmaker(
-        bind=async_engine,
-        autocommit=False,
-        autoflush=False,
-        class_=SAAsyncSession,
-        expire_on_commit=False,
-    )
     mask_secret(engine.url.password)
-
     setup_event_handlers(engine)
 
     if conf.has_option("database", "sql_alchemy_session_maker"):
         _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
     else:
-
-        def _session_maker(_engine):
-            return sessionmaker(
-                autocommit=False,
-                autoflush=False,
-                bind=_engine,
-                expire_on_commit=False,
-            )
-
+        _session_maker = functools.partial(
+            sessionmaker,
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
+        )
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
-    if not platform.system() == "Windows":
+    _configure_async_session()
+
+    if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
         def clean_in_fork():
             _globals = globals()
@@ -395,7 +397,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 async_engine.sync_engine.dispose(close=False)
 
         # Won't work on Windows
-        os.register_at_fork(after_in_child=clean_in_fork)
+        register_at_fork(after_in_child=clean_in_fork)
 
 
 DEFAULT_ENGINE_ARGS = {

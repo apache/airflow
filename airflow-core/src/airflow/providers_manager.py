@@ -26,12 +26,12 @@ import json
 import logging
 import traceback
 import warnings
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 from packaging.utils import canonicalize_name
 
@@ -83,7 +83,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
 

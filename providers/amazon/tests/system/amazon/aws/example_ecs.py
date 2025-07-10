@@ -17,12 +17,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsCreateClusterOperator,
@@ -35,6 +33,21 @@ from airflow.providers.amazon.aws.sensors.ecs import (
     EcsClusterStateSensor,
     EcsTaskDefinitionStateSensor,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain, task
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

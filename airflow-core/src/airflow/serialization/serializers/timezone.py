@@ -68,6 +68,8 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
 
 def deserialize(cls: type, version: int, data: object) -> Any:
+    from zoneinfo import ZoneInfo
+
     from airflow.utils.timezone import parse_timezone
 
     if not isinstance(data, (str, int)):
@@ -76,9 +78,7 @@ def deserialize(cls: type, version: int, data: object) -> Any:
     if version > __version__:
         raise TypeError(f"serialized {version} of {qualname(cls)} > {__version__}")
 
-    if qualname(cls) == "backports.zoneinfo.ZoneInfo" and isinstance(data, str):
-        from zoneinfo import ZoneInfo
-
+    if cls is ZoneInfo and isinstance(data, str):
         return ZoneInfo(data)
 
     return parse_timezone(data)

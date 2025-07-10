@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import psycopg2
 import psycopg2.extensions
@@ -35,11 +35,15 @@ from airflow.providers.postgres.dialects.postgres import PostgresDialect
 if TYPE_CHECKING:
     from psycopg2.extensions import connection
 
-    from airflow.models.connection import Connection
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
+
+CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
 
 
 class PostgresHook(DbApiHook):
@@ -256,7 +260,9 @@ class PostgresHook(DbApiHook):
             port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-            cluster_identifier = conn.extra_dejson.get("cluster-identifier", conn.host.split(".")[0])
+            cluster_identifier = conn.extra_dejson.get(
+                "cluster-identifier", cast("str", conn.host).split(".")[0]
+            )
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -272,7 +278,7 @@ class PostgresHook(DbApiHook):
             # Pull the workgroup-name from the query params/extras, if not there then pull it from the
             # beginning of the Redshift URL
             # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns workgroup-name
-            workgroup_name = conn.extra_dejson.get("workgroup-name", conn.host.split(".")[0])
+            workgroup_name = conn.extra_dejson.get("workgroup-name", cast("str", conn.host).split(".")[0])
             redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=aws_conn_id, client_type="redshift-serverless"
             ).conn
@@ -288,7 +294,7 @@ class PostgresHook(DbApiHook):
             rds_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="rds").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
-        return login, token, port
+        return cast("str", login), cast("str", token), port
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """

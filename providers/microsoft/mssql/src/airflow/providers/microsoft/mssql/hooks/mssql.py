@@ -101,10 +101,10 @@ class MsSqlHook(DbApiHook):
         conn = self.connection
         extra_conn_args = {key: val for key, val in conn.extra_dejson.items() if key != "sqlalchemy_scheme"}
         return pymssql.connect(
-            server=conn.host,
+            server=conn.host or "",
             user=conn.login,
             password=conn.password,
-            database=self.schema or conn.schema,
+            database=self.schema or conn.schema or "",
             port=str(conn.port),
             **extra_conn_args,
         )

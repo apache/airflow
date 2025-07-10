@@ -48,7 +48,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 # latest released version here
 ARG AIRFLOW_VERSION="3.0.2"
 
-ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 
 
 # You can swap comments between those two args to test pip from the main version
@@ -57,7 +57,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.7.14
+ARG AIRFLOW_UV_VERSION=0.7.19
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"

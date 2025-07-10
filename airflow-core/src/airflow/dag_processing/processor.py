@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import importlib
 import os
 import sys
 import traceback
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -43,8 +46,11 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
+from airflow.utils.file import iter_airflow_imports
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -88,14 +94,35 @@ class DagFileParsingResult(BaseModel):
 
 
 ToManager = Annotated[
-    Union[DagFileParsingResult, GetConnection, GetVariable, PutVariable, DeleteVariable],
+    DagFileParsingResult | GetConnection | GetVariable | PutVariable | DeleteVariable,
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    Union[DagFileParseRequest, ConnectionResult, VariableResult, ErrorResponse, OKResponse],
+    DagFileParseRequest | ConnectionResult | VariableResult | ErrorResponse | OKResponse,
     Field(discriminator="type"),
 ]
+
+
+def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
+    """
+    Pre-import Airflow modules found in the given file.
+
+    This prevents modules from being re-imported in each processing process,
+    saving CPU time and memory.
+    (The default value of "parsing_pre_import_modules" is set to True)
+
+    :param file_path: Path to the file to scan for imports
+    :param log: Logger instance to use for warnings
+    """
+    if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+        return
+
+    for module in iter_airflow_imports(file_path):
+        try:
+            importlib.import_module(module)
+        except ModuleNotFoundError as e:
+            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
 
 
 def _parse_file_entrypoint():
@@ -127,6 +154,7 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
@@ -176,10 +204,7 @@ def _execute_callbacks(
     for request in callback_requests:
         log.debug("Processing Callback Request", request=request.to_json())
         if isinstance(request, TaskCallbackRequest):
-            raise NotImplementedError(
-                "Haven't coded Task callback yet - https://github.com/apache/airflow/issues/44354!"
-            )
-            # _execute_task_callbacks(dagbag, request)
+            _execute_task_callbacks(dagbag, request, log)
         if isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
 
@@ -211,6 +236,67 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
             Stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+
+
+def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
+    if not request.is_failure_callback:
+        log.warning(
+            "Task callback requested but is not a failure callback",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+        return
+
+    dag = dagbag.dags[request.ti.dag_id]
+    task = dag.get_task(request.ti.task_id)
+
+    if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
+        callbacks = task.on_retry_callback
+    else:
+        callbacks = task.on_failure_callback
+
+    if not callbacks:
+        log.warning(
+            "Callback requested but no callback found",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+            ti_id=request.ti.id,
+        )
+        return
+
+    callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
+    ctx_from_server = request.context_from_server
+
+    if ctx_from_server is not None:
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=ctx_from_server,
+            max_tries=ctx_from_server.max_tries,
+        )
+    else:
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+        )
+    context = runtime_ti.get_template_context()
+
+    def get_callback_representation(callback):
+        with contextlib.suppress(AttributeError):
+            return callback.__name__
+        with contextlib.suppress(AttributeError):
+            return callback.__class__.__name__
+        return callback
+
+    for idx, callback in enumerate(callbacks):
+        callback_repr = get_callback_representation(callback)
+        log.info("Executing Task callback at index %d: %s", idx, callback_repr)
+        try:
+            callback(context)
+        except Exception:
+            log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
 def in_process_api_server() -> InProcessExecutionAPI:
@@ -250,6 +336,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         client: Client,
         **kwargs,
     ) -> Self:
+        logger = kwargs["logger"]
+
+        _pre_import_airflow_modules(os.fspath(path), logger)
+
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
         return proc
