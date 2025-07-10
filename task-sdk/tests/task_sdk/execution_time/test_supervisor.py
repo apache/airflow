@@ -149,7 +149,6 @@ def client_with_ti_start(make_ti_context):
 
 @pytest.mark.usefixtures("disable_capturing")
 class TestSupervisor:
-    # @patch("airflow.sdk.execution_time.supervisor.mask_secret")
     @pytest.mark.parametrize(
         "server, dry_run, error_pattern",
         [
