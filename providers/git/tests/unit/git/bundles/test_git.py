@@ -523,7 +523,7 @@ class TestGitDagBundle:
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
-    @pytest.mark.skipif(AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
     @pytest.mark.parametrize(
         "repo_url, extra_conn_kwargs, expected_url",
         [
