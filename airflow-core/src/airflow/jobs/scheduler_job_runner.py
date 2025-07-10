@@ -1600,7 +1600,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp <= triggered_date,
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
-                .order_by(AssetEvent.timestamp.asc())
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             ).all()
 
             dag_run = dag.create_dagrun(
