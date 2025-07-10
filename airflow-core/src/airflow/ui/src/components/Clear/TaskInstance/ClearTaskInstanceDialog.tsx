@@ -143,20 +143,20 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
-            {...(taskInstance.dag_version?.bundle_version !== null &&
-            taskInstance.dag_version?.bundle_version !== ""
+            {...(taskInstance.dag_version.bundle_version !== null &&
+            taskInstance.dag_version.bundle_version !== ""
               ? { alignItems: "center" }
               : {})}
             justifyContent={
-              taskInstance.dag_version?.bundle_version !== null &&
-              taskInstance.dag_version?.bundle_version !== ""
+              taskInstance.dag_version.bundle_version !== null &&
+              taskInstance.dag_version.bundle_version !== ""
                 ? "space-between"
                 : "end"
             }
             mt={3}
           >
-            {taskInstance.dag_version?.bundle_version !== null &&
-            taskInstance.dag_version?.bundle_version !== "" ? (
+            {taskInstance.dag_version.bundle_version !== null &&
+            taskInstance.dag_version.bundle_version !== "" ? (
               <Checkbox
                 checked={runOnLatestVersion}
                 onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
