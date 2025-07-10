@@ -109,7 +109,10 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("The 'kerberos' authorization type doesn't support password.")
+            AirflowException,
+            match=re.escape(
+                "Multiple authentication methods specified: ['password', 'kerberos']. Only one is allowed."
+            ),
         ):
             TrinoHook().get_conn()
 
