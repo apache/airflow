@@ -328,7 +328,7 @@ class BaseDagBundle(ABC):
         """
         warnings.warn(
             "The 'view_url' method is deprecated and will be removed in a future version. "
-            "Use 'view_url_template' instead.",
+            "Use 'DagBundleModel.render_url' instead.",
             DeprecationWarning,
             stacklevel=2,
         )
