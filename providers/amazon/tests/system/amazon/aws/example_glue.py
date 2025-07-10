@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCata
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, get_role_name, prune_logs
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -69,11 +69,6 @@ print('There are %s items in the table' % datasource.count())
 
 datasource.toDF().write.format('csv').mode("append").save('s3://{bucket_name}/output')
 """
-
-
-@task
-def get_role_name(arn: str) -> str:
-    return arn.split("/")[-1]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)

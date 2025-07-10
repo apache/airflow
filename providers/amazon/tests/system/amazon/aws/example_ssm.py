@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.operators.ssm import SsmRunCommandOperator
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, get_role_name
 from system.amazon.aws.utils.ec2 import get_latest_ami_id
 
 DAG_ID = "example_ssm"
@@ -69,11 +69,6 @@ USER_DATA = """
 """
 
 log = logging.getLogger(__name__)
-
-
-@task
-def get_role_name(arn: str) -> str:
-    return arn.split("/")[-1]
 
 
 @task
