@@ -31,7 +31,7 @@ from airflow.providers.microsoft.azure.utils import (
 from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
-    from airflow.models import Connection
+    from airflow.providers.microsoft.azure.version_compat import Connection
 
 
 class AzureBaseHook(BaseHook):
