@@ -35,7 +35,7 @@ class DagBundleModel(Base, LoggingMixin):
     - version: The latest version Airflow has seen for the bundle.
     - last_refreshed: When the bundle was last refreshed.
     - signed_url_template: Signed URL template for viewing the bundle
-    - template_params: JSON object containing template parameters (e.g., {"subdir": "dags"})
+    - template_params: JSON object containing template parameters for constructing view url (e.g., {"subdir": "dags"})
 
     """
 
