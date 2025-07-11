@@ -62,7 +62,7 @@
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "queueNew": "Queue up new tasks",
-      "runOnLatestVersion": "Run with latest version",
+      "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream"
     }
   },
