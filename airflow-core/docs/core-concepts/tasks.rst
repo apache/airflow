@@ -245,4 +245,3 @@ Ownership
 It is possible to set an owner to a Task through the ``owner`` argument of the :class:`~airflow.models.baseoperator.BaseOperator`.
 This may allow DAGs users to know who is in charge of the development of the different parts of a DAG.
 The owner definition also allows to customize the DAG rendering in the DAGs view UI, :ref:`creating links <concepts:dags-ownership>` to contact the owners through the ``owner_links`` of the :class:`~airflow.models.dag.DAG`.
-
