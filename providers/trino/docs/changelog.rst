@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix authentication behavior in Trino provider by allowing only one auth type per connection (#53134)``
+
 6.3.1
 .....
 

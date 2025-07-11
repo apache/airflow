@@ -111,7 +111,7 @@ class TestTrinoHookConn:
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                "Multiple authentication methods specified: ['password', 'kerberos']. Only one is allowed."
+                "Multiple authentication methods specified: password, kerberos. Only one is allowed."
             ),
         ):
             TrinoHook().get_conn()
