@@ -53,6 +53,8 @@ class DagVersionResponse(BaseModel):
 
                 if bundle_model and hasattr(bundle_model, "signed_url_template"):
                     return bundle_model.render_url(self.bundle_version)
+                # fallback to the deprecated option if the bundle model does not have a signed_url_template
+                # attribute
                 try:
                     return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
                 except ValueError:
