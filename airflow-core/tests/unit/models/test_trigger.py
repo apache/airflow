@@ -44,7 +44,6 @@ from airflow.triggers.base import (
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
 
@@ -243,7 +242,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}), session=session
+        trigger.id, event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": "d"}), session=session
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()

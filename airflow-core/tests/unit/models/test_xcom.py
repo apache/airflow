@@ -37,7 +37,6 @@ from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -173,7 +172,7 @@ class TestXCom:
 
         XCom = resolve_xcom_backend()
         XCom.set(
-            key=XCOM_RETURN_KEY,
+            key=XCom.XCOM_RETURN_KEY,
             value={"my_xcom_key": "my_xcom_value"},
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
@@ -181,7 +180,7 @@ class TestXCom:
             map_index=-1,
         )
         serialize_watcher.assert_called_once_with(
-            key=XCOM_RETURN_KEY,
+            key=XCom.XCOM_RETURN_KEY,
             value={"my_xcom_key": "my_xcom_value"},
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
