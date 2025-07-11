@@ -27,17 +27,16 @@ export const HomePage = () => {
     <Box
       minH="100vh"
       p={8}
-      bg="gray.50"
-      _dark={{ bg: "gray.900" }}
+      bg="bg.subtle"
     >
-      <VStack spacing={8} align="center" justify="center" minH="100vh">
-        <Heading size="2xl" textAlign="center">
+      <VStack gap={8} align="center" justify="center" minH="100vh">
+        <Heading size="2xl" textAlign="center" color="fg">
           Welcome to Your New React App!
         </Heading>
-        <Text fontSize="lg" color="gray.600" _dark={{ color: "gray.400" }}>
+        <Text fontSize="lg" color="fg.muted">
           This project was bootstrapped with the Airflow UI configuration.
         </Text>
-        <Button onClick={toggleColorMode} colorScheme="blue">
+        <Button onClick={toggleColorMode} colorPalette="blue">
           Toggle Theme
         </Button>
       </VStack>
