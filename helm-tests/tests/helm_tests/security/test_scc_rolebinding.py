@@ -37,7 +37,13 @@ class TestSCCActivation:
             (True, False, False, "3.0.0"),
         ],
     )
-    def test_create_scc(self, rbac_enabled, scc_enabled, created, airflow_version,):
+    def test_create_scc(
+        self,
+        rbac_enabled,
+        scc_enabled,
+        created,
+        airflow_version
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
