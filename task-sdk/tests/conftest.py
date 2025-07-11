@@ -24,8 +24,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.sdk.execution_time.secrets_masker import SecretsMasker
-
 pytest_plugins = "tests_common.pytest_plugin"
 
 # Task SDK does not need access to the Airflow database
@@ -278,6 +276,8 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
 
 @pytest.fixture
 def patched_secrets_masker():
+    from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+
     secrets_masker = SecretsMasker()
     with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
         yield secrets_masker
