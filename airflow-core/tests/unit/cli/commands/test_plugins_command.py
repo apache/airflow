@@ -24,7 +24,7 @@ from contextlib import redirect_stdout
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands import plugins_command
+from airflow.cli.commands.plugins_commands import dump_command
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sdk import BaseOperatorLink
@@ -38,7 +38,9 @@ pytestmark = pytest.mark.db_test
 class AirflowNewLink(BaseOperatorLink):
     """Operator Link for Apache Airflow Website."""
 
-    name = "airflowtestlink"
+    @property
+    def name(self) -> str:
+        return "airflowtestlink"
 
     def get_link(self, operator, *, ti_key):
         return "https://airflow.apache.org"
@@ -57,14 +59,14 @@ class TestPluginsCommand:
     @mock_plugin_manager(plugins=[])
     def test_should_display_no_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
+            dump_command.dump_plugins(self.parser.parse_args(["plugins", "dump", "--output=json"]))
             stdout = temp_stdout.getvalue()
         assert "No plugins loaded" in stdout
 
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
     def test_should_display_one_plugin(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
+            dump_command.dump_plugins(self.parser.parse_args(["plugins", "dump", "--output=json"]))
             stdout = temp_stdout.getvalue()
         print(stdout)
         info = json.loads(stdout)
@@ -150,7 +152,7 @@ class TestPluginsCommand:
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins_as_table(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=table"]))
+            dump_command.dump_plugins(self.parser.parse_args(["plugins", "dump", "--output=table"]))
             stdout = temp_stdout.getvalue()
 
         # Remove leading spaces

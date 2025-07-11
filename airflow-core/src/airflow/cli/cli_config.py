@@ -301,6 +301,11 @@ ARG_DEFAULTS = Arg(
     action="store_true",
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
+
+# Bootstrap React Plugin arguments
+ARG_PLUGIN_NAME = Arg(("name",), help="Name of the React plugin project to create")
+ARG_PLUGIN_DIR = Arg(("-d", "--dir"), help="Target directory (defaults to project name)", default=None)
+
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
@@ -1294,6 +1299,22 @@ TASKS_COMMANDS = (
         args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
+PLUGINS_COMMANDS = (
+    ActionCommand(
+        name="dump",
+        help="Dump information about loaded plugins",
+        func=lazy_load_command("airflow.cli.commands.plugins_commands.dump_command.dump_plugins"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="bootstrap-react",
+        help="Bootstrap a new React plugin project",
+        func=lazy_load_command(
+            "airflow.cli.commands.plugins_commands.bootstrap_react_command.bootstrap_react_plugin"
+        ),
+        args=(ARG_PLUGIN_NAME, ARG_PLUGIN_DIR, ARG_VERBOSE),
+    ),
+)
 POOLS_COMMANDS = (
     ActionCommand(
         name="list",
@@ -1971,11 +1992,10 @@ core_commands: list[CLICommand] = [
             ARG_OUTPUT,
         ),
     ),
-    ActionCommand(
+    GroupCommand(
         name="plugins",
-        help="Dump information about loaded plugins",
-        func=lazy_load_command("airflow.cli.commands.plugins_command.dump_plugins"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        help="Manage plugins",
+        subcommands=PLUGINS_COMMANDS,
     ),
     ActionCommand(
         name="standalone",

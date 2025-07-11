@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,16 +16,16 @@
 # under the License.
 
 """
-Bootstrap React Plugin Directory Tool
+Bootstrap React Plugin Directory Tool.
 
-This tool creates a new React plugin directory based on the airflow-core/ui project structure.
-It sets up all the necessary configuration files, dependencies, and basic structure for
-development with the same tooling as used in Airflow's core UI.
+This module provides CLI commands to create new React UI plugin directory based
+on the airflow-core/ui project structure. It sets up all the necessary configuration
+files, dependencies, and basic structure for development with the same tooling as
+used in Airflow's core UI.
 """
 
 from __future__ import annotations
 
-import argparse
 import re
 import shutil
 import sys
@@ -71,7 +70,7 @@ def remove_apache_license_header(content: str, file_extension: str) -> str:
 def copy_template_files(template_dir: Path, project_path: Path, project_name: str) -> None:
     """Copy template files to the project directory, replacing variables and removing licenses."""
     for item in template_dir.rglob("*"):
-        if item.is_file():
+        if item.is_file() or item.is_symlink():
             # Calculate relative path from template root
             rel_path = item.relative_to(template_dir)
             target_path = project_path / rel_path
@@ -79,7 +78,42 @@ def copy_template_files(template_dir: Path, project_path: Path, project_name: st
             # Create parent directories if they don't exist
             target_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Read file content
+            # Handle symlinks by resolving them and copying the actual content
+            if item.is_symlink():
+                # Resolve the symlink to get the actual file/directory
+                resolved_item = item.resolve()
+
+                if resolved_item.is_file():
+                    # Copy single file from symlinked location
+                    try:
+                        with open(resolved_item, encoding="utf-8") as f:
+                            content = f.read()
+
+                        # Replace template variables and remove licenses
+                        content = replace_template_variables(content, project_name)
+                        file_extension = resolved_item.suffix.lower()
+                        content = remove_apache_license_header(content, file_extension)
+
+                        with open(target_path, "w", encoding="utf-8") as f:
+                            f.write(content)
+                    except UnicodeDecodeError:
+                        # Handle binary files by copying directly
+                        shutil.copy2(resolved_item, target_path)
+                elif resolved_item.is_dir():
+                    # Copy entire directory tree, resolving all symlinks
+                    shutil.copytree(
+                        resolved_item,
+                        target_path,
+                        symlinks=False,  # Resolve symlinks
+                        dirs_exist_ok=True,
+                    )
+                    # Process all files in the copied directory for template variables and license removal
+                    _process_copied_directory(target_path, project_name)
+
+                print(f"  Created: {rel_path} (resolved from symlink)")
+                continue
+
+            # Handle regular files
             try:
                 with open(item, encoding="utf-8") as f:
                     content = f.read()
@@ -102,10 +136,36 @@ def copy_template_files(template_dir: Path, project_path: Path, project_name: st
             print(f"  Created: {rel_path}")
 
 
-def bootstrap_react_plugin(project_name: str, target_dir: str | None = None) -> None:
+def _process_copied_directory(directory: Path, project_name: str) -> None:
+    """Process all files in a copied directory for template variables and license removal."""
+    for item in directory.rglob("*"):
+        if item.is_file():
+            try:
+                with open(item, encoding="utf-8") as f:
+                    content = f.read()
+
+                # Replace template variables
+                original_content = content
+                content = replace_template_variables(content, project_name)
+
+                # Remove Apache license headers
+                file_extension = item.suffix.lower()
+                content = remove_apache_license_header(content, file_extension)
+
+                # Only write if content changed
+                if content != original_content:
+                    with open(item, "w", encoding="utf-8") as f:
+                        f.write(content)
+
+            except UnicodeDecodeError:
+                # Skip binary files
+                continue
+
+
+def bootstrap_react_plugin(args) -> None:
     """Bootstrap a new React plugin project."""
-    if target_dir is None:
-        target_dir = project_name
+    project_name = args.name
+    target_dir = args.dir if args.dir else project_name
 
     project_path = Path(target_dir).resolve()
     template_dir = get_template_dir()
@@ -113,6 +173,11 @@ def bootstrap_react_plugin(project_name: str, target_dir: str | None = None) -> 
     # Check if directory already exists
     if project_path.exists():
         print(f"Error: Directory '{project_path}' already exists!")
+        sys.exit(1)
+
+    # Validate project name
+    if not project_name.replace("-", "").replace("_", "").isalnum():
+        print("Error: Project name should only contain letters, numbers, hyphens, and underscores")
         sys.exit(1)
 
     print(f"Creating React plugin project: {project_name}")
@@ -130,8 +195,8 @@ def bootstrap_react_plugin(project_name: str, target_dir: str | None = None) -> 
         print(f"\n✅ Successfully created {project_name}!")
         print("\nNext steps:")
         print(f"  cd {target_dir}")
-        print("  pnpm install")
-        print("  pnpm dev")
+        print("  yarn install")
+        print("  yarn dev")
         print("\nHappy coding! 🚀")
 
     except Exception as e:
@@ -140,25 +205,3 @@ def bootstrap_react_plugin(project_name: str, target_dir: str | None = None) -> 
         if project_path.exists():
             shutil.rmtree(project_path)
         sys.exit(1)
-
-
-def main():
-    """Main entry point for the bootstrap script."""
-    parser = argparse.ArgumentParser(
-        description="Bootstrap a new React plugin project based on Airflow's core UI configuration"
-    )
-    parser.add_argument("project_name", help="Name of the project to create")
-    parser.add_argument("-d", "--dir", help="Target directory (defaults to project name)", default=None)
-
-    args = parser.parse_args()
-
-    # Validate project name
-    if not args.project_name.replace("-", "").replace("_", "").isalnum():
-        print("Error: Project name should only contain letters, numbers, hyphens, and underscores")
-        sys.exit(1)
-
-    bootstrap_react_plugin(args.project_name, args.dir)
-
-
-if __name__ == "__main__":
-    main()
