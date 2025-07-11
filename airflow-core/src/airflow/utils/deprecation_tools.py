@@ -35,22 +35,33 @@ def getattr_with_deprecation(
 
     :param imports: dict of imports and their redirection for the module
     :param module: name of the module in the package to get the attribute from
-    :param override_deprecated_classes: override target classes with deprecated ones. If target class is
+    :param override_deprecated_classes: override target attributes with deprecated ones. If target attribute is
        found in the dictionary, it will be displayed in the warning message.
     :param extra_message: extra message to display in the warning or import error message
     :param name: attribute name
     :return:
     """
     target_class_full_name = imports.get(name)
+
+    # Handle wildcard pattern "*" - redirect all attributes to target module
+    # Skip Python special attributes (dunder attributes) as they shouldn't be redirected
+    if not target_class_full_name and "*" in imports and not (name.startswith("__") and name.endswith("__")):
+        target_class_full_name = f"{imports['*']}.{name}"
+
     if not target_class_full_name:
         raise AttributeError(f"The module `{module!r}` has no attribute `{name!r}`")
+
+    # Determine the warning class name (may be overridden)
     warning_class_name = target_class_full_name
     if override_deprecated_classes and name in override_deprecated_classes:
         warning_class_name = override_deprecated_classes[name]
-    message = f"The `{module}.{name}` class is deprecated. Please use `{warning_class_name!r}`."
+
+    message = f"The `{module}.{name}` attribute is deprecated. Please use `{warning_class_name!r}`."
     if extra_message:
         message += f" {extra_message}."
     warnings.warn(message, DeprecationWarning, stacklevel=2)
+
+    # Import and return the target attribute
     new_module, new_class_name = target_class_full_name.rsplit(".", 1)
     try:
         return getattr(importlib.import_module(new_module), new_class_name)
@@ -70,14 +81,14 @@ def add_deprecated_classes(
     extra_message: str | None = None,
 ):
     """
-    Add deprecated class PEP-563 imports and warnings modules to the package.
+    Add deprecated attribute PEP-563 imports and warnings modules to the package.
 
-    Side note: It also works for methods, not just classes.
+    Works for classes, functions, variables, and other module attributes.
 
     :param module_imports: imports to use
     :param package: package name
-    :param override_deprecated_classes: override target classes with deprecated ones. If module +
-       target class is found in the dictionary, it will be displayed in the warning message.
+    :param override_deprecated_classes: override target attributes with deprecated ones. If module +
+       target attribute is found in the dictionary, it will be displayed in the warning message.
     :param extra_message: extra message to display in the warning or import error message
 
     Example:
@@ -88,6 +99,15 @@ def add_deprecated_classes(
 
     This makes 'from airflow.notifications.basenotifier import BaseNotifier' still work,
     even if 'basenotifier.py' was removed, and shows a warning with the new path.
+
+    Wildcard Example:
+        add_deprecated_classes(
+            {"timezone": {"*": "airflow.sdk.timezone"}},
+            package=__name__,
+        )
+
+    This makes 'from airflow.utils.timezone import utc' redirect to 'airflow.sdk.timezone.utc',
+    allowing any attribute from the deprecated module to be accessed from the new location.
 
     Note that "add_deprecated_classes method should be called in the `__init__.py` file in the package
     where the deprecated classes are located - this way the module `.py` files should be removed and what
