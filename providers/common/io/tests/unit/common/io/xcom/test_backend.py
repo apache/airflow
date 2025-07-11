@@ -38,7 +38,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
     from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 else:
-    from airflow.io.path import ObjectStoragePath
+    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
     from airflow.models.xcom import BaseXCom, resolve_xcom_backend  # type: ignore[no-redef]
 
 
