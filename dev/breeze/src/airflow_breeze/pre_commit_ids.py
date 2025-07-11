@@ -141,6 +141,7 @@ PRE_COMMIT_LIST = [
     "trailing-whitespace",
     "ts-compile-lint-simple-auth-manager-ui",
     "ts-compile-lint-ui",
+    "typestubs-shared-libs",
     "update-black-version",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-from airflow.utils import timezone
+from airflow._vendor.airflow_shared import timezone
 
 
 class TimezoneAware(logging.Formatter):

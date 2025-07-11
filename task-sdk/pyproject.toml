@@ -76,8 +76,11 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-build-time-vendoring @ https://test-files.pythonhosted.org/packages/54/44/8533528622833807a24261d1fdbc4289a13e124b8ed7461e0d4d963b4ca9/hatch_build_time_vendoring-0.1.dev8-py3-none-any.whl"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.vendoring]
+# We need an empty section here to tell hatchling to use the plugin
 
 [tool.hatch.version]
 path = "src/airflow/sdk/__init__.py"
@@ -140,11 +143,13 @@ codegen = [
     "svcs>=25.1.0",
     "ruff==0.12.1",
     "rich>=12.4.4",
+    "airflow-shared",
 ]
 dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
+    "airflow-shared",
     "pandas>=2.1.2; python_version <\"3.13\"",
     "pandas>=2.2.3; python_version >=\"3.13\""
 ]
@@ -154,6 +159,7 @@ docs = [
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
+airflow-shared = {workspace = true}
 apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
@@ -220,3 +226,13 @@ pythonpath = "tests"
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
+
+[tool.vendoring]
+destination = "src/airflow/sdk/_vendor/"
+requirements = "src/airflow/sdk/_vendor/vendor.txt"
+namespace = "airflow.sdk._vendor"
+
+protected-files = ["__init__.py", "README.rst", "vendor.txt", ".gitignore"]
+
+[tool.vendoring.typing-stubs]
+airflow_shared = ["airflow_shared.__init__", "airflow_shared.timezone"]

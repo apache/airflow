@@ -39,6 +39,7 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
+from airflow._vendor.airflow_shared.timezone import from_timestamp, parse_timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.baseoperator import BaseOperator
@@ -92,7 +93,6 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
-from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:

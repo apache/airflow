@@ -251,7 +251,7 @@ def _log_stream_to_parsed_log_stream(
     :param log_stream: The stream to parse.
     :return: A generator of parsed log lines.
     """
-    from airflow.utils.timezone import coerce_datetime
+    from airflow._vendor.airflow_shared.timezone import coerce_datetime
 
     timestamp = None
     next_timestamp = None

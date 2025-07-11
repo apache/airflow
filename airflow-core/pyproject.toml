@@ -26,6 +26,7 @@ requires = [
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
+    "hatch-build-time-vendoring @ https://test-files.pythonhosted.org/packages/54/44/8533528622833807a24261d1fdbc4289a13e124b8ed7461e0d4d963b4ca9/hatch_build_time_vendoring-0.1.dev8-py3-none-any.whl",
 ]
 build-backend = "hatchling.build"
 
@@ -203,6 +204,9 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 [tool.hatch.version]
 path = "src/airflow/__init__.py"
 
+[tool.hatch.build.hooks.vendoring]
+# We need an empty section here to tell hatchling to use the plugin
+
 [tool.hatch.build.targets.sdist]
 include = [
     "src/airflow",
@@ -252,6 +256,7 @@ dev = [
     "apache-airflow-providers-fab",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
+    "airflow-shared",
 ]
 
 # To build docs:
@@ -277,3 +282,14 @@ required-version = ">=0.6.3"
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
+airflow-shared = {workspace = true}
+
+[tool.vendoring]
+destination = "src/airflow/_vendor/"
+requirements = "src/airflow/_vendor/vendor.txt"
+namespace = "airflow._vendor"
+
+protected-files = [".gitignore", "__init__.py", "README.md", "vendor.txt"]
+
+[tool.vendoring.typing-stubs]
+airflow_shared = ["airflow_shared.__init__", "airflow_shared.timezone"]
