@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-11T17:30:59.242118
+# This constraints file was automatically generated on 2025-07-11T21:47:50.481784
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -407,7 +407,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.95.0
+openai==1.95.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
