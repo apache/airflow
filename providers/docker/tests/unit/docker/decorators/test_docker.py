@@ -430,3 +430,36 @@ class TestDockerDecorator:
 
         with dag_maker():
             f()
+
+    @pytest.mark.db_test
+    def test_docker_decorated_operator_execute_method(self, dag_maker, session):
+        """Test that _DockerDecoratedOperator.execute method works correctly.
+        
+        This test specifically verifies the fix for the AttributeError issue
+        where super().execute() was causing problems due to Method Resolution Order.
+        The fix ensures DockerOperator.execute() is called directly.
+        """
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def test_execute():
+            return "execute_test_result"
+
+        with dag_maker(session=session):
+            docker_task = test_execute()
+
+        # Verify the operator is correctly instantiated
+        from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
+        assert isinstance(docker_task.operator, _DockerDecoratedOperator)
+        
+        # Verify the execute method exists and can be called
+        assert hasattr(docker_task.operator, 'execute')
+        
+        # Run the task to ensure execute method works without AttributeError
+        dr = dag_maker.create_dagrun(session=session)
+        session.expunge_all()
+        dag_maker.run_ti("test_execute", dr)
+        
+        # Verify the task completed successfully and returned the expected result
+        ti = dr.get_task_instances(session=session)[0]
+        assert ti.state == TaskInstanceState.SUCCESS
+        result = ti.xcom_pull(session=session)
+        assert result == "execute_test_result"

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import base64
+import itertools
 import os
 from collections.abc import Callable, Sequence
 from tempfile import TemporaryDirectory
@@ -26,8 +27,14 @@ from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
+    from airflow.sdk.definitions.asset import Asset
 else:
     from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
+    try:
+        from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
+    except ImportError:
+        # Fallback for older versions where Dataset doesn't exist
+        Asset = None  # type: ignore[no-redef,misc]
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -160,6 +167,13 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         )
 
     def execute(self, context: Context):
+        # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
+        #  as well
+        if Asset is not None:
+            for arg in itertools.chain(self.op_args, self.op_kwargs.values()):
+                if isinstance(arg, Asset):
+                    self.inlets.append(arg)
+        
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             input_filename = os.path.join(tmp_dir, "script.in")
             script_filename = os.path.join(tmp_dir, "script.py")
@@ -191,7 +205,8 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                 self.environment["__PYTHON_INPUT"] = ""
 
             self.command = self.generate_command()
-            return super().execute(context)
+            return_value = DockerOperator.execute(self, context)
+            return self._handle_output(return_value=return_value)
 
     @property
     def pickling_library(self):
