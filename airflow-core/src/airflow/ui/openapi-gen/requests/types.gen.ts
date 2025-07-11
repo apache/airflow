@@ -6111,7 +6111,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/share-link': {
+    '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}': {
         post: {
             req: CreateHitlShareLinkData;
             res: {
@@ -6171,7 +6171,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link': {
+    '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
         post: {
             req: CreateMappedTiHitlShareLinkData;
             res: {
@@ -6231,7 +6231,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/share-link/action': {
+    '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/action': {
         post: {
             req: ExecuteHitlShareLinkActionData;
             res: {
@@ -6262,7 +6262,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link/action': {
+    '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}/action': {
         post: {
             req: ExecuteMappedTiHitlShareLinkActionData;
             res: {

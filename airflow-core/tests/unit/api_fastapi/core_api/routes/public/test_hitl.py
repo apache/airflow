@@ -141,7 +141,6 @@ class TestUpdateHITLDetailEndpoint:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
-            # Shared link fields (None for regular HITL updates)
             "task_instance_id": None,
             "link_url": None,
             "expires_at": None,
@@ -177,7 +176,6 @@ class TestUpdateHITLDetailEndpoint:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
-            # Shared link fields (None for regular HITL updates)
             "task_instance_id": None,
             "link_url": None,
             "expires_at": None,
@@ -236,7 +234,6 @@ class TestUpdateMappedTIHITLDetail:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
-            # Shared link fields (None for regular HITL updates)
             "task_instance_id": None,
             "link_url": None,
             "expires_at": None,
@@ -272,7 +269,6 @@ class TestUpdateMappedTIHITLDetail:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
-            # Shared link fields (None for regular HITL updates)
             "task_instance_id": None,
             "link_url": None,
             "expires_at": None,

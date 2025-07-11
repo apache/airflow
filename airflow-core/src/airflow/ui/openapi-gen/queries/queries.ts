@@ -1,4 +1,4 @@
-// generated with @7nohe/openapi-react-query-codegen@1.6.2 
+// generated with @7nohe/openapi-react-query-codegen@1.6.2
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
@@ -1213,6 +1213,17 @@ export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInThe
 /**
 * Get Hitl Share Link
 * Get HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1232,6 +1243,18 @@ export const useHumanInTheLoopServiceGetHitlShareLink = <TData = Common.HumanInT
 /**
 * Get Mapped Ti Hitl Share Link
 * Get mapped HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access mapped HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the mapped HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param map_index: The map index for the mapped task instance (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1688,6 +1711,23 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 /**
 * Create Hitl Share Link
 * Create a shared link for a Human-in-the-loop task.
+*
+* This endpoint generates a secure, time-limited shared link that allows external users
+* to interact with HITL tasks without requiring full Airflow authentication. The link
+* can be configured for either direct action execution or UI redirection.
+*
+* :param dag_id: The DAG identifier
+* :param dag_run_id: The DAG run identifier
+* :param task_id: The task identifier
+* :param update_hitl_detail_payload: Payload containing link configuration and initial response data
+* :param user: The authenticated user creating the shared link
+* :param session: Database session for data persistence
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance or HITL detail does not exist
+* :raises HTTPException: 400 if link generation fails due to invalid parameters
+*
+* :return: HITLDetailResponse containing the generated link URL and metadata
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1710,6 +1750,19 @@ export const useHumanInTheLoopServiceCreateHitlShareLink = <TData = Common.Human
 /**
 * Create Mapped Ti Hitl Share Link
 * Create a shared link for a mapped Human-in-the-loop task.
+*
+* This endpoint generates a secure, time-limited shared link for mapped task instances,
+* allowing external users to interact with specific mapped HITL tasks without requiring
+* full Airflow authentication. The link can be configured for either direct action
+* execution or UI redirection.
+*
+* :param dag_id: The DAG identifier
+* :param dag_run_id: The DAG run identifier
+* :param task_id: The task identifier
+* :param map_index: The map index for the mapped task instance
+* :param update_hitl_detail_payload: Payload containing link configuration and initial response data
+* :param user: The authenticated user creating the shared link
+* :param session: Database session for data persistence
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1735,6 +1788,20 @@ export const useHumanInTheLoopServiceCreateMappedTiHitlShareLink = <TData = Comm
 /**
 * Execute Hitl Share Link Action
 * Execute an action via shared link (for action links).
+*
+* This endpoint allows external users to execute HITL task actions through a secure
+* shared link. The link must be an action-type link, which enables direct execution
+* of predefined actions (e.g., approve, reject) without requiring full Airflow
+* authentication. The action is executed immediately and the HITL task is updated
+* with the user's response.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param update_hitl_detail_payload: Payload containing the action response data
+* :param session: Database session for data persistence
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1763,6 +1830,21 @@ export const useHumanInTheLoopServiceExecuteHitlShareLinkAction = <TData = Commo
 /**
 * Execute Mapped Ti Hitl Share Link Action
 * Execute an action via shared link for mapped tasks (for action links).
+*
+* This endpoint allows external users to execute mapped HITL task actions through a secure
+* shared link. The link must be an action-type link, which enables direct execution
+* of predefined actions (e.g., approve, reject) for specific mapped task instances
+* without requiring full Airflow authentication. The action is executed immediately
+* and the mapped HITL task is updated with the user's response.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param map_index: The map index for the mapped task instance (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param update_hitl_detail_payload: Payload containing the action response data
+* :param session: Database session for data persistence
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
