@@ -140,7 +140,8 @@ class S3DagBundle(BaseDagBundle):
         """
         Return a URL for viewing the DAGs in S3. Currently, versioning is not supported.
 
-        This method is deprecated and will be removed in a future release. Use `view_url_template` instead.
+        This method is deprecated and will be removed when the minimum supported Airflow version is 3.1.
+        Use `view_url_template` instead.
         """
         return self.view_url_template()
 

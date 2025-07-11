@@ -217,7 +217,8 @@ class GitDagBundle(BaseDagBundle):
         """
         Return a URL for viewing the DAGs in the repository.
 
-        This method is deprecated and will be removed in a future release. Use `view_url_template` instead.
+        This method is deprecated and will be removed when the minimum supported Airflow version is 3.1.
+        Use `view_url_template` instead.
         """
         if not version:
             return None
