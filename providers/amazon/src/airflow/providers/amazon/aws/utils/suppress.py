@@ -30,9 +30,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import TypeVar
-
-from airflow.typing_compat import ParamSpec
+from typing import ParamSpec, TypeVar
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")

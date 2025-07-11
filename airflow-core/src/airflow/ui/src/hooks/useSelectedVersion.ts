@@ -82,7 +82,7 @@ const useSelectedVersion = (): number | undefined => {
 
   const selectedVersionNumber =
     selectedVersionUrl ??
-    mappedTaskInstanceData?.dag_version?.version_number ??
+    (mappedTaskInstanceData ? mappedTaskInstanceData.dag_version.version_number : undefined) ??
     (runData?.dag_versions ?? []).at(-1)?.version_number ??
     dagData?.latest_dag_version?.version_number;
 

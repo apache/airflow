@@ -28,9 +28,8 @@ from airflow.models.taskmap import TaskMap
 from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
@@ -382,7 +381,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
             ret = arg_task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         dr = self.create_dag_run()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+        else:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
         rendered_op_args = ti.render_templates().op_args
         assert len(rendered_op_args) == 4
         assert rendered_op_args[0] == 4
@@ -403,7 +405,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
             )
 
         dr = self.create_dag_run()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+        else:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
         rendered_op_kwargs = ti.render_templates().op_kwargs
         assert rendered_op_kwargs["an_int"] == 4
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)

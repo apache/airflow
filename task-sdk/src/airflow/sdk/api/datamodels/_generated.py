@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-05-20"
+API_VERSION: Final[str] = "2025-08-10"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -102,6 +102,23 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class CreateHITLDetailPayload(BaseModel):
+    """
+    Add the input request part of a Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    type: Annotated[Literal["CreateHITLDetailPayload"] | None, Field(title="Type")] = (
+        "CreateHITLDetailPayload"
+    )
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -152,6 +169,32 @@ class DagRunType(str, Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+
+
+class HITLDetailRequest(BaseModel):
+    """
+    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    response_received: Annotated[bool, Field(title="Response Received")]
+    user_id: Annotated[str | None, Field(title="User Id")] = None
+    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -325,6 +368,17 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
 
+class UpdateHITLDetail(BaseModel):
+    """
+    Update the response content part of an existing Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    type: Annotated[Literal["UpdateHITLDetail"] | None, Field(title="Type")] = "UpdateHITLDetail"
+
+
 class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
@@ -398,6 +452,7 @@ class TaskInstance(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     try_number: Annotated[int, Field(title="Try Number")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
@@ -518,7 +573,7 @@ class TIRunContext(BaseModel):
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
-    should_retry: Annotated[bool, Field(title="Should Retry")]
+    should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
 
 
 class TITerminalStatePayload(BaseModel):

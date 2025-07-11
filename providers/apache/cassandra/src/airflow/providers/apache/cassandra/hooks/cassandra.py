@@ -100,7 +100,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         if conn.login:
             conn_config["auth_provider"] = PlainTextAuthProvider(username=conn.login, password=conn.password)
 
-        policy_name = conn.extra_dejson.get("load_balancing_policy", None)
+        policy_name = str(conn.extra_dejson.get("load_balancing_policy", "undefined"))
         policy_args = conn.extra_dejson.get("load_balancing_policy_args", {})
         lb_policy = self.get_lb_policy(policy_name, policy_args)
         if lb_policy:

@@ -3,12 +3,15 @@
     "affected_one": "ריצה אחת תופעל.",
     "affected_other": "{{count}} ריצות תופעלנה.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
+    "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
     "dateRangeFrom": "מתאריך",
     "dateRangeTo": "עד תאריך",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
     "maxRuns": "מספר ריצות מקבילות מירבי",
+    "missingAndErroredRuns": "הרצות חסרות ושגויות",
+    "missingRuns": "הרצות חסרות",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
     "selectDescription": "הרץ DAG זה עבור טווח תאריכים",
@@ -44,6 +47,7 @@
   },
   "dagWarnings": {
     "error_one": "שגיאה אחת",
+    "error_other": "שגיאה אחת",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
     "warning_other": "{{count}} אזהרות"
@@ -59,6 +63,7 @@
     "runDuration": "משך זמן ריצה"
   },
   "fileUpload": {
+    "files_one": "{{count}} קבצים",
     "files_other": "{{count}} קבצים"
   },
   "flexibleForm": {

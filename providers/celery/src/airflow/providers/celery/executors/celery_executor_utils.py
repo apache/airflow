@@ -60,12 +60,13 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.typing_compat import TypeAlias
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds

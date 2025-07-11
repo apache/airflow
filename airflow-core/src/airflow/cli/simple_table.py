@@ -32,7 +32,7 @@ from airflow.utils import yaml
 from airflow.utils.platform import is_tty
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeGuard
+    from typing import TypeGuard
 
 
 def is_data_sequence(data: Sequence[dict | Any]) -> TypeGuard[Sequence[dict]]:

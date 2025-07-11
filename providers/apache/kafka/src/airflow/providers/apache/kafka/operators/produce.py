@@ -116,6 +116,11 @@ class ProduceToTopicOperator(BaseOperator):
         if isinstance(self.producer_function, str):
             self.producer_function = import_string(self.producer_function)
 
+        if self.producer_function is not None and not callable(self.producer_function):
+            raise TypeError(
+                f"producer_function is not a callable, got {type(self.producer_function)} instead."
+            )
+
         producer_callable = partial(
             self.producer_function,  # type: ignore
             *self.producer_function_args,

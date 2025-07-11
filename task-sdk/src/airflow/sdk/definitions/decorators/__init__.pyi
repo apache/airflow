@@ -496,7 +496,7 @@ class TaskDecoratorCollection:
         """
         # [END decorator_signature]
     @overload
-    def kubernetes(
+    def kubernetes(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -670,7 +670,7 @@ class TaskDecoratorCollection:
     @overload
     def kubernetes(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     @overload
-    def kubernetes_cmd(
+    def kubernetes_cmd(  # type: ignore[misc]
         self,
         *,
         args_only: bool = False,  # Added by _KubernetesCmdDecoratedOperator.

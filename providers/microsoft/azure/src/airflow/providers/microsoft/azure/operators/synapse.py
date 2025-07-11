@@ -29,12 +29,10 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.microsoft.azure.version_compat import (
+    BaseHook,
+    BaseOperator,
+)
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions

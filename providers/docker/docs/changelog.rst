@@ -804,7 +804,7 @@ Other
 Features
 ~~~~~~~~
 
-* ``Add a Docker Taskflow decorator (#15330)``
+* ``Add a Docker TaskFlow decorator (#15330)``
 
 This version of Docker Provider has a new feature - TaskFlow decorator that only works in Airflow 2.2.
 If you try to use the decorator in pre-Airflow 2.2 version you will get an error:
@@ -900,7 +900,7 @@ Features
 ~~~~~~~~
 
 * ``Entrypoint support in docker operator (#14642)``
-* ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+* ``Add PythonVirtualenvDecorator to TaskFlow API (#14761)``
 * ``Support all terminus task states in Docker Swarm Operator (#14960)``
 
 

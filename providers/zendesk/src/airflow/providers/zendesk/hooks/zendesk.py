@@ -21,10 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from zenpy import Zenpy
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.zendesk.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from zenpy.lib.api import BaseApi

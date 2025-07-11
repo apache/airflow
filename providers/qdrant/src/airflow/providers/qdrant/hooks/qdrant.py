@@ -24,10 +24,7 @@ from grpc import RpcError
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.qdrant.version_compat import BaseHook
 
 
 class QdrantHook(BaseHook):

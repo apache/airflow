@@ -21,6 +21,7 @@ import pytest
 
 from airflow import DAG
 from airflow.models import DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -44,8 +45,14 @@ class TestAwsToAwsBaseOperator:
             source_aws_conn_id="{{ ds }}",
             dest_aws_conn_id="{{ ds }}",
         )
-        ti = TaskInstance(operator, run_id="something")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(self.dag.dag_id)
+            ti = TaskInstance(operator, run_id="something", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="something",
@@ -54,6 +61,7 @@ class TestAwsToAwsBaseOperator:
                 state=DagRunState.RUNNING,
             )
         else:
+            ti = TaskInstance(operator, run_id="something")
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="something",

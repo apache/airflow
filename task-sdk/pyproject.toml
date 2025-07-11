@@ -21,7 +21,7 @@ dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10, !=3.13"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},

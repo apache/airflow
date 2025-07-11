@@ -30,7 +30,6 @@ import {
   useDagServiceGetDagDetails,
   useDagServiceGetDagsUiKey,
   useDependenciesServiceGetDependencies,
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type {
@@ -105,7 +104,6 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
         [useDagServiceGetDagsUiKey],
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-        UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
       ];
 
       toaster.create({

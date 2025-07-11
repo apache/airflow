@@ -60,6 +60,7 @@ def import_all_models():
 
     import airflow.models.asset
     import airflow.models.backfill
+    import airflow.models.dag_favorite
     import airflow.models.dag_version
     import airflow.models.dagbundle
     import airflow.models.dagwarning
@@ -102,6 +103,7 @@ __lazy_imports = {
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",
     "Log": "airflow.models.log",
+    "HITLDetail": "airflow.models.hitl",
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
     "Param": "airflow.sdk.definitions.param",
@@ -146,6 +148,14 @@ if TYPE_CHECKING:
 
 
 __deprecated_classes = {
+    "abstractoperator": {
+        "AbstractOperator": "airflow.sdk.definitions._internal.abstractoperator.AbstractOperator",
+        "NotMapped": "airflow.sdk.definitions._internal.abstractoperator.NotMapped",
+        "TaskStateChangeCallback": "airflow.sdk.definitions._internal.abstractoperator.TaskStateChangeCallback",
+        "DEFAULT_OWNER": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_OWNER",
+        "DEFAULT_QUEUE": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_QUEUE",
+        "DEFAULT_TASK_EXECUTION_TIMEOUT": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_TASK_EXECUTION_TIMEOUT",
+    },
     "param": {
         "Param": "airflow.sdk.definitions.param.Param",
         "ParamsDict": "airflow.sdk.definitions.param.ParamsDict",

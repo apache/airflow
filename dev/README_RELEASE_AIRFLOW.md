@@ -652,11 +652,17 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+
+``` shell
+export PATH_TO_SVN=<set your path to svn here>
+```
+
 Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-uv run check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
 ```
 
 ## Licence check

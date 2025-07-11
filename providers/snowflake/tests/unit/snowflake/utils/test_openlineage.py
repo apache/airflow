@@ -221,7 +221,9 @@ def test_run_single_query_with_hook(mock_get_cursor, mock_set_autocommit, mock_g
     sql_query = "SELECT * FROM test_table;"
     result = _run_single_query_with_hook(hook, sql_query)
 
-    mock_cursor.execute.assert_called_once_with(sql_query)
+    mock_cursor.execute.assert_has_calls(
+        [mock.call("ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 3;"), mock.call(sql_query)]
+    )
     assert result == [{"col1": "value1"}, {"col2": "value2"}]
 
 
@@ -302,7 +304,7 @@ def test_get_queries_details_from_snowflake_single_query(mock_run_single_query):
     details = _get_queries_details_from_snowflake(hook, query_ids)
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         "WHERE QUERY_ID = 'ABC';"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -330,7 +332,7 @@ def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_singl
 
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         "WHERE QUERY_ID = 'ABC';"
     )
     expected_details = {
@@ -377,7 +379,7 @@ def test_get_queries_details_from_snowflake_multiple_queries(mock_run_single_que
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -415,7 +417,7 @@ def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_s
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     expected_details = [
@@ -453,7 +455,7 @@ def test_get_queries_details_from_snowflake_no_data_found(mock_run_single_query)
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -471,7 +473,7 @@ def test_get_queries_details_from_snowflake_no_data_found_api_hook(mock_run_sing
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
@@ -489,7 +491,7 @@ def test_get_queries_details_from_snowflake_error(mock_run_single_query):
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -507,7 +509,7 @@ def test_get_queries_details_from_snowflake_error_api_hook(mock_run_single_query
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
@@ -529,7 +531,7 @@ def test_get_queries_details_from_snowflake_error_api_hook_process_data(
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        "FROM table(information_schema.query_history()) "
+        "FROM table(snowflake.information_schema.query_history()) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)

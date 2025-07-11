@@ -17,18 +17,31 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,
     GlacierUploadArchiveOperator,
 )
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain, task
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

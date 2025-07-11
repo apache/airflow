@@ -32,6 +32,8 @@ from vertexai.preview.caching import CachedContent
 from vertexai.preview.evaluation import EvalResult, EvalTask
 from vertexai.preview.tuning import sft
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -361,6 +363,11 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook",
+    category=AirflowProviderDeprecationWarning,
+)
 class ExperimentRunHook(GoogleBaseHook):
     """Use the Vertex AI SDK for Python to create and manage your experiment runs."""
 

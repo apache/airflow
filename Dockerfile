@@ -57,7 +57,7 @@ ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.7.17
+ARG AIRFLOW_UV_VERSION=0.7.19
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -493,7 +493,10 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="pip"
         export PACKAGING_TOOL_CMD="pip"
-        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore --no-binary lxml,xmlsec"
         export EXTRA_UNINSTALL_FLAGS="--yes"
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"

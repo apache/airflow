@@ -121,9 +121,8 @@ def test_run_api_call_request_error():
     mock_response.status_code = 200
 
     with mock.patch("requests.get", side_effect=RuntimeError("request error")):
-        result = _run_api_call(mock_hook, ["123"])
-
-    assert result == []
+        with pytest.raises(RuntimeError):
+            _run_api_call(mock_hook, ["123"])
 
 
 def test_run_api_call_token_error():
@@ -135,9 +134,8 @@ def test_run_api_call_token_error():
     mock_response.status_code = 200
 
     with mock.patch("requests.get", return_value=mock_response):
-        result = _run_api_call(mock_hook, ["123"])
-
-    assert result == []
+        with pytest.raises(RuntimeError):
+            _run_api_call(mock_hook, ["123"])
 
 
 def test_process_data_from_api():
@@ -191,6 +189,18 @@ def test_process_data_from_api_error():
 
 def test_get_queries_details_from_databricks_empty_query_ids():
     details = _get_queries_details_from_databricks(None, [])
+    assert details == {}
+
+
+@mock.patch("airflow.providers.databricks.utils.openlineage._run_api_call")
+def test_get_queries_details_from_databricks_error(mock_api_call):
+    mock_api_call.side_effect = RuntimeError("Token error")
+
+    hook = DatabricksSqlHook()
+    query_ids = ["ABC"]
+
+    details = _get_queries_details_from_databricks(hook, query_ids)
+    mock_api_call.assert_called_once_with(hook=hook, query_ids=query_ids)
     assert details == {}
 
 

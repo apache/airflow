@@ -189,6 +189,7 @@ jobs:
       - name: "Reinstall breeze from the current version"
         run: |
           breeze setup self-upgrade --use-current-airflow-sources
+        if: inputs.build-sboms
         working-directory: current-version
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |
@@ -212,6 +213,7 @@ jobs:
         run: |
           echo "Generated SBOM files:"
           find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
+        if: inputs.build-sboms
       - name: "Reinstall breeze from ${{ inputs.ref }} reference"
         run:
           breeze setup self-upgrade --use-current-airflow-sources

@@ -429,7 +429,6 @@ class GCSToBigQueryOperator(BaseOperator):
                                 table = job_configuration[job_type][table_prop]
                                 persist_kwargs = {
                                     "context": context,
-                                    "task_instance": self,
                                     "table_id": table,
                                 }
                                 if not isinstance(table, str):

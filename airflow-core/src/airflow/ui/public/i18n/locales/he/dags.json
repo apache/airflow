@@ -6,9 +6,15 @@
       "warning": "זה ימחק את כל המטא-נתונים הקשורים ל-Dag, כולל ריצות ומשימות"
     }
   },
+  "favoriteDag": "הוסף Dag למועדפים",
   "filters": {
     "allRunTypes": "כל סוגי הריצות",
     "allStates": "כל המצבים",
+    "favorite": {
+      "all": "הכל",
+      "favorite": "מועדף",
+      "unfavorite": "לא מועדף"
+    },
     "paused": {
       "active": "פעיל",
       "all": "הכל",
@@ -83,5 +89,6 @@
       "desc": "מיין לפי ריצת ה-Dag הבאה (מהמאוחר למוקדם)"
     },
     "placeholder": "מיין לפי"
-  }
+  },
+  "unfavoriteDag": "הסר Dag ממועדפים"
 }

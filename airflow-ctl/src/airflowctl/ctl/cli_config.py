@@ -444,7 +444,8 @@ class CommandFactory:
 
     @staticmethod
     def _python_type_from_string(type_name: str) -> type:
-        """Return the corresponding Python *type* for a primitive type name string.
+        """
+        Return the corresponding Python *type* for a primitive type name string.
 
         This helper is used when generating ``argparse`` CLI arguments from the
         OpenAPI-derived operation signatures. Without this mapping the CLI would

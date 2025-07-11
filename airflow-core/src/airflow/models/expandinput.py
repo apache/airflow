@@ -25,10 +25,11 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import attrs
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from sqlalchemy.orm import Session
 
     from airflow.models.xcom_arg import SchedulerXComArg
-    from airflow.typing_compat import TypeGuard
 
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,

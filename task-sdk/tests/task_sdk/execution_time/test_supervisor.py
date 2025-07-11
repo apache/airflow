@@ -60,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     CommsDecoder,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -81,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     OKResponse,
     PrevSuccessfulDagRunResult,
@@ -190,6 +192,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -262,6 +265,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -296,6 +300,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -314,7 +319,9 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
@@ -347,7 +354,9 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
         )
@@ -382,7 +391,9 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
         )
@@ -402,6 +413,7 @@ class TestWatchedSubprocess:
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -443,6 +455,7 @@ class TestWatchedSubprocess:
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         # Create a mock client to assert calls to the client
@@ -497,7 +510,9 @@ class TestWatchedSubprocess:
 
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
-        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+        ti = TaskInstance(
+            id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+        )
 
         # Mock API Server response indicating the TI is already running
         # The API Server would return a 409 Conflict status code if the TI is not
@@ -576,7 +591,9 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
             bundle_info=FAKE_BUNDLE,
@@ -803,6 +820,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -959,7 +977,9 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=client_with_ti_start,
             target=subprocess_main,
         )
@@ -1751,6 +1771,49 @@ class TestHandleRequest:
                 XComSequenceSliceResult(root=["foo", "bar"]),
                 None,
                 id="get_xcom_seq_slice",
+            ),
+            pytest.param(
+                CreateHITLDetailPayload(
+                    ti_id=TI_ID,
+                    options=["Approve", "Reject"],
+                    subject="This is subject",
+                    body="This is body",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                ),
+                {
+                    "ti_id": str(TI_ID),
+                    "options": ["Approve", "Reject"],
+                    "subject": "This is subject",
+                    "body": "This is body",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "params": {},
+                    "type": "HITLDetailRequestResult",
+                },
+                "hitl.add_response",
+                (),
+                {
+                    "body": "This is body",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "options": ["Approve", "Reject"],
+                    "params": {},
+                    "subject": "This is subject",
+                    "ti_id": TI_ID,
+                },
+                HITLDetailRequestResult(
+                    ti_id=TI_ID,
+                    options=["Approve", "Reject"],
+                    subject="This is subject",
+                    body="This is body",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                ),
+                None,
+                id="create_hitl_detail_payload",
             ),
         ],
     )

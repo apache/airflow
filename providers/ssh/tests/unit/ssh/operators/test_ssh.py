@@ -27,12 +27,17 @@ from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
 
 pytestmark = pytest.mark.db_test
 
@@ -263,10 +268,16 @@ class TestSSHOperator:
         ssh_exit_code = random.randrange(1, 100)
         self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
 
-        with dag_maker(dag_id=f"dag_{request.node.name}"):
+        with dag_maker(dag_id=f"dag_{request.node.name}") as dag:
             task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
         dr = dag_maker.create_dagrun(run_id="push_xcom")
-        ti = TaskInstance(task=task, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=task, run_id=dr.run_id, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=dr.run_id)
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
             dag_maker.run_ti("push_xcom", dr)
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code

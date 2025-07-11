@@ -9141,25 +9141,21 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                             },
                             "examples": [
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                },
+                                {
+                                    "name": "GIT_SYNC_USERNAME",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "git-secret",
+                                            "key": "username"
+                                        }
+                                    }
                                 }
                             ]
                         },

@@ -434,7 +434,7 @@ class DataFusionHook(GoogleBaseHook):
         pipeline_id: str,
         pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         namespace: str = "default",
-    ) -> Any:
+    ) -> dict:
         url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),
