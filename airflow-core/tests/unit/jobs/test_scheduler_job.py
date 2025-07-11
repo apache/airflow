@@ -2896,40 +2896,63 @@ class TestSchedulerJob:
         assert dag_listener.success[0].run_id == dr.run_id
         assert dag_listener.success[0].state == DagRunState.SUCCESS
 
-    @pytest.mark.xfail(reason="This test does not verify anything; no time to fix; see notes below")
-    def test_do_not_schedule_removed_task(self, dag_maker):
-        """This test needs fixing.
-
-        Even if you comment out the second dag definition, still no TIs are scheduled.
-
-        So, it's not verifying what it thinks it is, but I don't have time to deal with it right now.
-        """
+    def test_do_not_schedule_removed_task(self, dag_maker, session):
+        """Test that scheduler doesn't schedule task instances for tasks removed from DAG."""
         interval = datetime.timedelta(days=1)
+        dag_id = "test_scheduler_do_not_schedule_removed_task"
+
+        # Create initial DAG with a task
         with dag_maker(
-            dag_id="test_scheduler_do_not_schedule_removed_task",
+            dag_id=dag_id,
             schedule=interval,
+            start_date=DEFAULT_DATE,
         ):
             EmptyOperator(task_id="dummy")
 
-        session = settings.Session()
-
+        # Create a dagrun for the initial DAG
         dr = dag_maker.create_dagrun()
         assert dr is not None
 
-        # Re-create the DAG, but remove the task
+        # Verify the task instance was created
+        initial_tis = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy")
+            .all()
+        )
+        assert len(initial_tis) == 1
+
+        # Update the DAG to remove the task (simulate DAG file change)
         with dag_maker(
-            dag_id="test_scheduler_do_not_schedule_removed_task",
+            dag_id=dag_id,
             schedule=interval,
-            start_date=DEFAULT_DATE + interval,
+            start_date=DEFAULT_DATE,
         ):
-            pass
+            pass  # No tasks in the DAG now
+
+        # Create a new dagrun for the updated DAG
+        dr2 = dag_maker.create_dagrun(logical_date=DEFAULT_DATE + interval, run_id="test_run_2")
+        assert dr2 is not None
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
+        # Try to find executable task instances - should not find any for the removed task
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
+        # Should be empty because the task no longer exists in the DAG
         assert res == []
+
+        # Verify no new task instances were created for the removed task in the new dagrun
+        new_tis = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == "dummy",
+                TaskInstance.run_id == "test_run_2",
+            )
+            .all()
+        )
+        assert len(new_tis) == 0
 
     @pytest.mark.parametrize(
         "ti_states, run_state",
