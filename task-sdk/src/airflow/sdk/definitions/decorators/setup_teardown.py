@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import types
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from airflow.exceptions import AirflowException
 from airflow.sdk.bases.operator import BaseOperator
@@ -26,6 +26,7 @@ from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContex
 from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
 
 if TYPE_CHECKING:
+    from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.xcom_arg import XComArg
 
 try:
@@ -52,7 +53,8 @@ def setup_task(func: Callable) -> Callable:
         func = python_task(func)
     if isinstance(func, _TaskGroupFactory):
         raise AirflowException("Task groups cannot be marked as setup or teardown.")
-    func.is_setup = True  # type: ignore[attr-defined]
+    func = cast("_TaskDecorator", func)
+    func.is_setup = True  # type: ignore[attr-defined]  # TODO: Remove this once mypy is bump to 1.16.1
     return func
 
 
@@ -76,6 +78,9 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
             func = python_task(func)
         if isinstance(func, _TaskGroupFactory):
             raise AirflowException("Task groups cannot be marked as setup or teardown.")
+        func = cast("_TaskDecorator", func)
+
+        # TODO: Remove below attr-defined once mypy is bump to 1.16.1
         func.is_teardown = True  # type: ignore[attr-defined]
         func.on_failure_fail_dagrun = on_failure_fail_dagrun  # type: ignore[attr-defined]
         return func
