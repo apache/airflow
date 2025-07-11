@@ -1208,7 +1208,7 @@ export const $ClearTaskInstancesBody = {
         },
         run_on_latest_version: {
             type: 'boolean',
-            title: 'Run on latest bundle version',
+            title: 'Run On Latest Version',
             default: false
         }
     },
@@ -2213,7 +2213,7 @@ export const $DAGRunClearBody = {
         },
         run_on_latest_version: {
             type: 'boolean',
-            title: 'Run on latest bundle version',
+            title: 'Run On Latest Version',
             default: false
         }
     },
