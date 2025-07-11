@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-11T14:24:20.915317
+# This constraints file was automatically generated on 2025-07-11T16:10:52.337639
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -199,7 +199,7 @@ execnet==2.1.1
 executing==2.2.0
 facebook_business==23.0.0
 fastapi-cli==0.0.8
-fastapi-cloud-cli==0.1.2
+fastapi-cloud-cli==0.1.4
 fastapi==0.116.0
 fastavro==1.11.1
 fasteners==0.19
