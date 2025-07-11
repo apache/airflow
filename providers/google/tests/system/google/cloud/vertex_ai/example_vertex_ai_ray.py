@@ -43,6 +43,9 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_ray_operations"
 LOCATION = "us-central1"
 WORKER_NODE_RESOURCES = resources.Resources(
+    node_count=1,
+)
+WORKER_NODE_RESOURCES_NEW = resources.Resources(
     node_count=2,
 )
 
@@ -58,6 +61,9 @@ with DAG(
         task_id="create_ray_cluster",
         project_id=PROJECT_ID,
         location=LOCATION,
+        worker_node_types=[WORKER_NODE_RESOURCES],
+        python_version="3.10",
+        ray_version="2.33",
     )
     # [END how_to_cloud_vertex_ai_create_ray_cluster_operator]
 
@@ -67,7 +73,7 @@ with DAG(
         project_id=PROJECT_ID,
         location=LOCATION,
         cluster_id="{{ task_instance.xcom_pull(task_ids='create_ray_cluster', key='cluster_id') }}",
-        worker_node_types=[WORKER_NODE_RESOURCES],
+        worker_node_types=[WORKER_NODE_RESOURCES_NEW],
     )
     # [END how_to_cloud_vertex_ai_update_ray_cluster_operator]
 
