@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 from sqlalchemy import delete
+from sqlalchemy.orm import Session
 
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
@@ -33,7 +34,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
 )
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
 
 from unit.listeners import asset_listener
@@ -61,7 +62,7 @@ def mock_task_instance():
 
 def create_mock_dag():
     for dag_id in itertools.count(1):
-        mock_dag = mock.Mock()
+        mock_dag = mock.Mock(spec=DAG)
         mock_dag.dag_id = dag_id
         yield mock_dag
 
@@ -70,7 +71,7 @@ class TestAssetManager:
     def test_register_asset_change_asset_doesnt_exist(self, mock_task_instance):
         asset = Asset(uri="asset_doesnt_exist", name="not exist")
 
-        mock_session = mock.Mock()
+        mock_session = mock.Mock(spec=Session)
         # Gotta mock up the query results
         mock_session.scalar.return_value = None
 
