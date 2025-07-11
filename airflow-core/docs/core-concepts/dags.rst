@@ -686,6 +686,22 @@ This is especially useful if your tasks are built dynamically from configuration
     Here's a [url](www.airbnb.com)
     """
 
+.. _concepts:dags-ownership:
+
+Ownership
+~~~~~~~~~
+
+In addition to these documentation and notes, you are also able to link a DAG with a set of owners.
+This way the DAG users may be able to reach out the right set of people when needed.
+
+This ownership is split in two parts:
+
+1. at the :ref:`Task level <concepts:task-owner>` through the ``owner`` definition;
+2. at the DAG level to customize the UI through the ``owner_links`` definition.
+
+Each DAG collects the set of owners from its task set, and display it on the DAGs view UI.
+Any owner matching an item defined in the ``owner_links`` dictionary is converted to a clickable link (that may be a instant messaging handle or a mailto link).
+
 
 Packaging dags
 --------------
