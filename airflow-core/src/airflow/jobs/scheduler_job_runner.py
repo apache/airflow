@@ -894,12 +894,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
                 msg = (
-                    "Executor %s reported that the task instance %s finished with state %s, but the task instance's state attribute is %s. "  # noqa: RUF100, UP031, flynt
+                    f"Executor {executor} reported that the task instance {ti} finished with state {state}, but the task instance's state attribute is {ti.state}. "
                     "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally"
-                    % (executor, ti, state, ti.state)
                 )
                 if info is not None:
-                    msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
+                    msg += f" Extra info: {info}"
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
