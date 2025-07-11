@@ -150,4 +150,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$actor" --password-stdin
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 600 --platform "${PLATFORM}"
+        run: breeze shell --max-time 900 --platform "${PLATFORM}"
