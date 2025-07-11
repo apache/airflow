@@ -191,12 +191,11 @@ def create_xcom_entry(
     from airflow.models.dagrun import DagRun
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-    if not dag_run:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
-        )
     # Validate DAG ID
-    dag = dag_bag.get_dag_for_run(dag_run, session)
+    if dag_run:
+        dag = dag_bag.get_dag_for_run(dag_run, session)
+    else:
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
 
@@ -207,6 +206,13 @@ def create_xcom_entry(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
         )
+
+    # Validate DAG Run ID
+    if not dag_run:
+        if not dag_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
+            )
 
     # Check existing XCom
     already_existing_query = XComModel.get_many(

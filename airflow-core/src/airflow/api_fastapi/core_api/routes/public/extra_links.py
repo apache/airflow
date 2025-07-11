@@ -53,7 +53,10 @@ def get_extra_links(
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
-    dag = dag_bag.get_dag_for_run(dag_run, session=session)
+    if dag_run:
+        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+    else:
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 

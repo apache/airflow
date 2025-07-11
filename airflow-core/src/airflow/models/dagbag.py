@@ -722,8 +722,9 @@ class SchedulerDagBag:
     :meta private:
     """
 
-    def __init__(self):
+    def __init__(self, load_op_links: bool = True):
         self._dags: dict[str, DAG] = {}  # dag_version_id to dag
+        self.load_op_links = load_op_links
 
     def _get_dag(self, version_id: str, session: Session) -> DAG | None:
         if dag := self._dags.get(version_id):
@@ -734,7 +735,7 @@ class SchedulerDagBag:
         serdag = dag_version.serialized_dag
         if not serdag:
             return None
-        serdag.load_op_links = False
+        serdag.load_op_links = self.load_op_links
         dag = serdag.dag
         if not dag:
             return None
@@ -762,10 +763,16 @@ class SchedulerDagBag:
 
         This method retrieves the latest version of the DAG with the given ID.
         """
-        dag_version = DagVersion.get_latest_version(dag_id=dag_id, session=session)
-        if not dag_version:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        serdag = SerializedDagModel.get(dag_id, session=session)
+        if not serdag:
             return None
-        return self._get_dag(version_id=dag_version.id, session=session)
+        serdag.load_op_links = self.load_op_links
+        dag = serdag.dag
+
+        self._dags[serdag.dag_version.id] = dag
+        return dag
 
 
 def generate_md5_hash(context):
