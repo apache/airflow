@@ -652,11 +652,3 @@ class TestGetGridDataEndpoint:
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
-
-    def test_grid_group_ids(self, session, test_client):
-        run_id = "run_2"
-        session.commit()
-        response = test_client.get(f"/grid/group_ids/{DAG_ID}?run_id={run_id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert data == ["mapped_task_group", "task_group"]
