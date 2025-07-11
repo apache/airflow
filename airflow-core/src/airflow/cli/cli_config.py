@@ -343,8 +343,8 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
 ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
     help=(
-        "(Experimental) If set, the backfill will run tasks using the latest DAG version instead of "
-        "the version that was active when the original DAG run was created."
+        "(Experimental) If set, the backfill will run tasks using the latest bundle version instead of "
+        "the version that was active when the original Dag run was created."
     ),
     action="store_true",
 )
