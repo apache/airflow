@@ -65,9 +65,9 @@ if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.models.operator import Operator
     from airflow.sdk import BaseOperatorLink, Context
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import StartTriggerArgs
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
@@ -421,6 +421,7 @@ class BaseOperator(TaskSDKBaseOperator):
 
         :meta private:
         """
+        self.render_template_fields(context=context)
         return self.start_trigger_args
 
     @singledispatchmethod

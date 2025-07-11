@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 import pytest
 
@@ -34,7 +35,10 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
-from airflow.sdk import task as task_decorator
+from airflow.sdk import Context, task as task_decorator
+from airflow.sdk.bases.trigger import StartTriggerArgs
+from airflow.triggers.base import BaseTrigger
+from airflow.utils.session import NEW_SESSION
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -142,6 +146,38 @@ class TestBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+    def test_expand_start_trigger_args_with_template_fields(self):
+        class GreetingOperator(BaseOperator):
+            start_from_trigger = True
+            template_fields = ["say"]
+
+            def __init__(self, *, say, **kwargs):
+                super().__init__(**kwargs)
+                self.say = say
+                self.start_trigger_args = StartTriggerArgs(
+                    trigger_cls=f"{BaseTrigger.__module__}.{BaseTrigger.__name__}",
+                    trigger_kwargs=dict(
+                        task_id=self.task_id,
+                        say=self.say,
+                    ),
+                    next_method=self.execute_complete.__name__,
+                )
+
+            def execute_complete(
+                self,
+                context: Context,
+                event: dict[Any, Any] | None = None,
+            ) -> Any:
+                pass
+
+        op = GreetingOperator(task_id="greet", say=lambda context, jinja_env: "Hello Airflow!")
+        op.render_template_fields(context={})
+
+        assert op.expand_start_trigger_args(context={}, session=NEW_SESSION).trigger_kwargs == {
+            "task_id": "greet",
+            "say": "Hello Airflow!",
+        }
 
 
 def test_deepcopy():
