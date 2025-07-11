@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, cast
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.models.taskmixin import DependencyMixin
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
 
