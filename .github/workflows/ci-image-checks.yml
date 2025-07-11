@@ -180,7 +180,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
@@ -223,7 +223,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
@@ -271,7 +271,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
@@ -334,7 +334,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
@@ -417,7 +417,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Generate airflow python client"
         run: >

@@ -24,6 +24,7 @@ import pytest
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -54,6 +55,8 @@ class TestPrevDagrunDep:
             start_date=START_DATE,
             wait_for_downstream=False,
         )
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         # Old DAG run will include only TaskInstance of old_task
         dag.create_dagrun(
             run_id="old_run",

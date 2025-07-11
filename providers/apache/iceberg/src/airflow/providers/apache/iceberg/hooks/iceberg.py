@@ -21,10 +21,7 @@ from typing import Any, cast
 import requests
 from requests import HTTPError
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.apache.iceberg.version_compat import BaseHook
 
 TOKENS_ENDPOINT = "oauth/tokens"
 

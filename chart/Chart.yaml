@@ -19,7 +19,7 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.18.0-dev
+version: 1.18.0
 appVersion: 3.0.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
@@ -63,118 +63,61 @@ annotations:
     - title: Code View
       url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dag_overview_code.png
   artifacthub.io/changes: |
-    - description: Add extra secret annotations to most secrets
-      kind: added
-      links:
-      - name: '#48890'
-        url: https://github.com/apache/airflow/pull/48890
-    - description: Add support for EdgeExecutor
-      kind: added
-      links:
-      - name: '#50897'
-        url: https://github.com/apache/airflow/pull/50897
-    - description: Unify k8s labels & add some missing k8s labels
+    - description: Allow ConfigMap and Secret references in ``apiServer.env``
       kind: changed
       links:
-      - name: '#49522'
-        url: https://github.com/apache/airflow/pull/49522
-    - description: Fix missing api server ingress
+      - name: '#51191'
+        url: https://github.com/apache/airflow/pull/51191
+    - description: Add custom annotations to JWT Secret
+      kind: changed
+      links:
+      - name: '#52166'
+        url: https://github.com/apache/airflow/pull/52166
+    - description: Allow ``valuesFrom`` in ``gitSync.env``
+      kind: changed
+      links:
+      - name: '#50228'
+        url: https://github.com/apache/airflow/pull/50228
+    - description: Fix JWT secret name
       kind: fixed
       links:
-      - name: '#49727'
-        url: https://github.com/apache/airflow/pull/49727
-    - description: Replace break function in ``pod-launcher-rolebinding`` template
+      - name: '#52268'
+        url: https://github.com/apache/airflow/pull/52268
+    - description: Use ``api-server`` instead of ``webserver`` in NOTES.txt for Airflow
+        3.0+
       kind: fixed
       links:
-      - name: '#49219'
-        url: https://github.com/apache/airflow/pull/49219
-    - description: Add ``webserver_config.py`` file to api-server
+      - name: '#52194'
+        url: https://github.com/apache/airflow/pull/52194
+    - description: Change default executor in pod template to support executor parameter
+        in task
       kind: fixed
       links:
-      - name: '#50108'
-        url: https://github.com/apache/airflow/pull/50108
-    - description: Declare missing API server properties
+      - name: '#49433'
+        url: https://github.com/apache/airflow/pull/49433
+    - description: Use ``merged`` to render airflow.cfg and include computed defaults
       kind: fixed
       links:
-      - name: '#51012'
-        url: https://github.com/apache/airflow/pull/51012
-    - description: Add missing api server replicas parameter
+      - name: '#51828'
+        url: https://github.com/apache/airflow/pull/51828
+    - description: Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver]
+        secret_key``
       kind: fixed
       links:
-      - name: '#50814'
-        url: https://github.com/apache/airflow/pull/50814
-    - description: Fix FAB ``enable_proxy_fix`` default for Airflow 3
+      - name: '#52269'
+        url: https://github.com/apache/airflow/pull/52269
+    - description: Fix for ``fernetkey`` and add test of its value
       kind: fixed
       links:
-      - name: '#50056'
-        url: https://github.com/apache/airflow/pull/50056
-    - description: Add the dag processor ServiceAccount to SecurityContextConstraints role binding
-      kind: fixed
-      links:
-      - name: '#51080'
-        url: https://github.com/apache/airflow/pull/51080
-    - description: 'Generate JWT secret during HELM install'
+      - name: '#52977'
+        url: https://github.com/apache/airflow/pull/52977
+    - description: 'Docs: Update supported executors in docs'
       kind: changed
       links:
-      - name: '#49923'
-        url: https://github.com/apache/airflow/pull/49923
-    - description: 'Always deploy JWT secret'
+      - name: '#52132'
+        url: https://github.com/apache/airflow/pull/52132
+    - description: 'Docs: Update service name for port-forward of Airflow UI'
       kind: changed
       links:
-      - name: '#51799'
-        url: https://github.com/apache/airflow/pull/51799
-    - description: 'Add missing ``workers.kerberosInitContainer`` configuration in values'
-      kind: changed
-      links:
-      - name: '#51405'
-        url: https://github.com/apache/airflow/pull/51405
-    - description: 'Truncate the executor label length'
-      kind: changed
-      links:
-      - name: '#51817'
-        url: https://github.com/apache/airflow/pull/51817
-    - description: 'Fix execution_api_server_url when base_url has a subpath'
-      kind: changed
-      links:
-      - name: '#51454'
-        url: https://github.com/apache/airflow/pull/51454
-    - description: 'Docs: Bump minimum helm version in docs'
-      kind: changed
-      links:
-      - name: '#48700'
-        url: https://github.com/apache/airflow/pull/48700
-    - description: 'Docs: Clarify which worker fields apply to Celery and Kubernetes worker pods'
-      kind: changed
-      links:
-      - name: '#50458'
-        url: https://github.com/apache/airflow/pull/50458
-    - description: 'Docs: Capitalize the term airflow'
-      kind: changed
-      links:
-      - name: '#49450'
-        url: https://github.com/apache/airflow/pull/49450
-    - description: 'Docs: Add EdgeExecutor to readme'
-      kind: changed
-      links:
-      - name: '#51017'
-        url: https://github.com/apache/airflow/pull/51017
-    - description: 'Docs: Add 3.X/2.X clarification for CeleryKubernetesExecutor'
-      kind: changed
-      links:
-      - name: '#49916'
-        url: https://github.com/apache/airflow/pull/49916
-    - description: 'Misc: Default Airflow image is updated to ``3.0.2``'
-      kind: changed
-      links:
-      - name: '#51594'
-        url: https://github.com/apache/airflow/pull/51594
-    - description: 'Misc: Bump minimal Kubernetes version to 1.30'
-      kind: changed
-      links:
-      - name: '#51515'
-        url: https://github.com/apache/airflow/pull/51515
-    - description: 'Misc: Delete unneeded ``and`` operator'
-      kind: changed
-      links:
-      - name: '#51114'
-        url: https://github.com/apache/airflow/pull/51114
+      - name: '#51945'
+        url: https://github.com/apache/airflow/pull/51945

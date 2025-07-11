@@ -32,11 +32,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.imap.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
