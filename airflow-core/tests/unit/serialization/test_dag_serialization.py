@@ -53,18 +53,17 @@ from airflow.exceptions import (
     ParamValidationError,
     SerializationError,
 )
-from airflow.hooks.base import BaseHook
 from airflow.models.asset import AssetModel
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
-from airflow.sdk import AssetAlias, teardown
+from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
@@ -86,7 +85,6 @@ from airflow.utils import timezone
 from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -188,6 +186,7 @@ serialized_simple_dag_ground_truth = {
                     "bash_command": "echo {{ task.task_id }}",
                     "task_type": "BashOperator",
                     "_task_module": "airflow.providers.standard.operators.bash",
+                    "owner": "airflow",
                     "pool": "default_pool",
                     "is_setup": False,
                     "is_teardown": False,
@@ -3163,6 +3162,7 @@ def test_handle_v1_serdag():
                         "_task_type": "BashOperator",
                         # Slightly difference from v2-10-stable here, we manually changed this path
                         "_task_module": "airflow.providers.standard.operators.bash",
+                        "owner": "airflow",
                         "pool": "default_pool",
                         "is_setup": False,
                         "is_teardown": False,

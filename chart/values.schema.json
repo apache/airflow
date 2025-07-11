@@ -1064,6 +1064,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "AIRFLOW__API__SECRET_KEY": {
+                    "description": "Enable ``AIRFLOW__API__SECRET_KEY`` variable to be read from the Api Secret Key Secret",
+                    "type": "boolean",
+                    "default": true
+                },
                 "AIRFLOW__API_AUTH__JWT_SECRET": {
                     "description": "Enable ``AIRFLOW__API_AUTH__JWT_SECRET`` variable to be read from the JWT Secret",
                     "type": "boolean",
@@ -1464,6 +1469,33 @@
                 "type": "string"
             }
         },
+        "apiSecretKey": {
+            "description": "The Flask secret key for Airflow Api to encrypt browser session.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "apiSecretAnnotations": {
+            "description": "Annotations to add to the Api secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "apiSecretKeySecretName": {
+            "description": "The Secret name containing Flask secret_key for the Api.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
         "jwtSecret": {
             "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
             "type": [
@@ -1481,6 +1513,15 @@
             ],
             "x-docsSection": "Airflow",
             "default": null
+        },
+        "jwtSecretAnnotations": {
+            "description": "Annotations to add to the JWT secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
@@ -5454,11 +5495,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -9064,25 +9141,21 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                             },
                             "examples": [
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                },
+                                {
+                                    "name": "GIT_SYNC_USERNAME",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "git-secret",
+                                            "key": "username"
+                                        }
+                                    }
                                 }
                             ]
                         },

@@ -27,9 +27,10 @@ import attrs
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
-    from airflow.typing_compat import TypeGuard
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 

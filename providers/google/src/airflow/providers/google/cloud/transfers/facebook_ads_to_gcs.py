@@ -26,9 +26,9 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from facebook_business.adobjects.adsinsights import AdsInsights

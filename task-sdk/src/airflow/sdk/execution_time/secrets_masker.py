@@ -23,28 +23,20 @@ import contextlib
 import logging
 import re
 import sys
-from collections.abc import Generator, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
 from re import Pattern
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    TextIO,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, TextIO, TypeAlias, TypeVar
 
 from airflow import settings
 
 if TYPE_CHECKING:
-    from kubernetes.client import V1EnvVar
+    from typing import TypeGuard
 
-    from airflow.typing_compat import TypeGuard
-
-Redactable = TypeVar("Redactable", str, "V1EnvVar", dict[Any, Any], tuple[Any, ...], list[Any])
-Redacted = Union[Redactable, str]
+V1EnvVar = TypeVar("V1EnvVar")
+Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list[Any]
+Redacted: TypeAlias = Redactable | str
 
 log = logging.getLogger(__name__)
 
@@ -265,7 +257,7 @@ class SecretsMasker(logging.Filter):
             if isinstance(item, Enum):
                 return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
             if _is_v1_env_var(item):
-                tmp: dict = item.to_dict()
+                tmp: dict = item.to_dict()  # type: ignore[attr-defined] # V1EnvVar has a to_dict method
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
@@ -462,7 +454,7 @@ class RedactedIO(TextIO):
         return self.target.writable()
 
     def write(self, s: str) -> int:
-        s = redact(s)
+        s = str(redact(s))
         return self.target.write(s)
 
     def writelines(self, lines) -> None:

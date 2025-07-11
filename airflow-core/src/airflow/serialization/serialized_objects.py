@@ -47,7 +47,6 @@ from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     create_expand_input,
 )
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
@@ -101,6 +100,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.expandinput import SchedulerExpandInput
+    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
@@ -317,19 +317,20 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
+def smart_decode_trigger_kwargs(d):
+    """
+    Slightly clean up kwargs for display or execution.
+
+    This detects one level of BaseSerialization and tries to deserialize the
+    content, removing some __type __var ugliness when the value is displayed
+    in UI to the user and/or while execution.
+    """
+    if not isinstance(d, dict) or Encoding.TYPE not in d:
+        return d
+    return BaseSerialization.deserialize(d)
+
+
 def decode_asset(var: dict[str, Any]):
-    def _smart_decode_trigger_kwargs(d):
-        """
-        Slightly clean up kwargs for display.
-
-        This detects one level of BaseSerialization and tries to deserialize the
-        content, removing some __type __var ugliness when the value is displayed
-        in UI to the user.
-        """
-        if not isinstance(d, dict) or Encoding.TYPE not in d:
-            return d
-        return BaseSerialization.deserialize(d)
-
     watchers = var.get("watchers", [])
     return Asset(
         name=var["name"],
@@ -341,7 +342,7 @@ def decode_asset(var: dict[str, Any]):
                 name=watcher["name"],
                 trigger={
                     "classpath": watcher["trigger"]["classpath"],
-                    "kwargs": _smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
+                    "kwargs": smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
                 },
             )
             for watcher in watchers
@@ -520,20 +521,13 @@ class _XComRef(NamedTuple):
 # the type declarations in expandinput.py so we always remember to update
 # serialization logic when adding new ExpandInput variants. If you add things to
 # the unions, be sure to update _ExpandInputRef to match.
-_ExpandInputOriginalValue = Union[
-    # For .expand(**kwargs).
-    Mapping[str, Any],
-    # For expand_kwargs(arg).
-    XComArg,
-    Collection[Union[XComArg, Mapping[str, Any]]],
-]
-_ExpandInputSerializedValue = Union[
-    # For .expand(**kwargs).
-    Mapping[str, Any],
-    # For expand_kwargs(arg).
-    _XComRef,
-    Collection[Union[_XComRef, Mapping[str, Any]]],
-]
+# Mapping[str, Any], For .expand(**kwargs).
+# XComArg # For expand_kwargs(arg).
+_ExpandInputOriginalValue = Mapping[str, Any] | XComArg | Collection[XComArg | Mapping[str, Any]]
+
+# Mapping[str, Any], For .expand(**kwargs).
+# _XComRef For expand_kwargs(arg).
+_ExpandInputSerializedValue = Mapping[str, Any] | _XComRef | Collection[_XComRef | Mapping[str, Any]]
 
 
 class _ExpandInputRef(NamedTuple):
@@ -822,11 +816,6 @@ class BaseSerialization:
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
         elif isinstance(var, AssetRef):
             return cls._encode(attrs.asdict(var), type_=DAT.ASSET_REF)
-        elif isinstance(var, SimpleTaskInstance):
-            return cls._encode(
-                cls.serialize(var.__dict__, strict=strict),
-                type_=DAT.SIMPLE_TASK_INSTANCE,
-            )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
         elif isinstance(var, TaskCallbackRequest):
@@ -939,8 +928,6 @@ class BaseSerialization:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_REF:
             return Asset.ref(**var)
-        elif type_ == DAT.SIMPLE_TASK_INSTANCE:
-            return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif type_ == DAT.TASK_CALLBACK_REQUEST:
@@ -2153,7 +2140,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
                 ports_getter = self._get_mapped_operator_ports
             else:
                 ports_getter = self._get_base_operator_ports
-            directions = ("inlets",) if inlets else ()
+            directions: tuple[str, ...] = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
@@ -2166,16 +2153,14 @@ class LazyDeserializedDAG(pydantic.BaseModel):
                     if isinstance(obj, of_type):
                         yield task["task_id"], obj
 
-    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+    def get_run_data_interval(self, run: DagRun) -> DataInterval | None:
         """Get the data interval of this run."""
         if run.dag_id is not None and run.dag_id != self.dag_id:
             raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
 
         data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
-        # the older implementation has call to infer_automated_data_interval if data_interval is None, do we want to keep that or raise
-        # an exception?
-        if data_interval is None:
-            raise ValueError(f"Cannot calculate data interval for run {run}")
+        if data_interval is None and run.logical_date is not None:
+            data_interval = self._real_dag.timetable.infer_manual_data_interval(run_after=run.logical_date)
 
         return data_interval
 

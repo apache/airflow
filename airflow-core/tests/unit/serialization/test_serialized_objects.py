@@ -26,6 +26,7 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from uuid6 import uuid7
 
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
@@ -38,12 +39,13 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
+from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -174,12 +176,14 @@ TI = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=uuid7(),
 )
 
 TI_WITH_START_DAY = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=uuid7(),
 )
 TI_WITH_START_DAY.start_date = timezone.utcnow()
 
@@ -326,7 +330,6 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.ASSET,
             equals,
         ),
-        (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
             DAT.CONNECTION,
@@ -613,6 +616,47 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
     assert lazy_serialized_dag.has_task_concurrency_limits
 
 
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "create_dag_run_kwargs",
+    (
+        {},
+        {
+            "data_interval": None,
+            "logical_date": pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
+        },
+        {"data_interval": None, "logical_date": None},
+    ),
+    ids=["post-AIP-39", "pre-AIP-39-should-infer", "pre-AIP-39"],
+)
+def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, session):
+    """Test whether LazyDeserializedDAG can correctly get dag run data_interval
+
+    post-AIP-39: the dag run itself contains both data_interval start and data_interval end, and thus can
+        be retrieved directly
+    pre-AIP-39-should-infer: the dag run itself has neither data_interval_start nor data_interval_end,
+        and thus needs to infer the data_interval from its timetable
+    pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
+        is none. it should return data_interval as none
+    """
+    with dag_maker(dag_id="test_dag", session=session, serialized=True) as dag:
+        BaseOperator(task_id="test_task")
+    session.commit()
+
+    dr = dag_maker.create_dagrun(**create_dag_run_kwargs)
+    ser_dict = SerializedDAG.to_dict(dag)
+    deser_dag = LazyDeserializedDAG(data=ser_dict)
+    if "logical_date" in create_dag_run_kwargs and create_dag_run_kwargs["logical_date"] is None:
+        data_interval = deser_dag.get_run_data_interval(dr)
+        assert data_interval is None
+    else:
+        data_interval = deser_dag.get_run_data_interval(dr)
+        assert data_interval == DataInterval(
+            start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
+            end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
+        )
+
+
 def test_get_task_assets():
     asset1 = Asset("1")
     with DAG("testdag") as source_dag:
@@ -641,7 +685,7 @@ def test_lazy_dag_run_interval_wrong_dag():
 def test_lazy_dag_run_interval_missing_interval():
     lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
 
-    with pytest.raises(ValueError, match="Cannot calculate data interval"):
+    with pytest.raises(ValueError, match="Unsure how to deserialize version '<not present>'"):
         lazy.get_run_data_interval(DAG_RUN)
 
 

@@ -453,8 +453,15 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     stacklevel=2,
                 )
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "location": self.location,
+        }
+
     def execute(self, context: Context) -> str:
-        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
+        KubernetesEngineClusterLink.persist(context=context, cluster=self.body)
 
         try:
             operation = self.cluster_hook.create_cluster(
@@ -553,9 +560,16 @@ class GKEStartKueueInsideClusterOperator(GKEOperatorMixin, KubernetesInstallKueu
         self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "location": self.location,
+        }
+
     def execute(self, context: Context):
         cluster = self.cluster_hook.get_cluster(name=self.cluster_name, project_id=self.project_id)
-        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=cluster)
+        KubernetesEngineClusterLink.persist(context=context, cluster=cluster)
 
         if self.cluster_hook.check_cluster_autoscaling_ability(cluster=cluster):
             super().execute(context)
@@ -854,7 +868,14 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.cluster_name,
             self.job,
         )
-        KubernetesEngineJobLink.persist(context=context, task_instance=self)
+        KubernetesEngineJobLink.persist(
+            context=context,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=self.job.metadata.namespace,
+            job_name=self.job.metadata.name,
+            project_id=self.project_id,
+        )
         return None
 
 
@@ -918,6 +939,15 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.namespace = namespace
         self.do_xcom_push = do_xcom_push
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_name": self.cluster_name,
+            "namespace": self.namespace,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         if self.namespace:
             jobs = self.hook.list_jobs_from_namespace(namespace=self.namespace)
@@ -928,7 +958,7 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         if self.do_xcom_push:
             ti = context["ti"]
             ti.xcom_push(key="jobs_list", value=V1JobList.to_dict(jobs))
-        KubernetesEngineWorkloadsLink.persist(context=context, task_instance=self)
+        KubernetesEngineWorkloadsLink.persist(context=context)
         return V1JobList.to_dict(jobs)
 
 
@@ -1270,8 +1300,14 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.name,
             self.cluster_name,
         )
-        KubernetesEngineJobLink.persist(context=context, task_instance=self)
-
+        KubernetesEngineJobLink.persist(
+            context=context,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=self.job.metadata.namespace,
+            job_name=self.job.metadata.name,
+            project_id=self.project_id,
+        )
         return k8s.V1Job.to_dict(self.job)
 
 
@@ -1344,6 +1380,13 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.name,
             self.cluster_name,
         )
-        KubernetesEngineJobLink.persist(context=context, task_instance=self)
+        KubernetesEngineJobLink.persist(
+            context=context,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=self.job.metadata.namespace,
+            job_name=self.job.metadata.name,
+            project_id=self.project_id,
+        )
 
         return k8s.V1Job.to_dict(self.job)

@@ -30,8 +30,8 @@ from slack_sdk.errors import SlackApiError
 from typing_extensions import NotRequired
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
+from airflow.providers.slack.version_compat import BaseHook
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:

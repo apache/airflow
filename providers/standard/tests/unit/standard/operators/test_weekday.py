@@ -120,11 +120,11 @@ class TestBranchDayOfWeekOperator:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                dag_maker.run_ti("make_choice", dr)
 
             assert exc_info.value.tasks == [("branch_3", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             self._assert_task_ids_match_states(
                 dr,
@@ -166,10 +166,10 @@ class TestBranchDayOfWeekOperator:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                dag_maker.run_ti("make_choice", dr)
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             self._assert_task_ids_match_states(
                 dr,
@@ -235,11 +235,11 @@ class TestBranchDayOfWeekOperator:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                dag_maker.run_ti("make_choice", dr)
 
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             self._assert_task_ids_match_states(
                 dr,
@@ -345,7 +345,7 @@ class TestBranchDayOfWeekOperator:
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             assert branch_op_ti.xcom_pull(task_ids="make_choice", key=XCOM_SKIPMIXIN_KEY) == {
                 XCOM_SKIPMIXIN_FOLLOWED: ["branch_1"]

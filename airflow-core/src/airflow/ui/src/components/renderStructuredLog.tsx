@@ -45,6 +45,8 @@ type RenderStructuredLogProps = {
   logLevelFilters?: Array<string>;
   logLink: string;
   logMessage: string | StructuredLogMessage;
+  showSource?: boolean;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   translate: TFunction;
 };
@@ -95,6 +97,8 @@ export const renderStructuredLog = ({
   logLevelFilters,
   logLink,
   logMessage,
+  showSource = true,
+  showTimestamp = true,
   sourceFilters,
   translate,
 }: RenderStructuredLogProps) => {
@@ -127,7 +131,7 @@ export const renderStructuredLog = ({
     return "";
   }
 
-  if (Boolean(timestamp)) {
+  if (Boolean(timestamp) && showTimestamp) {
     elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
   }
 
@@ -155,12 +159,12 @@ export const renderStructuredLog = ({
         <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
           {translate("components:logs.file")}{" "}
           <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
-          {translate("components:logs.line")} {frame.lineno} {translate("components:logs.in")} {frame.name}
+          {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
         </chakra.p>
       ));
 
       return (
-        <chakra.details key={error.exc_type} ml="20em" open={true}>
+        <chakra.details key={error.exc_type} ms="20em" open={true}>
           <chakra.summary data-testid={`summary-${error.exc_type}`}>
             <chakra.span color="fg.info" cursor="pointer">
               {error.exc_type}: {error.exc_value}
@@ -178,14 +182,16 @@ export const renderStructuredLog = ({
     </chakra.span>,
   );
 
-  for (const key in reStructured) {
-    if (Object.hasOwn(reStructured, key)) {
-      elements.push(
-        ": ",
-        <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
-          {key === "logger" ? "source" : key}={JSON.stringify(reStructured[key])}
-        </chakra.span>,
-      );
+  if (showSource) {
+    for (const key in reStructured) {
+      if (Object.hasOwn(reStructured, key)) {
+        elements.push(
+          ": ",
+          <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
+            {key === "logger" ? "source" : key}={JSON.stringify(reStructured[key])}
+          </chakra.span>,
+        );
+      }
     }
   }
 
@@ -203,9 +209,9 @@ export const renderStructuredLog = ({
         style={{
           display: "inline-block",
           flexShrink: 0,
-          marginRight: "10px",
-          paddingRight: "5px",
-          textAlign: "right",
+          marginInlineEnd: "10px",
+          paddingInlineEnd: "5px",
+          textAlign: "end",
           userSelect: "none",
           WebkitUserSelect: "none",
           width: "3em",

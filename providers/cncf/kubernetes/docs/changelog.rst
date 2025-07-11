@@ -28,6 +28,35 @@ Changelog
 ---------
 
 
+10.6.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for SparkKubernetesOperator (#51956)``
+* ``Reduce log noise from K8s Pod Operator for XCom (#51812)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51760)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Update Kubernetes provider for Airflow 3.0 compatibility (#52664)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Move type-ignores up one line (#52195)``
+* ``Ignore mypy errors for deprecated executors (#52187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+   * ``Remove @pytest.mark.db_test for cncf (#52153)``
+   * ``Remove residual occurences of 'merge_conn' from cncf tests (#52064)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 10.6.0
 ......
 

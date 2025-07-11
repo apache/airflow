@@ -34,6 +34,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -368,6 +369,60 @@ class TestKeycloakAuthManager:
         headers = auth_manager._get_headers("access_token")
         mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        "status_code, response, expected",
+        [
+            [
+                200,
+                [{"scopes": ["MENU"], "rsname": "Assets"}, {"scopes": ["MENU"], "rsname": "Connections"}],
+                {MenuItem.ASSETS, MenuItem.CONNECTIONS},
+            ],
+            [200, [{"scopes": ["MENU"], "rsname": "Assets"}], {MenuItem.ASSETS}],
+            [200, [], set()],
+            [403, [{"scopes": ["MENU"], "rsname": "Assets"}], set()],
+        ],
+    )
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
+    def test_filter_authorized_menu_items(
+        self, mock_requests, status_code, response, expected, auth_manager, user
+    ):
+        mock_requests.post.return_value.status_code = status_code
+        mock_requests.post.return_value.json.return_value = response
+        menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
+
+        result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_batch_payload(
+            "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
+        )
+        headers = auth_manager._get_headers("access_token")
+        mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
+        assert set(result) == expected
+
+    @pytest.mark.parametrize(
+        "status_code",
+        [400, 500],
+    )
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
+    def test_filter_authorized_menu_items_with_failure(self, mock_requests, status_code, auth_manager, user):
+        resp = Mock()
+        resp.status_code = status_code
+        resp.text = json.dumps({})
+        mock_requests.post.return_value = resp
+
+        menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
+
+        with pytest.raises(AirflowException):
+            auth_manager.filter_authorized_menu_items(menu_items, user=user)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_batch_payload(
+            "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
+        )
+        headers = auth_manager._get_headers("access_token")
+        mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1

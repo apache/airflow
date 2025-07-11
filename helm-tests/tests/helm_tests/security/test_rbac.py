@@ -46,9 +46,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("StatefulSet", "test-rbac-worker"),
     ("Secret", "test-rbac-broker-url"),
     ("Secret", "test-rbac-fernet-key"),
-    ("Secret", "test-rbac-jwt-secret"),
     ("Secret", "test-rbac-redis-password"),
-    ("Secret", "test-rbac-webserver-secret-key"),
     ("Job", "test-rbac-create-user"),
     ("Job", "test-rbac-run-airflow-migrations"),
     ("CronJob", "test-rbac-cleanup"),
@@ -122,6 +120,8 @@ class TestRBAC:
                     ("Service", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-dag-processor"),
+                    ("Secret", "test-rbac-api-secret-key"),
+                    ("Secret", "test-rbac-jwt-secret"),
                 )
             )
             if sa:
@@ -132,6 +132,7 @@ class TestRBAC:
                 (
                     ("Service", "test-rbac-webserver"),
                     ("Deployment", "test-rbac-webserver"),
+                    ("Secret", "test-rbac-webserver-secret-key"),
                 )
             )
             if sa:

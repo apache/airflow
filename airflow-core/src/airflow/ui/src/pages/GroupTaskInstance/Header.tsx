@@ -18,9 +18,10 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
-import type { GridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
@@ -30,23 +31,25 @@ export const Header = ({
   taskInstance,
 }: {
   readonly isRefreshing?: boolean;
-  readonly taskInstance: GridTaskInstanceSummary;
+  readonly taskInstance: LightGridTaskInstanceSummary;
 }) => {
+  const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
-  if (taskInstance.child_states !== null) {
-    Object.entries(taskInstance.child_states).forEach(([state, count]) => {
-      if (count > 0) {
-        entries.push({ label: `Total ${state}`, value: count });
-      }
-    });
-  }
+  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
+    entries.push({ label: translate("total", { state }), value: count });
+  });
   const stats = [
     ...entries,
-    { label: "Earliest Start", value: <Time datetime={taskInstance.start_date} /> },
-    { label: "Latest End", value: <Time datetime={taskInstance.end_date} /> },
-    ...(Boolean(taskInstance.start_date)
-      ? [{ label: "Total Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
+    { label: translate("startDate"), value: <Time datetime={taskInstance.min_start_date} /> },
+    { label: translate("endDate"), value: <Time datetime={taskInstance.max_end_date} /> },
+    ...(Boolean(taskInstance.max_end_date)
+      ? [
+          {
+            label: translate("duration"),
+            value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date),
+          },
+        ]
       : []),
   ];
 
@@ -57,7 +60,7 @@ export const Header = ({
         isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
-        subTitle={<Time datetime={taskInstance.start_date} />}
+        subTitle={<Time datetime={taskInstance.min_start_date} />}
         title={taskInstance.task_id}
       />
     </Box>

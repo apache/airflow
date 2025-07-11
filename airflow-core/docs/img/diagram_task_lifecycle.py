@@ -14,6 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#    "rich>=12.4.4",
+#    "diagrams>=0.23.4",
+# ]
+# ///
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,12 +32,21 @@ from rich.console import Console
 
 MY_DIR = Path(__file__).parent
 MY_FILENAME = Path(__file__).with_suffix("").name
-COMPONENT_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "component.png").as_posix()
-CONDITION_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "condition.png").as_posix()
-SHARED_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "shared_state.png").as_posix()
-TERMINAL_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "terminal_state.png").as_posix()
-SENSOR_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "sensor_state.png").as_posix()
-DEFERRABLE_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "deferrable_state.png").as_posix()
+MY_DIR = Path(__file__).parent
+MY_FILENAME = Path(__file__).with_suffix("").name
+AIRFLOW_SOURCES_ROOT = MY_DIR.parents[2]
+DIAGRAMS_DIR = AIRFLOW_SOURCES_ROOT / "devel-common" / "src" / "docs" / "diagrams"
+PYTHON_MULTIPROCESS_LOGO = DIAGRAMS_DIR / "python_multiprocess_logo.png"
+PACKAGES_IMAGE = DIAGRAMS_DIR / "packages.png"
+DATABASE_IMAGE = DIAGRAMS_DIR / "database.png"
+MULTIPLE_FILES_IMAGE = DIAGRAMS_DIR / "multiple_files.png"
+CONFIG_FILE = DIAGRAMS_DIR / "config_file.png"
+COMPONENT_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "component.png").as_posix()
+CONDITION_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "condition.png").as_posix()
+SHARED_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "shared_state.png").as_posix()
+TERMINAL_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "terminal_state.png").as_posix()
+SENSOR_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "sensor_state.png").as_posix()
+DEFERRABLE_STATE_IMG = (DIAGRAMS_DIR / "task_lifecycle" / "deferrable_state.png").as_posix()
 
 STATE_NODE_ATTRS = {"width": "4.16", "height": "1", "fontname": "Monospace", "fontsize": "20"}
 COMPONENT_NODE_ATTRS = {
