@@ -255,7 +255,7 @@ class SecretsMasker(logging.Filter):
             if isinstance(item, Enum):
                 return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
             if _is_v1_env_var(item) and hasattr(item, "to_dict"):
-                tmp: dict = item.to_dict()  # type: ignore[attr-defined] # V1EnvVar has a to_dict method
+                tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:

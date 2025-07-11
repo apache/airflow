@@ -1291,7 +1291,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def get_dag(self) -> DAG | None:
         return self._dag
 
-    @property  # type: ignore[override]
+    @property
     def dag(self) -> DAG:
         """Returns the Operator's DAG if set, otherwise raises an error."""
         if dag := self._dag:

@@ -233,7 +233,7 @@ class TaskInstanceOperations:
         states: list[str] | None = None,
     ) -> TICount:
         """Get count of task instances matching the given criteria."""
-        params : dict[str, Any]
+        params: dict[str, Any]
         params = {
             "dag_id": dag_id,
             "task_ids": task_ids,
