@@ -38,8 +38,10 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    CreateHITLDetailPayload,
     DagRunStateResponse,
     DagRunType,
+    HITLDetailResponse,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
@@ -55,6 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TITerminalStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetail,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
@@ -66,6 +69,7 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
+    HITLDetailRequestResult,
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
@@ -76,9 +80,9 @@ from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import ParamSpec
 
     from airflow.sdk.execution_time.comms import RescheduleTask
-    from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
     T = TypeVar("T")
@@ -618,6 +622,70 @@ class DagRunOperations:
         return DRCount(count=resp.json())
 
 
+class HITLOperations:
+    """
+    Operations related to Human in the loop. Require Airflow 3.1+.
+
+    :meta: private
+    """
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def add_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        options: list[str],
+        subject: str,
+        body: str | None = None,
+        defaults: list[str] | None = None,
+        multiple: bool = False,
+        params: dict[str, Any] | None = None,
+    ) -> HITLDetailRequestResult:
+        """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
+        payload = CreateHITLDetailPayload(
+            ti_id=ti_id,
+            options=options,
+            subject=subject,
+            body=body,
+            defaults=defaults,
+            multiple=multiple,
+            params=params,
+        )
+        resp = self.client.post(
+            f"/hitl-details/{ti_id}",
+            content=payload.model_dump_json(),
+        )
+        return HITLDetailRequestResult.model_validate_json(resp.read())
+
+    def update_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        chosen_options: list[str],
+        params_input: dict[str, Any],
+    ) -> HITLDetailResponse:
+        """Update an existing Human-in-the-loop response."""
+        payload = UpdateHITLDetail(
+            ti_id=ti_id,
+            chosen_options=chosen_options,
+            params_input=params_input,
+        )
+        resp = self.client.patch(
+            f"/hitl-details/{ti_id}",
+            content=payload.model_dump_json(),
+        )
+        return HITLDetailResponse.model_validate_json(resp.read())
+
+    def get_detail_response(self, ti_id: uuid.UUID) -> HITLDetailResponse:
+        """Get content part of a Human-in-the-loop response for a specific Task Instance."""
+        resp = self.client.get(f"/hitl-details/{ti_id}")
+        return HITLDetailResponse.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -750,6 +818,12 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def hitl(self):
+        """Operations related to HITL Responses."""
+        return HITLOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

@@ -84,7 +84,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComSelectSequence, XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -100,7 +100,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
@@ -109,6 +108,7 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import Literal
 
     import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
@@ -126,7 +126,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.typing_compat import Literal
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 

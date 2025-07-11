@@ -1149,6 +1149,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {"run-go-sdk-tests": "true"},
             id="Run go tests for go-sdk",
         ),
+        (
+            pytest.param(
+                ("devel-common/pyproject.toml",),
+                {
+                    "needs-mypy": "true",
+                    "mypy-checks": ALL_MYPY_CHECKS,
+                },
+                id="All mypy checks should run when devel-common/pyproject.toml changes",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
