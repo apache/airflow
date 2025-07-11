@@ -3360,6 +3360,39 @@ export const $FastAPIRootMiddlewareResponse = {
 
 export const $HITLDetail = {
     properties: {
+        link_type: {
+            type: 'string',
+            title: 'Link Type',
+            description: "Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+            default: 'action'
+        },
+        action: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Action',
+            description: "Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links."
+        },
+        expires_in_hours: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires In Hours',
+            description: 'Optional custom expiration time in hours'
+        },
+        ti_id: {
+            type: 'string',
+            title: 'Ti Id'
         task_instance: {
             '$ref': '#/components/schemas/TaskInstanceResponse'
         },
@@ -3455,6 +3488,29 @@ export const $HITLDetail = {
             type: 'boolean',
             title: 'Response Received',
             default: false
+        },
+        link_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Link Url'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At'
         }
     },
     type: 'object',
@@ -3475,6 +3531,25 @@ export const $HITLDetailCollection = {
         total_entries: {
             type: 'integer',
             title: 'Total Entries'
+        },
+        response_content: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Response Content'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
         }
     },
     type: 'object',
@@ -3505,6 +3580,56 @@ export const $HITLDetailResponse = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
+        },
+        link_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Link Url'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At'
+        },
+        action: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Action'
+        },
+        link_type: {
+            type: 'string',
+            title: 'Link Type',
+            default: 'action'
         }
     },
     type: 'object',
@@ -5803,6 +5928,36 @@ export const $TriggererInfoResponse = {
 
 export const $UpdateHITLDetailPayload = {
     properties: {
+        link_type: {
+            type: 'string',
+            title: 'Link Type',
+            description: "Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+            default: 'action'
+        },
+        action: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Action',
+            description: "Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links."
+        },
+        expires_in_hours: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires In Hours',
+            description: 'Optional custom expiration time in hours'
+        },
         chosen_options: {
             items: {
                 type: 'string'
@@ -5814,6 +5969,12 @@ export const $UpdateHITLDetailPayload = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
+        },
+        try_number: {
+            type: 'integer',
+            title: 'Try Number',
+            description: 'Try number for the task',
+            default: 1
         }
     },
     type: 'object',

@@ -641,6 +641,27 @@ export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnT
 export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
 export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [])];
+export type HumanInTheLoopServiceGetHitlShareLinkDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlShareLink>>;
+export type HumanInTheLoopServiceGetHitlShareLinkQueryResult<TData = HumanInTheLoopServiceGetHitlShareLinkDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetHitlShareLinkKey = "HumanInTheLoopServiceGetHitlShareLink";
+export const UseHumanInTheLoopServiceGetHitlShareLinkKeyFn = ({ dagId, dagRunId, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlShareLinkKey, ...(queryKey ?? [{ dagId, dagRunId, payload, signature, taskId }])];
+export type HumanInTheLoopServiceGetMappedTiHitlShareLinkDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getMappedTiHitlShareLink>>;
+export type HumanInTheLoopServiceGetMappedTiHitlShareLinkQueryResult<TData = HumanInTheLoopServiceGetMappedTiHitlShareLinkDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopServiceGetMappedTiHitlShareLinkKey = "HumanInTheLoopServiceGetMappedTiHitlShareLink";
+export const UseHumanInTheLoopServiceGetMappedTiHitlShareLinkKeyFn = ({ dagId, dagRunId, mapIndex, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetMappedTiHitlShareLinkKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, payload, signature, taskId }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
@@ -754,6 +775,10 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<Re
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
 export type XcomServiceCreateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.createXcomEntry>>;
 export type VariableServicePostVariableMutationResult = Awaited<ReturnType<typeof VariableService.postVariable>>;
+export type HumanInTheLoopServiceCreateHitlShareLinkMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.createHitlShareLink>>;
+export type HumanInTheLoopServiceCreateMappedTiHitlShareLinkMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.createMappedTiHitlShareLink>>;
+export type HumanInTheLoopServiceExecuteHitlShareLinkActionMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.executeHitlShareLinkAction>>;
+export type HumanInTheLoopServiceExecuteMappedTiHitlShareLinkActionMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.executeMappedTiHitlShareLinkAction>>;
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;

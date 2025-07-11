@@ -1205,11 +1205,74 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetailSuspense = <TData = Co
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Details
-* Get Human-in-the-loop details.
+* Get all Human-in-the-loop details.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
 export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails() as TData, ...options });
+/**
+* Get Hitl Share Link
+* Get HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlShareLinkSuspense = <TData = Common.HumanInTheLoopServiceGetHitlShareLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlShareLinkKeyFn({ dagId, dagRunId, payload, signature, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlShareLink({ dagId, dagRunId, payload, signature, taskId }) as TData, ...options });
+/**
+* Get Mapped Ti Hitl Share Link
+* Get mapped HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access mapped HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the mapped HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param map_index: The map index for the mapped task instance (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetMappedTiHitlShareLinkSuspense = <TData = Common.HumanInTheLoopServiceGetMappedTiHitlShareLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlShareLinkKeyFn({ dagId, dagRunId, mapIndex, payload, signature, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, payload, signature, taskId }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

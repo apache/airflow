@@ -811,6 +811,7 @@ healthjump
 heartrate
 heatmap
 Highcharts
+hitl
 hivecmd
 hiveconf
 hiveconfs

@@ -1518,6 +1518,24 @@ api:
       type: boolean
       example: ~
       default: "False"
+    hitl_enable_shared_links:
+      description: |
+        Enable Human-in-the-Loop (HITL) shared links functionality. When enabled, users can generate
+        shareable links for HITL tasks that can be used to perform actions or redirect to the UI.
+        This feature must be explicitly enabled for security reasons.
+      version_added: 3.1.0
+      type: boolean
+      example: ~
+      default: "False"
+
+    hitl_shared_link_expiration_hours:
+      description: |
+        Default expiration time in hours for HITL shared links. Links will become invalid
+        after this time period. Can be overridden per link.
+      version_added: 3.1.0
+      type: integer
+      example: ~
+      default: "24"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:

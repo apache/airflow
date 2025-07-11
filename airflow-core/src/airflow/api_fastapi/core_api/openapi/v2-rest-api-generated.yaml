@@ -7503,7 +7503,7 @@ paths:
       tags:
       - HumanInTheLoop
       summary: Get Hitl Details
-      description: Get Human-in-the-loop details.
+      description: Get all Human-in-the-loop details.
       operationId: get_hitl_details
       responses:
         '200':
@@ -7527,6 +7527,642 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /api/v2/hitl-details/share-link/{dag_id}/{dag_run_id}/{task_id}:
+    post:
+      tags:
+      - HumanInTheLoop
+      summary: Create Hitl Share Link
+      description: 'Create a shared link for a Human-in-the-loop task.
+
+
+        This endpoint generates a secure, time-limited shared link that allows external
+        users
+
+        to interact with HITL tasks without requiring full Airflow authentication.
+        The link
+
+        can be configured for either direct action execution or UI redirection.
+
+
+        :param dag_id: The DAG identifier
+
+        :param dag_run_id: The DAG run identifier
+
+        :param task_id: The task identifier
+
+        :param update_hitl_detail_payload: Payload containing link configuration and
+        initial response data
+
+        :param user: The authenticated user creating the shared link
+
+        :param session: Database session for data persistence
+
+
+        :raises HTTPException: 403 if HITL shared links are not enabled
+
+        :raises HTTPException: 404 if the task instance or HITL detail does not exist
+
+        :raises HTTPException: 400 if link generation fails due to invalid parameters
+
+
+        :return: HITLDetailResponse containing the generated link URL and metadata'
+      operationId: create_hitl_share_link
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Hitl Share Link
+      description: 'Get HITL details via shared link (for redirect links).
+
+
+        This endpoint allows external users to access HITL task details through a
+        secure
+
+        shared link. The link must be a redirect-type link, which provides read-only
+        access
+
+        to the HITL task information for UI rendering or decision-making purposes.
+
+
+        :param dag_id: The DAG identifier (from URL path)
+
+        :param dag_run_id: The DAG run identifier (from URL path)
+
+        :param task_id: The task identifier (from URL path)
+
+        :param payload: Base64-encoded payload containing link metadata and expiration
+
+        :param signature: HMAC signature for payload verification
+
+        :param session: Database session for data retrieval'
+      operationId: get_hitl_share_link
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: payload
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Payload
+      - name: signature
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Signature
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl-details/share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
+    post:
+      tags:
+      - HumanInTheLoop
+      summary: Create Mapped Ti Hitl Share Link
+      description: 'Create a shared link for a mapped Human-in-the-loop task.
+
+
+        This endpoint generates a secure, time-limited shared link for mapped task
+        instances,
+
+        allowing external users to interact with specific mapped HITL tasks without
+        requiring
+
+        full Airflow authentication. The link can be configured for either direct
+        action
+
+        execution or UI redirection.
+
+
+        :param dag_id: The DAG identifier
+
+        :param dag_run_id: The DAG run identifier
+
+        :param task_id: The task identifier
+
+        :param map_index: The map index for the mapped task instance
+
+        :param update_hitl_detail_payload: Payload containing link configuration and
+        initial response data
+
+        :param user: The authenticated user creating the shared link
+
+        :param session: Database session for data persistence'
+      operationId: create_mapped_ti_hitl_share_link
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Mapped Ti Hitl Share Link
+      description: 'Get mapped HITL details via shared link (for redirect links).
+
+
+        This endpoint allows external users to access mapped HITL task details through
+        a secure
+
+        shared link. The link must be a redirect-type link, which provides read-only
+        access
+
+        to the mapped HITL task information for UI rendering or decision-making purposes.
+
+
+        :param dag_id: The DAG identifier (from URL path)
+
+        :param dag_run_id: The DAG run identifier (from URL path)
+
+        :param task_id: The task identifier (from URL path)
+
+        :param map_index: The map index for the mapped task instance (from URL path)
+
+        :param payload: Base64-encoded payload containing link metadata and expiration
+
+        :param signature: HMAC signature for payload verification
+
+        :param session: Database session for data retrieval'
+      operationId: get_mapped_ti_hitl_share_link
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      - name: payload
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Payload
+      - name: signature
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Signature
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl-details/share-link/{dag_id}/{dag_run_id}/{task_id}/action:
+    post:
+      tags:
+      - HumanInTheLoop
+      summary: Execute Hitl Share Link Action
+      description: 'Execute an action via shared link (for action links).
+
+
+        This endpoint allows external users to execute HITL task actions through a
+        secure
+
+        shared link. The link must be an action-type link, which enables direct execution
+
+        of predefined actions (e.g., approve, reject) without requiring full Airflow
+
+        authentication. The action is executed immediately and the HITL task is updated
+
+        with the user''s response.
+
+
+        :param dag_id: The DAG identifier (from URL path)
+
+        :param dag_run_id: The DAG run identifier (from URL path)
+
+        :param task_id: The task identifier (from URL path)
+
+        :param payload: Base64-encoded payload containing link metadata and expiration
+
+        :param signature: HMAC signature for payload verification
+
+        :param update_hitl_detail_payload: Payload containing the action response
+        data
+
+        :param session: Database session for data persistence'
+      operationId: execute_hitl_share_link_action
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: payload
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Payload
+      - name: signature
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl-details/share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}/action:
+    post:
+      tags:
+      - HumanInTheLoop
+      summary: Execute Mapped Ti Hitl Share Link Action
+      description: 'Execute an action via shared link for mapped tasks (for action
+        links).
+
+
+        This endpoint allows external users to execute mapped HITL task actions through
+        a secure
+
+        shared link. The link must be an action-type link, which enables direct execution
+
+        of predefined actions (e.g., approve, reject) for specific mapped task instances
+
+        without requiring full Airflow authentication. The action is executed immediately
+
+        and the mapped HITL task is updated with the user''s response.
+
+
+        :param dag_id: The DAG identifier (from URL path)
+
+        :param dag_run_id: The DAG run identifier (from URL path)
+
+        :param task_id: The task identifier (from URL path)
+
+        :param map_index: The map index for the mapped task instance (from URL path)
+
+        :param payload: Base64-encoded payload containing link metadata and expiration
+
+        :param signature: HMAC signature for payload verification
+
+        :param update_hitl_detail_payload: Payload containing the action response
+        data
+
+        :param session: Database session for data persistence'
+      operationId: execute_mapped_ti_hitl_share_link_action
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      - name: payload
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Payload
+      - name: signature
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/monitor/health:
     get:
       tags:
@@ -9971,6 +10607,28 @@ components:
       properties:
         task_instance:
           $ref: '#/components/schemas/TaskInstanceResponse'
+        link_type:
+          type: string
+          title: Link Type
+          description: 'Type of link to generate: ''action'' for direct action or
+            ''redirect'' for UI interaction'
+          default: action
+        action:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+          description: Optional action to perform when link is accessed (e.g., 'approve',
+            'reject'). Required for action links.
+        expires_in_hours:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Expires In Hours
+          description: Optional custom expiration time in hours
+        ti_id:
+          type: string
+          title: Ti Id
         options:
           items:
             type: string
@@ -10025,6 +10683,17 @@ components:
           type: boolean
           title: Response Received
           default: false
+        link_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Link Url
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
       type: object
       required:
       - task_instance
@@ -10042,6 +10711,17 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+        response_content:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Response Content
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
       type: object
       required:
       - hitl_details
@@ -10066,6 +10746,31 @@ components:
           additionalProperties: true
           type: object
           title: Params Input
+        task_instance_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Instance Id
+        link_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Link Url
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        action:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+        link_type:
+          type: string
+          title: Link Type
+          default: action
       type: object
       required:
       - user_id
@@ -11604,6 +12309,25 @@ components:
       description: Triggerer info serializer for responses.
     UpdateHITLDetailPayload:
       properties:
+        link_type:
+          type: string
+          title: Link Type
+          description: 'Type of link to generate: ''action'' for direct action or
+            ''redirect'' for UI interaction'
+          default: action
+        action:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+          description: Optional action to perform when link is accessed (e.g., 'approve',
+            'reject'). Required for action links.
+        expires_in_hours:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Expires In Hours
+          description: Optional custom expiration time in hours
         chosen_options:
           items:
             type: string
@@ -11613,6 +12337,11 @@ components:
           additionalProperties: true
           type: object
           title: Params Input
+        try_number:
+          type: integer
+          title: Try Number
+          description: Try number for the task
+          default: 1
       type: object
       required:
       - chosen_options
