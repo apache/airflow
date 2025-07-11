@@ -237,13 +237,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         mv = memoryview(buffer)
 
         pos = 0
-        while pos != length:
+        while pos < length:
             nread = self.socket.recv_into(mv[pos:])
-            pos += nread
-            if pos == length:
-                break
             if nread == 0:
                 raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+            pos += nread
 
         resp = self.resp_decoder.decode(mv)
         if maxfds:
