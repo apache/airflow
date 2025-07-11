@@ -161,7 +161,7 @@ class TrinoHook(DbApiHook):
             auth_methods.append("kerberos")
         if len(auth_methods) > 1:
             raise AirflowException(
-                f"Multiple authentication methods specified: {auth_methods}. Only one is allowed."
+                f"Multiple authentication methods specified: {', '.join(auth_methods)}. Only one is allowed."
             )
         if db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)
