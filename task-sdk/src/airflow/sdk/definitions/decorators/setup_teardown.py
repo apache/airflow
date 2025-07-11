@@ -21,17 +21,16 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
-from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
 
-if AIRFLOW_V_3_0_PLUS:
+try:
     from airflow.providers.standard.decorators.python import python_task
-else:
+except (ImportError, AttributeError):
     from airflow.decorators import python_task  # type: ignore
 
 
