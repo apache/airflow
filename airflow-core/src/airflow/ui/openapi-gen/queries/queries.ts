@@ -1205,11 +1205,51 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetail = <TData = Common.Hum
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Details
-* Get Human-in-the-loop details.
+* Get all Human-in-the-loop details.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
 export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails() as TData, ...options });
+/**
+* Get Hitl Share Link
+* Get HITL details via shared link (for redirect links).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlShareLink = <TData = Common.HumanInTheLoopServiceGetHitlShareLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlShareLinkKeyFn({ dagId, dagRunId, payload, signature, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlShareLink({ dagId, dagRunId, payload, signature, taskId }) as TData, ...options });
+/**
+* Get Mapped Ti Hitl Share Link
+* Get mapped HITL details via shared link (for redirect links).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetMappedTiHitlShareLink = <TData = Common.HumanInTheLoopServiceGetMappedTiHitlShareLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlShareLinkKeyFn({ dagId, dagRunId, mapIndex, payload, signature, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, payload, signature, taskId }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
@@ -1645,6 +1685,112 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: VariableBody;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Create Hitl Share Link
+* Create a shared link for a Human-in-the-loop task.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceCreateHitlShareLink = <TData = Common.HumanInTheLoopServiceCreateHitlShareLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, taskId }) => HumanInTheLoopService.createHitlShareLink({ dagId, dagRunId, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Create Mapped Ti Hitl Share Link
+* Create a shared link for a mapped Human-in-the-loop task.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceCreateMappedTiHitlShareLink = <TData = Common.HumanInTheLoopServiceCreateMappedTiHitlShareLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => HumanInTheLoopService.createMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Execute Hitl Share Link Action
+* Execute an action via shared link (for action links).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceExecuteHitlShareLinkAction = <TData = Common.HumanInTheLoopServiceExecuteHitlShareLinkActionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, payload, requestBody, signature, taskId }) => HumanInTheLoopService.executeHitlShareLinkAction({ dagId, dagRunId, payload, requestBody, signature, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Execute Mapped Ti Hitl Share Link Action
+* Execute an action via shared link for mapped tasks (for action links).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceExecuteMappedTiHitlShareLinkAction = <TData = Common.HumanInTheLoopServiceExecuteMappedTiHitlShareLinkActionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, payload, requestBody, signature, taskId }) => HumanInTheLoopService.executeMappedTiHitlShareLinkAction({ dagId, dagRunId, mapIndex, payload, requestBody, signature, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Pause Backfill
 * @param data The data for the request.

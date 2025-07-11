@@ -937,6 +937,20 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    /**
+     * Type of link to generate: 'action' for direct action or 'redirect' for UI interaction
+     */
+    link_type?: string;
+    /**
+     * Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.
+     */
+    action?: string | null;
+    /**
+     * Optional custom expiration time in hours
+     */
+    expires_in_hours?: number | null;
+    link_url?: string | null;
+    expires_at?: string | null;
 };
 
 /**
@@ -945,6 +959,10 @@ export type HITLDetail = {
 export type HITLDetailCollection = {
     hitl_details: Array<HITLDetail>;
     total_entries: number;
+    response_content?: Array<(string)> | null;
+    params_input?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -957,6 +975,11 @@ export type HITLDetailResponse = {
     params_input?: {
         [key: string]: unknown;
     };
+    task_instance_id?: string | null;
+    link_url?: string | null;
+    expires_at?: string | null;
+    action?: string | null;
+    link_type?: string;
 };
 
 /**
@@ -1479,6 +1502,18 @@ export type UpdateHITLDetailPayload = {
     params_input?: {
         [key: string]: unknown;
     };
+    /**
+     * Type of link to generate: 'action' for direct action or 'redirect' for UI interaction
+     */
+    link_type?: string;
+    /**
+     * Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.
+     */
+    action?: string | null;
+    /**
+     * Optional custom expiration time in hours
+     */
+    expires_in_hours?: number | null;
 };
 
 export type ValidationError = {
@@ -2936,6 +2971,69 @@ export type GetMappedTiHitlDetailData = {
 export type GetMappedTiHitlDetailResponse = HITLDetail;
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
+
+export type CreateHitlShareLinkData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type CreateHitlShareLinkResponse = HITLDetailResponse;
+
+export type GetHitlShareLinkData = {
+    dagId: string;
+    dagRunId: string;
+    payload: string;
+    signature: string;
+    taskId: string;
+};
+
+export type GetHitlShareLinkResponse = HITLDetail;
+
+export type CreateMappedTiHitlShareLinkData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type CreateMappedTiHitlShareLinkResponse = HITLDetailResponse;
+
+export type GetMappedTiHitlShareLinkData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    payload: string;
+    signature: string;
+    taskId: string;
+};
+
+export type GetMappedTiHitlShareLinkResponse = HITLDetail;
+
+export type ExecuteHitlShareLinkActionData = {
+    dagId: string;
+    dagRunId: string;
+    payload: string;
+    requestBody: UpdateHITLDetailPayload;
+    signature: string;
+    taskId: string;
+};
+
+export type ExecuteHitlShareLinkActionResponse = HITLDetailResponse;
+
+export type ExecuteMappedTiHitlShareLinkActionData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    payload: string;
+    requestBody: UpdateHITLDetailPayload;
+    signature: string;
+    taskId: string;
+};
+
+export type ExecuteMappedTiHitlShareLinkActionResponse = HITLDetailResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -6010,6 +6108,188 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/share-link': {
+        post: {
+            req: CreateHitlShareLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                201: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetHitlShareLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link': {
+        post: {
+            req: CreateMappedTiHitlShareLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                201: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetMappedTiHitlShareLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/share-link/action': {
+        post: {
+            req: ExecuteHitlShareLinkActionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link/action': {
+        post: {
+            req: ExecuteMappedTiHitlShareLinkActionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

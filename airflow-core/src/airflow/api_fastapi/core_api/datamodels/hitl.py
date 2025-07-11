@@ -32,6 +32,17 @@ class UpdateHITLDetailPayload(BaseModel):
     chosen_options: list[str]
     params_input: Mapping = Field(default_factory=dict)
 
+    # Shared link fields
+    link_type: str = Field(
+        default="action",
+        description="Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+    )
+    action: str | None = Field(
+        default=None,
+        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
+    )
+    expires_in_hours: int | None = Field(default=None, description="Optional custom expiration time in hours")
+
 
 class HITLDetailResponse(BaseModel):
     """Response of updating a Human-in-the-loop detail."""
@@ -40,6 +51,13 @@ class HITLDetailResponse(BaseModel):
     response_at: datetime
     chosen_options: list[str]
     params_input: Mapping = Field(default_factory=dict)
+
+    # Shared link response fields
+    task_instance_id: str | None = None
+    link_url: str | None = None
+    expires_at: datetime | None = None
+    action: str | None = None
+    link_type: str = "action"
 
 
 class HITLDetail(BaseModel):
@@ -63,6 +81,19 @@ class HITLDetail(BaseModel):
 
     response_received: bool = False
 
+    # Shared link fields
+    link_type: str = Field(
+        default="action",
+        description="Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+    )
+    action: str | None = Field(
+        default=None,
+        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
+    )
+    expires_in_hours: int | None = Field(default=None, description="Optional custom expiration time in hours")
+    link_url: str | None = None
+    expires_at: datetime | None = None
+
     @field_validator("params", mode="before")
     @classmethod
     def get_params(cls, params: dict[str, Any]) -> dict[str, Any]:
@@ -75,3 +106,7 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: list[HITLDetail]
     total_entries: int
+
+    # Shared link action request fields
+    response_content: list[str] | None = None
+    params_input: Mapping = Field(default_factory=dict)

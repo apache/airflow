@@ -34,6 +34,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDe
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.utils import timezone
+from airflow.utils.hitl_shared_links import hitl_shared_link_manager
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
 
@@ -47,6 +48,15 @@ def _get_task_instance(
     session: SessionDep,
     map_index: int | None = None,
 ) -> TI:
+    """
+    Get a task instance by its identifiers.
+
+    :param dag_id: DAG ID
+    :param dag_run_id: DAG run ID
+    :param task_id: Task ID
+    :param session: Database session
+    :param map_index: Map index for mapped tasks
+    """
     query = select(TI).where(
         TI.dag_id == dag_id,
         TI.run_id == dag_run_id,
@@ -75,10 +85,21 @@ def _update_hitl_detail(
     dag_run_id: str,
     task_id: str,
     update_hitl_detail_payload: UpdateHITLDetailPayload,
-    user: GetUserDep,
+    user: GetUserDep | None,
     session: SessionDep,
     map_index: int | None = None,
 ) -> HITLDetailResponse:
+    """
+    Update a Human-in-the-loop detail.
+
+    :param dag_id: DAG ID
+    :param dag_run_id: DAG run ID
+    :param task_id: Task ID
+    :param update_hitl_detail_payload: Payload containing update data
+    :param user: User performing the update
+    :param session: Database session
+    :param map_index: Map index for mapped tasks
+    """
     task_instance = _get_task_instance(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
@@ -101,7 +122,7 @@ def _update_hitl_detail(
             "and is not allowed to write again.",
         )
 
-    hitl_detail_model.user_id = user.get_id()
+    hitl_detail_model.user_id = user.get_id() if user else "shared_link_action"
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
@@ -260,7 +281,7 @@ def get_hitl_details(
     readable_ti_filter: ReadableTIFilterDep,
     session: SessionDep,
 ) -> HITLDetailCollection:
-    """Get Human-in-the-loop details."""
+    """Get all Human-in-the-loop details."""
     query = select(HITLDetailModel).join(TI, HITLDetailModel.ti_id == TI.id)
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
@@ -272,3 +293,362 @@ def get_hitl_details(
         hitl_details=hitl_details,
         total_entries=total_entries,
     )
+
+
+@hitl_router.post(
+    "/{dag_id}/{dag_run_id}/{task_id}/share-link",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def create_hitl_share_link(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    update_hitl_detail_payload: UpdateHITLDetailPayload,
+    user: GetUserDep,
+    session: SessionDep,
+) -> HITLDetailResponse:
+    """Create a shared link for a Human-in-the-loop task."""
+    if not hitl_shared_link_manager.is_enabled():
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "HITL shared links are not enabled",
+        )
+
+    task_instance = _get_task_instance(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=None,
+    )
+
+    ti_id_str = str(task_instance.id)
+    hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
+    if not hitl_detail_model:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
+        )
+
+    try:
+        link_data = hitl_shared_link_manager.generate_link(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=task_id,
+            map_index=None,
+            link_type=update_hitl_detail_payload.link_type,
+            action=update_hitl_detail_payload.action,
+            expires_in_hours=update_hitl_detail_payload.expires_in_hours,
+        )
+
+        response = HITLDetailResponse(
+            user_id=user.get_id(),
+            response_at=timezone.utcnow(),
+            chosen_options=update_hitl_detail_payload.chosen_options,
+            params_input=update_hitl_detail_payload.params_input,
+            task_instance_id=link_data["task_instance_id"],
+            link_url=link_data["link_url"],
+            expires_at=link_data["expires_at"],
+            action=link_data["action"],
+            link_type=link_data["link_type"],
+        )
+
+        return response
+
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            str(e),
+        )
+
+
+@hitl_router.post(
+    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def create_mapped_ti_hitl_share_link(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    update_hitl_detail_payload: UpdateHITLDetailPayload,
+    user: GetUserDep,
+    session: SessionDep,
+) -> HITLDetailResponse:
+    """Create a shared link for a mapped Human-in-the-loop task."""
+    if not hitl_shared_link_manager.is_enabled():
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "HITL shared links are not enabled",
+        )
+
+    task_instance = _get_task_instance(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=map_index,
+    )
+
+    ti_id_str = str(task_instance.id)
+    hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
+    if not hitl_detail_model:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
+        )
+
+    try:
+        link_data = hitl_shared_link_manager.generate_link(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=task_id,
+            map_index=map_index,
+            link_type=update_hitl_detail_payload.link_type,
+            action=update_hitl_detail_payload.action,
+            expires_in_hours=update_hitl_detail_payload.expires_in_hours,
+        )
+
+        response = HITLDetailResponse(
+            user_id=user.get_id(),
+            response_at=timezone.utcnow(),
+            chosen_options=update_hitl_detail_payload.chosen_options,
+            params_input=update_hitl_detail_payload.params_input,
+            task_instance_id=link_data["task_instance_id"],
+            link_url=link_data["link_url"],
+            expires_at=link_data["expires_at"],
+            action=link_data["action"],
+            link_type=link_data["link_type"],
+        )
+
+        return response
+
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            str(e),
+        )
+
+
+@hitl_router.get(
+    "/{dag_id}/{dag_run_id}/{task_id}/share-link",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+)
+def get_hitl_share_link(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    payload: str,
+    signature: str,
+    session: SessionDep,
+) -> HITLDetail:
+    """Get HITL details via shared link (for redirect links)."""
+    if not hitl_shared_link_manager.is_enabled():
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "HITL shared links are not enabled",
+        )
+
+    try:
+        link_data = hitl_shared_link_manager.verify_link(payload, signature)
+
+        if link_data.get("link_type") != "redirect":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "This link is not a redirect link",
+            )
+
+        return _get_hitl_detail(
+            dag_id=link_data["dag_id"],
+            dag_run_id=link_data["dag_run_id"],
+            task_id=link_data["task_id"],
+            session=session,
+            map_index=link_data.get("map_index"),
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            str(e),
+        )
+
+
+@hitl_router.get(
+    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+)
+def get_mapped_ti_hitl_share_link(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    payload: str,
+    signature: str,
+    session: SessionDep,
+) -> HITLDetail:
+    """Get mapped HITL details via shared link (for redirect links)."""
+    if not hitl_shared_link_manager.is_enabled():
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "HITL shared links are not enabled",
+        )
+
+    try:
+        link_data = hitl_shared_link_manager.verify_link(payload, signature)
+
+        if link_data.get("link_type") != "redirect":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "This link is not a redirect link",
+            )
+
+        return _get_hitl_detail(
+            dag_id=link_data["dag_id"],
+            dag_run_id=link_data["dag_run_id"],
+            task_id=link_data["task_id"],
+            session=session,
+            map_index=link_data.get("map_index"),
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            str(e),
+        )
+
+
+@hitl_router.post(
+    "/{dag_id}/{dag_run_id}/{task_id}/share-link/action",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+)
+def execute_hitl_share_link_action(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    payload: str,
+    signature: str,
+    update_hitl_detail_payload: UpdateHITLDetailPayload,
+    session: SessionDep,
+) -> HITLDetailResponse:
+    """Execute an action via shared link (for action links)."""
+    if not hitl_shared_link_manager.is_enabled():
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "HITL shared links are not enabled",
+        )
+
+    try:
+        link_data = hitl_shared_link_manager.verify_link(payload, signature)
+
+        if link_data.get("link_type") != "action":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "This link is not an action link",
+            )
+
+        return _update_hitl_detail(
+            dag_id=link_data["dag_id"],
+            dag_run_id=link_data["dag_run_id"],
+            task_id=link_data["task_id"],
+            session=session,
+            update_hitl_detail_payload=update_hitl_detail_payload,
+            user=None,
+            map_index=link_data.get("map_index"),
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            str(e),
+        )
+
+
+@hitl_router.post(
+    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}/share-link/action",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+)
+def execute_mapped_ti_hitl_share_link_action(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    payload: str,
+    signature: str,
+    update_hitl_detail_payload: UpdateHITLDetailPayload,
+    session: SessionDep,
+) -> HITLDetailResponse:
+    """Execute an action via shared link for mapped tasks (for action links)."""
+    if not hitl_shared_link_manager.is_enabled():
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "HITL shared links are not enabled",
+        )
+
+    try:
+        link_data = hitl_shared_link_manager.verify_link(payload, signature)
+
+        if link_data.get("link_type") != "action":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "This link is not an action link",
+            )
+
+        return _update_hitl_detail(
+            dag_id=link_data["dag_id"],
+            dag_run_id=link_data["dag_run_id"],
+            task_id=link_data["task_id"],
+            session=session,
+            update_hitl_detail_payload=update_hitl_detail_payload,
+            user=None,
+            map_index=link_data.get("map_index"),
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            str(e),
+        )
