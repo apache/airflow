@@ -183,9 +183,9 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        bytes = frame.as_bytes()
+        frame_bytes = frame.as_bytes()
 
-        self.socket.sendall(bytes)
+        self.socket.sendall(frame_bytes)
         if isinstance(msg, ResendLoggingFD):
             if recv_fds is None:
                 return None
@@ -225,13 +225,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         if len_bytes == b"":
             raise EOFError("Request socket closed before length")
 
-        len = int.from_bytes(len_bytes, byteorder="big")
+        length = int.from_bytes(len_bytes, byteorder="big")
 
-        buffer = bytearray(len)
+        buffer = bytearray(length)
         nread = self.socket.recv_into(buffer)
-        if nread != len:
+        if nread != length:
             raise RuntimeError(
-                f"unable to read full response in child. (We read {nread}, but expected {len})"
+                f"unable to read full response in child. (We read {nread}, but expected {length})"
             )
         if nread == 0:
             raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
