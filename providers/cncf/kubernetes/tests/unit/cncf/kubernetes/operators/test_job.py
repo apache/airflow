@@ -510,7 +510,7 @@ class TestKubernetesJobOperator:
         
         op = KubernetesJobOperator(
             task_id="test_task_id",
-            pod_creation_timeout=10
+            pod_creation_timeout=1
         )
         
         with pytest.raises(AirflowTaskTimeout):
