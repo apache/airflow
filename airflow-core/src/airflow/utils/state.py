@@ -39,6 +39,7 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
     REMOVED = "removed"
+    UPSTREAM_FAILED = "upstream_failed"
 
     def __str__(self) -> str:
         return self.value
@@ -52,7 +53,6 @@ class IntermediateTIState(str, Enum):
     RESTARTING = "restarting"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
 
     def __str__(self) -> str:
@@ -73,7 +73,6 @@ class TaskInstanceState(str, Enum):
     # Set by the scheduler
     REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
     SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
-
     # Set by the task instance itself
     QUEUED = IntermediateTIState.QUEUED  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing
@@ -82,7 +81,7 @@ class TaskInstanceState(str, Enum):
     FAILED = TerminalTIState.FAILED  # Task errored out
     UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
     UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
-    UPSTREAM_FAILED = IntermediateTIState.UPSTREAM_FAILED  # One or more upstream deps failed
+    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
 
@@ -213,7 +212,7 @@ class State:
     """
 
     success_states: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
+        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED, TaskInstanceState.REMOVED]
     )
     """
     A list of states indicating that a task or dag is a success state.
