@@ -111,9 +111,9 @@ class HITLSharedLinkManager:
             base_url = conf.get("api", "base_url", fallback="http://localhost:8080")
 
         if map_index is not None:
-            url_path = f"/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}"
+            url_path = f"/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}"
         else:
-            url_path = f"/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}"
+            url_path = f"/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}"
 
         query_params = {
             "payload": encoded_payload,
