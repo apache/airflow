@@ -1205,11 +1205,74 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetail = <TData = Common.Hum
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Details
-* Get Human-in-the-loop details.
+* Get all Human-in-the-loop details.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
 export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails() as TData, ...options });
+/**
+* Get Hitl Share Link
+* Get HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlShareLink = <TData = Common.HumanInTheLoopServiceGetHitlShareLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlShareLinkKeyFn({ dagId, dagRunId, payload, signature, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlShareLink({ dagId, dagRunId, payload, signature, taskId }) as TData, ...options });
+/**
+* Get Mapped Ti Hitl Share Link
+* Get mapped HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access mapped HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the mapped HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param map_index: The map index for the mapped task instance (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetMappedTiHitlShareLink = <TData = Common.HumanInTheLoopServiceGetMappedTiHitlShareLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  signature: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlShareLinkKeyFn({ dagId, dagRunId, mapIndex, payload, signature, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, payload, signature, taskId }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
@@ -1645,6 +1708,171 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: VariableBody;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Create Hitl Share Link
+* Create a shared link for a Human-in-the-loop task.
+*
+* This endpoint generates a secure, time-limited shared link that allows external users
+* to interact with HITL tasks without requiring full Airflow authentication. The link
+* can be configured for either direct action execution or UI redirection.
+*
+* :param dag_id: The DAG identifier
+* :param dag_run_id: The DAG run identifier
+* :param task_id: The task identifier
+* :param update_hitl_detail_payload: Payload containing link configuration and initial response data
+* :param user: The authenticated user creating the shared link
+* :param session: Database session for data persistence
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance or HITL detail does not exist
+* :raises HTTPException: 400 if link generation fails due to invalid parameters
+*
+* :return: HITLDetailResponse containing the generated link URL and metadata
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceCreateHitlShareLink = <TData = Common.HumanInTheLoopServiceCreateHitlShareLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, taskId }) => HumanInTheLoopService.createHitlShareLink({ dagId, dagRunId, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Create Mapped Ti Hitl Share Link
+* Create a shared link for a mapped Human-in-the-loop task.
+*
+* This endpoint generates a secure, time-limited shared link for mapped task instances,
+* allowing external users to interact with specific mapped HITL tasks without requiring
+* full Airflow authentication. The link can be configured for either direct action
+* execution or UI redirection.
+*
+* :param dag_id: The DAG identifier
+* :param dag_run_id: The DAG run identifier
+* :param task_id: The task identifier
+* :param map_index: The map index for the mapped task instance
+* :param update_hitl_detail_payload: Payload containing link configuration and initial response data
+* :param user: The authenticated user creating the shared link
+* :param session: Database session for data persistence
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceCreateMappedTiHitlShareLink = <TData = Common.HumanInTheLoopServiceCreateMappedTiHitlShareLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: UpdateHITLDetailPayload;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => HumanInTheLoopService.createMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Execute Hitl Share Link Action
+* Execute an action via shared link (for action links).
+*
+* This endpoint allows external users to execute HITL task actions through a secure
+* shared link. The link must be an action-type link, which enables direct execution
+* of predefined actions (e.g., approve, reject) without requiring full Airflow
+* authentication. The action is executed immediately and the HITL task is updated
+* with the user's response.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param update_hitl_detail_payload: Payload containing the action response data
+* :param session: Database session for data persistence
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceExecuteHitlShareLinkAction = <TData = Common.HumanInTheLoopServiceExecuteHitlShareLinkActionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, payload, requestBody, signature, taskId }) => HumanInTheLoopService.executeHitlShareLinkAction({ dagId, dagRunId, payload, requestBody, signature, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Execute Mapped Ti Hitl Share Link Action
+* Execute an action via shared link for mapped tasks (for action links).
+*
+* This endpoint allows external users to execute mapped HITL task actions through a secure
+* shared link. The link must be an action-type link, which enables direct execution
+* of predefined actions (e.g., approve, reject) for specific mapped task instances
+* without requiring full Airflow authentication. The action is executed immediately
+* and the mapped HITL task is updated with the user's response.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param map_index: The map index for the mapped task instance (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param update_hitl_detail_payload: Payload containing the action response data
+* :param session: Database session for data persistence
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @param data.requestBody
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceExecuteMappedTiHitlShareLinkAction = <TData = Common.HumanInTheLoopServiceExecuteMappedTiHitlShareLinkActionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  requestBody: UpdateHITLDetailPayload;
+  signature: string;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, payload, requestBody, signature, taskId }) => HumanInTheLoopService.executeMappedTiHitlShareLinkAction({ dagId, dagRunId, mapIndex, payload, requestBody, signature, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Pause Backfill
 * @param data The data for the request.
