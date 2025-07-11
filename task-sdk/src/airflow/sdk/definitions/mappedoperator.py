@@ -393,7 +393,7 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("task_display_name") or self.task_id
 
     @property
-    def owner(self) -> str:  # type: ignore[override]
+    def owner(self) -> str:
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
     @owner.setter
@@ -537,7 +537,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
-    def priority_weight(self) -> int:  # type: ignore[override]
+    def priority_weight(self) -> int:
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
     @priority_weight.setter
@@ -545,7 +545,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> PriorityWeightStrategy:  # type: ignore[override]
+    def weight_rule(self) -> PriorityWeightStrategy:
         return validate_and_load_priority_weight_strategy(
             self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
         )
@@ -626,20 +626,20 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
-    @property  # type: ignore[override]
-    def inlets(self) -> list[Any]:  # type: ignore[override]
+    @property
+    def inlets(self) -> list[Any]:
         return self.partial_kwargs.get("inlets", [])
 
     @inlets.setter
-    def inlets(self, value: list[Any]) -> None:  # type: ignore[override]
+    def inlets(self, value: list[Any]) -> None:
         self.partial_kwargs["inlets"] = value
 
-    @property  # type: ignore[override]
-    def outlets(self) -> list[Any]:  # type: ignore[override]
+    @property
+    def outlets(self) -> list[Any]:
         return self.partial_kwargs.get("outlets", [])
 
     @outlets.setter
-    def outlets(self, value: list[Any]) -> None:  # type: ignore[override]
+    def outlets(self, value: list[Any]) -> None:
         self.partial_kwargs["outlets"] = value
 
     @property
