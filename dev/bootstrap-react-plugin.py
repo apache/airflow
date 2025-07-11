@@ -17,9 +17,9 @@
 # under the License.
 
 """
-Bootstrap React UI Directory Tool
+Bootstrap React Plugin Directory Tool
 
-This tool creates a new React UI directory based on the airflow-core/ui project structure.
+This tool creates a new React plugin directory based on the airflow-core/ui project structure.
 It sets up all the necessary configuration files, dependencies, and basic structure for
 development with the same tooling as used in Airflow's core UI.
 """
@@ -27,6 +27,7 @@ development with the same tooling as used in Airflow's core UI.
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -49,8 +50,26 @@ def replace_template_variables(content: str, project_name: str) -> str:
     return content.replace("{{PROJECT_NAME}}", project_name)
 
 
+def remove_apache_license_header(content: str, file_extension: str) -> str:
+    """Remove Apache license header from file content based on file type."""
+    if file_extension in [".ts", ".tsx", ".js", ".jsx"]:
+        # Remove JavaScript/TypeScript style license header
+        license_pattern = r"/\*!\s*\*\s*Licensed to the Apache Software Foundation.*?\*/\s*"
+        content = re.sub(license_pattern, "", content, flags=re.DOTALL)
+    elif file_extension in [".md"]:
+        # Remove HTML/Markdown style license header
+        license_pattern = r"<!--\s*Licensed to the Apache Software Foundation.*?-->\s*"
+        content = re.sub(license_pattern, "", content, flags=re.DOTALL)
+    elif file_extension in [".html"]:
+        # Remove HTML style license header
+        license_pattern = r"<!--\s*Licensed to the Apache Software Foundation.*?-->\s*"
+        content = re.sub(license_pattern, "", content, flags=re.DOTALL)
+
+    return content
+
+
 def copy_template_files(template_dir: Path, project_path: Path, project_name: str) -> None:
-    """Copy template files to the project directory, replacing variables."""
+    """Copy template files to the project directory, replacing variables and removing licenses."""
     for item in template_dir.rglob("*"):
         if item.is_file():
             # Calculate relative path from template root
@@ -72,6 +91,10 @@ def copy_template_files(template_dir: Path, project_path: Path, project_name: st
             # Replace template variables
             content = replace_template_variables(content, project_name)
 
+            # Remove Apache license headers
+            file_extension = item.suffix.lower()
+            content = remove_apache_license_header(content, file_extension)
+
             # Write to target location
             with open(target_path, "w", encoding="utf-8") as f:
                 f.write(content)
@@ -79,8 +102,8 @@ def copy_template_files(template_dir: Path, project_path: Path, project_name: st
             print(f"  Created: {rel_path}")
 
 
-def bootstrap_ui_project(project_name: str, target_dir: str | None = None) -> None:
-    """Bootstrap a new React UI project."""
+def bootstrap_react_plugin(project_name: str, target_dir: str | None = None) -> None:
+    """Bootstrap a new React plugin project."""
     if target_dir is None:
         target_dir = project_name
 
@@ -92,7 +115,7 @@ def bootstrap_ui_project(project_name: str, target_dir: str | None = None) -> No
         print(f"Error: Directory '{project_path}' already exists!")
         sys.exit(1)
 
-    print(f"Creating React UI project: {project_name}")
+    print(f"Creating React plugin project: {project_name}")
     print(f"Target directory: {project_path}")
     print(f"Template directory: {template_dir}")
 
@@ -122,7 +145,7 @@ def bootstrap_ui_project(project_name: str, target_dir: str | None = None) -> No
 def main():
     """Main entry point for the bootstrap script."""
     parser = argparse.ArgumentParser(
-        description="Bootstrap a new React UI project based on Airflow's core UI configuration"
+        description="Bootstrap a new React plugin project based on Airflow's core UI configuration"
     )
     parser.add_argument("project_name", help="Name of the project to create")
     parser.add_argument("-d", "--dir", help="Target directory (defaults to project name)", default=None)
@@ -134,7 +157,7 @@ def main():
         print("Error: Project name should only contain letters, numbers, hyphens, and underscores")
         sys.exit(1)
 
-    bootstrap_ui_project(args.project_name, args.dir)
+    bootstrap_react_plugin(args.project_name, args.dir)
 
 
 if __name__ == "__main__":
