@@ -16,13 +16,13 @@
     specific language governing permissions and limitations
     under the License.
 
-DAG File Processing
+Dag File Processing
 -------------------
 
-DAG File Processing refers to the process of reading the python files that define your dags and storing them such that the scheduler can schedule them.
+Dag File Processing refers to the process of reading the python files that define your dags and storing them such that the scheduler can schedule them.
 
-There are two primary components involved in DAG file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
-to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more DAG objects.
+There are two primary components involved in dag file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
+to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more dag objects.
 
 The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a standalone process by running the ``airflow dag-processor`` CLI command.
 
@@ -30,29 +30,29 @@ The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a stand
 
 ``DagFileProcessorManager`` has the following steps:
 
-1. Check for new files:  If the elapsed time since the DAG was last refreshed is > :ref:`config:scheduler__dag_dir_list_interval` then update the file paths list
+1. Check for new files:  If the elapsed time since the dag was last refreshed is > :ref:`config:dag_processor__refresh_interval` then update the file paths list
 2. Exclude recently processed files:  Exclude files that have been processed more recently than :ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` and have not been modified
 3. Queue file paths: Add files discovered to the file path queue
 4. Process files:  Start a new ``DagFileProcessorProcess`` for each file, up to a maximum of :ref:`config:dag_processor__parsing_processes`
-5. Collect results: Collect the result from any finished DAG processors
+5. Collect results: Collect the result from any finished dag processors
 6. Log statistics:  Print statistics and emit ``dag_processing.total_parse_time``
 
 ``DagFileProcessorProcess`` has the following steps:
 
 1. Process file: The entire process must complete within :ref:`dag_file_processor_timeout<config:dag_processor__dag_file_processor_timeout>`
-2. The DAG files are loaded as Python module: Must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
-3. Process modules:  Find DAG objects within Python module
-4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered DAG objects
+2. The dag files are loaded as Python module: Must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
+3. Process modules:  Find dag objects within Python module
+4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered dag objects
 
 
-Fine-tuning your DAG processor performance
+Fine-tuning your dag processor performance
 ------------------------------------------
 
-What impacts DAG processor's performance
+What impacts dag processor's performance
 """"""""""""""""""""""""""""""""""""""""
 
-The DAG processor is responsible for continuously parsing DAG files and synchronizing with the DAG in the database
-In order to fine-tune your DAG processor, you need to include a number of factors:
+The dag processor is responsible for continuously parsing dag files and synchronizing with the dag in the database
+In order to fine-tune your dag processor, you need to include a number of factors:
 
 * The kind of deployment you have
     * what kind of filesystem you have to share the dags (impacts performance of continuously reading dags)
@@ -62,28 +62,28 @@ In order to fine-tune your DAG processor, you need to include a number of factor
     * how much CPU you have available
     * how much networking throughput you have available
 
-* The logic and definition of your DAG structure:
-    * how many DAG files you have
+* The logic and definition of your dag structure:
+    * how many dag files you have
     * how many dags you have in your files
-    * how large the DAG files are (remember DAG parser needs to read and parse the file every n seconds)
+    * how large the dag files are (remember dag parser needs to read and parse the file every n seconds)
     * how complex they are (i.e. how fast they can be parsed, how many tasks and dependencies they have)
-    * whether parsing your DAG file involves importing a lot of libraries or heavy processing at the top level
+    * whether parsing your dag file involves importing a lot of libraries or heavy processing at the top level
       (Hint! It should not. See :ref:`best_practices/top_level_code`)
 
-* The DAG processor configuration
-   * How many DAG processors you have
-   * How many parsing processes you have in your DAG processor
-   * How much time DAG processor waits between re-parsing of the same DAG (it happens continuously)
-   * How many callbacks you run per DAG processor loop
+* The dag processor configuration
+   * How many dag processors you have
+   * How many parsing processes you have in your dag processor
+   * How much time dag processor waits between re-parsing of the same dag (it happens continuously)
+   * How many callbacks you run per dag processor loop
 
-How to approach DAG processor's fine-tuning
+How to approach dag processor's fine-tuning
 """""""""""""""""""""""""""""""""""""""""""
 
 Airflow gives you a lot of "knobs" to turn to fine tune the performance but it's a separate task,
-depending on your particular deployment, your DAG structure, hardware availability and expectations,
+depending on your particular deployment, your dag structure, hardware availability and expectations,
 to decide which knobs to turn to get best effect for you. Part of the job when managing the
 deployment is to decide what you are going to optimize for. Some users are ok with
-30 seconds delays of new DAG parsing, at the expense of lower CPU usage, whereas some other users
+30 seconds delays of new dag parsing, at the expense of lower CPU usage, whereas some other users
 expect the dags to be parsed almost instantly when they appear in the dags folder at the
 expense of higher CPU usage for example.
 
@@ -103,13 +103,13 @@ to observe and monitor your systems):
 * based on your expectations and observations - decide what is your next improvement and go back to
   the observation of your performance, bottlenecks. Performance improvement is an iterative process.
 
-What resources might limit DAG processors's performance
+What resources might limit dag processors's performance
 """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 There are several areas of resource usage that you should pay attention to:
 
-* FileSystem performance. The Airflow DAG processor relies heavily on parsing (sometimes a lot) of Python
-  files, which are often located on a shared filesystem. The DAG processor continuously reads and
+* FileSystem performance. The Airflow dag processor relies heavily on parsing (sometimes a lot) of Python
+  files, which are often located on a shared filesystem. The dag processor continuously reads and
   re-parses those files. The same files have to be made available to workers, so often they are
   stored in a distributed filesystem. You can use various filesystems for that purpose (NFS, CIFS, EFS,
   GCS fuse, Azure File System are good examples). There are various parameters you can control for those
@@ -119,8 +119,8 @@ There are several areas of resource usage that you should pay attention to:
   EFS performance, dramatically improves stability and speed of parsing Airflow dags when EFS is used.
 * Another solution to FileSystem performance, if it becomes your bottleneck, is to turn to alternative
   mechanisms of distributing your dags. Embedding dags in your image and GitSync distribution have both
-  the property that the files are available locally for the DAG processor and it does not have to use a
-  distributed filesystem to read the files, the files are available locally for the the DAG processor and it is
+  the property that the files are available locally for the dag processor and it does not have to use a
+  distributed filesystem to read the files, the files are available locally for the the dag processor and it is
   usually as fast as it can be, especially if your machines use fast SSD disks for local storage. Those
   distribution mechanisms have other characteristics that might make them not the best choice for you,
   but if your problems with performance come from distributed filesystem performance, they might be the
@@ -134,7 +134,7 @@ There are several areas of resource usage that you should pay attention to:
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
   supports PGBouncer out-of-the-box.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
-  Python DAG files. Since DAG processors typically triggers such parsing continuously, when you have a lot of dags,
+  Python dag files. Since dag processors typically triggers such parsing continuously, when you have a lot of dags,
   the processing might take a lot of CPU. You can mitigate it by increasing the
   :ref:`config:dag_processor__min_file_process_interval`, but this is one of the mentioned trade-offs,
   result of this is that changes to such files will be picked up slower and you will see delays between
@@ -152,12 +152,12 @@ There are several areas of resource usage that you should pay attention to:
   kind of memory you are observing. Usually you should look at ``working memory`` (names might vary depending
   on your deployment) rather than ``total memory used``.
 
-What can you do, to improve DAG processor's performance
+What can you do, to improve dag processor's performance
 """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 When you know what your resource usage is, the improvements that you can consider might be:
 
-* improve the logic, efficiency of parsing and reduce complexity of your top-level DAG Python code. It is
+* improve the logic, efficiency of parsing and reduce complexity of your top-level dag Python code. It is
   parsed continuously so optimizing that code might bring tremendous improvements, especially if you try
   to reach out to some external databases etc. while parsing dags (this should be avoided at all cost).
   The :ref:`best_practices/top_level_code` explains what are the best practices for writing your top-level
@@ -168,31 +168,31 @@ When you know what your resource usage is, the improvements that you can conside
   actions like increasing number of parsing processes might bring improvements in performance at the
   expense of higher utilization of those.
 * increase hardware capacity (for example if you see that CPU is limiting you or that I/O you use for
-  DAG filesystem is at its limits). Often the problem with DAG processor performance is
+  dag filesystem is at its limits). Often the problem with dag processor performance is
   simply because your system is not "capable" enough and this might be the only way, unless a shared database
   or filesystem is a bottleneck.
-* experiment with different values for the "DAG processor tunables". Often you might get better effects by
+* experiment with different values for the "dag processor tunables". Often you might get better effects by
   simply exchanging one performance aspect for another. For example if you want to decrease the
   CPU usage, you might increase file processing interval (but the result will be that new dags will
   appear with bigger delay). Usually performance tuning is the art of balancing different aspects.
-* sometimes you change DAG processor behavior slightly (for example change parsing sort order)
+* sometimes you change dag processor behavior slightly (for example change parsing sort order)
   in order to get better fine-tuned results for your particular deployment.
 
-DAG processor Configuration options
+dag processor Configuration options
 """""""""""""""""""""""""""""""""""
 
-The following config settings can be used to control aspects of the Scheduler.
-However, you can also look at other non-performance-related scheduler configuration parameters available at
-:doc:`../configurations-ref` in the ``[scheduler]`` section.
+The following config settings can be used to control aspects of the dag processor.
+However, you can also look at other non-performance-related dag processor configuration parameters available at
+:doc:`../configurations-ref` in the ``[dag_processor]`` section.
 
 - :ref:`config:dag_processor__file_parsing_sort_mode`
-  The scheduler will list and sort the DAG files to decide the parsing order.
+  The dag processor will list and sort the dag files to decide the parsing order.
 
 - :ref:`config:dag_processor__min_file_process_interval`
-  Number of seconds after which a DAG file is re-parsed. The DAG file is parsed every
-  min_file_process_interval number of seconds. Updates to dags are reflected after
+  Number of seconds after which a dag file is re-parsed. The dag file is parsed every
+  ``min_file_process_interval`` number of seconds. Updates to dags are reflected after
   this interval. Keeping this number low will increase CPU usage.
 
 - :ref:`config:dag_processor__parsing_processes`
-  The scheduler can run multiple processes in parallel to parse DAG files. This defines
+  The dag processor can run multiple processes in parallel to parse dag files. This defines
   how many processes will run.
