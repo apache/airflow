@@ -123,7 +123,7 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-packag xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
             set +x
         fi
     fi
