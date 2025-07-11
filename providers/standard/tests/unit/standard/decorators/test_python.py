@@ -28,9 +28,8 @@ from airflow.models.taskmap import TaskMap
 from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
