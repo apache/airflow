@@ -1208,7 +1208,7 @@ export const $ClearTaskInstancesBody = {
         },
         run_on_latest_version: {
             type: 'boolean',
-            title: 'Run On Latest Version',
+            title: 'Run on latest bundle version',
             default: false
         }
     },
