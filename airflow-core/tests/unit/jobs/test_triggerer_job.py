@@ -23,12 +23,14 @@ import os
 import selectors
 import time
 from collections.abc import AsyncIterator
+from socket import socket
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from structlog.typing import FilteringBoundLogger
 
 from airflow.executors import workloads
 from airflow.jobs.job import Job
@@ -170,12 +172,17 @@ def supervisor_builder(mocker, session):
             session.flush()
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
+        # Create a mock stdin that has both write and sendall methods
+        mock_stdin = mocker.Mock(spec=socket)
+        mock_stdin.write = mocker.Mock()
+        mock_stdin.sendall = mocker.Mock()
+
         proc = TriggerRunnerSupervisor(
-            process_log=mocker.Mock(),
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
             id=job.id,
             job=job,
             pid=process.pid,
-            stdin=mocker.Mock(),
+            stdin=mock_stdin,
             process=process,
             capacity=10,
         )
@@ -252,8 +259,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -263,8 +272,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 

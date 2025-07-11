@@ -38,6 +38,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -210,7 +211,7 @@ class TestSchedulerJob:
 
     @pytest.fixture
     def mock_executors(self):
-        mock_jwt_generator = MagicMock()
+        mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
 
         default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
@@ -293,7 +294,7 @@ class TestSchedulerJob:
         mock_stats_incr.reset_mock()
 
         executor = MockExecutor(do_update=False)
-        task_callback = mock.MagicMock()
+        task_callback = mock.MagicMock(spec=TaskCallbackRequest)
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
@@ -339,7 +340,7 @@ class TestSchedulerJob:
 
         mock_stats_incr.reset_mock()
         executor = MockExecutor(do_update=False)
-        task_callback = mock.MagicMock()
+        task_callback = mock.MagicMock(spec=TaskCallbackRequest)
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
