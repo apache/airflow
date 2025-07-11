@@ -195,8 +195,8 @@ def bootstrap_react_plugin(args) -> None:
         print(f"\n✅ Successfully created {project_name}!")
         print("\nNext steps:")
         print(f"  cd {target_dir}")
-        print("  yarn install")
-        print("  yarn dev")
+        print("  pnpm install")
+        print("  pnpm dev")
         print("\nHappy coding! 🚀")
 
     except Exception as e:

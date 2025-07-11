@@ -1303,15 +1303,13 @@ PLUGINS_COMMANDS = (
     ActionCommand(
         name="dump",
         help="Dump information about loaded plugins",
-        func=lazy_load_command("airflow.cli.commands.plugins_commands.dump_command.dump_plugins"),
+        func=lazy_load_command("airflow.cli.commands.plugins.dump_command.dump_plugins"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="bootstrap-react",
         help="Bootstrap a new React plugin project",
-        func=lazy_load_command(
-            "airflow.cli.commands.plugins_commands.bootstrap_react_command.bootstrap_react_plugin"
-        ),
+        func=lazy_load_command("airflow.cli.commands.plugins.bootstrap_react_command.bootstrap_react_plugin"),
         args=(ARG_PLUGIN_NAME, ARG_PLUGIN_DIR, ARG_VERBOSE),
     ),
 )

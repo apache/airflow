@@ -421,9 +421,9 @@ labelPRBasedOnFilePath:
     - airflow-core/src/airflow/config_templates/*
 
   area:Plugins:
-    - airflow-core/src/airflow/cli/commands/plugins_commands/
+    - airflow-core/src/airflow/cli/commands/plugins/
     - airflow-core/src/airflow/plugins_manager.py
-    - airflow-core/tests/unit/cli/commands/test_plugins_command.py
+    - airflow-core/tests/unit/cli/commands/plugins/
     - airflow-core/tests/unit/plugins/**/*
     - airflow-core/docs/administration-and-deployment/plugins.rst
 

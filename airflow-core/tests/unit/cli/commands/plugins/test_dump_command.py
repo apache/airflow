@@ -24,7 +24,7 @@ from contextlib import redirect_stdout
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.plugins_commands import dump_command
+from airflow.cli.commands.plugins import dump_command
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sdk import BaseOperatorLink
@@ -161,8 +161,8 @@ class TestPluginsCommand:
         expected_output = textwrap.dedent(
             """\
             name            | global_operator_extra_links
-            ================+===============================================================
-            test-plugin-cli | <unit.cli.commands.test_plugins_command.AirflowNewLink object>
+            ================+====================================================================
+            test-plugin-cli | <unit.cli.commands.plugins.test_dump_command.AirflowNewLink object>
             """
         )
         assert stdout == expected_output
