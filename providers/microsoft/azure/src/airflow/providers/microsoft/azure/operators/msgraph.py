@@ -32,8 +32,7 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
-from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.providers.microsoft.azure.version_compat import XCOM_RETURN_KEY, BaseOperator
 
 if TYPE_CHECKING:
     from io import BytesIO

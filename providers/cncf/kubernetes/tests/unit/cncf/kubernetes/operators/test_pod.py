@@ -54,7 +54,6 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -1575,7 +1574,7 @@ class TestKubernetesPodOperator:
         with pytest.raises(AirflowException):
             k.execute(context=context)
 
-        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
+        context["ti"].xcom_push.assert_called_with("return_value", {"Test key": "Test value"})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
