@@ -85,14 +85,7 @@ RESPONSE_WITHOUT_NAME = {
     "failures": [],
     "tasks": [
         {
-            "containers": [
-                {
-                    "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/",
-                    "lastStatus": "PENDING",
-                    "name": None,
-                    "taskArn": f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
-                }
-            ],
+            "containers": [],
             "desiredStatus": "RUNNING",
             "lastStatus": "PENDING",
             "taskArn": f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
@@ -799,7 +792,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         )
         client_mock.run_task.return_value = RESPONSE_WITHOUT_NAME
         client_mock.describe_tasks.side_effect = [
-            {"tasks": [{"containers": [{"name": None}]}]},
+            {"tasks": [{"containers": []}]},
             {"tasks": [{"containers": [{"name": "resolved-container"}]}]},
         ]
         self.ecs._start_task()
