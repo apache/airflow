@@ -573,6 +573,45 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class HITLDetail(BaseModel):
+    """
+    Schema for Human-in-the-loop detail.
+    """
+
+    ti_id: Annotated[str, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    user_id: Annotated[str | None, Field(title="User Id")] = None
+    response_at: Annotated[datetime | None, Field(title="Response At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    response_received: Annotated[bool | None, Field(title="Response Received")] = False
+
+
+class HITLDetailCollection(BaseModel):
+    """
+    Schema for a collection of Human-in-the-loop details.
+    """
+
+    hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Response of updating a Human-in-the-loop detail.
+    """
+
+    user_id: Annotated[str, Field(title="User Id")]
+    response_at: Annotated[datetime, Field(title="Response At")]
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
 class HTTPExceptionResponse(BaseModel):
     """
     HTTPException Model used for error response.
@@ -897,6 +936,15 @@ class TriggererInfoResponse(BaseModel):
 
     status: Annotated[str | None, Field(title="Status")] = None
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")] = None
+
+
+class UpdateHITLDetailPayload(BaseModel):
+    """
+    Schema for updating the content of a Human-in-the-loop detail.
+    """
+
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class ValidationError(BaseModel):

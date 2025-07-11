@@ -3408,6 +3408,162 @@ export const $FastAPIRootMiddlewareResponse = {
     description: 'Serializer for Plugin FastAPI root middleware responses.'
 } as const;
 
+export const $HITLDetail = {
+    properties: {
+        ti_id: {
+            type: 'string',
+            title: 'Ti Id'
+        },
+        options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Options'
+        },
+        subject: {
+            type: 'string',
+            title: 'Subject'
+        },
+        body: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Body'
+        },
+        defaults: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Defaults'
+        },
+        multiple: {
+            type: 'boolean',
+            title: 'Multiple',
+            default: false
+        },
+        params: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params'
+        },
+        user_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Id'
+        },
+        response_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Response At'
+        },
+        chosen_options: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        },
+        response_received: {
+            type: 'boolean',
+            title: 'Response Received',
+            default: false
+        }
+    },
+    type: 'object',
+    required: ['ti_id', 'options', 'subject'],
+    title: 'HITLDetail',
+    description: 'Schema for Human-in-the-loop detail.'
+} as const;
+
+export const $HITLDetailCollection = {
+    properties: {
+        hitl_details: {
+            items: {
+                '$ref': '#/components/schemas/HITLDetail'
+            },
+            type: 'array',
+            title: 'Hitl Details'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['hitl_details', 'total_entries'],
+    title: 'HITLDetailCollection',
+    description: 'Schema for a collection of Human-in-the-loop details.'
+} as const;
+
+export const $HITLDetailResponse = {
+    properties: {
+        user_id: {
+            type: 'string',
+            title: 'User Id'
+        },
+        response_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Response At'
+        },
+        chosen_options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        }
+    },
+    type: 'object',
+    required: ['user_id', 'response_at', 'chosen_options'],
+    title: 'HITLDetailResponse',
+    description: 'Response of updating a Human-in-the-loop detail.'
+} as const;
+
 export const $HTTPExceptionResponse = {
     properties: {
         detail: {
@@ -5694,6 +5850,27 @@ export const $TriggererInfoResponse = {
     required: ['status', 'latest_triggerer_heartbeat'],
     title: 'TriggererInfoResponse',
     description: 'Triggerer info serializer for responses.'
+} as const;
+
+export const $UpdateHITLDetailPayload = {
+    properties: {
+        chosen_options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        }
+    },
+    type: 'object',
+    required: ['chosen_options'],
+    title: 'UpdateHITLDetailPayload',
+    description: 'Schema for updating the content of a Human-in-the-loop detail.'
 } as const;
 
 export const $ValidationError = {

@@ -63,6 +63,10 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
+from airflow.api_fastapi.execution_api.datamodels.hitl import (
+    GetHITLDetailResponsePayload,
+    UpdateHITLDetailPayload,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
     AssetEventResponse,
@@ -71,6 +75,7 @@ from airflow.sdk.api.datamodels._generated import (
     BundleInfo,
     ConnectionResponse,
     DagRunStateResponse,
+    HITLDetailRequest,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
@@ -95,6 +100,7 @@ try:
 except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
+
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -557,6 +563,18 @@ class SentFDs(BaseModel):
     fds: list[int]
 
 
+class CreateHITLDetailPayload(HITLDetailRequest):
+    """Add the input request part of a Human-in-the-loop response."""
+
+    type: Literal["CreateHITLDetailPayload"] = "CreateHITLDetailPayload"
+
+
+class HITLDetailRequestResult(HITLDetailRequest):
+    """Response to CreateHITLDetailPayload request."""
+
+    type: Literal["HITLDetailRequestResult"] = "HITLDetailRequestResult"
+
+
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
@@ -576,6 +594,8 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
+    | CreateHITLDetailPayload
+    | HITLDetailRequestResult
     | OKResponse,
     Field(discriminator="type"),
 ]
@@ -838,6 +858,18 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
+class GetHITLDetailResponse(GetHITLDetailResponsePayload):
+    """Get the response content part of a Human-in-the-loop response."""
+
+    type: Literal["GetHITLDetailResponse"] = "GetHITLDetailResponse"
+
+
+class UpdateHITLDetail(UpdateHITLDetailPayload):
+    """Update the response content part of an existing Human-in-the-loop response."""
+
+    type: Literal["UpdateHITLDetail"] = "UpdateHITLDetail"
+
+
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
@@ -868,6 +900,9 @@ ToSupervisor = Annotated[
     | TaskState
     | TriggerDagRun
     | DeleteVariable
-    | ResendLoggingFD,
+    | ResendLoggingFD
+    | CreateHITLDetailPayload
+    | UpdateHITLDetail
+    | GetHITLDetailResponse,
     Field(discriminator="type"),
 ]

@@ -55,3 +55,11 @@ class ExternalDagFailedError(AirflowExternalTaskSensorException):
 
 class DuplicateStateError(AirflowExternalTaskSensorException):
     """Raised when duplicate states are provided across allowed, skipped and failed states."""
+
+
+class HITLTriggerEventError(AirflowException):
+    """Raised when TriggerEvent contains error."""
+
+
+class HITLTimeoutError(HITLTriggerEventError):
+    """Raised when HILTOperator timeouts."""
