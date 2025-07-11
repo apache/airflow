@@ -35,7 +35,7 @@ No significant changes.
 Bug Fixes
 """""""""
 
-- Fix task execution failures with large data by improving internal communication protocol (#51924)
+- Fix task execution failures with large data by improving internal communication protocol (#51924, #53194)
 - Fix reschedule sensors failing after multiple re-queue attempts over long periods (#52706)
 - Improve ``xcom_pull`` to cover different scenarios for mapped tasks (#51568)
 - Fix connection retrieval failures in triggerer when schema field is used (#52691)
