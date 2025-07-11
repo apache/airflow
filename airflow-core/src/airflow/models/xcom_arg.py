@@ -25,6 +25,7 @@ import attrs
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.sdk.definitions._internal.types import ArgNotSet
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import (
@@ -33,7 +34,6 @@ from airflow.sdk.definitions.xcom_arg import (
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
 from airflow.utils.types import NOTSET
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 __all__ = ["XComArg", "get_task_map_length"]
 

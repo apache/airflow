@@ -84,7 +84,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComSelectSequence, XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -100,7 +100,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
