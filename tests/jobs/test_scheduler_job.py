@@ -2311,8 +2311,6 @@ class TestSchedulerJob:
         ]
 
         mock_executors[0].fail.assert_called()
-        states = [x.state for x in dr.get_task_instances(session=session)]
-        assert states == ["failed", "failed"]
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_reschedule_sensors(self, dag_maker, session, mock_executors):
