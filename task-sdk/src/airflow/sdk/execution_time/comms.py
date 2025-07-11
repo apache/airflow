@@ -234,15 +234,18 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         length = int.from_bytes(len_bytes, byteorder="big")
 
         buffer = bytearray(length)
-        nread = self.socket.recv_into(buffer)
-        if nread != length:
-            raise RuntimeError(
-                f"unable to read full response in child. (We read {nread}, but expected {length})"
-            )
-        if nread == 0:
-            raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+        mv = memoryview(buffer)
 
-        resp = self.resp_decoder.decode(buffer)
+        pos = 0
+        while pos != length:
+            nread = self.socket.recv_into(mv[pos:])
+            pos += nread
+            if pos == length:
+                break
+            if nread == 0:
+                raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+
+        resp = self.resp_decoder.decode(mv)
         if maxfds:
             return resp, fds or []
         return resp
