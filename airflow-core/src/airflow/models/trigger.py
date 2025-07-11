@@ -106,6 +106,8 @@ class Trigger(Base):
 
     assets = relationship("AssetModel", secondary=asset_trigger_association_table, back_populates="triggers")
 
+    deadline = relationship("Deadline", back_populates="trigger", uselist=False)
+
     def __init__(
         self,
         classpath: str,
@@ -194,6 +196,15 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    def fetch_trigger_ids_with_deadline_callback(cls, session: Session = NEW_SESSION) -> set[str]:
+        """Fetch all the trigger IDs associated with a Deadline Alert."""
+        from airflow.models.deadline import Deadline
+
+        query = select(Deadline.trigger_id).where(Deadline.trigger_id.is_not(None))
+        return {trigger_id for trigger_id in session.scalars(query)}
+
+    @classmethod
+    @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
@@ -212,10 +223,10 @@ class Trigger(Base):
                     .values(trigger_id=None)
                 )
 
-        # Get all triggers that have no task instances and assets depending on them and delete them
+        # Get all triggers that have no task instances, assets or deadlines depending on them and delete them
         ids = (
             select(cls.id)
-            .where(~cls.assets.any())
+            .where(~cls.assets.any(), ~cls.deadline.has())
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
@@ -255,6 +266,8 @@ class Trigger(Base):
                 extra={"from_trigger": True, "payload": event.payload},
                 session=session,
             )
+        if trigger.deadline:
+            trigger.deadline.handle_callback_event(event, session)
 
     @classmethod
     @provide_session
@@ -348,6 +361,13 @@ class Trigger(Base):
         :param session: The database session.
         """
         query = with_row_locks(
+            select(cls.id).where(cls.deadline.has()).order_by(cls.created_date).limit(capacity),
+            session,
+            skip_locked=True,
+        )
+        deadline_triggers = session.execute(query).all()
+
+        query = with_row_locks(
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
@@ -366,9 +386,9 @@ class Trigger(Base):
         )
         asset_triggers = session.execute(query).all()
 
-        # Add triggers associated to assets after triggers associated to tasks
-        # It prioritizes DAGs over event driven scheduling which is fair
-        return ti_triggers + asset_triggers
+        # Add triggers associated to deadlines first, then tasks, then assets
+        # It prioritizes deadline triggers, then DAGs over event driven scheduling which is fair
+        return deadline_triggers + ti_triggers + asset_triggers
 
 
 @singledispatch

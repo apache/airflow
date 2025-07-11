@@ -590,6 +590,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # Bulk-fetch new trigger records
         new_triggers = Trigger.bulk_fetch(new_trigger_ids)
         triggers_with_assets = Trigger.fetch_trigger_ids_with_asset()
+        triggers_for_deadlines = Trigger.fetch_trigger_ids_with_deadline_callback()
         to_create: list[workloads.RunTrigger] = []
         # Add in new triggers
         for new_id in new_trigger_ids:
@@ -600,11 +601,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             new_trigger_orm = new_triggers[new_id]
 
-            # If the trigger is not associated to a task or an asset, this means the TaskInstance
+            # If the trigger is not associated to a task, an asset or a deadline, this means the TaskInstance
             # row was updated by either Trigger.submit_event or Trigger.submit_failure
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
-            if new_trigger_orm.task_instance is None and new_id not in triggers_with_assets:
+            if (
+                new_trigger_orm.task_instance is None
+                and new_id not in triggers_with_assets
+                and new_id not in triggers_for_deadlines
+            ):
                 log.info(
                     (
                         "TaskInstance Trigger is None. It was likely updated by another trigger job. "
