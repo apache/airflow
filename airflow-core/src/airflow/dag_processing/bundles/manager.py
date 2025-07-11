@@ -265,7 +265,8 @@ class DagBundlesManager(LoggingMixin):
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(
-            "The 'view_url' method is deprecated and will be removed in a future version. "
+            "The 'view_url' method is deprecated and will be removed when providers "
+            "have Airflow 3.1 as the minimum supported version. "
             "Use DagBundleModel.render_url() instead.",
             DeprecationWarning,
             stacklevel=2,
