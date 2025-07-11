@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -336,7 +336,15 @@ class S3ToGCSOperator(S3ListOperator):
 
         return job_names
 
-    def execute_complete(self, context: Context, event: dict[str, Any], files: Iterable[str]) -> list[str]:
+    @overload
+    def execute_complete(self, context: Context, event: dict[str, Any], files: None) -> None: ...
+    @overload
+    def execute_complete(
+        self, context: Context, event: dict[str, Any], files: Iterable[str]
+    ) -> list[str]: ...
+    def execute_complete(
+        self, context: Context, event: dict[str, Any], files: Iterable[str] | None = None
+    ) -> list[str] | None:
         """
         Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
@@ -346,7 +354,7 @@ class S3ToGCSOperator(S3ListOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info("%s completed with response %s ", self.task_id, event["message"])
-        return list(files)
+        return None if files is None else list(files)
 
     def get_transfer_hook(self):
         return CloudDataTransferServiceHook(
