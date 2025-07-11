@@ -57,7 +57,7 @@ In addition, you can supply a remote location to store current logs and backups.
 Writing to task logs from your code
 -----------------------------------
 
-Airflow uses standard the Python `logging <https://docs.python.org/3/library/logging.html>`_ framework to
+Airflow uses the standard Python `logging <https://docs.python.org/3/library/logging.html>`_ framework to
 write logs, and for the duration of a task, the root logger is configured to write to the task's log.
 
 Most operators will write logs to the task log automatically. This is because they
@@ -113,7 +113,7 @@ When displaying the logs in web UI, the display of logs will be condensed:
    [2024-03-08, 23:30:18 CET] {logging_mixin.py:188} ⯈ Non important details
    [2024-03-08, 23:30:18 CET] {logging_mixin.py:188} INFO - Here is again some standard text.
 
-If you click on the log text label, the detailed log lies will be displayed.
+If you click on the log text label, the detailed log lines will be displayed.
 
 .. code-block:: text
 

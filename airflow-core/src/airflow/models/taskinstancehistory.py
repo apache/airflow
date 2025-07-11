@@ -52,6 +52,7 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -161,6 +162,11 @@ class TaskInstanceHistory(Base):
         Index("idx_tih_dag_run", dag_id, run_id),
     )
 
+    @property
+    def id(self) -> str:
+        """Alias for primary key field to support TaskInstance."""
+        return self.task_instance_id
+
     @staticmethod
     @provide_session
     def record_ti(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
@@ -183,3 +189,8 @@ class TaskInstanceHistory(Base):
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
+
+    @provide_session
+    def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
+        """Return the DagRun for this TaskInstanceHistory, matching TaskInstance."""
+        return self.dag_run

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-salesforce``
 
-Release: ``5.11.0``
+Release: ``5.11.1``
 
 
 `Salesforce <https://www.salesforce.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``salesforce`` provider. All classes for this pro
 are in ``airflow.providers.salesforce`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.1/>`_.
 
 Installation
 ------------
@@ -45,18 +45,19 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-salesforce``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12
 
 Requirements
 ------------
 
-=====================  ==================
+=====================  =====================================
 PIP package            Version required
-=====================  ==================
+=====================  =====================================
 ``apache-airflow``     ``>=2.10.0``
 ``simple-salesforce``  ``>=1.0.0``
-``pandas``             ``>=2.1.2,<2.2``
-=====================  ==================
+``pandas``             ``>=2.1.2; python_version < "3.13"``
+``pandas``             ``>=2.2.3; python_version >= "3.13"``
+=====================  =====================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.1/changelog.html>`_.

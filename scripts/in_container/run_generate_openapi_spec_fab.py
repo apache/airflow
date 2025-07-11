@@ -36,7 +36,9 @@ ProvidersManager().initialize_providers_configuration()
 # Generate FAB auth manager openapi spec
 fab_auth_manager_app = FabAuthManager().get_fastapi_app()
 if fab_auth_manager_app:
-    generate_openapi_file(app=fab_auth_manager_app, file_path=FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE)
+    generate_openapi_file(
+        app=fab_auth_manager_app, file_path=FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE, prefix="/auth"
+    )
     validate_openapi_file(FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE)
 else:
     console.print("[red]FAB auth manager app not found. Skipping OpenAPI spec generation.[/]")

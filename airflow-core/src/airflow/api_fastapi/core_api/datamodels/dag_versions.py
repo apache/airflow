@@ -41,7 +41,10 @@ class DagVersionResponse(BaseModel):
     @property
     def bundle_url(self) -> str | None:
         if self.bundle_name:
-            return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+            try:
+                return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+            except ValueError:
+                return None
         return None
 
 

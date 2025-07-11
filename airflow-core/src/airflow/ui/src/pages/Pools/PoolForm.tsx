@@ -18,6 +18,7 @@
  */
 import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -40,6 +41,7 @@ type PoolFormProps = {
 };
 
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
+  const { t: translate } = useTranslation("admin");
   const {
     control,
     formState: { isDirty, isValid },
@@ -67,15 +69,15 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field, fieldState }) => (
           <Field.Root invalid={Boolean(fieldState.error)} required>
             <Field.Label fontSize="md">
-              Name <Field.RequiredIndicator />
+              {translate("columns.name")} <Field.RequiredIndicator />
             </Field.Label>
             <Input {...field} disabled={Boolean(initialPool.name)} required size="sm" />
             {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
           </Field.Root>
         )}
         rules={{
-          required: "Name is required",
-          validate: (_value) => _value.length <= 256 || "Name can contain a maximum of 256 characters",
+          required: translate("pools.form.nameRequired"),
+          validate: (_value) => _value.length <= 256 || translate("pools.form.rules.nameMaxLength"),
         }}
       />
 
@@ -84,7 +86,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="slots"
         render={({ field }) => (
           <Field.Root mt={4}>
-            <Field.Label fontSize="md">Slots</Field.Label>
+            <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input {...field} min={initialPool.slots} size="sm" type="number" />
           </Field.Root>
         )}
@@ -95,7 +97,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="description"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">Description</Field.Label>
+            <Field.Label fontSize="md">{translate("columns.description")}</Field.Label>
             <Textarea {...field} disabled={initialPool.name === "default_pool"} size="sm" />
           </Field.Root>
         )}
@@ -106,9 +108,9 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="include_deferred"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">Include Deferred</Field.Label>
+            <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
             <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange} size="sm">
-              Check to include deferred tasks when calculating open pool slots
+              {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>
         )}
@@ -120,7 +122,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              Reset
+              {translate("formActions.reset")}
             </Button>
           ) : undefined}
           <Spacer />
@@ -129,7 +131,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiSave /> Save
+            <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>
       </Box>

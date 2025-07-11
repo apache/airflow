@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 DATAFORM_BASE_LINK = "/bigquery/dataform"
 DATAFORM_WORKFLOW_INVOCATION_LINK = (
@@ -53,26 +47,6 @@ class DataformWorkflowInvocationLink(BaseGoogleLink):
     key = "dataform_workflow_invocation_config"
     format_str = DATAFORM_WORKFLOW_INVOCATION_LINK
 
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        project_id: str,
-        region: str,
-        repository_id: str,
-        workflow_invocation_id: str,
-    ):
-        operator_instance.xcom_push(
-            context,
-            key=DataformWorkflowInvocationLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-                "repository_id": repository_id,
-                "workflow_invocation_id": workflow_invocation_id,
-            },
-        )
-
 
 class DataformRepositoryLink(BaseGoogleLink):
     """Helper class for constructing Dataflow repository link."""
@@ -81,24 +55,6 @@ class DataformRepositoryLink(BaseGoogleLink):
     key = "dataform_repository"
     format_str = DATAFORM_REPOSITORY_LINK
 
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        project_id: str,
-        region: str,
-        repository_id: str,
-    ) -> None:
-        operator_instance.xcom_push(
-            context=context,
-            key=DataformRepositoryLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-                "repository_id": repository_id,
-            },
-        )
-
 
 class DataformWorkspaceLink(BaseGoogleLink):
     """Helper class for constructing Dataform workspace link."""
@@ -106,23 +62,3 @@ class DataformWorkspaceLink(BaseGoogleLink):
     name = "Dataform Workspace"
     key = "dataform_workspace"
     format_str = DATAFORM_WORKSPACE_LINK
-
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        project_id: str,
-        region: str,
-        repository_id: str,
-        workspace_id: str,
-    ) -> None:
-        operator_instance.xcom_push(
-            context=context,
-            key=DataformWorkspaceLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-                "repository_id": repository_id,
-                "workspace_id": workspace_id,
-            },
-        )

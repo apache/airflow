@@ -78,6 +78,7 @@ class ExampleInclude(SphinxDirective):
         "emphasize-lines": directives.unchanged_required,
         "class": directives.class_option,
         "name": directives.unchanged,
+        "caption": directives.unchanged_required,
         "diff": directives.unchanged_required,
     }
 

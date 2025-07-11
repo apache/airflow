@@ -54,7 +54,7 @@ with DAG(
     @task
     def transform_output(embedding_output) -> list[dict]:
         # Convert each embedding to a map with an ID and the embedding vector
-        return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output.float_)]
+        return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output)]
 
     transformed_output = transform_output(embed_task.output)
 

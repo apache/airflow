@@ -664,6 +664,36 @@ The operator returns the cached content response in :ref:`XCom <concepts:xcom>` 
 Interacting with Vertex AI Feature Store
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+To create feature online store you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.CreateFeatureOnlineStoreOperator`.
+The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_feature_online_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_feature_online_store_operator]
+
+To create feature store view you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.CreateFeatureViewOperator`.
+The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_feature_view_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_feature_view_store_operator]
+
+To feature online store you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.GetFeatureOnlineStoreOperator`.
+The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_feature_online_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_feature_online_store_operator]
+
 To get a feature view sync job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.GetFeatureViewSyncOperator`.
 The operator returns sync job results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
@@ -692,6 +722,33 @@ To check if Feature View Sync succeeded you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
     :end-before: [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
+
+To check feature values data you can use the
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.FetchFeatureValuesOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_fetch_feature_values_operator]
+    :end-before: [END how_to_cloud_vertex_ai_fetch_feature_values_operator]
+
+To delete the feature view you can use
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.DeleteFeatureViewOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_feature_view_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_feature_view_operator]
+
+To delete the feature online store you can use
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.DeleteFeatureOnlineStoreOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_feature_online_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_feature_online_store_operator]
 
 Interacting with Ray on Vertex AI Cluster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -740,6 +797,65 @@ To update cluster you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_update_ray_cluster_operator]
     :end-before: [END how_to_cloud_vertex_ai_update_ray_cluster_operator]
+
+Interacting with experiment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create experiment you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.CreateExperimentOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_experiment_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_experiment_operator]
+
+To delete experiment you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_experiment_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_experiment_operator]
+
+Interacting with experiment run
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To create experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.CreateExperimentRunOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_experiment_run_operator]
+
+To get all experiment runs in experiment you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.ListExperimentRunsOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_experiment_run_operator]
+
+To update state of the experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.UpdateExperimentRunStatusOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_update_experiment_run_state_operator]
+    :end-before: [END how_to_cloud_vertex_ai_update_experiment_run_state_operator]
+
+To delete experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
 
 Reference
 ^^^^^^^^^

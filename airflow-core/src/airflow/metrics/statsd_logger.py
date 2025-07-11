@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException

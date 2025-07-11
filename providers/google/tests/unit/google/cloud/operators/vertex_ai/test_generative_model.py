@@ -27,9 +27,11 @@ vertexai = pytest.importorskip("vertexai.generative_models")
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
     CreateCachedContentOperator,
+    DeleteExperimentRunOperator,
     GenerateFromCachedContentOperator,
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
@@ -354,4 +356,33 @@ class TestVertexAIGenerateFromCachedContentOperator:
             contents=contents,
             generation_config=None,
             safety_settings=None,
+        )
+
+
+class TestVertexAIDeleteExperimentRunOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.ExperimentRunHook"))
+    def test_execute(self, mock_hook):
+        test_experiment_name = "test_experiment_name"
+        test_experiment_run_name = "test_experiment_run_name"
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = DeleteExperimentRunOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                experiment_name=test_experiment_name,
+                experiment_run_name=test_experiment_run_name,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.delete_experiment_run.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            experiment_name=test_experiment_name,
+            experiment_run_name=test_experiment_run_name,
         )

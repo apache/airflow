@@ -22,12 +22,17 @@ from types import GeneratorType
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk.types import Operator
+    else:
+        from airflow.models.operator import Operator
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -40,8 +45,12 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 
 def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.mappedoperator import MappedOperator
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk import BaseOperator
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+    else:
+        from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+        from airflow.models.mappedoperator import MappedOperator  # type: ignore[no-redef]
 
     return [n for n in nodes if isinstance(n, (BaseOperator, MappedOperator))]
 

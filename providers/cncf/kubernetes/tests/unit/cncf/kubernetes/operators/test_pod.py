@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 import re
 from contextlib import contextmanager, nullcontext
@@ -36,6 +37,7 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -103,6 +105,8 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag.add_task(task)
     now = timezone.utcnow()
     if AIRFLOW_V_3_0_PLUS:
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
@@ -120,13 +124,20 @@ def create_context(task, persist_to_db=False, map_index=None):
             dag_id=dag.dag_id,
             execution_date=now,
         )
-    task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dag_version import DagVersion
+
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+    else:
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
     if map_index is not None:
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            session.add(DagModel(dag_id=dag.dag_id))
+            if not AIRFLOW_V_3_0_PLUS:
+                session.add(DagModel(dag_id=dag.dag_id))
             session.add(dag_run)
             session.add(task_instance)
             session.commit()
@@ -145,11 +156,17 @@ class TestKubernetesPodOperator:
     @pytest.fixture(autouse=True)
     def setup_tests(self, dag_maker):
         self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
-        self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.watch_pod_events = patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock)
+        self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start", new_callable=mock.AsyncMock)
         self.await_pod_completion_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self.watch_pod_events_mock = self.watch_pod_events.start()
+        self.watch_pod_events_mock.return_value = asyncio.Future()
+        self.watch_pod_events_mock.return_value.set_result(None)
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
+        self.await_start_mock.return_value = asyncio.Future()
+        self.await_start_mock.return_value.set_result(None)
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self._default_client_mock = self._default_client_patch.start()
         self.dag_maker = dag_maker
@@ -372,6 +389,7 @@ class TestKubernetesPodOperator:
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
         ]
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
     @patch(HOOK_CLASS)
     def test_labels(self, hook_mock, in_cluster):
@@ -427,6 +445,7 @@ class TestKubernetesPodOperator:
         assert "foo=bar" in label_selector
         assert "hello=airflow" in label_selector
 
+    @pytest.mark.asyncio
     @patch(HOOK_CLASS, new=MagicMock)
     def test_find_pod_labels(self):
         k = KubernetesPodOperator(
@@ -765,6 +784,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].termination_message_policy == "File"
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "task_kwargs, base_container_fail, expect_to_delete_pod",
         [
@@ -877,6 +897,7 @@ class TestKubernetesPodOperator:
         else:
             delete_pod_mock.assert_not_called()
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("should_fail", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
@@ -1222,6 +1243,7 @@ class TestKubernetesPodOperator:
         # assert does not raise
         self.run_pod(k)
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("randomize", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
     @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
@@ -1356,6 +1378,7 @@ class TestKubernetesPodOperator:
         assert isinstance(pod.spec.automount_service_account_token, bool)
         assert sanitized_pod["spec"]["automountServiceAccountToken"] == automount_service_account_token
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
@@ -1386,6 +1409,7 @@ class TestKubernetesPodOperator:
         assert pod_name == pod.metadata.name
         assert pod_namespace == pod.metadata.namespace
 
+    @pytest.mark.asyncio
     @patch(HOOK_CLASS, new=MagicMock)
     def test_previous_pods_ignored_for_reattached(self):
         """
@@ -1420,6 +1444,7 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
@@ -1437,6 +1462,7 @@ class TestKubernetesPodOperator:
         else:
             mock_await.assert_not_called()
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "task_kwargs, should_fail, should_be_deleted",
         [
@@ -1533,6 +1559,24 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj({})
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    def test_xcom_push_failed_pod(self, remote_pod, mock_await, mock_extract_xcom):
+        """Tests that an xcom is pushed after a pod failed but xcom output exists."""
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", do_xcom_push=True)
+
+        remote_pod.return_value.status.phase = "Failed"
+        mock_extract_xcom.return_value = '{"Test key": "Test value"}'
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+
+        context["ti"].xcom_push.assert_called_with("return_value", {"Test key": "Test value"})
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "kwargs, actual_exit_code, expected_exc",
         [
@@ -1577,6 +1621,7 @@ class TestKubernetesPodOperator:
             with pytest.raises(expected_exc):
                 self.run_pod(k)
 
+    @pytest.mark.asyncio
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
@@ -1706,6 +1751,7 @@ class TestKubernetesPodOperator:
             "context": context,
         }
 
+    @pytest.mark.asyncio
     @patch(HOOK_CLASS, new=MagicMock)
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_multiple_callbacks(self, find_pod_mock):
@@ -1851,6 +1897,7 @@ class TestKubernetesPodOperator:
             "context": context,
         }
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
@@ -1886,6 +1933,7 @@ class TestKubernetesPodOperator:
         assert hook != k.hook
         assert pod_manager != k.pod_manager
 
+    @pytest.mark.asyncio
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
     @patch(f"{POD_MANAGER_CLASS}.read_pod")
     def test_await_container_completion_raises_unauthorized_if_credentials_still_invalid_after_refresh(
@@ -1907,6 +1955,7 @@ class TestKubernetesPodOperator:
         assert hook != k.hook
         assert pod_manager != k.pod_manager
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "side_effect, exception_type, expect_exc",
         [

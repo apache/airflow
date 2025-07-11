@@ -22,9 +22,10 @@ import logging
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pendulum
 from opensearchpy import OpenSearch
@@ -44,16 +45,15 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.utils.log.file_task_handler import LogMetadata
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from typing import Union
-
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    OsLogMsgType = Union[list[StructuredLogMessage], str]
+    OsLogMsgType = list[StructuredLogMessage] | str
 else:
-    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,no-redef,misc]
 
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
@@ -334,8 +334,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         )
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[OsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
+    ) -> tuple[OsLogMsgType, LogMetadata]:
         """
         Endpoint for streaming log.
 
@@ -346,7 +346,10 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
-            metadata = {"offset": 0}
+            # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+            metadata = {"offset": 0}  # type: ignore[assignment]
+        metadata = cast("LogMetadata", metadata)
+
         if "offset" not in metadata:
             metadata["offset"] = 0
 
@@ -385,6 +388,12 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    # return list of StructuredLogMessage for Airflow 3.0+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
+
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,

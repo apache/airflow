@@ -25,15 +25,13 @@ import os
 import sys
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, MutableSet
+from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Union,
     cast,
     overload,
 )
@@ -50,13 +48,13 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
-from airflow.models.deadline import DeadlineAlert
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
@@ -76,10 +74,9 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
+    from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
-    from airflow.utils.types import EdgeInfoType
-
 
 log = logging.getLogger(__name__)
 
@@ -92,9 +89,9 @@ __all__ = [
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -278,7 +275,7 @@ class DAG:
     :param schedule: If provided, this defines the rules according to which DAG
         runs are scheduled. Possible values include a cron expression string,
         timedelta object, Timetable, or list of Asset objects.
-        See also :doc:`/howto/timetable`.
+        See also :external:doc:`howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill. If this is not provided, backfilling must be done
         manually with an explicit time range.
@@ -352,7 +349,7 @@ class DAG:
     :param tags: List of tags to help filtering DAGs in the UI.
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
-        e.g: {"dag_owner": "https://airflow.apache.org/"}
+        e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     :param fail_fast: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
@@ -1014,7 +1011,7 @@ class DAG:
     def test(
         self,
         run_after: datetime | None = None,
-        logical_date: datetime | None = None,
+        logical_date: datetime | None | ArgNotSet = NOTSET,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
@@ -1082,6 +1079,10 @@ class DAG:
 
         with exit_stack:
             self.validate()
+
+            # Allow users to explicitly pass None. If it isn't set, we default to current time.
+            logical_date = logical_date if not isinstance(logical_date, ArgNotSet) else timezone.utcnow()
+
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
             SchedulerDAG.clear_dags(
@@ -1113,6 +1114,7 @@ class DAG:
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
+                triggering_user_name="dag_test",
             )
             # Start a mock span so that one is present and not started downstream. We
             # don't care about otel in dag.test and starting the span during dagrun update
@@ -1239,6 +1241,7 @@ def _run_task(*, ti, run_triggerer=False):
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
                 ),
                 task=ti.task,
             )
@@ -1281,12 +1284,7 @@ def _run_inline_trigger(trigger):
     import asyncio
 
     async def _run_inline_trigger_main():
-        # We can replace it with `return await anext(trigger.run(), default=None)`
-        # when we drop support for Python 3.9
-        try:
-            return await trigger.run().__anext__()
-        except StopAsyncIteration:
-            return None
+        return await anext(trigger.run(), None)
 
     return asyncio.run(_run_inline_trigger_main())
 

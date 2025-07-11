@@ -38,8 +38,6 @@ export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementPro
   );
   const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
 
-  // console.log(param);
-
   const onUpdate = (value?: string, _error?: unknown) => {
     if (Boolean(_error)) {
       setIsValid(false);

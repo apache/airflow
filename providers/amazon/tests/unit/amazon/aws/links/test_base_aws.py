@@ -23,18 +23,14 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
+from airflow.providers.amazon.version_compat import XCom
 from airflow.serialization.serialized_objects import SerializedDAG
 
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom  # type: ignore[no-redef]
 
 XCOM_KEY = "test_xcom_key"
 CUSTOM_KEYS = {
@@ -81,13 +77,10 @@ class TestBaseAwsLink:
         )
 
         ti = mock_context["ti"]
-        if AIRFLOW_V_3_0_PLUS:
-            ti.xcom_push.assert_called_once_with(
-                key=XCOM_KEY,
-                value=expected_value,
-            )
-        else:
-            ti.xcom_push.assert_called_once_with(key=XCOM_KEY, value=expected_value, execution_date=None)
+        ti.xcom_push.assert_called_once_with(
+            key=XCOM_KEY,
+            value=expected_value,
+        )
 
     def test_disable_xcom_push(self):
         mock_context = mock.MagicMock()
@@ -102,18 +95,19 @@ class TestBaseAwsLink:
 
     def test_suppress_error_on_xcom_push(self):
         mock_context = mock.MagicMock()
-        with mock.patch.object(MockOperator, "xcom_push", side_effect=PermissionError("FakeError")) as m:
-            SimpleBaseAwsLink.persist(
-                context=mock_context,
-                operator=MockOperator(task_id="test_task_id"),
-                region_name="eu-east-1",
-                aws_partition="aws",
-            )
-            m.assert_called_once_with(
-                mock_context,
-                key="test_xcom_key",
-                value={"region_name": "eu-east-1", "aws_domain": "aws.amazon.com"},
-            )
+        mock_context["ti"].xcom_push.side_effect = PermissionError("FakeError")
+
+        SimpleBaseAwsLink.persist(
+            context=mock_context,
+            operator=MockOperator(task_id="test_task_id"),
+            region_name="eu-east-1",
+            aws_partition="aws",
+        )
+
+        mock_context["ti"].xcom_push.assert_called_once_with(
+            key="test_xcom_key",
+            value={"region_name": "eu-east-1", "aws_domain": "aws.amazon.com"},
+        )
 
 
 def link_test_operator(*links):
@@ -132,7 +126,6 @@ class OperatorAndTi(NamedTuple):
     task_instance: TaskInstance
 
 
-@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 class BaseAwsLinksTestCase:
     """Base class for AWS Provider links tests."""

@@ -122,7 +122,6 @@ class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
         )
         SpannerInstanceLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id,
             project_id=self.project_id or hook.project_id,
         )
@@ -290,7 +289,6 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         )
         SpannerDatabaseLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id,
             database_id=self.database_id,
             project_id=self.project_id or hook.project_id,
@@ -380,7 +378,6 @@ class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
         )
         SpannerDatabaseLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id,
             database_id=self.database_id,
             project_id=self.project_id or hook.project_id,
@@ -496,7 +493,6 @@ class SpannerUpdateDatabaseInstanceOperator(GoogleCloudBaseOperator):
             )
         SpannerDatabaseLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id,
             database_id=self.database_id,
             project_id=self.project_id or hook.project_id,

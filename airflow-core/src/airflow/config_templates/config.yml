@@ -1233,6 +1233,13 @@ traces:
       type: boolean
       example: ~
       default: "False"
+    otel_debug_traces_on:
+      description: |
+        If True, then traces from Airflow internal methods are exported. Defaults to False.
+      version_added: 3.1.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -1321,6 +1328,12 @@ api:
       type: string
       example: ~
       default: "False"
+    expose_stacktrace:
+      description: Expose stacktrace in the web server
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -1358,13 +1371,14 @@ api:
       type: integer
       example: ~
       default: "120"
-    access_logfile:
+    log_config:
       description: |
-        Log files for the api server. '-' means log to stderr.
+        Path to the logging configuration file for the uvicorn server.
+        If not set, the default uvicorn logging configuration will be used.
       version_added: ~
       type: string
-      example: ~
-      default: "-"
+      example: path/to/logging_config.yaml
+      default: ~
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
@@ -1424,15 +1438,6 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
-    enable_xcom_deserialize_support:
-      description: |
-        Indicates whether the **xcomEntries** endpoint supports the **deserialize**
-        flag. If set to ``False``, setting this flag in a request would result in a
-        400 Bad Request error.
-      type: boolean
-      version_added: 2.7.0
-      example: ~
-      default: "False"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -1552,7 +1557,7 @@ workers:
         Number of seconds to wait after a task process exits before forcibly closing any
         remaining communication sockets. This helps prevent the task supervisor from hanging
         indefinitely due to missed EOF signals.
-      version_added: 3.0.2
+      version_added: 3.0.3
       type: float
       example: ~
       default: "60.0"
@@ -2124,16 +2129,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    parsing_pre_import_modules:
-      description: |
-        The scheduler reads dag files to extract the airflow modules that are going to be used,
-        and imports them ahead of time to avoid having to re-do it for each parsing process.
-        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
-        to be freshly imported each time (at the cost of increased DAG parsing time).
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
     dag_stale_not_seen_duration:
       description: |
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
@@ -2488,3 +2483,13 @@ dag_processor:
       type: integer
       example: ~
       default: "10"
+    parsing_pre_import_modules:
+      description: |
+        The dag_processor reads dag files to extract the airflow modules that are going to be used,
+        and imports them ahead of time to avoid having to re-do it for each parsing process.
+        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
+        to be freshly imported each time (at the cost of increased DAG parsing time).
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"

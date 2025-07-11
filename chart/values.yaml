@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.0"
+defaultAirflowTag: "3.0.2"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.0"
+airflowVersion: "3.0.2"
 
 # Images
 images:
@@ -407,6 +407,8 @@ enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
+  AIRFLOW__API__SECRET_KEY: true
+  AIRFLOW__API_AUTH__JWT_SECRET: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
   AIRFLOW__CELERY__RESULT_BACKEND: true
@@ -550,7 +552,19 @@ fernetKeySecretName: ~
 # Add custom annotations to the fernet key secret
 fernetKeySecretAnnotations: {}
 
-# Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
+# Flask secret key for Airflow 3+ Api: `[api] secret_key` in airflow.cfg
+apiSecretKey: ~
+# Add custom annotations to the api secret
+apiSecretAnnotations: {}
+apiSecretKeySecretName: ~
+
+# Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
+jwtSecret: ~
+# Add custom annotations to the JWT secret
+jwtSecretAnnotations: {}
+jwtSecretName: ~
+
+# Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
 # Add custom annotations to the webserver secret
 webserverSecretAnnotations: {}
@@ -836,6 +850,13 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+    # Detailed default security context for kerberos init container on container level
+    securityContexts:
+      container: {}
+
+    # Container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
   resources: {}
@@ -2891,7 +2912,7 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
-    auth_manager: '{{ ternary "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager" "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" (semverCompare ">=3.0.0" .Values.airflowVersion) }}'
+    auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'

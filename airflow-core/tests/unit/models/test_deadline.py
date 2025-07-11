@@ -17,8 +17,7 @@
 from __future__ import annotations
 
 import json
-import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -27,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import DagRun
-from airflow.models.deadline import Deadline, DeadlineAlert, _fetch_from_db
+from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
@@ -38,13 +37,18 @@ from unit.models import DEFAULT_DATE
 DAG_ID = "dag_id_1"
 RUN_ID = 1
 
-TEST_CALLBACK_KWARGS = {"to": "the_boss@work.com"}
-TEST_CALLBACK_PATH = f"{__name__}.test_callback"
-UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
+TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
+TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+
+REFERENCE_TYPES = [
+    pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
+    pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
+    pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+]
 
 
-def test_callback():
-    """An empty Callable to use for the callback tests in this suite."""
+def test_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
 
 
@@ -80,34 +84,35 @@ class TestDeadline:
     def test_add_deadline(self, dagrun, session):
         assert session.query(Deadline).count() == 0
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
             dagrun_id=dagrun.id,
         )
 
-        Deadline.add_deadline(deadline_orm)
+        session.add(deadline_orm)
+        session.flush()
 
         assert session.query(Deadline).count() == 1
 
         result = session.scalars(select(Deadline)).first()
         assert result.dag_id == deadline_orm.dag_id
         assert result.dagrun_id == deadline_orm.dagrun_id
-        assert result.deadline == deadline_orm.deadline
+        assert result.deadline_time == deadline_orm.deadline_time
         assert result.callback == deadline_orm.callback
         assert result.callback_kwargs == deadline_orm.callback_kwargs
 
     def test_orm(self):
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
         )
 
-        assert deadline_orm.deadline == DEFAULT_DATE
+        assert deadline_orm.deadline_time == DEFAULT_DATE
         assert deadline_orm.callback == TEST_CALLBACK_PATH
         assert deadline_orm.callback_kwargs == TEST_CALLBACK_KWARGS
         assert deadline_orm.dag_id == DAG_ID
@@ -115,7 +120,7 @@ class TestDeadline:
 
     def test_repr_with_callback_kwargs(self):
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
@@ -125,12 +130,12 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline} or run: {TEST_CALLBACK_PATH}({json.dumps(deadline_orm.callback_kwargs)})"
+            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}({json.dumps(deadline_orm.callback_kwargs)})"
         )
 
     def test_repr_without_callback_kwargs(self):
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
@@ -140,52 +145,8 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline} or run: {TEST_CALLBACK_PATH}()"
+            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}()"
         )
-
-
-class TestDeadlineAlert:
-    @pytest.mark.parametrize(
-        "callback_value, expected_path",
-        [
-            pytest.param(test_callback, TEST_CALLBACK_PATH, id="valid_callable"),
-            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
-            pytest.param(lambda x: x, None, id="lambda_function"),
-            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
-            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
-        ],
-    )
-    def test_get_callback_path_happy_cases(self, callback_value, expected_path):
-        path = DeadlineAlert.get_callback_path(callback_value)
-        if expected_path is None:
-            assert path.endswith("<lambda>")
-        else:
-            assert path == expected_path
-
-    @pytest.mark.parametrize(
-        "callback_value, error_type",
-        [
-            pytest.param(42, ImportError, id="not_a_string"),
-            pytest.param("", ImportError, id="empty_string"),
-            pytest.param("os.path", AttributeError, id="non_callable_module"),
-        ],
-    )
-    def test_get_callback_path_error_cases(self, callback_value, error_type):
-        expected_message = ""
-        if error_type is ImportError:
-            expected_message = "doesn't look like a valid dot path."
-        elif error_type is AttributeError:
-            expected_message = "is not callable."
-
-        with pytest.raises(error_type, match=expected_message):
-            DeadlineAlert.get_callback_path(callback_value)
-
-    def test_log_unimportable_but_properly_formatted_callback(self, caplog):
-        with caplog.at_level(logging.DEBUG):
-            path = DeadlineAlert.get_callback_path(UNIMPORTABLE_DOT_PATH)
-
-            assert "could not be imported" in caplog.text
-            assert path == UNIMPORTABLE_DOT_PATH
 
 
 @pytest.mark.db_test
@@ -265,7 +226,7 @@ class TestCalculatedDeadlineDatabaseCalls:
     )
     @mock.patch("sqlalchemy.orm.Session")
     def test_fetch_from_db_error_cases(
-        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message, caplog
+        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message
     ):
         """Test database access error handling."""
         model_reference = DagRun.logical_date
@@ -274,11 +235,8 @@ class TestCalculatedDeadlineDatabaseCalls:
         # Configure mock session
         mock_session.scalar.side_effect = scalar_side_effect
 
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(expected_error, match=expected_message):
-                _fetch_from_db(model_reference, session=mock_session, **conditions)
-            if expected_message:
-                assert expected_message in caplog.text
+        with pytest.raises(expected_error, match=expected_message):
+            _fetch_from_db(model_reference, session=mock_session, **conditions)
 
     @pytest.mark.parametrize(
         "reference, expected_column",
@@ -288,24 +246,85 @@ class TestCalculatedDeadlineDatabaseCalls:
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), None, id="fixed_deadline"),
         ],
     )
-    def test_deadline_database_integration(self, reference, expected_column):
+    def test_deadline_database_integration(self, reference, expected_column, session):
         """
         Test database integration for all deadline types.
 
         Verifies:
         1. Calculated deadlines call _fetch_from_db with correct column.
         2. Fixed deadlines do not interact with database.
+        3. Intervals are added to reference times.
         """
-        conditions = {"dag_id": DAG_ID}
-
+        conditions = {"dag_id": DAG_ID, "run_id": "dagrun_1"}
+        interval = timedelta(hours=1)
         with mock.patch("airflow.models.deadline._fetch_from_db") as mock_fetch:
             mock_fetch.return_value = DEFAULT_DATE
 
             if expected_column is not None:
-                result = reference.evaluate_with(**conditions)
-                mock_fetch.assert_called_once_with(expected_column, **conditions)
+                result = reference.evaluate_with(session=session, interval=interval, **conditions)
+                mock_fetch.assert_called_once_with(expected_column, session=session, **conditions)
             else:
-                result = reference.evaluate_with(**conditions)
+                result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
 
-            assert result == DEFAULT_DATE
+            assert result == DEFAULT_DATE + interval
+
+
+class TestDeadlineReference:
+    """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""
+
+    DEFAULT_INTERVAL = timedelta(hours=1)
+    DEFAULT_ARGS = {"interval": DEFAULT_INTERVAL}
+
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    @pytest.mark.db_test
+    def test_deadline_evaluate_with(self, reference, session):
+        """Test that all deadline types evaluate correctly with their required conditions."""
+        conditions = {
+            "dag_id": DAG_ID,
+            "run_id": "dagrun_1",
+            "unexpected": "param",  # Add an unexpected parameter.
+            "extra": "kwarg",  # Add another unexpected parameter.
+        }
+
+        with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
+            mock_evaluate.return_value = DEFAULT_DATE
+
+            if reference.required_kwargs:
+                result = reference.evaluate_with(**self.DEFAULT_ARGS, session=session, **conditions)
+            else:
+                result = reference.evaluate_with(**self.DEFAULT_ARGS, session=session)
+
+            # Verify only expected kwargs are passed through.
+            expected_kwargs = {k: conditions[k] for k in reference.required_kwargs if k in conditions}
+            expected_kwargs["session"] = session
+            mock_evaluate.assert_called_once_with(**expected_kwargs)
+            assert result == DEFAULT_DATE + self.DEFAULT_INTERVAL
+
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    @pytest.mark.db_test
+    def test_deadline_missing_required_kwargs(self, reference, session):
+        """Test that deadlines raise appropriate errors for missing required parameters."""
+        if reference.required_kwargs:
+            with pytest.raises(ValueError) as raised_exception:
+                reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
+            expected_substrings = {
+                f"{reference.__class__.__name__} is missing required parameters: ",
+                *reference.required_kwargs,
+            }
+            assert [substring in str(raised_exception) for substring in expected_substrings]
+        else:
+            # Let the lack of an exception here effectively assert that no exception is raised.
+            reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
+
+    def test_deadline_reference_creation(self):
+        """Test that DeadlineReference provides consistent interface and types."""
+        fixed_reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
+        assert isinstance(fixed_reference, ReferenceModels.FixedDatetimeDeadline)
+        assert fixed_reference._datetime == DEFAULT_DATE
+
+        logical_date_reference = DeadlineReference.DAGRUN_LOGICAL_DATE
+        assert isinstance(logical_date_reference, ReferenceModels.DagRunLogicalDateDeadline)
+
+        queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
+        assert isinstance(queued_reference, ReferenceModels.DagRunQueuedAtDeadline)

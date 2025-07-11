@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Sequence
+from typing import Any
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
+from airflow.providers.apache.kafka.version_compat import BaseOperator
 
 VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
 
@@ -107,7 +107,7 @@ class AwaitMessageSensor(BaseOperator):
 
     def execute_complete(self, context, event=None):
         if self.xcom_push_key:
-            self.xcom_push(context, key=self.xcom_push_key, value=event)
+            context["task_instance"].xcom_push(key=self.xcom_push_key, value=event)
         return event
 
 

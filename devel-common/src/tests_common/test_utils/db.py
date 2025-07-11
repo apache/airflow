@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
@@ -40,7 +42,11 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
-from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
+from airflow.utils.db import (
+    add_default_pool_if_not_exists,
+    create_default_connections,
+    reflect_tables,
+)
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import (
@@ -51,7 +57,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -60,6 +66,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.dag_favorite import DagFavorite
 
 
 def _bootstrap_dagbag():
@@ -188,6 +197,8 @@ def clear_db_triggers():
 
 def clear_db_dags():
     with create_session() as session:
+        if AIRFLOW_V_3_1_PLUS:
+            session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
         session.query(
@@ -221,6 +232,18 @@ def clear_db_pools():
     with create_session() as session:
         session.query(Pool).delete()
         add_default_pool_if_not_exists(session)
+
+
+def clear_test_connections(add_default_connections_back=True):
+    # clear environment variables with AIRFLOW_CONN prefix
+    import os
+
+    env_vars_to_remove = [key for key in os.environ.keys() if key.startswith("AIRFLOW_CONN_")]
+    for env_var in env_vars_to_remove:
+        del os.environ[env_var]
+
+    if add_default_connections_back:
+        create_default_connections_for_tests()
 
 
 def clear_db_connections(add_default_connections_back=True):
@@ -338,6 +361,461 @@ def clear_dag_specific_permissions():
         session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
 
 
+def create_default_connections_for_tests():
+    """
+    Create default Airflow connections for tests.
+
+    For testing purposes, we do not need to have the connections setup in the database, using environment
+    variables instead would provide better lookup speeds and is easier too.
+    """
+    import os
+
+    try:
+        from airflow.utils.db import get_default_connections
+
+        conns = get_default_connections()
+    except ImportError:
+        conns = [
+            Connection(
+                conn_id="airflow_db",
+                conn_type="mysql",
+                host="mysql",
+                login="root",
+                password="",
+                schema="airflow",
+            ),
+            Connection(
+                conn_id="athena_default",
+                conn_type="athena",
+            ),
+            Connection(
+                conn_id="aws_default",
+                conn_type="aws",
+            ),
+            Connection(
+                conn_id="azure_batch_default",
+                conn_type="azure_batch",
+                login="<ACCOUNT_NAME>",
+                password="",
+                extra="""{"account_url": "<ACCOUNT_URL>"}""",
+            ),
+            Connection(
+                conn_id="azure_cosmos_default",
+                conn_type="azure_cosmos",
+                extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
+            ),
+            Connection(
+                conn_id="azure_data_explorer_default",
+                conn_type="azure_data_explorer",
+                host="https://<CLUSTER>.kusto.windows.net",
+                extra="""{"auth_method": "<AAD_APP | AAD_APP_CERT | AAD_CREDS | AAD_DEVICE>",
+                    "tenant": "<TENANT ID>", "certificate": "<APPLICATION PEM CERTIFICATE>",
+                    "thumbprint": "<APPLICATION CERTIFICATE THUMBPRINT>"}""",
+            ),
+            Connection(
+                conn_id="azure_data_lake_default",
+                conn_type="azure_data_lake",
+                extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
+            ),
+            Connection(
+                conn_id="azure_default",
+                conn_type="azure",
+            ),
+            Connection(
+                conn_id="cassandra_default",
+                conn_type="cassandra",
+                host="cassandra",
+                port=9042,
+            ),
+            Connection(
+                conn_id="databricks_default",
+                conn_type="databricks",
+                host="localhost",
+            ),
+            Connection(
+                conn_id="dingding_default",
+                conn_type="http",
+                host="",
+                password="",
+            ),
+            Connection(
+                conn_id="drill_default",
+                conn_type="drill",
+                host="localhost",
+                port=8047,
+                extra='{"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"}',
+            ),
+            Connection(
+                conn_id="druid_broker_default",
+                conn_type="druid",
+                host="druid-broker",
+                port=8082,
+                extra='{"endpoint": "druid/v2/sql"}',
+            ),
+            Connection(
+                conn_id="druid_ingest_default",
+                conn_type="druid",
+                host="druid-overlord",
+                port=8081,
+                extra='{"endpoint": "druid/indexer/v1/task"}',
+            ),
+            Connection(
+                conn_id="elasticsearch_default",
+                conn_type="elasticsearch",
+                host="localhost",
+                schema="http",
+                port=9200,
+            ),
+            Connection(
+                conn_id="emr_default",
+                conn_type="emr",
+                extra="""
+                {   "Name": "default_job_flow_name",
+                    "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
+                    "ReleaseLabel": "emr-4.6.0",
+                    "Instances": {
+                        "Ec2KeyName": "mykey",
+                        "Ec2SubnetId": "somesubnet",
+                        "InstanceGroups": [
+                            {
+                                "Name": "Master nodes",
+                                "Market": "ON_DEMAND",
+                                "InstanceRole": "MASTER",
+                                "InstanceType": "r3.2xlarge",
+                                "InstanceCount": 1
+                            },
+                            {
+                                "Name": "Core nodes",
+                                "Market": "ON_DEMAND",
+                                "InstanceRole": "CORE",
+                                "InstanceType": "r3.2xlarge",
+                                "InstanceCount": 1
+                            }
+                        ],
+                        "TerminationProtected": false,
+                        "KeepJobFlowAliveWhenNoSteps": false
+                    },
+                    "Applications":[
+                        { "Name": "Spark" }
+                    ],
+                    "VisibleToAllUsers": true,
+                    "JobFlowRole": "EMR_EC2_DefaultRole",
+                    "ServiceRole": "EMR_DefaultRole",
+                    "Tags": [
+                        {
+                            "Key": "app",
+                            "Value": "analytics"
+                        },
+                        {
+                            "Key": "environment",
+                            "Value": "development"
+                        }
+                    ]
+                }
+            """,
+            ),
+            Connection(
+                conn_id="facebook_default",
+                conn_type="facebook_social",
+                extra="""
+                {   "account_id": "<AD_ACCOUNT_ID>",
+                    "app_id": "<FACEBOOK_APP_ID>",
+                    "app_secret": "<FACEBOOK_APP_SECRET>",
+                    "access_token": "<FACEBOOK_AD_ACCESS_TOKEN>"
+                }
+            """,
+            ),
+            Connection(
+                conn_id="fs_default",
+                conn_type="fs",
+                extra='{"path": "/"}',
+            ),
+            Connection(
+                conn_id="ftp_default",
+                conn_type="ftp",
+                host="localhost",
+                port=21,
+                login="airflow",
+                password="airflow",
+                extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
+            ),
+            Connection(
+                conn_id="google_cloud_default",
+                conn_type="google_cloud_platform",
+                schema="default",
+            ),
+            Connection(
+                conn_id="gremlin_default",
+                conn_type="gremlin",
+                host="gremlin",
+                port=8182,
+            ),
+            Connection(
+                conn_id="hive_cli_default",
+                conn_type="hive_cli",
+                port=10000,
+                host="localhost",
+                extra='{"use_beeline": true, "auth": ""}',
+                schema="default",
+            ),
+            Connection(
+                conn_id="hiveserver2_default",
+                conn_type="hiveserver2",
+                host="localhost",
+                schema="default",
+                port=10000,
+            ),
+            Connection(
+                conn_id="http_default",
+                conn_type="http",
+                host="https://www.httpbin.org/",
+            ),
+            Connection(
+                conn_id="iceberg_default",
+                conn_type="iceberg",
+                host="https://api.iceberg.io/ws/v1",
+            ),
+            Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050),
+            Connection(
+                conn_id="kafka_default",
+                conn_type="kafka",
+                extra=json.dumps({"bootstrap.servers": "broker:29092", "group.id": "my-group"}),
+            ),
+            Connection(
+                conn_id="kubernetes_default",
+                conn_type="kubernetes",
+            ),
+            Connection(
+                conn_id="kylin_default",
+                conn_type="kylin",
+                host="localhost",
+                port=7070,
+                login="ADMIN",
+                password="KYLIN",
+            ),
+            Connection(
+                conn_id="leveldb_default",
+                conn_type="leveldb",
+                host="localhost",
+            ),
+            Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998),
+            Connection(
+                conn_id="local_mysql",
+                conn_type="mysql",
+                host="localhost",
+                login="airflow",
+                password="airflow",
+                schema="airflow",
+            ),
+            Connection(
+                conn_id="metastore_default",
+                conn_type="hive_metastore",
+                host="localhost",
+                extra='{"authMechanism": "PLAIN"}',
+                port=9083,
+            ),
+            Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
+            Connection(
+                conn_id="mssql_default",
+                conn_type="mssql",
+                host="localhost",
+                port=1433,
+            ),
+            Connection(
+                conn_id="mysql_default",
+                conn_type="mysql",
+                login="root",
+                schema="airflow",
+                host="mysql",
+            ),
+            Connection(
+                conn_id="opensearch_default",
+                conn_type="opensearch",
+                host="localhost",
+                schema="http",
+                port=9200,
+            ),
+            Connection(
+                conn_id="opsgenie_default",
+                conn_type="http",
+                host="",
+                password="",
+            ),
+            Connection(
+                conn_id="oracle_default",
+                conn_type="oracle",
+                host="localhost",
+                login="root",
+                password="password",
+                schema="schema",
+                port=1521,
+            ),
+            Connection(
+                conn_id="oss_default",
+                conn_type="oss",
+                extra="""
+                {
+                "auth_type": "AK",
+                "access_key_id": "<ACCESS_KEY_ID>",
+                "access_key_secret": "<ACCESS_KEY_SECRET>",
+                "region": "<YOUR_OSS_REGION>"}
+                """,
+            ),
+            Connection(
+                conn_id="pig_cli_default",
+                conn_type="pig_cli",
+                schema="default",
+            ),
+            Connection(
+                conn_id="pinot_admin_default",
+                conn_type="pinot",
+                host="localhost",
+                port=9000,
+            ),
+            Connection(
+                conn_id="pinot_broker_default",
+                conn_type="pinot",
+                host="localhost",
+                port=9000,
+                extra='{"endpoint": "/query", "schema": "http"}',
+            ),
+            Connection(
+                conn_id="postgres_default",
+                conn_type="postgres",
+                login="postgres",
+                password="airflow",
+                schema="airflow",
+                host="postgres",
+            ),
+            Connection(
+                conn_id="presto_default",
+                conn_type="presto",
+                host="localhost",
+                schema="hive",
+                port=3400,
+            ),
+            Connection(
+                conn_id="qdrant_default",
+                conn_type="qdrant",
+                host="qdrant",
+                port=6333,
+            ),
+            Connection(
+                conn_id="redis_default",
+                conn_type="redis",
+                host="redis",
+                port=6379,
+                extra='{"db": 0}',
+            ),
+            Connection(
+                conn_id="redshift_default",
+                conn_type="redshift",
+                extra="""
+{
+    "iam": true,
+    "cluster_identifier": "<REDSHIFT_CLUSTER_IDENTIFIER>",
+    "port": 5439,
+    "profile": "default",
+    "db_user": "awsuser",
+    "database": "dev",
+    "region": ""
+}""",
+            ),
+            Connection(
+                conn_id="salesforce_default",
+                conn_type="salesforce",
+                login="username",
+                password="password",
+                extra='{"security_token": "security_token"}',
+            ),
+            Connection(
+                conn_id="segment_default",
+                conn_type="segment",
+                extra='{"write_key": "my-segment-write-key"}',
+            ),
+            Connection(
+                conn_id="sftp_default",
+                conn_type="sftp",
+                host="localhost",
+                port=22,
+                login="airflow",
+                extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
+            ),
+            Connection(
+                conn_id="spark_default",
+                conn_type="spark",
+                host="yarn",
+                extra='{"queue": "root.default"}',
+            ),
+            Connection(
+                conn_id="sqlite_default",
+                conn_type="sqlite",
+                host=os.path.join(gettempdir(), "sqlite_default.db"),
+            ),
+            Connection(
+                conn_id="ssh_default",
+                conn_type="ssh",
+                host="localhost",
+            ),
+            Connection(
+                conn_id="tableau_default",
+                conn_type="tableau",
+                host="https://tableau.server.url",
+                login="user",
+                password="password",
+                extra='{"site_id": "my_site"}',
+            ),
+            Connection(
+                conn_id="teradata_default",
+                conn_type="teradata",
+                host="localhost",
+                login="user",
+                password="password",
+                schema="schema",
+            ),
+            Connection(
+                conn_id="trino_default",
+                conn_type="trino",
+                host="localhost",
+                schema="hive",
+                port=3400,
+            ),
+            Connection(
+                conn_id="vertica_default",
+                conn_type="vertica",
+                host="localhost",
+                port=5433,
+            ),
+            Connection(
+                conn_id="wasb_default",
+                conn_type="wasb",
+                extra='{"sas_token": null}',
+            ),
+            Connection(
+                conn_id="webhdfs_default",
+                conn_type="hdfs",
+                host="localhost",
+                port=50070,
+            ),
+            Connection(
+                conn_id="yandexcloud_default",
+                conn_type="yandexcloud",
+                schema="default",
+            ),
+            Connection(
+                conn_id="ydb_default",
+                conn_type="ydb",
+                host="grpc://localhost",
+                port=2135,
+                extra={"database": "/local"},
+            ),
+        ]
+
+    for c in conns:
+        envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+        os.environ[envvar] = c.as_json()
+
+
 def clear_all():
     clear_db_runs()
     clear_db_assets()
@@ -355,7 +833,7 @@ def clear_all():
     clear_db_xcom()
     clear_db_variables()
     clear_db_pools()
-    clear_db_connections(add_default_connections_back=True)
+    clear_test_connections(add_default_connections_back=True)
     clear_db_deadline()
     clear_dag_specific_permissions()
     if AIRFLOW_V_3_0_PLUS:
