@@ -37,7 +37,9 @@ AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.models.xcom import XCOM_RETURN_KEY
+    from airflow.sdk.bases.xcom import BaseXCom
+
+    XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]
 
