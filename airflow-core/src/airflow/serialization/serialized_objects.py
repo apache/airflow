@@ -1553,7 +1553,26 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 start_from_trigger=encoded_op.get("start_from_trigger", False),
             )
         else:
-            op = SerializedBaseOperator(task_id=encoded_op["task_id"])
+            # Try to recreate the original operator class from serialized data
+            try:
+                from airflow.utils.module_loading import import_string
+
+                task_type = encoded_op["task_type"]
+                task_module = encoded_op["_task_module"]
+                operator_class = import_string(f"{task_module}.{task_type}")
+
+                # Get constructor parameters from the serialized data
+                constructor_kwargs = {"task_id": encoded_op["task_id"]}
+
+                # Add any other required constructor parameters that are available
+                for param_name in cls._CONSTRUCTOR_PARAMS:
+                    if param_name in encoded_op and param_name != "task_id":
+                        constructor_kwargs[param_name] = encoded_op[param_name]
+
+                op = operator_class(**constructor_kwargs)
+            except (ImportError, AttributeError, KeyError, TypeError):
+                # Fall back to SerializedBaseOperator if we can't recreate the original class
+                op = SerializedBaseOperator(task_id=encoded_op["task_id"])
         cls.populate_operator(op, encoded_op)
 
         return op
