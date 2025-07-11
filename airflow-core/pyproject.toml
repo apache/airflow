@@ -26,7 +26,7 @@ requires = [
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
-    "hatch-build-time-vendoring @ https://test-files.pythonhosted.org/packages/e8/c8/9b9c1b3e7ebd973af2690da7fa3dd3ca46f42caabdec409ea8274b241ddd/hatch_build_time_vendoring-0.1.dev6-py3-none-any.whl",
+    "hatch-build-time-vendoring @ https://test-files.pythonhosted.org/packages/54/44/8533528622833807a24261d1fdbc4289a13e124b8ed7461e0d4d963b4ca9/hatch_build_time_vendoring-0.1.dev8-py3-none-any.whl",
 ]
 build-backend = "hatchling.build"
 
