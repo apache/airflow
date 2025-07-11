@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
@@ -30,11 +30,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun
-
-if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
-
 
 extra_links_router = AirflowRouter(
     tags=["Extra Links"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links"
@@ -60,7 +55,11 @@ def get_extra_links(
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
-    if (dag := dag_bag.get_dag_for_run(dag_run, session=session)) is None:
+    if dag_run:
+        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+    else:
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
+    if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 
     try:
