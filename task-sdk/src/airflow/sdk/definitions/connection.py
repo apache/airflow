@@ -72,7 +72,7 @@ class Connection:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
             uri = "//"
-
+        host_to_use: str | None
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
             # If the protocol in host matches the connection type, don't add it again
@@ -84,7 +84,7 @@ class Connection:
                 host_to_use = host
                 protocol_to_add = protocol
         else:
-            host_to_use = self.host  # type: ignore[assignment]
+            host_to_use = self.host
             protocol_to_add = None
 
         if protocol_to_add:

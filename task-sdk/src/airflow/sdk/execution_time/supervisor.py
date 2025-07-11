@@ -1414,7 +1414,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
     def send_msg(

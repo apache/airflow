@@ -776,7 +776,7 @@ class DAG:
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         memo = {id(self.task_dict): None, id(self.task_group): None}
-        dag = copy.deepcopy(self, memo)  # type: ignore
+        dag = copy.deepcopy(self, memo)
 
         if isinstance(task_ids, str):
             matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
@@ -935,8 +935,8 @@ class DAG:
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         self.task_dict[task_id] = task
-        # TODO: Task-SDK: this type ignore shouldn't be needed!
-        task.dag = self  # type: ignore[assignment]
+
+        task.dag = self
         # Add task_id to used_group_ids to prevent group_id and task_id collisions.
         self.task_group.used_group_ids.add(task_id)
 
@@ -1089,7 +1089,7 @@ class DAG:
                 dags=[self],
                 start_date=logical_date,
                 end_date=logical_date,
-                dag_run_state=False,  # type: ignore
+                dag_run_state=False,
             )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)

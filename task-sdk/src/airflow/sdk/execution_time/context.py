@@ -167,12 +167,11 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # enabled only if SecretCache.init() has been called first
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-    var_val = None
     backends = ensure_secrets_backend_loaded()
     # iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
-            var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
+            var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
                 if deserialize_json:
                     import json
