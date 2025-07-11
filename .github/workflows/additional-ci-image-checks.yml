@@ -129,7 +129,9 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
       PLATFORM: ${{ inputs.platform }}
-    if: inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - name: "Cleanup repo"
         shell: bash
