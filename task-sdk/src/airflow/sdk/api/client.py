@@ -233,6 +233,7 @@ class TaskInstanceOperations:
         states: list[str] | None = None,
     ) -> TICount:
         """Get count of task instances matching the given criteria."""
+        params : dict[str, Any]
         params = {
             "dag_id": dag_id,
             "task_ids": task_ids,
@@ -246,7 +247,7 @@ class TaskInstanceOperations:
         params = {k: v for k, v in params.items() if v is not None}
 
         if map_index is not None and map_index >= 0:
-            params.update({"map_index": map_index})  # type: ignore[dict-item]
+            params.update({"map_index": map_index})
 
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
@@ -261,6 +262,7 @@ class TaskInstanceOperations:
         run_ids: list[str] | None = None,
     ) -> TaskStatesResponse:
         """Get task states given criteria."""
+        params: dict[str, Any]
         params = {
             "dag_id": dag_id,
             "task_ids": task_ids,
@@ -273,7 +275,7 @@ class TaskInstanceOperations:
         params = {k: v for k, v in params.items() if v is not None}
 
         if map_index is not None and map_index >= 0:
-            params.update({"map_index": map_index})  # type: ignore[dict-item]
+            params.update({"map_index": map_index})
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
