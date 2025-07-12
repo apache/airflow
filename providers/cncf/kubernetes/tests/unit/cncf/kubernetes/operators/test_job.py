@@ -496,32 +496,28 @@ class TestKubernetesJobOperator:
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
     def test_get_or_create_pod(self, mock_find_pod):
         found_pod = mock.MagicMock()
-        mock_find_pod.side_effect = [None,found_pod]
+        mock_find_pod.side_effect = [None, found_pod]
         mock_ti = mock.MagicMock()
         context = dict(ti=mock_ti)
-        
-        op = KubernetesJobOperator(
-            task_id="test_task_id"
-            )
-        
-        assert op.get_or_create_pod({},context) == found_pod
-        
+
+        op = KubernetesJobOperator(task_id="test_task_id")
+
+        assert op.get_or_create_pod({}, context) == found_pod
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
-    def test_pod_creation_timeout(self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_find_pod):
+    def test_pod_creation_timeout(
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_find_pod
+    ):
         mock_find_pod.return_value = None
         mock_ti = mock.MagicMock()
         context = dict(ti=mock_ti)
-        
-        op = KubernetesJobOperator(
-            task_id="test_task_id",
-            pod_creation_timeout=1
-        )
-        
+
+        op = KubernetesJobOperator(task_id="test_task_id", pod_creation_timeout=1)
+
         with pytest.raises(AirflowTaskTimeout):
             op.execute(context)
 
@@ -535,7 +531,7 @@ class TestKubernetesJobOperator:
         mock_job_request_obj = mock_build_job_request_obj.return_value
         mock_job_expected = mock_create_job.return_value
         mock_pod_request_obj = mock_job_request_obj.spec.template
-        mock_find_pod.side_effect = [None,mock_pod_request_obj]
+        mock_find_pod.side_effect = [None, mock_pod_request_obj]
         mock_ti = mock.MagicMock()
         context = dict(ti=mock_ti)
 
