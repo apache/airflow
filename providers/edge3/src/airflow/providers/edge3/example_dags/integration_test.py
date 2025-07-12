@@ -41,13 +41,13 @@ try:
     from airflow.sdk import DAG, Param, Variable, task, task_group
 except ImportError:
     # Airflow 2.10 compat
-    from airflow.decorators import task, task_group  # type: ignore[no-redef,attr-defined]
-    from airflow.models.dag import DAG  # type: ignore[no-redef,attr-defined,assignment]
-    from airflow.models.param import Param  # type: ignore[no-redef,attr-defined]
-    from airflow.models.variable import Variable  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
+    from airflow.decorators import task, task_group
+    from airflow.models.dag import DAG  # type: ignore[assignment]
+    from airflow.models.param import Param  # type: ignore[no-redef]
+    from airflow.models.variable import Variable
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
+    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef]
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef]
 
 with DAG(
     dag_id="integration_test",

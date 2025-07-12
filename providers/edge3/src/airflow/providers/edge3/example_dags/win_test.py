@@ -52,11 +52,11 @@ if TYPE_CHECKING:
     try:
         from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
     except ImportError:
-        from airflow.models import TaskInstance  # type: ignore[assignment, no-redef]
+        from airflow.models import TaskInstance  # type: ignore[assignment]
     from airflow.utils.context import Context
 
 try:
-    from airflow.operators.python import PythonOperator  # type: ignore
+    from airflow.operators.python import PythonOperator
 except ImportError:
     from airflow.providers.common.compat.standard.operators import PythonOperator
 
@@ -277,7 +277,7 @@ with DAG(
 
         @task.virtualenv(requirements="numpy")
         def virtualenv():
-            import numpy  # type: ignore
+            import numpy
 
             print(f"Welcome to virtualenv with numpy version {numpy.__version__}.")
 
