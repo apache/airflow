@@ -127,7 +127,7 @@ else:
 
     # In Airflow 3 with AIP-72 we get workload addressed by ExecuteTask
     # But in Airflow 2.10 it is a command line array
-    ExecuteTask = list[str]  # type: ignore[no-redef,assignment,misc]
+    ExecuteTask = list[str]  # type: ignore[assignment,misc]
 
     def parse_command(command: str) -> ExecuteTask:
         from ast import literal_eval
