@@ -55,7 +55,7 @@ if AIRFLOW_V_3_0_PLUS:
         PokeReturnValue,
     )
 else:
-    from airflow.models import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models import BaseOperatorLink
     from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
 
 # Explicitly export these imports to protect them from being removed by linters
