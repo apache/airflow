@@ -27,10 +27,8 @@
 Changelog
 ---------
 
-Bug Fixes
-~~~~~~~~~
-
-* ``Fix authentication behavior in Trino provider by allowing only one auth type per connection (#53134)``
+.. warning::
+   Make sure the connection you use to authenticate with Trino, has only one authentication method set (e.g password, jwt) otherwise the task will fail.
 
 6.3.1
 .....
