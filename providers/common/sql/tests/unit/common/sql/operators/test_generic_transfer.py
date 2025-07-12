@@ -38,6 +38,15 @@ from tests_common.test_utils.compat import GenericTransfer
 from tests_common.test_utils.operators.run_deferrable import execute_operator, mock_context
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -252,8 +261,8 @@ class TestGenericTransfer:
         assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
 
     def test_non_paginated_read(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=self.get_connection):
-            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",
@@ -280,8 +289,8 @@ class TestGenericTransfer:
         https://medium.com/apache-airflow/transfering-data-from-sap-hana-to-mssql-using-the-airflow-generictransfer-d29f147a9f1f
         """
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=self.get_connection):
-            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",

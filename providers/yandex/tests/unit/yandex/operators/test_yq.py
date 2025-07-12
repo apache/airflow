@@ -32,6 +32,16 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 yandexcloud = pytest.importorskip("yandexcloud")
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 OAUTH_TOKEN = "my_oauth_token"
 FOLDER_ID = "my_folder_id"
 
@@ -50,7 +60,7 @@ class TestYQExecuteQueryOperator:
         )
 
     @responses.activate()
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_execute_query(self, mock_get_connection):
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
         operator = YQExecuteQueryOperator(task_id="simple_sql", sql="select 987", folder_id="my_folder_id")

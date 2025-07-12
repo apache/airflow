@@ -31,12 +31,11 @@ from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar
 
 from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.typing_compat import ParamSpec
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -83,7 +82,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
 

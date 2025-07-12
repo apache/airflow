@@ -300,10 +300,13 @@ Flask Appbuilder and Flask Blueprints in Airflow 3
 --------------------------------------------------
 
 Airflow 2 supported Flask Appbuilder views (``appbuilder_views``), Flask AppBuilder menu items (``appbuilder_menu_items``),
-and Flask Blueprints (``flask_blueprints``) in plugins. These has been superseded by FastAPI apps in Airflow 3. All new plugins should use FastAPI apps (``fastapi_apps``) instead.
+and Flask Blueprints (``flask_blueprints``) in plugins. These have been superseded in Airflow 3 by External Views (``external_views``), Fast API apps (``fastapi_apps``)
+and FastAPI middlewares (``fastapi_root_middlewares``) that allow extended functionality and better integration with the Airflow UI.
 
-However, a compatibility layer is provided for Flask and FAB plugins to ease the transition to Airflow 3 - simply install the FAB provider.
-Ideally, you should convert your plugins to FastAPI apps (`fastapi_apps`) during the upgrade process, as this compatibility layer is deprecated.
+All new plugins should use the new interfaces.
+
+However, a compatibility layer is provided for Flask and FAB plugins to ease the transition to Airflow 3 - simply install the FAB provider and tweak the code
+following Airflow 3 migration guide. This compatibility layer allows you to continue using your existing Flask Appbuilder views, Flask Blueprints and Flask Appbuilder menu items.
 
 Troubleshooting
 ---------------

@@ -55,7 +55,8 @@
     "runAfter": "다음 실행",
     "runType": "실행 유형",
     "sourceAssetEvent": "소스 에셋 이벤트",
-    "triggeredBy": "실행 주체"
+    "triggeredBy": "실행 주체",
+    "triggeringUser": "트리거한 사용자 이름"
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
@@ -76,6 +77,11 @@
     "home": "홈",
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
+  },
+  "expand": {
+    "collapse": "접기",
+    "expand": "펼치기",
+    "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
   "expression": {
     "all": "모두",
@@ -102,6 +108,7 @@
     "dags": "Dags",
     "docs": "문서",
     "home": "홈",
+    "legacyFabViews": "레거시 FAB 뷰",
     "plugins": "플러그인",
     "security": "보안"
   },
@@ -269,6 +276,7 @@
       }
     }
   },
+  "total": "총 {{state}} 수",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
   "user": "사용자",

@@ -199,6 +199,7 @@ def _run_single_query_with_hook(hook: SnowflakeHook, sql: str) -> list[dict]:
     with closing(hook.get_conn()) as conn:
         hook.set_autocommit(conn, False)
         with hook._get_cursor(conn, return_dictionaries=True) as cur:
+            cur.execute("ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 3;")  # only for this session
             cur.execute(sql)
             result = cur.fetchall()
         conn.commit()
@@ -232,11 +233,16 @@ def _get_queries_details_from_snowflake(
     if not query_ids:
         return {}
     query_condition = f"IN {tuple(query_ids)}" if len(query_ids) > 1 else f"= '{query_ids[0]}'"
+    # https://docs.snowflake.com/en/sql-reference/account-usage#differences-between-account-usage-and-information-schema
+    # INFORMATION_SCHEMA.QUERY_HISTORY has no latency, so it's better than ACCOUNT_USAGE.QUERY_HISTORY
+    # https://docs.snowflake.com/en/sql-reference/functions/query_history
+    # SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY() function seems the most suitable function for the job,
+    # we get history of queries executed by the user, and we're using the same credentials.
     query = (
         "SELECT "
         "QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
         "FROM "
-        "table(information_schema.query_history()) "
+        "table(snowflake.information_schema.query_history()) "
         f"WHERE "
         f"QUERY_ID {query_condition}"
         f";"
@@ -250,7 +256,11 @@ def _get_queries_details_from_snowflake(
         else:
             result = _run_single_query_with_hook(hook=hook, sql=query)
     except Exception as e:
-        log.warning("OpenLineage could not retrieve extra metadata from Snowflake. Error encountered: %s", e)
+        log.info(
+            "OpenLineage encountered an error while retrieving additional metadata about SQL queries"
+            " from Snowflake. The process will continue with default values. Error details: %s",
+            e,
+        )
         result = []
 
     return {row["QUERY_ID"]: row for row in result} if result else {}

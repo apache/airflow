@@ -24,9 +24,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -1094,6 +1104,9 @@ class TestSqlBranch:
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
 
     def get_ti(self, task_id, dr=None):
         if dr is None:
@@ -1174,7 +1187,6 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-
         with pytest.raises(AirflowException):
             op.execute({})
 
@@ -1188,7 +1200,6 @@ class TestSqlBranch:
             follow_task_ids_if_false=[],
             dag=self.dag,
         )
-
         with pytest.raises(AirflowException):
             op.execute({})
 
@@ -1554,7 +1565,7 @@ class TestBaseSQLOperatorSubClass:
     @pytest.mark.parametrize(
         "operator_class", [NewStyleBaseSQLOperatorSubClass, OldStyleBaseSQLOperatorSubClass]
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_new_style_subclass(self, mock_get_connection, operator_class):
         from airflow.providers.common.sql.hooks.sql import DbApiHook
 

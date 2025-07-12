@@ -145,6 +145,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             dag_id="super_basic",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -200,6 +201,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
             dag_id=dag_id,
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -253,6 +255,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
             dag_id="dag_name",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -504,6 +507,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
             dag_id="basic_templated_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
@@ -617,6 +621,7 @@ def test_startup_and_run_dag_with_rtif(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -663,6 +668,7 @@ def test_task_run_with_user_impersonation(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -709,6 +715,7 @@ def test_task_run_with_user_impersonation_default_user(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -842,7 +849,9 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     task_id = "conditional_task"
 
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1, dag_version_id=uuid7()
+        ),
         dag_rel_path="dag_parsing_context.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
@@ -1085,6 +1094,7 @@ class TestRuntimeTaskInstance:
             dag_id=dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
         start_date = timezone.datetime(2025, 1, 1)
 
@@ -1355,6 +1365,7 @@ class TestRuntimeTaskInstance:
             pytest.param("hello", id="string_value"),
             pytest.param("'hello'", id="quoted_string_value"),
             pytest.param({"key": "value"}, id="json_value"),
+            pytest.param([], id="empty_list_no_xcoms_found"),
             pytest.param((1, 2, 3), id="tuple_int_value"),
             pytest.param([1, 2, 3], id="list_int_value"),
             pytest.param(42, id="int_value"),
@@ -1377,6 +1388,9 @@ class TestRuntimeTaskInstance:
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
+        from airflow.serialization.serde import deserialize
+
+        spy_agency.spy_on(deserialize)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -1402,6 +1416,7 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms.send.side_effect = mock_send_side_effect
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
 
         if not isinstance(task_ids, Iterable) or isinstance(task_ids, str):
             task_ids = [task_ids]
@@ -1506,6 +1521,54 @@ class TestRuntimeTaskInstance:
             else:
                 assert mock_get_one.called
                 assert not mock_get_all.called
+
+    @pytest.mark.parametrize(
+        "api_return_value",
+        [
+            pytest.param(("data", "test_value"), id="api returns tuple"),
+            pytest.param({"data": "test_value"}, id="api returns dict"),
+            pytest.param(None, id="api returns None, no xcom found"),
+        ],
+    )
+    def test_xcom_pull_with_no_map_index(
+        self,
+        api_return_value,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test xcom_pull when map_indexes is not specified, so that XCom.get_all is called.
+        The test also tests if the response is deserialized and returned.
+        """
+        test_task_id = "pull_task"
+        task = BaseOperator(task_id=test_task_id)
+        runtime_ti = create_runtime_ti(task=task)
+
+        ser_value = BaseXCom.serialize_value(api_return_value)
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="test_key", value=None)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+        result = runtime_ti.xcom_pull(key="test_key", task_ids="task_a")
+
+        # if the API returns a tuple or dict, the below assertion assures that the value is deserialized correctly by XCom.get_all
+        assert result == api_return_value
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="test_key",
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="task_a",
+                start=None,
+                stop=None,
+                step=None,
+            ),
+        )
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
@@ -1785,7 +1848,9 @@ class TestXComAfterTaskExecution:
         spy_agency.assert_spy_called(_push_xcom_if_needed)
 
         if should_push_xcom:
-            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, "return_value", expected_xcom_value)
+            spy_agency.assert_spy_called_with(
+                _xcom_push, runtime_ti, BaseXCom.XCOM_RETURN_KEY, expected_xcom_value
+            )
         else:
             spy_agency.assert_spy_not_called(_xcom_push)
 
@@ -1809,7 +1874,7 @@ class TestXComAfterTaskExecution:
         expected_calls = [
             ("key1", "value1"),
             ("key2", "value2"),
-            ("return_value", result),
+            (BaseXCom.XCOM_RETURN_KEY, result),
         ]
         spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
         for key, value in expected_calls:
@@ -1831,9 +1896,9 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch.object(XCom, "set") as mock_xcom_set:
-            _xcom_push(runtime_ti, "return_value", result, 7)
+            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, 7)
             mock_xcom_set.assert_called_once_with(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 value=result,
                 dag_id=runtime_ti.dag_id,
                 task_id=runtime_ti.task_id,
@@ -1901,7 +1966,7 @@ class TestXComAfterTaskExecution:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_xcom_backend.set.assert_called_once_with(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             value="pushing to xcom backend!",
             dag_id="test_dag",
             task_id="pull_task",
@@ -2196,6 +2261,7 @@ class TestTaskRunnerCallsListeners:
                 dag_id="basic_dag",
                 run_id="c",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,
@@ -2234,6 +2300,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(
@@ -2272,6 +2339,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(

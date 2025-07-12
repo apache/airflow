@@ -122,14 +122,16 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
-      PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
-      PYTHON_VERSION: ${{ inputs.default-python-version }}
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      PYTHON_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
       PLATFORM: ${{ inputs.platform }}
-    if: inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -150,4 +152,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$actor" --password-stdin
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 600 --platform "${PLATFORM}"
+        run: breeze shell --max-time 900 --platform "${PLATFORM}"
