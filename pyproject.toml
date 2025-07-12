@@ -689,7 +689,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
-# __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+#
 "airflow-core/tests/unit/__init__.py" = ["I002"]
 "airflow-core/tests/system/__init__.py" = ["I002"]
 "airflow-core/tests/integration/__init__.py" = ["I002"]
