@@ -52,7 +52,7 @@ if AIRFLOW_V_3_0_PLUS:
 
     OsLogMsgType = list[StructuredLogMessage] | str
 else:
-    OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,no-redef,misc]
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
@@ -186,7 +186,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         )
         # client = OpenSearch(hosts=[{"host": host, "port": port}], http_auth=(username, password), use_ssl=True, verify_certs=True, ca_cert="/opt/airflow/root-ca.pem", ssl_assert_hostname = False, ssl_show_warn = False)
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
@@ -255,7 +255,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+        if self.handler.stream is None or self.handler.stream.closed:
             self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,
@@ -304,7 +304,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             if TYPE_CHECKING:
                 assert dag is not None
             # TODO: Task-SDK: Where should this function be?
-            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined,union-attr]
+            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
 
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
@@ -452,7 +452,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         }
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, body=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, body=query)["count"]
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
