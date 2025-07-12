@@ -168,6 +168,7 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
+    go_worker: bool = False
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
@@ -596,6 +597,7 @@ class ShellParams:
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "GITHUB_TOKEN", self.github_token)
+        _set_var(_env, "GO_WORKER", self.go_worker)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
