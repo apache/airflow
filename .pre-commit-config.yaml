@@ -213,7 +213,7 @@ repos:
           ^scripts/ci/pre_commit/update_installers_and_pre_commit\.py$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0']
+        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0',"packaging>=25"]
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/pre_commit/update_chart_dependencies.py
@@ -1596,7 +1596,7 @@ repos:
       - id: provider-version-compat
         name: Check for correct version_compat imports in providers
         entry: ./scripts/ci/pre_commit/check_provider_version_compat.py
-        language: system
+        language: python
         types: [python]
         files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true

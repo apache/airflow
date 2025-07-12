@@ -55,6 +55,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
 )
 from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
 from airflow.sdk.definitions._internal.node import validate_key
+from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
@@ -65,7 +66,6 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.utils import timezone
-from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import db_safe_priority
 
@@ -1291,7 +1291,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def get_dag(self) -> DAG | None:
         return self._dag
 
-    @property  # type: ignore[override]
+    @property
     def dag(self) -> DAG:
         """Returns the Operator's DAG if set, otherwise raises an error."""
         if dag := self._dag:

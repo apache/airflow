@@ -68,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -665,7 +666,7 @@ class WatchedSubprocess:
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
-        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+        escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
         if force and signal_to_send in escalation_path:
             # Start from `signal_to_send` and escalate to the end of the escalation path
@@ -1230,6 +1231,17 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
+        elif isinstance(msg, CreateHITLDetailPayload):
+            resp = self.client.hitl.add_response(
+                ti_id=msg.ti_id,
+                options=msg.options,
+                subject=msg.subject,
+                body=msg.body,
+                defaults=msg.defaults,
+                params=msg.params,
+                multiple=msg.multiple,
+            )
+            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1402,7 +1414,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
     def send_msg(
