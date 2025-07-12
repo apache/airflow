@@ -220,7 +220,7 @@ class MySqlHook(DbApiHook):
                     "installed in case you see compilation error during installation."
                 )
 
-            conn_config = self._get_conn_config_mysql_client(conn)  # type: ignore[arg-type]
+            conn_config = self._get_conn_config_mysql_client(conn)
             return MySQLdb.connect(**conn_config)
 
         if client_name == "mysql-connector-python":
@@ -233,7 +233,7 @@ class MySqlHook(DbApiHook):
                     "'mysql-connector-python'. Warning! It might cause dependency conflicts."
                 )
 
-            conn_config = self._get_conn_config_mysql_connector_python(conn)  # type: ignore[arg-type]
+            conn_config = self._get_conn_config_mysql_connector_python(conn)
             return mysql.connector.connect(**conn_config)
 
         raise ValueError("Unknown MySQL client name provided!")
@@ -253,7 +253,7 @@ class MySqlHook(DbApiHook):
             (tmp_file,),
         )
         conn.commit()
-        conn.close()  # type: ignore[misc]
+        conn.close()
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
@@ -270,7 +270,7 @@ class MySqlHook(DbApiHook):
             (tmp_file,),
         )
         conn.commit()
-        conn.close()  # type: ignore[misc]
+        conn.close()
 
     @staticmethod
     def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
@@ -337,7 +337,7 @@ class MySqlHook(DbApiHook):
 
         cursor.close()
         conn.commit()
-        conn.close()  # type: ignore[misc]
+        conn.close()
 
     def get_openlineage_database_info(self, connection):
         """Return MySQL specific information for OpenLineage."""
