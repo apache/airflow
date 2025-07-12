@@ -1,0 +1,38 @@
+{
+  "group": "Gruppo",
+  "health": {
+    "dagProcessor": "Processore DAG",
+    "health": "Salute",
+    "healthy": "Sano",
+    "lastHeartbeat": "Ultimo Heartbeat",
+    "metaDatabase": "Database di metadati",
+    "scheduler": "Pianificatrice",
+    "status": "Stato",
+    "triggerer": "Triggerer",
+    "unhealthy": "Malato"
+  },
+  "history": "Cronologia",
+  "importErrors": {
+    "dagImportError_one": "Errore di Importazione DAG",
+    "dagImportError_other": "Errore di Importazione DAG",
+    "searchByFile": "Cerca per file",
+    "timestamp": "Timestamp"
+  },
+  "managePools": "Gestisci Pools",
+  "noAssetEvents": "Nessun evento di asset trovato.",
+  "poolSlots": "Slot del Pool",
+  "sortBy": {
+    "newestFirst": "Più Recenti",
+    "oldestFirst": "Più Vecchi"
+  },
+  "source": "Fonte",
+  "stats": {
+    "activeDags": "DAG Attivi",
+    "failedDags": "DAG Falliti",
+    "queuedDags": "DAG In Attesa",
+    "runningDags": "DAG In Esecuzione",
+    "stats": "Statistiche"
+  },
+  "uri": "Uri",
+  "welcome": "Benvenuto"
+}
