@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box } from "@chakra-ui/react";
+import { Flex, Box, Text } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
@@ -29,13 +29,63 @@ import type { GridTask } from "./utils";
 
 const BAR_HEIGHT = 100;
 
+type VersionIndicatorProps = {
+  readonly ariaLabel: string;
+  readonly type: "dagrun" | "mixed";
+  readonly versionNumber?: number | null;
+};
+
+const VersionIndicator = ({ ariaLabel, type, versionNumber }: VersionIndicatorProps) => {
+  const isDagRun = type === "dagrun";
+
+  return (
+    <Box
+      aria-label={ariaLabel}
+      bg="orange.400"
+      height="100px"
+      left={isDagRun ? "-1px" : undefined}
+      position="absolute"
+      right={isDagRun ? undefined : "-1px"}
+      top="0"
+      width="2px"
+      zIndex={isDagRun ? 3 : 4}
+    >
+      <Text
+        aria-label={`Version ${versionNumber ?? "unknown"}`}
+        color="orange.700"
+        fontSize="10px"
+        fontWeight="bold"
+        left={isDagRun ? "-5px" : undefined}
+        position="absolute"
+        right={isDagRun ? undefined : "-5px"}
+        top="-16px"
+        whiteSpace="nowrap"
+      >
+        {`v${versionNumber ?? ""}`}
+      </Text>
+    </Box>
+  );
+};
+
 type Props = {
+  readonly hasMixedVersions?: boolean | null;
+  readonly latestVersionNumber?: number | null;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly run: GridRunsResponse;
+  readonly showVersionIndicator?: boolean;
+  readonly versionNumber?: number | null;
 };
 
-export const Bar = ({ max, nodes, run }: Props) => {
+export const Bar = ({
+  hasMixedVersions = false,
+  latestVersionNumber,
+  max,
+  nodes,
+  run,
+  showVersionIndicator = false,
+  versionNumber,
+}: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -51,6 +101,22 @@ export const Bar = ({ max, nodes, run }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {Boolean(showVersionIndicator) && (
+        <VersionIndicator
+          ariaLabel="DAG version change indicator"
+          type="dagrun"
+          versionNumber={versionNumber}
+        />
+      )}
+
+      {Boolean(hasMixedVersions) && (
+        <VersionIndicator
+          ariaLabel="Mixed version indicator"
+          type="mixed"
+          versionNumber={latestVersionNumber}
+        />
+      )}
+
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}

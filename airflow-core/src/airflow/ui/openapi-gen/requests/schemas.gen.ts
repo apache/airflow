@@ -7034,6 +7034,49 @@ export const $GridRunsResponse = {
         run_type: {
             '$ref': '#/components/schemas/DagRunType'
         },
+        dag_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Number'
+        },
+        dag_version_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Id'
+        },
+        is_version_changed: {
+            type: 'boolean',
+            title: 'Is Version Changed',
+            default: false
+        },
+        has_mixed_versions: {
+            type: 'boolean',
+            title: 'Has Mixed Versions',
+            default: false
+        },
+        latest_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Version Number'
+        },
         duration: {
             type: 'integer',
             title: 'Duration',
@@ -7068,6 +7111,120 @@ export const $GridTISummaries = {
     required: ['run_id', 'dag_id', 'task_instances'],
     title: 'GridTISummaries',
     description: 'DAG Run model for the Grid UI.'
+} as const;
+
+export const $GridTaskInstanceSummary = {
+    properties: {
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        try_number: {
+            type: 'integer',
+            title: 'Try Number'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        queued_dttm: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queued Dttm'
+        },
+        child_states: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'integer'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Child States'
+        },
+        task_count: {
+            type: 'integer',
+            title: 'Task Count'
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        dag_version_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Id'
+        },
+        dag_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Number'
+        }
+    },
+    type: 'object',
+    required: ['task_id', 'try_number', 'start_date', 'end_date', 'queued_dttm', 'child_states', 'task_count', 'state', 'note'],
+    title: 'GridTaskInstanceSummary',
+    description: 'Task Instance Summary model for the Grid UI.'
 } as const;
 
 export const $HistoricalMetricDataResponse = {
@@ -7167,6 +7324,28 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Max End Date'
+        },
+        dag_version_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Id'
+        },
+        dag_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Number'
         }
     },
     type: 'object',

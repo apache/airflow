@@ -1805,7 +1805,12 @@ export type GridRunsResponse = {
     run_after: string;
     state: TaskInstanceState | null;
     run_type: DagRunType;
-    readonly duration: number;
+    dag_version_number?: number | null;
+    dag_version_id?: string | null;
+    is_version_changed?: boolean;
+    has_mixed_versions?: boolean;
+    latest_version_number?: number | null;
+    readonly duration: number | null;
 };
 
 /**
@@ -1815,6 +1820,25 @@ export type GridTISummaries = {
     run_id: string;
     dag_id: string;
     task_instances: Array<LightGridTaskInstanceSummary>;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type GridTaskInstanceSummary = {
+    task_id: string;
+    try_number: number;
+    start_date: string | null;
+    end_date: string | null;
+    queued_dttm: string | null;
+    child_states: {
+    [key: string]: (number);
+} | null;
+    task_count: number;
+    state: TaskInstanceState | null;
+    note: string | null;
+    dag_version_id?: string | null;
+    dag_version_number?: number | null;
 };
 
 /**
@@ -1847,6 +1871,8 @@ export type LightGridTaskInstanceSummary = {
 } | null;
     min_start_date: string | null;
     max_end_date: string | null;
+    dag_version_id?: string | null;
+    dag_version_number?: number | null;
 };
 
 /**
