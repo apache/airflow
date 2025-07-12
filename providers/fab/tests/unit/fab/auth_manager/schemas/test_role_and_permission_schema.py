@@ -34,7 +34,7 @@ class TestRoleCollectionItemSchema:
     @pytest.fixture(scope="class")
     def role(self, minimal_app_for_auth_api):
         yield create_role(
-            minimal_app_for_auth_api,  # type: ignore
+            minimal_app_for_auth_api,
             name="Test",
             permissions=[
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
@@ -70,7 +70,7 @@ class TestRoleCollectionSchema:
     @pytest.fixture(scope="class")
     def role1(self, minimal_app_for_auth_api):
         yield create_role(
-            minimal_app_for_auth_api,  # type: ignore
+            minimal_app_for_auth_api,
             name="Test1",
             permissions=[
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
@@ -81,7 +81,7 @@ class TestRoleCollectionSchema:
     @pytest.fixture(scope="class")
     def role2(self, minimal_app_for_auth_api):
         yield create_role(
-            minimal_app_for_auth_api,  # type: ignore
+            minimal_app_for_auth_api,
             name="Test2",
             permissions=[
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
