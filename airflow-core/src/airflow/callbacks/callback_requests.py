@@ -86,9 +86,7 @@ class DagCallbackRequest(BaseCallbackRequest):
     """Flag to determine whether it is a Failure Callback or Success Callback"""
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
 
-    model_config = {
-        "slots": True
-    }
+    model_config = {"slots": True}
 
 
 CallbackRequest = Annotated[
