@@ -29,7 +29,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
 
 import attrs
@@ -122,14 +122,14 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.sdk import BaseOperator
+    from airflow.sdk import BaseOperator as SdkBaseOperator
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
     from airflow.utils.context import Context
 
     Operator: TypeAlias = BaseOperator | MappedOperator
@@ -244,7 +244,8 @@ def clear_task_instances(
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
-                task = ti_dag.get_task(task_id)
+                # TODO (GH-52141): Make dag a db-backed object so it only returns db-backed tasks.
+                task = cast("Operator", ti_dag.get_task(task_id))
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
@@ -581,7 +582,8 @@ class TaskInstance(Base, LoggingMixin):
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
 
-    task: Operator | SerializedBaseOperator | None = None
+    # TODO (GH-52141): Separate db-backed code paths to remove SDK reference.
+    task: Operator | SdkBaseOperator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
     run_as_user: str | None = None
@@ -594,7 +596,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def __init__(
         self,
-        task: Operator | SerializedBaseOperator,
+        task: Operator,
         dag_version_id: UUIDType | uuid.UUID,
         run_id: str | None = None,
         state: str | None = None,
@@ -637,7 +639,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType
+        run_id: str, task: BaseOperator, map_index: int, dag_version_id: UUIDType
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -845,11 +847,7 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-    def refresh_from_task(
-        self,
-        task: Operator | SerializedBaseOperator,
-        pool_override: str | None = None,
-    ) -> None:
+    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """
         Copy common attributes from the given task.
 
@@ -1042,10 +1040,8 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
 
-        from airflow.serialization.serialized_objects import create_scheduler_operator
-
         dep_context = dep_context or DepContext()
-        for dep in dep_context.deps | create_scheduler_operator(self.task).deps:
+        for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
@@ -1191,7 +1187,7 @@ class TaskInstance(Base, LoggingMixin):
         ti: TaskInstance = task_instance
         task = task_instance.task
         if TYPE_CHECKING:
-            assert task
+            assert isinstance(task, Operator)  # TODO (GH-52141): This shouldn't be needed.
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -1653,16 +1649,6 @@ class TaskInstance(Base, LoggingMixin):
 
         self._run_raw_task(mark_success=mark_success)
 
-    def dry_run(self) -> None:
-        """Only Renders Templates for the TI."""
-        if TYPE_CHECKING:
-            assert isinstance(self.task, (BaseOperator, MappedOperator))
-        self.task = self.task.prepare_for_execution()
-        self.render_templates()
-        if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
-        self.task.dry_run()
-
     @classmethod
     def fetch_handle_failure_context(
         cls,
@@ -1830,6 +1816,7 @@ class TaskInstance(Base, LoggingMixin):
 
         return bool(self.task.retries and self.try_number <= self.max_tries)
 
+    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
     def get_template_context(
         self,
         session: Session | None = None,
@@ -1845,11 +1832,6 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
 
-        if TYPE_CHECKING:
-            assert session
-            assert isinstance(self.task, (BaseOperator, MappedOperator))
-            assert self.task.dag
-
         from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
@@ -1864,6 +1846,9 @@ class TaskInstance(Base, LoggingMixin):
             OutletEventAccessors,
             VariableAccessor,
         )
+
+        if TYPE_CHECKING:
+            assert session
 
         def _get_dagrun(session: Session) -> DagRun:
             dag_run = self.get_dagrun(session)
@@ -1882,8 +1867,8 @@ class TaskInstance(Base, LoggingMixin):
                 return dag_run
             return session.merge(dag_run, load=False)
 
-        task = self.task
-        dag = self.task.dag
+        task = cast("SdkBaseOperator", self.task)
+        dag = task.dag
         dag_run = _get_dagrun(session)
 
         validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
@@ -1960,7 +1945,7 @@ class TaskInstance(Base, LoggingMixin):
                     "_upstream_map_indexes",
                     {
                         upstream.task_id: self.get_relevant_upstream_map_indexes(
-                            upstream,
+                            cast("Operator", upstream),
                             expanded_ti_count,
                             session=session,
                         )
