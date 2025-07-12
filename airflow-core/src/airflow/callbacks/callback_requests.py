@@ -80,13 +80,15 @@ class TaskCallbackRequest(BaseCallbackRequest):
 class DagCallbackRequest(BaseCallbackRequest):
     """A Class with information about the success/failure DAG callback to be executed."""
 
-    __slots__ = ("dag_id", "run_id", "is_failure_callback", "type")
-
     dag_id: str
     run_id: str
     is_failure_callback: bool | None = True
     """Flag to determine whether it is a Failure Callback or Success Callback"""
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
+
+    model_config = {
+        "slots": True
+    }
 
 
 CallbackRequest = Annotated[
