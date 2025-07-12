@@ -2,6 +2,7 @@
   "admin": {
     "Config": "Config",
     "Connections": "Connections",
+    "HITL": "HITL",
     "Plugins": "Plugins",
     "Pools": "Pools",
     "Providers": "Providers",

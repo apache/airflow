@@ -29,6 +29,7 @@
   "stats": {
     "activeDags": "啟用中的 Dags",
     "failedDags": "失敗的 Dags",
+    "hitlTIs": "HITL 任務",
     "queuedDags": "排隊中的 Dags",
     "runningDags": "執行中的 Dags",
     "stats": "統計"

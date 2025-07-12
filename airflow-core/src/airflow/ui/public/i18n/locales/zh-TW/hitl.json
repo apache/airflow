@@ -1,0 +1,18 @@
+{
+  "hitlTaskInstance_one": "人類參與流程任務實例",
+  "hitlTaskInstance_other": "人類參與流程任務實例",
+  "response": {
+    "button": "回應",
+    "error": "回應失敗",
+    "noteHelp": "可選的回應備註",
+    "noteLabel": "備註",
+    "responseHelp": "請輸入您對此任務的回應",
+    "responseLabel": "回應",
+    "success": "回應成功",
+    "title": "人工回應"
+  },
+  "search": {
+    "hitlTIs": "搜尋人類參與流程任務"
+  },
+  "success": "{{taskId}} 回應成功"
+}

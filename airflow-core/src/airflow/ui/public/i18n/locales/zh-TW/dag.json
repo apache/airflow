@@ -91,6 +91,7 @@
     "backfills": "回填",
     "code": "程式碼",
     "details": "詳細資訊",
+    "hitlTIs": "人機迴圈任務",
     "logs": "日誌",
     "mappedTaskInstances_one": "任務實例 [{{count}}]",
     "mappedTaskInstances_other": "任務實例 [{{count}}]",

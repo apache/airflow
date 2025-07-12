@@ -39,6 +39,7 @@ import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Iframe } from "src/pages/Iframe";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
@@ -88,6 +89,10 @@ export const routerConfig = [
       {
         element: <Dashboard />,
         index: true,
+      },
+      {
+        element: <HITLTaskInstances />,
+        path: "hitl",
       },
       {
         element: <DagsList />,
@@ -159,6 +164,7 @@ export const routerConfig = [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
+          { element: <HITLTaskInstances />, path: "hitl" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },

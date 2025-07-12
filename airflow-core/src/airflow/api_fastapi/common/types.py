@@ -98,6 +98,7 @@ class MenuItem(Enum):
     PROVIDERS = "Providers"
     VARIABLES = "Variables"
     XCOMS = "XComs"
+    HITL = "HITL"
 
 
 class UIAlert(BaseModel):

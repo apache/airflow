@@ -1,0 +1,17 @@
+{
+  "hitlTaskInstance_one": "HITL Task Instance",
+  "hitlTaskInstance_other": "HITL Task Instances",
+  "response": {
+    "button": "Respond",
+    "error": "Response failed",
+    "paramsHelp": "Optional parameters for this response",
+    "paramsLabel": "Parameters",
+    "responseHelp": "Enter your response to this task",
+    "responseLabel": "Response",
+    "success": "{{taskId}} response successful",
+    "title": "HITL Task Instance"
+  },
+  "search": {
+    "hitlTIs": "Search HITL Task Instances"
+  }
+}
