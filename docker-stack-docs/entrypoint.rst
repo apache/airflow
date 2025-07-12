@@ -161,38 +161,38 @@ If there are any other arguments - they are simply passed to the "airflow" comma
   > docker run -it apache/airflow:3.1.0-python3.10 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
-    positional arguments:
+    Positional Arguments:
       GROUP_OR_COMMAND
 
-        Groups:
-          celery         Celery components
-          config         View configuration
-          connections    Manage connections
-          dags           Manage dags
-          db             Database operations
-          jobs           Manage jobs
-          kubernetes     Tools to help run the KubernetesExecutor
-          pools          Manage pools
-          providers      Display providers
-          roles          Manage roles
-          tasks          Manage tasks
-          users          Manage users
-          variables      Manage variables
+        Groups
+          assets            Manage assets
+          backfill          Manage backfills
+          config            View configuration
+          connections       Manage connections
+          dags              Manage DAGs
+          db                Database operations
+          jobs              Manage jobs
+          pools             Manage pools
+          providers         Display providers
+          tasks             Manage tasks
+          variables         Manage variables
 
         Commands:
-          cheat-sheet    Display cheat sheet
-          info           Show information about current Airflow and environment
-          kerberos       Start a Kerberos ticket renewer
-          plugins        Dump information about loaded plugins
+          api-server        Start an Airflow API server instance
+          cheat-sheet       Display cheat sheet
+          dag-processor     Start a dag processor instance
+          info              Show information about current Airflow and environment
+          kerberos          Start a kerberos ticket renewer
+          plugins           Dump information about loaded plugins
           rotate-fernet-key
-                         Rotate encrypted connection credentials and variables
-          scheduler      Start a scheduler instance
-          sync-perm      Update permissions for existing roles and optionally dags
-          version        Show the version
-          webserver      Start an Airflow webserver instance
+                            Rotate encrypted connection credentials and variables
+          scheduler         Start a scheduler instance
+          standalone        Run an all-in-one copy of Airflow
+          triggerer         Start a triggerer instance
+          version           Show the version
 
-    optional arguments:
-      -h, --help         show this help message and exit
+    Options:
+      -h, --help            show this help message and exit
 
 Execute custom code before the Airflow entrypoint
 -------------------------------------------------
