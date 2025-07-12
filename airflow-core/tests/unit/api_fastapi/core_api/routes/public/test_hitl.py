@@ -113,6 +113,12 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "subject": "This is subject",
         "ti_id": sample_ti.id,
         "user_id": None,
+        # Shared link fields (None for regular HITL operations)
+        "action": None,
+        "expires_at": None,
+        "link_type": "action",
+        "link_url": None,
+        "expires_in_hours": None,
     }
 
 
@@ -135,6 +141,11 @@ class TestUpdateHITLDetailEndpoint:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
+            "task_instance_id": None,
+            "link_url": None,
+            "expires_at": None,
+            "action": None,
+            "link_type": "action",
         }
 
     def test_should_respond_404(
@@ -165,6 +176,11 @@ class TestUpdateHITLDetailEndpoint:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
+            "task_instance_id": None,
+            "link_url": None,
+            "expires_at": None,
+            "action": None,
+            "link_type": "action",
         }
         assert response.status_code == 200
         assert response.json() == expected_response
@@ -218,6 +234,11 @@ class TestUpdateMappedTIHITLDetail:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
+            "task_instance_id": None,
+            "link_url": None,
+            "expires_at": None,
+            "action": None,
+            "link_type": "action",
         }
 
     def test_should_respond_404(
@@ -248,6 +269,11 @@ class TestUpdateMappedTIHITLDetail:
             "chosen_options": ["Approve"],
             "user_id": "test",
             "response_at": "2025-07-03T00:00:00Z",
+            "task_instance_id": None,
+            "link_url": None,
+            "expires_at": None,
+            "action": None,
+            "link_type": "action",
         }
         assert response.status_code == 200
         assert response.json() == expected_response
@@ -372,6 +398,8 @@ class TestGetHITLDetailsEndpoint:
         assert response.json() == {
             "hitl_details": [expected_sample_hitl_detail_dict],
             "total_entries": 1,
+            "response_content": None,
+            "params_input": {},
         }
 
     def test_should_respond_200_without_response(self, test_client: TestClient) -> None:
@@ -380,6 +408,8 @@ class TestGetHITLDetailsEndpoint:
         assert response.json() == {
             "hitl_details": [],
             "total_entries": 0,
+            "response_content": None,
+            "params_input": {},
         }
 
     def test_should_respond_401(self, unauthenticated_test_client: TestClient) -> None:

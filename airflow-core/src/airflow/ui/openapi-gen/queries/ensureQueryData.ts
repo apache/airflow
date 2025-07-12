@@ -1,4 +1,4 @@
-// generated with @7nohe/openapi-react-query-codegen@1.6.2 
+// generated with @7nohe/openapi-react-query-codegen@1.6.2
 
 import { type QueryClient } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
@@ -1205,11 +1205,51 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 }) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
 /**
 * Get Hitl Details
-* Get Human-in-the-loop details.
+* Get all Human-in-the-loop details.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
 export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(), queryFn: () => HumanInTheLoopService.getHitlDetails() });
+/**
+* Get Hitl Share Link
+* Get HITL details via shared link (for redirect links).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetHitlShareLinkData = (queryClient: QueryClient, { dagId, dagRunId, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  signature: string;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlShareLinkKeyFn({ dagId, dagRunId, payload, signature, taskId }), queryFn: () => HumanInTheLoopService.getHitlShareLink({ dagId, dagRunId, payload, signature, taskId }) });
+/**
+* Get Mapped Ti Hitl Share Link
+* Get mapped HITL details via shared link (for redirect links).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetMappedTiHitlShareLinkData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  signature: string;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlShareLinkKeyFn({ dagId, dagRunId, mapIndex, payload, signature, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, payload, signature, taskId }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

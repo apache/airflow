@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, UpdateMappedTiHitlDetailData, UpdateMappedTiHitlDetailResponse, GetMappedTiHitlDetailData, GetMappedTiHitlDetailResponse, GetHitlDetailsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetLatestRunData, GetLatestRunResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, UpdateMappedTiHitlDetailData, UpdateMappedTiHitlDetailResponse, GetMappedTiHitlDetailData, GetMappedTiHitlDetailResponse, GetHitlDetailsResponse, CreateHitlShareLinkData, CreateHitlShareLinkResponse, GetHitlShareLinkData, GetHitlShareLinkResponse, CreateMappedTiHitlShareLinkData, CreateMappedTiHitlShareLinkResponse, GetMappedTiHitlShareLinkData, GetMappedTiHitlShareLinkResponse, ExecuteHitlShareLinkActionData, ExecuteHitlShareLinkActionResponse, ExecuteMappedTiHitlShareLinkActionData, ExecuteMappedTiHitlShareLinkActionResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetLatestRunData, GetLatestRunResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -41,7 +41,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Asset Aliases
      * Get asset aliases.
@@ -71,7 +71,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Asset Alias
      * Get an asset alias.
@@ -95,7 +95,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Asset Events
      * Get asset events.
@@ -137,7 +137,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Create Asset Event
      * Create asset events.
@@ -160,7 +160,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Materialize Asset
      * Materialize an asset by triggering a DAG run that produces it.
@@ -185,7 +185,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Asset Queued Events
      * Get queued asset events for an asset.
@@ -213,7 +213,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Delete Asset Queued Events
      * Delete queued asset events for an asset.
@@ -241,7 +241,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Asset
      * Get an asset.
@@ -265,7 +265,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Dag Asset Queued Events
      * Get queued asset events for a DAG.
@@ -293,7 +293,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Delete Dag Asset Queued Events
      * @param data The data for the request.
@@ -321,7 +321,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Get Dag Asset Queued Event
      * Get a queued asset event for a DAG.
@@ -351,7 +351,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Delete Dag Asset Queued Event
      * Delete a queued asset event for a DAG.
@@ -382,7 +382,7 @@ export class AssetService {
             }
         });
     }
-    
+
     /**
      * Next Run Assets
      * @param data The data for the request.
@@ -402,7 +402,7 @@ export class AssetService {
             }
         });
     }
-    
+
 }
 
 export class BackfillService {
@@ -433,7 +433,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * Create Backfill
      * @param data The data for the request.
@@ -456,7 +456,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * Get Backfill
      * @param data The data for the request.
@@ -479,7 +479,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * Pause Backfill
      * @param data The data for the request.
@@ -503,7 +503,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * Unpause Backfill
      * @param data The data for the request.
@@ -527,7 +527,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * Cancel Backfill
      * @param data The data for the request.
@@ -551,7 +551,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * Create Backfill Dry Run
      * @param data The data for the request.
@@ -574,7 +574,7 @@ export class BackfillService {
             }
         });
     }
-    
+
     /**
      * List Backfills Ui
      * @param data The data for the request.
@@ -603,7 +603,7 @@ export class BackfillService {
             }
         });
     }
-    
+
 }
 
 export class ConnectionService {
@@ -630,7 +630,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Get Connection
      * Get a connection entry.
@@ -654,7 +654,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Patch Connection
      * Update a connection entry.
@@ -686,7 +686,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Get Connections
      * Get all connection entries.
@@ -716,7 +716,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Post Connection
      * Create connection entry.
@@ -739,7 +739,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Bulk Connections
      * Bulk create, update, and delete connections.
@@ -761,7 +761,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Test Connection
      * Test an API connection.
@@ -787,7 +787,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Create Default Connections
      * Create default connections.
@@ -804,7 +804,7 @@ export class ConnectionService {
             }
         });
     }
-    
+
     /**
      * Hook Meta Data
      * Retrieve information about available connection types (hook classes) and their parameters.
@@ -817,7 +817,7 @@ export class ConnectionService {
             url: '/ui/connections/hook_meta'
         });
     }
-    
+
 }
 
 export class DagRunService {
@@ -845,7 +845,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Delete Dag Run
      * Delete a DAG Run entry.
@@ -872,7 +872,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Patch Dag Run
      * Modify a DAG Run.
@@ -906,7 +906,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Get Upstream Asset Events
      * If dag run is asset-triggered, return the asset events that triggered it.
@@ -932,7 +932,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Clear Dag Run
      * @param data The data for the request.
@@ -960,7 +960,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Get Dag Runs
      * Get all DAG Runs.
@@ -1020,7 +1020,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Trigger Dag Run
      * Trigger a DAG.
@@ -1049,7 +1049,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
      * 🚧 This is an experimental endpoint and may change or be removed without notice.
@@ -1081,7 +1081,7 @@ export class DagRunService {
             }
         });
     }
-    
+
     /**
      * Get List Dag Runs Batch
      * Get a list of DAG Runs.
@@ -1108,7 +1108,7 @@ export class DagRunService {
             }
         });
     }
-    
+
 }
 
 export class ExperimentalService {
@@ -1143,7 +1143,7 @@ export class ExperimentalService {
             }
         });
     }
-    
+
 }
 
 export class DagSourceService {
@@ -1180,7 +1180,7 @@ export class DagSourceService {
             }
         });
     }
-    
+
 }
 
 export class DagStatsService {
@@ -1208,7 +1208,7 @@ export class DagStatsService {
             }
         });
     }
-    
+
 }
 
 export class DagReportService {
@@ -1235,7 +1235,7 @@ export class DagReportService {
             }
         });
     }
-    
+
 }
 
 export class ConfigService {
@@ -1266,7 +1266,7 @@ export class ConfigService {
             }
         });
     }
-    
+
     /**
      * Get Config Value
      * @param data The data for the request.
@@ -1296,7 +1296,7 @@ export class ConfigService {
             }
         });
     }
-    
+
     /**
      * Get Configs
      * Get configs for UI.
@@ -1312,7 +1312,7 @@ export class ConfigService {
             }
         });
     }
-    
+
 }
 
 export class DagWarningService {
@@ -1346,7 +1346,7 @@ export class DagWarningService {
             }
         });
     }
-    
+
 }
 
 export class DagService {
@@ -1404,7 +1404,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Patch Dags
      * Patch multiple DAGs.
@@ -1448,7 +1448,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Get Dag
      * Get basic information about a DAG.
@@ -1473,7 +1473,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Patch Dag
      * Patch the specific DAG.
@@ -1505,7 +1505,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Delete Dag
      * Delete the specific DAG.
@@ -1530,7 +1530,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Get Dag Details
      * Get details of DAG.
@@ -1555,7 +1555,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Favorite Dag
      * Mark the DAG as favorite.
@@ -1579,7 +1579,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Unfavorite Dag
      * Unmark the DAG as favorite.
@@ -1604,7 +1604,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Get Dag Tags
      * Get all DAG tags.
@@ -1633,7 +1633,7 @@ export class DagService {
             }
         });
     }
-    
+
     /**
      * Get Dags
      * Get DAGs with recent DagRun.
@@ -1680,7 +1680,7 @@ export class DagService {
             }
         });
     }
-    
+
 }
 
 export class EventLogService {
@@ -1706,7 +1706,7 @@ export class EventLogService {
             }
         });
     }
-    
+
     /**
      * Get Event Logs
      * Get all Event Logs.
@@ -1755,7 +1755,7 @@ export class EventLogService {
             }
         });
     }
-    
+
 }
 
 export class ExtraLinksService {
@@ -1790,7 +1790,7 @@ export class ExtraLinksService {
             }
         });
     }
-    
+
 }
 
 export class TaskInstanceService {
@@ -1825,7 +1825,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instance
      * Get task instance.
@@ -1853,7 +1853,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Patch Task Instance
      * Update a task instance.
@@ -1892,7 +1892,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Delete Task Instance
      * Delete a task instance.
@@ -1924,7 +1924,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Mapped Task Instances
      * Get list of mapped task instances.
@@ -1994,7 +1994,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instance Dependencies
      * Get dependencies blocking task from getting scheduled.
@@ -2024,7 +2024,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instance Dependencies
      * Get dependencies blocking task from getting scheduled.
@@ -2056,7 +2056,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instance Tries
      * Get list of task instances history.
@@ -2088,7 +2088,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Mapped Task Instance Tries
      * @param data The data for the request.
@@ -2117,7 +2117,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Mapped Task Instance
      * Get task instance.
@@ -2147,7 +2147,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Patch Task Instance
      * Update a task instance.
@@ -2186,7 +2186,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instances
      * Get list of task instances.
@@ -2261,7 +2261,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Bulk Task Instances
      * Bulk update, and delete task instances.
@@ -2289,7 +2289,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instances Batch
      * Get list of task instances.
@@ -2318,7 +2318,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Task Instance Try Details
      * Get task instance details by try number.
@@ -2352,7 +2352,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Mapped Task Instance Try Details
      * @param data The data for the request.
@@ -2383,7 +2383,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Post Clear Task Instances
      * Clear task instances.
@@ -2410,7 +2410,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Patch Task Instance Dry Run
      * Update a task instance dry_run mode.
@@ -2448,7 +2448,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Patch Task Instance Dry Run
      * Update a task instance dry_run mode.
@@ -2486,7 +2486,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get Log
      * Get logs for a specific task instance.
@@ -2528,7 +2528,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
     /**
      * Get External Log Url
      * Get external log URL for a specific task instance.
@@ -2563,7 +2563,7 @@ export class TaskInstanceService {
             }
         });
     }
-    
+
 }
 
 export class ImportErrorService {
@@ -2590,7 +2590,7 @@ export class ImportErrorService {
             }
         });
     }
-    
+
     /**
      * Get Import Errors
      * Get all import errors.
@@ -2617,7 +2617,7 @@ export class ImportErrorService {
             }
         });
     }
-    
+
 }
 
 export class JobService {
@@ -2666,7 +2666,7 @@ export class JobService {
             }
         });
     }
-    
+
 }
 
 export class PluginService {
@@ -2693,7 +2693,7 @@ export class PluginService {
             }
         });
     }
-    
+
     /**
      * Import Errors
      * @returns PluginImportErrorCollectionResponse Successful Response
@@ -2709,7 +2709,7 @@ export class PluginService {
             }
         });
     }
-    
+
 }
 
 export class PoolService {
@@ -2737,7 +2737,7 @@ export class PoolService {
             }
         });
     }
-    
+
     /**
      * Get Pool
      * Get a pool.
@@ -2761,7 +2761,7 @@ export class PoolService {
             }
         });
     }
-    
+
     /**
      * Patch Pool
      * Update a Pool.
@@ -2793,7 +2793,7 @@ export class PoolService {
             }
         });
     }
-    
+
     /**
      * Get Pools
      * Get all pools entries.
@@ -2823,7 +2823,7 @@ export class PoolService {
             }
         });
     }
-    
+
     /**
      * Post Pool
      * Create a Pool.
@@ -2846,7 +2846,7 @@ export class PoolService {
             }
         });
     }
-    
+
     /**
      * Bulk Pools
      * Bulk create, update, and delete pools.
@@ -2868,7 +2868,7 @@ export class PoolService {
             }
         });
     }
-    
+
 }
 
 export class ProviderService {
@@ -2896,7 +2896,7 @@ export class ProviderService {
             }
         });
     }
-    
+
 }
 
 export class XcomService {
@@ -2938,7 +2938,7 @@ export class XcomService {
             }
         });
     }
-    
+
     /**
      * Update Xcom Entry
      * Update an existing XCom entry.
@@ -2972,7 +2972,7 @@ export class XcomService {
             }
         });
     }
-    
+
     /**
      * Get Xcom Entries
      * Get all XCom entries.
@@ -3013,7 +3013,7 @@ export class XcomService {
             }
         });
     }
-    
+
     /**
      * Create Xcom Entry
      * Create an XCom entry.
@@ -3045,7 +3045,7 @@ export class XcomService {
             }
         });
     }
-    
+
 }
 
 export class TaskService {
@@ -3077,7 +3077,7 @@ export class TaskService {
             }
         });
     }
-    
+
     /**
      * Get Task
      * Get simplified representation of a task.
@@ -3104,7 +3104,7 @@ export class TaskService {
             }
         });
     }
-    
+
 }
 
 export class VariableService {
@@ -3131,7 +3131,7 @@ export class VariableService {
             }
         });
     }
-    
+
     /**
      * Get Variable
      * Get a variable entry.
@@ -3155,7 +3155,7 @@ export class VariableService {
             }
         });
     }
-    
+
     /**
      * Patch Variable
      * Update a variable by key.
@@ -3187,7 +3187,7 @@ export class VariableService {
             }
         });
     }
-    
+
     /**
      * Get Variables
      * Get all Variables entries.
@@ -3216,7 +3216,7 @@ export class VariableService {
             }
         });
     }
-    
+
     /**
      * Post Variable
      * Create a variable.
@@ -3239,7 +3239,7 @@ export class VariableService {
             }
         });
     }
-    
+
     /**
      * Bulk Variables
      * Bulk create, update, and delete variables.
@@ -3261,7 +3261,7 @@ export class VariableService {
             }
         });
     }
-    
+
 }
 
 export class DagParsingService {
@@ -3288,7 +3288,7 @@ export class DagParsingService {
             }
         });
     }
-    
+
 }
 
 export class DagVersionService {
@@ -3317,7 +3317,7 @@ export class DagVersionService {
             }
         });
     }
-    
+
     /**
      * Get Dag Versions
      * Get all DAG Versions.
@@ -3357,7 +3357,7 @@ export class DagVersionService {
             }
         });
     }
-    
+
 }
 
 export class HumanInTheLoopService {
@@ -3392,7 +3392,7 @@ export class HumanInTheLoopService {
             }
         });
     }
-    
+
     /**
      * Get Hitl Detail
      * Get a Human-in-the-loop detail of a specific task instance.
@@ -3420,7 +3420,7 @@ export class HumanInTheLoopService {
             }
         });
     }
-    
+
     /**
      * Update Mapped Ti Hitl Detail
      * Update a Human-in-the-loop detail.
@@ -3454,7 +3454,7 @@ export class HumanInTheLoopService {
             }
         });
     }
-    
+
     /**
      * Get Mapped Ti Hitl Detail
      * Get a Human-in-the-loop detail of a specific task instance.
@@ -3484,10 +3484,10 @@ export class HumanInTheLoopService {
             }
         });
     }
-    
+
     /**
      * Get Hitl Details
-     * Get Human-in-the-loop details.
+     * Get all Human-in-the-loop details.
      * @returns HITLDetailCollection Successful Response
      * @throws ApiError
      */
@@ -3501,7 +3501,305 @@ export class HumanInTheLoopService {
             }
         });
     }
-    
+
+    /**
+     * Create Hitl Share Link
+     * Create a shared link for a Human-in-the-loop task.
+     *
+     * This endpoint generates a secure, time-limited shared link that allows external users
+     * to interact with HITL tasks without requiring full Airflow authentication. The link
+     * can be configured for either direct action execution or UI redirection.
+     *
+     * :param dag_id: The DAG identifier
+     * :param dag_run_id: The DAG run identifier
+     * :param task_id: The task identifier
+     * :param update_hitl_detail_payload: Payload containing link configuration and initial response data
+     * :param user: The authenticated user creating the shared link
+     * :param session: Database session for data persistence
+     *
+     * :raises HTTPException: 403 if HITL shared links are not enabled
+     * :raises HTTPException: 404 if the task instance or HITL detail does not exist
+     * :raises HTTPException: 400 if link generation fails due to invalid parameters
+     *
+     * :return: HITLDetailResponse containing the generated link URL and metadata
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static createHitlShareLink(data: CreateHitlShareLinkData): CancelablePromise<CreateHitlShareLinkResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+
+    /**
+     * Get Hitl Share Link
+     * Get HITL details via shared link (for redirect links).
+     *
+     * This endpoint allows external users to access HITL task details through a secure
+     * shared link. The link must be a redirect-type link, which provides read-only access
+     * to the HITL task information for UI rendering or decision-making purposes.
+     *
+     * :param dag_id: The DAG identifier (from URL path)
+     * :param dag_run_id: The DAG run identifier (from URL path)
+     * :param task_id: The task identifier (from URL path)
+     * :param payload: Base64-encoded payload containing link metadata and expiration
+     * :param signature: HMAC signature for payload verification
+     * :param session: Database session for data retrieval
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.payload
+     * @param data.signature
+     * @returns HITLDetail Successful Response
+     * @throws ApiError
+     */
+    public static getHitlShareLink(data: GetHitlShareLinkData): CancelablePromise<GetHitlShareLinkResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            query: {
+                payload: data.payload,
+                signature: data.signature
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+
+    /**
+     * Create Mapped Ti Hitl Share Link
+     * Create a shared link for a mapped Human-in-the-loop task.
+     *
+     * This endpoint generates a secure, time-limited shared link for mapped task instances,
+     * allowing external users to interact with specific mapped HITL tasks without requiring
+     * full Airflow authentication. The link can be configured for either direct action
+     * execution or UI redirection.
+     *
+     * :param dag_id: The DAG identifier
+     * :param dag_run_id: The DAG run identifier
+     * :param task_id: The task identifier
+     * :param map_index: The map index for the mapped task instance
+     * :param update_hitl_detail_payload: Payload containing link configuration and initial response data
+     * :param user: The authenticated user creating the shared link
+     * :param session: Database session for data persistence
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static createMappedTiHitlShareLink(data: CreateMappedTiHitlShareLinkData): CancelablePromise<CreateMappedTiHitlShareLinkResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+
+    /**
+     * Get Mapped Ti Hitl Share Link
+     * Get mapped HITL details via shared link (for redirect links).
+     *
+     * This endpoint allows external users to access mapped HITL task details through a secure
+     * shared link. The link must be a redirect-type link, which provides read-only access
+     * to the mapped HITL task information for UI rendering or decision-making purposes.
+     *
+     * :param dag_id: The DAG identifier (from URL path)
+     * :param dag_run_id: The DAG run identifier (from URL path)
+     * :param task_id: The task identifier (from URL path)
+     * :param map_index: The map index for the mapped task instance (from URL path)
+     * :param payload: Base64-encoded payload containing link metadata and expiration
+     * :param signature: HMAC signature for payload verification
+     * :param session: Database session for data retrieval
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.payload
+     * @param data.signature
+     * @returns HITLDetail Successful Response
+     * @throws ApiError
+     */
+    public static getMappedTiHitlShareLink(data: GetMappedTiHitlShareLinkData): CancelablePromise<GetMappedTiHitlShareLinkResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            query: {
+                payload: data.payload,
+                signature: data.signature
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+
+    /**
+     * Execute Hitl Share Link Action
+     * Execute an action via shared link (for action links).
+     *
+     * This endpoint allows external users to execute HITL task actions through a secure
+     * shared link. The link must be an action-type link, which enables direct execution
+     * of predefined actions (e.g., approve, reject) without requiring full Airflow
+     * authentication. The action is executed immediately and the HITL task is updated
+     * with the user's response.
+     *
+     * :param dag_id: The DAG identifier (from URL path)
+     * :param dag_run_id: The DAG run identifier (from URL path)
+     * :param task_id: The task identifier (from URL path)
+     * :param payload: Base64-encoded payload containing link metadata and expiration
+     * :param signature: HMAC signature for payload verification
+     * :param update_hitl_detail_payload: Payload containing the action response data
+     * :param session: Database session for data persistence
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.payload
+     * @param data.signature
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static executeHitlShareLinkAction(data: ExecuteHitlShareLinkActionData): CancelablePromise<ExecuteHitlShareLinkActionResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/action',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            query: {
+                payload: data.payload,
+                signature: data.signature
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+
+    /**
+     * Execute Mapped Ti Hitl Share Link Action
+     * Execute an action via shared link for mapped tasks (for action links).
+     *
+     * This endpoint allows external users to execute mapped HITL task actions through a secure
+     * shared link. The link must be an action-type link, which enables direct execution
+     * of predefined actions (e.g., approve, reject) for specific mapped task instances
+     * without requiring full Airflow authentication. The action is executed immediately
+     * and the mapped HITL task is updated with the user's response.
+     *
+     * :param dag_id: The DAG identifier (from URL path)
+     * :param dag_run_id: The DAG run identifier (from URL path)
+     * :param task_id: The task identifier (from URL path)
+     * :param map_index: The map index for the mapped task instance (from URL path)
+     * :param payload: Base64-encoded payload containing link metadata and expiration
+     * :param signature: HMAC signature for payload verification
+     * :param update_hitl_detail_payload: Payload containing the action response data
+     * :param session: Database session for data persistence
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.payload
+     * @param data.signature
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static executeMappedTiHitlShareLinkAction(data: ExecuteMappedTiHitlShareLinkActionData): CancelablePromise<ExecuteMappedTiHitlShareLinkActionResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/hitl-details/api/v2/hitl-details-share-link/{dag_id}/{dag_run_id}/{task_id}/{map_index}/action',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            query: {
+                payload: data.payload,
+                signature: data.signature
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+
 }
 
 export class MonitorService {
@@ -3516,7 +3814,7 @@ export class MonitorService {
             url: '/api/v2/monitor/health'
         });
     }
-    
+
 }
 
 export class VersionService {
@@ -3532,7 +3830,7 @@ export class VersionService {
             url: '/api/v2/version'
         });
     }
-    
+
 }
 
 export class LoginService {
@@ -3557,7 +3855,7 @@ export class LoginService {
             }
         });
     }
-    
+
     /**
      * Logout
      * Logout the user.
@@ -3579,7 +3877,7 @@ export class LoginService {
             }
         });
     }
-    
+
 }
 
 export class AuthLinksService {
@@ -3594,7 +3892,7 @@ export class AuthLinksService {
             url: '/ui/auth/menus'
         });
     }
-    
+
 }
 
 export class DependenciesService {
@@ -3619,7 +3917,7 @@ export class DependenciesService {
             }
         });
     }
-    
+
 }
 
 export class DashboardService {
@@ -3646,7 +3944,7 @@ export class DashboardService {
             }
         });
     }
-    
+
     /**
      * Dag Stats
      * Return basic DAG stats with counts of DAGs in various states.
@@ -3659,7 +3957,7 @@ export class DashboardService {
             url: '/ui/dashboard/dag_stats'
         });
     }
-    
+
 }
 
 export class StructureService {
@@ -3694,7 +3992,7 @@ export class StructureService {
             }
         });
     }
-    
+
 }
 
 export class GridService {
@@ -3732,7 +4030,7 @@ export class GridService {
             }
         });
     }
-    
+
     /**
      * Get Grid Runs
      * Get info about a run for the grid.
@@ -3767,7 +4065,7 @@ export class GridService {
             }
         });
     }
-    
+
     /**
      * Get Grid Ti Summaries
      * Get states for TIs / "groups" of TIs.
@@ -3803,7 +4101,7 @@ export class GridService {
             }
         });
     }
-    
+
     /**
      * Get Latest Run
      * Get information about the latest dag run by run_after.
@@ -3828,7 +4126,7 @@ export class GridService {
             }
         });
     }
-    
+
 }
 
 export class CalendarService {
@@ -3860,5 +4158,5 @@ export class CalendarService {
             }
         });
     }
-    
+
 }

@@ -1718,6 +1718,7 @@ def test_sensitive_values():
         ("core", "fernet_key"),
         ("api_auth", "jwt_secret"),
         ("api", "secret_key"),
+        ("api", "hitl_shared_link_secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),

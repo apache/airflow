@@ -590,6 +590,25 @@ class HITLDetail(BaseModel):
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
     response_received: Annotated[bool | None, Field(title="Response Received")] = False
+    link_type: Annotated[
+        str | None,
+        Field(
+            description="Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+            title="Link Type",
+        ),
+    ] = "action"
+    action: Annotated[
+        str | None,
+        Field(
+            description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
+            title="Action",
+        ),
+    ] = None
+    expires_in_hours: Annotated[
+        int | None, Field(description="Optional custom expiration time in hours", title="Expires In Hours")
+    ] = None
+    link_url: Annotated[str | None, Field(title="Link Url")] = None
+    expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
 
 
 class HITLDetailCollection(BaseModel):
@@ -599,6 +618,8 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+    response_content: Annotated[list[str] | None, Field(title="Response Content")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class HITLDetailResponse(BaseModel):
@@ -610,6 +631,11 @@ class HITLDetailResponse(BaseModel):
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    task_instance_id: Annotated[str | None, Field(title="Task Instance Id")] = None
+    link_url: Annotated[str | None, Field(title="Link Url")] = None
+    expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
+    action: Annotated[str | None, Field(title="Action")] = None
+    link_type: Annotated[str | None, Field(title="Link Type")] = "action"
 
 
 class HTTPExceptionResponse(BaseModel):
@@ -945,6 +971,23 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: Annotated[list[str], Field(title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    link_type: Annotated[
+        str | None,
+        Field(
+            description="Type of link to generate: 'action' for direct action or 'redirect' for UI interaction",
+            title="Link Type",
+        ),
+    ] = "action"
+    action: Annotated[
+        str | None,
+        Field(
+            description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
+            title="Action",
+        ),
+    ] = None
+    expires_in_hours: Annotated[
+        int | None, Field(description="Optional custom expiration time in hours", title="Expires In Hours")
+    ] = None
 
 
 class ValidationError(BaseModel):
