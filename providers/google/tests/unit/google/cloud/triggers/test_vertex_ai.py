@@ -222,7 +222,7 @@ class TestBaseVertexAIJobTrigger:
                 mock_wait_job.side_effect = mock.AsyncMock(return_value=mock_job)
 
                 generator = self.trigger.run()
-                event_actual = await generator.asend(None)  # type:ignore[attr-defined]
+                event_actual = await generator.asend(None)
 
         mock_wait_job.assert_awaited_once()
         mock_serialize_job.assert_called_once_with(mock_job)
@@ -243,7 +243,7 @@ class TestBaseVertexAIJobTrigger:
                 mock_wait_job.side_effect = AirflowException(TEST_ERROR_MESSAGE)
 
                 generator = self.trigger.run()
-                event_actual = await generator.asend(None)  # type:ignore[attr-defined]
+                event_actual = await generator.asend(None)
 
         assert event_actual == TriggerEvent(
             {
