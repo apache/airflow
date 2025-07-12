@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import pathlib
+from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pendulum
@@ -832,12 +833,23 @@ def test_get_task_groups_details_no_task_groups():
 
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
 def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -847,12 +859,23 @@ def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_fa
     return_value={"unit.openlineage.utils.custom_facet_fixture.get_additional_test_facet"},
 )
 def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 1
     assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
@@ -866,14 +889,25 @@ def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet
     },
 )
 def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=BashOperator(
-            task_id="test-task",
-            bash_command="exit 0;",
-            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=BashOperator(
+                task_id="test-task",
+                bash_command="exit 0;",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=BashOperator(
+                task_id="test-task",
+                bash_command="exit 0;",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -888,12 +922,23 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
     },
 )
 def test_get_user_provided_run_facets_with_multiple_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 2
     assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
@@ -909,12 +954,23 @@ def test_get_user_provided_run_facets_with_multiple_function_definition(mock_cus
     },
 )
 def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 1
     assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
@@ -926,12 +982,23 @@ def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_face
     return_value={"invalid_function"},
 )
 def test_get_user_provided_run_facets_with_invalid_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -941,12 +1008,23 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
     return_value={"providers.unit.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
 )
 def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -956,12 +1034,23 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
     return_value={"providers.unit.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
 )
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -1658,6 +1747,7 @@ def test_taskinstance_info_af3():
         run_id="test_run",
         try_number=1,
         map_index=2,
+        dag_version_id=ti_id,
     )
     start_date = timezone.datetime(2025, 1, 1)
 
