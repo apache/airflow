@@ -524,9 +524,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             session.add(dag_model)
             session.commit()
 
-            security_manager.sync_perm_for_dag(  # type: ignore
-                dag_id, access_control={role_name: permission_action}
-            )
+            security_manager.sync_perm_for_dag(dag_id, access_control={role_name: permission_action})
 
             assert get_auth_manager().get_authorized_dag_ids(user=user) == {"dag_id"}
 
@@ -558,9 +556,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             session.add(dag_model)
             session.commit()
 
-            security_manager.sync_perm_for_dag(  # type: ignore
-                dag_id, access_control={role_name: permission_action}
-            )
+            security_manager.sync_perm_for_dag(dag_id, access_control={role_name: permission_action})
 
             assert get_auth_manager().get_authorized_dag_ids(user=user) == set()
 
