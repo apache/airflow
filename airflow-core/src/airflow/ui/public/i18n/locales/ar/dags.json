@@ -6,14 +6,21 @@
       "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بالDag، بما في ذلك التشغيلات والمهام."
     }
   },
+  "favoriteDag": "تفضيل الDag",
   "filters": {
     "allRunTypes": "جميع أنواع التشغيلات",
     "allStates": "جميع الحالات",
+    "favorite": {
+      "all": "الكل",
+      "favorite": "تفضيل",
+      "unfavorite": "إلغاء التفضيل"
+    },
     "paused": {
       "active": "مفعّل",
       "all": "الكل",
       "paused": "متوقف"
-    }
+    },
+    "runIdPatternFilter": "بحث تشغيلات Dag"
   },
   "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {
@@ -83,5 +90,6 @@
       "desc": "الترتيب حسب التشغيل التالي (الأحدث-الأقدم)"
     },
     "placeholder": "الترتيب حسب"
-  }
+  },
+  "unfavoriteDag": "إلغاء تفضيل الDag"
 }
