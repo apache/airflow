@@ -508,6 +508,12 @@ For example:
 
   pre-commit run --hook-stage manual mypy-airflow --all-files
 
+To show unused mypy ignores for any providers/airflow etc, eg: run below command:
+
+.. code-block:: bash
+  export SHOW_UNUSED_MYPY_WARNINGS=true
+  pre-commit run --hook-stage manual mypy-airflow --all-files
+
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
 execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
 will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
