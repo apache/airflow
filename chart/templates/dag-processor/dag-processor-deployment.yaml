@@ -20,12 +20,7 @@
 ################################
 ## Airflow Dag Processor Deployment
 #################################
-{{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
-{{- $enabled := .Values.dagProcessor.enabled }}
-{{- if eq $enabled nil}}
-  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-{{- end }}
-{{- if $enabled }}
+{{- if eq (include "dagProcessor.enabled" .) "true" }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -273,6 +268,5 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
-{{- end }}
-{{- end }}
+        {{- end }}
 {{- end }}
