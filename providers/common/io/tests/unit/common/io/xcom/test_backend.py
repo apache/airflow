@@ -25,11 +25,10 @@ import airflow.models.xcom
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 
 pytestmark = [pytest.mark.db_test]
 
@@ -39,7 +38,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
     from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 else:
-    from airflow.io.path import ObjectStoragePath
+    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
     from airflow.models.xcom import BaseXCom, resolve_xcom_backend  # type: ignore[no-redef]
 
 

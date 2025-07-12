@@ -103,6 +103,7 @@ __lazy_imports = {
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",
     "Log": "airflow.models.log",
+    "HITLDetail": "airflow.models.hitl",
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
     "Param": "airflow.sdk.definitions.param",
