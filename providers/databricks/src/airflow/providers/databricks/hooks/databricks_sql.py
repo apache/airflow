@@ -30,7 +30,7 @@ from typing import (
     overload,
 )
 
-from databricks import sql  # type: ignore[attr-defined]
+from databricks import sql
 from databricks.sql.types import Row
 
 from airflow.exceptions import AirflowException
@@ -173,7 +173,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             raise AirflowException("SQL connection is not initialized")
         return cast("AirflowConnection", self._sql_conn)
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -258,7 +258,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
                     # TODO: adjust this to make testing easier
                     try:
-                        self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                        self._run_command(cur, sql_statement, parameters)
                     except Exception as e:
                         if t is None or t.is_alive():
                             raise DatabricksSqlExecutionError(
