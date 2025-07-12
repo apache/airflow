@@ -23,6 +23,7 @@ from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import PropertyMock, patch
+from urllib.parse import quote_plus
 
 import pandas as pd
 import polars as pl
@@ -35,24 +36,13 @@ from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
 
 TASK_ID = "databricks-sql-operator"
-DEFAULT_CONN_ID = "databricks_default"
+CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
-HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
+PORT = 443
+HTTP_PATH = f"https://{HOST}"
 TOKEN = "token"
-
-
-@pytest.fixture(autouse=True)
-def create_connection(create_connection_without_db):
-    create_connection_without_db(
-        Connection(
-            conn_id=DEFAULT_CONN_ID,
-            conn_type="databricks",
-            host=HOST,
-            login=None,
-            password=TOKEN,
-            extra=None,
-        )
-    )
+SCHEMA = "test_schema"
+CATALOG = "test_catalog"
 
 
 @pytest.fixture
@@ -105,6 +95,37 @@ def mock_get_requests():
 def mock_timer():
     with patch("threading.Timer") as mock_timer:
         yield mock_timer
+
+
+def make_mock_connection():
+    return Connection(
+        conn_id=CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        port=PORT,
+        login="token",
+        password=TOKEN,
+    )
+
+
+def test_sqlachemy_url_property(mock_get_conn):
+    mock_get_conn.return_value = make_mock_connection()
+    hook = DatabricksSqlHook(databricks_conn_id=CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA)
+    url = hook.sqlalchemy_url.render_as_string(hide_password=False)
+    assert url.startswith(f"databricks://token:{TOKEN}@{HOST}:{PORT}")
+    assert f"http_path={quote_plus(HTTP_PATH)}" in url
+    assert f"catalog={CATALOG}" in url
+    assert f"schema={SCHEMA}" in url
+
+
+def test_get_uri(mock_get_conn):
+    mock_get_conn.return_value = make_mock_connection()
+    hook = DatabricksSqlHook(databricks_conn_id=CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA)
+    uri = hook.get_uri()
+    assert uri.startswith(f"databricks://token:{TOKEN}@{HOST}:{PORT}")
+    assert f"http_path={quote_plus(HTTP_PATH)}" in uri
+    assert f"catalog={CATALOG}" in uri
+    assert f"schema={SCHEMA}" in uri
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
