@@ -176,6 +176,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
         conn = self.get_conn()
         url_query = {
             "http_path": self._http_path,
@@ -193,6 +198,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         )
 
     def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
         return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     @overload  # type: ignore[override]
