@@ -227,6 +227,7 @@ class DruidDbApiHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             context=self.context,
+            ssl_verify_cert=conn.extra_dejson.get("ssl_verify_cert", True),
         )
         self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn
