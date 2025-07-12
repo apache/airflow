@@ -82,7 +82,7 @@ class TestJiraOperator:
             jira_method_args={"project": "ABC"},
         )
 
-        op.execute(self.mock_context)  # type: ignore[arg-type]
+        op.execute(self.mock_context)
 
         assert mocked_jira_client.called
         assert mocked_jira_client.return_value.get_project_issues_count.called
@@ -97,7 +97,7 @@ class TestJiraOperator:
             jira_method_args={"jql": jql_str, "limit": "1"},
         )
 
-        op.execute(self.mock_context)  # type: ignore[arg-type]
+        op.execute(self.mock_context)
 
         assert mocked_jira_client.called
         assert mocked_jira_client.return_value.jql_get_list_of_tickets.called
@@ -112,7 +112,7 @@ class TestJiraOperator:
             jira_method_args={"issue_key": MINIMAL_TEST_TICKET.get("key"), "comment": "this is test comment"},
         )
 
-        op.execute(self.mock_context)  # type: ignore[arg-type]
+        op.execute(self.mock_context)
 
         assert mocked_jira_client.called
         assert mocked_jira_client.return_value.issue_add_comment.called
