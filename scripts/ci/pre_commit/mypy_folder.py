@@ -136,7 +136,7 @@ if show_unused_warnings == "true":
 else:
     mypy_cmd = f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"
 
-cmd = ["bash", "-c", f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"]
+cmd = ["bash", "-c", mypy_cmd]
 
 res = run_command_via_breeze_shell(
     cmd=cmd,
