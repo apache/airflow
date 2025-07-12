@@ -22,6 +22,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.types import DagRunType
 
 
 class GridTaskInstanceSummary(BaseModel):
@@ -58,3 +59,28 @@ class GridTISummaries(BaseModel):
     run_id: str
     dag_id: str
     task_instances: list[LightGridTaskInstanceSummary]
+
+
+class GridDAGRunwithTIs(BaseModel):
+    """DAG Run with Task Instances model for the Grid UI."""
+
+    run_id: str
+    queued_at: datetime | None
+    start_date: datetime | None
+    end_date: datetime | None
+    run_after: datetime
+    logical_date: datetime | None
+    state: TaskInstanceState | None
+    run_type: DagRunType
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    note: str | None
+    dag_version_id: str | None = None
+    dag_version_number: int | None = None
+    task_instances: list[GridTaskInstanceSummary]
+
+
+class GridResponse(BaseModel):
+    """Grid Response model for the Grid UI."""
+
+    dag_runs: list[GridDAGRunwithTIs]

@@ -27,8 +27,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    QueryDagRunRunTypesFilter,
+    QueryDagRunStateFilter,
+    QueryIncludeDownstream,
+    QueryIncludeUpstream,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -42,6 +47,8 @@ from airflow.api_fastapi.core_api.datamodels.ui.common import (
     LatestRunResponse,
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
+    GridDAGRunwithTIs,
+    GridResponse,
     GridTISummaries,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -50,11 +57,16 @@ from airflow.api_fastapi.core_api.services.ui.dag_version_service import DagVers
 from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _merge_node_dicts,
+    fill_task_instance_summaries,
+    get_child_task_map,
+    get_task_group_map,
 )
+from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import (
     get_task_group_children_getter,
@@ -254,6 +266,8 @@ def grid_data(
             data_interval_end=dag_run.data_interval_end,
             note=dag_run.note,
             task_instances=task_instance_summaries.get(dag_run.run_id, []),
+            dag_version_id=str(dag_run.dag_version_id) if dag_run.dag_version_id else None,
+            dag_version_number=dag_run.dag_version.version_number if dag_run.dag_version else None,
         )
         for dag_run in dag_runs
     ]
