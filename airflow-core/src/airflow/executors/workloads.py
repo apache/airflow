@@ -55,7 +55,7 @@ class TaskInstance(BaseModel):
     """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
 
     id: uuid.UUID
-
+    dag_version_id: uuid.UUID
     task_id: str
     dag_id: str
     run_id: str

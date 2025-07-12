@@ -49,7 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10,<4"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -77,10 +77,9 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    "google-cloud-aiplatform[evaluation,ray]>=1.73.0;python_version < '3.12'",
-    "google-cloud-aiplatform[evaluation]>=1.73.0;python_version >= '3.12'",
-    "ray[default]>=2.42.0 ; python_version >= '3.12' and python_version < '3.13'",
-    "google-cloud-bigquery-storage>=2.31.0; python_version >= '3.12'",
+    "google-cloud-aiplatform[evaluation]>=1.73.0",
+    "ray[default]>=2.42.0 ; python_version < '3.13'",
+    "google-cloud-bigquery-storage>=2.31.0 ; python_version < '3.13'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     "google-cloud-bigquery>=3.24.0",
