@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.0",
+            "default": "3.0.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -471,7 +471,7 @@
                         "cacheType": {
                             "description": "Cache eviction strategy for metric mappings. `lru` (Least Recently Used) evicts oldest accessed items, 'random' evicts randomly selected items.",
                             "type": "string",
-                            "default": "`lru`"
+                            "default": "lru"
                         },
                         "ttl": {
                             "description": "Time-to-live for cached metric mappings. Determines how long mappings remain in cache before expiring. Set to '0s' to disable expiration.",
