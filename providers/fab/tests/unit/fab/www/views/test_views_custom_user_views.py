@@ -88,7 +88,7 @@ class TestSecurity:
         self.delete_roles()
         self.db = SQLA(self.app)
 
-        self.client = self.app.test_client()
+        self.client = self.app.test_client()  # type:ignore
 
     def teardown_method(self):
         delete_user(self.app, "no_access")

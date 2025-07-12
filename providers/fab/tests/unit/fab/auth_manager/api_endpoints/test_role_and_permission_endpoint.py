@@ -63,7 +63,7 @@ class TestRoleEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
-        self.client = self.app.test_client()
+        self.client = self.app.test_client()  # type:ignore
 
     def teardown_method(self):
         """

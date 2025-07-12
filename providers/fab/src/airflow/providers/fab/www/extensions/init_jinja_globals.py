@@ -33,7 +33,7 @@ def init_jinja_globals(app, enable_plugins: bool):
     """Add extra globals variable to Jinja context."""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
-        server_timezone = pendulum.local_timezone().name
+        server_timezone = pendulum.local_timezone().name  # type: ignore[operator]
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
