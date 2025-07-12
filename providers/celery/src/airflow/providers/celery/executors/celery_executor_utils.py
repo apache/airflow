@@ -286,7 +286,7 @@ def send_task_to_executor(
 
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
-    return key, args, result  # type: ignore[return-value]
+    return key, args, result
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
