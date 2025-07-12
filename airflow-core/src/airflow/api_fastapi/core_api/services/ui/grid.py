@@ -17,17 +17,31 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections import Counter
 from collections.abc import Iterable
+from typing import Any
+from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import state_priority
+from airflow.api_fastapi.core_api.datamodels.ui.grid import GridTaskInstanceSummary
+from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
+from airflow.models.baseoperator import BaseOperator as DBBaseOperator
+from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmap import TaskMap
+from airflow.sdk import BaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.task_group import get_task_group_children_getter
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import get_task_group_children_getter, task_group_to_dict_grid
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -239,7 +253,7 @@ def fill_task_instance_summaries(
 
 def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
     """If we do not have TIs, we just get the structure from the DAG."""
-    nodes = [task_group_to_dict(child) for child in get_task_group_children_getter()(dag.task_group)]
+    nodes = [task_group_to_dict_grid(child) for child in get_task_group_children_getter()(dag.task_group)]
     return StructureDataResponse(nodes=nodes, edges=[])
 
 

@@ -120,14 +120,7 @@ class DagVersionService:
                 if next_dag_run and next_dag_run.created_dag_version:
                     next_version = next_dag_run.created_dag_version.version_number
 
-                    # Check if the right-side DagRun had mixed versions
-                    # to avoid visual overlap between indicators
-                    next_mixed_info = mixed_versions_info.get(next_dag_run.run_id, {})
-                    next_had_mixed_versions = next_mixed_info.get("has_mixed_versions", False)
-
-                    # Only show version change if version actually changed AND
-                    # the right-side DagRun didn't have mixed versions
-                    if next_version != dag_version_number and not next_had_mixed_versions:
+                    if next_version != dag_version_number:
                         is_version_changed = True
 
             version_changes.append(
@@ -140,6 +133,17 @@ class DagVersionService:
                     "latest_version_number": latest_version_number,
                 }
             )
+
+        # Post-process: Hide Mixed Version indicators when Version Change indicators exist
+        # If a DagRun has a version change, hide the mixed version indicator of the previous DagRun
+        for i, version_change in enumerate(version_changes):
+            if version_change["is_version_changed"]:
+                # Find the previous DagRun (next in list since it's chronologically ordered newest first)
+                prev_dag_run_index = i + 1
+                if prev_dag_run_index < len(version_changes):
+                    # Hide the mixed version indicator of the previous DagRun
+                    version_changes[prev_dag_run_index]["has_mixed_versions"] = False
+                    version_changes[prev_dag_run_index]["latest_version_number"] = None
 
         return version_changes
 

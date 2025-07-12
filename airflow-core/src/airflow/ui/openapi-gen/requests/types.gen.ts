@@ -1783,6 +1783,26 @@ export type ExtraMenuItem = {
 };
 
 /**
+ * DAG Run with Task Instances model for the Grid UI.
+ */
+export type GridDAGRunwithTIs = {
+    run_id: string;
+    queued_at: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    run_after: string;
+    logical_date: string | null;
+    state: TaskInstanceState | null;
+    run_type: DagRunType;
+    data_interval_start: string | null;
+    data_interval_end: string | null;
+    note: string | null;
+    dag_version_id?: string | null;
+    dag_version_number?: number | null;
+    task_instances: Array<GridTaskInstanceSummary>;
+};
+
+/**
  * Base Node serializer for responses.
  */
 export type GridNodeResponse = {
@@ -1791,6 +1811,13 @@ export type GridNodeResponse = {
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
+};
+
+/**
+ * Grid Response model for the Grid UI.
+ */
+export type GridResponse = {
+    dag_runs: Array<GridDAGRunwithTIs>;
 };
 
 /**
@@ -1810,7 +1837,7 @@ export type GridRunsResponse = {
     is_version_changed?: boolean;
     has_mixed_versions?: boolean;
     latest_version_number?: number | null;
-    readonly duration: number | null;
+    readonly duration: number;
 };
 
 /**
@@ -3006,6 +3033,24 @@ export type StructureDataData = {
 };
 
 export type StructureDataResponse2 = StructureDataResponse;
+
+export type GridDataData = {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    logicalDateGte?: string | null;
+    logicalDateLte?: string | null;
+    offset?: number;
+    orderBy?: string;
+    root?: string | null;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    state?: Array<(string)>;
+};
+
+export type GridDataResponse = GridResponse;
 
 export type GetDagStructureData = {
     dagId: string;
@@ -6163,6 +6208,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/{dag_id}': {
+        get: {
+            req: GridDataData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: GridResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
