@@ -20,10 +20,9 @@ import contextlib
 from collections.abc import Callable, Generator
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, ParamSpec, TypeVar, cast
 
 from airflow import settings
-from airflow.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession

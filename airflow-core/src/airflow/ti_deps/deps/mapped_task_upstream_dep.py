@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.taskinstance import TaskInstance
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -51,6 +51,7 @@ class MappedTaskUpstreamDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
+        from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         if isinstance(ti.task, MappedOperator):

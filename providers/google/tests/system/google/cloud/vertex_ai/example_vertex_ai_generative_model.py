@@ -30,10 +30,14 @@ from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, T
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.vertex_ai.experiment_service import (
+    CreateExperimentOperator,
+    DeleteExperimentOperator,
+    DeleteExperimentRunOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
     CreateCachedContentOperator,
-    DeleteExperimentRunOperator,
     GenerateFromCachedContentOperator,
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
@@ -115,6 +119,7 @@ def get_actual_models() -> dict[str, str]:
     return models
 
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODELS = get_actual_models()
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -163,8 +168,8 @@ METRICS = [
     "rouge_2",
     "rouge_l_sum",
 ]
-EXPERIMENT_NAME = "eval-experiment-airflow-operator"
-EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
+EXPERIMENT_NAME = f"eval-test-experiment-airflow-operator-{ENV_ID}"
+EXPERIMENT_RUN_NAME = f"eval-experiment-airflow-operator-run-{ENV_ID}"
 PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
 
 CACHED_MODEL = MODELS["cached-model"]
@@ -225,6 +230,20 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
 
+    create_experiment_task = CreateExperimentOperator(
+        task_id="create_experiment_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        experiment_name=EXPERIMENT_NAME,
+    )
+
+    delete_experiment_task = DeleteExperimentOperator(
+        task_id="delete_experiment_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        experiment_name=EXPERIMENT_NAME,
+    )
+
     # [START how_to_cloud_vertex_ai_run_evaluation_operator]
     run_evaluation_task = RunEvaluationOperator(
         task_id="run_evaluation_task",
@@ -239,15 +258,13 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
-    # [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
-    delete_experiment_run = DeleteExperimentRunOperator(
+    delete_experiment_run_task = DeleteExperimentRunOperator(
         task_id="delete_experiment_run_task",
         project_id=PROJECT_ID,
         location=REGION,
         experiment_name=EXPERIMENT_NAME,
         experiment_run_name=EXPERIMENT_RUN_NAME,
     )
-    # [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
 
     # [START how_to_cloud_vertex_ai_create_cached_content_operator]
     create_cached_content_task = CreateCachedContentOperator(
@@ -275,7 +292,7 @@ with DAG(
     # [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
 
     create_cached_content_task >> generate_from_cached_content_task
-    run_evaluation_task >> delete_experiment_run
+    create_experiment_task >> run_evaluation_task >> delete_experiment_run_task >> delete_experiment_task
 
     from tests_common.test_utils.watcher import watcher
 

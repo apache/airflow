@@ -24,6 +24,8 @@ from typing import Any
 
 from googleapiclient.discovery import Resource, build
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -34,7 +36,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def __init__(
         self,
-        api_version: str = "v2",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -46,6 +48,11 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         self.api_version = api_version
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        use_instead="airflow.providers.google.marketing_platform.hooks.display_video.get_conn_to_display_video",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn(self) -> Resource:
         """Retrieve connection to DisplayVideo."""
         if not self._conn:
@@ -89,6 +96,11 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        use_instead="airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_query(self, query: dict[str, Any]) -> dict:
         """
         Create a query.
@@ -98,6 +110,10 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         response = self.get_conn().queries().create(body=query).execute(num_retries=self.num_retries)
         return response
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        category=AirflowProviderDeprecationWarning,
+    )
     def delete_query(self, query_id: str) -> None:
         """
         Delete a stored query as well as the associated stored reports.
@@ -106,6 +122,11 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         self.get_conn().queries().delete(queryId=query_id).execute(num_retries=self.num_retries)
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        use_instead="airflow.providers.google.marketing_platform.hooks.display_video.get_sdf_download_operation",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_query(self, query_id: str) -> dict:
         """
         Retrieve a stored query.
@@ -115,11 +136,20 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         response = self.get_conn().queries().get(queryId=query_id).execute(num_retries=self.num_retries)
         return response
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        category=AirflowProviderDeprecationWarning,
+    )
     def list_queries(self) -> list[dict]:
         """Retrieve stored queries."""
         response = self.get_conn().queries().list().execute(num_retries=self.num_retries)
         return response.get("queries", [])
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        use_instead="airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation",
+        category=AirflowProviderDeprecationWarning,
+    )
     def run_query(self, query_id: str, params: dict[str, Any] | None) -> dict:
         """
         Run a stored query to generate a report.
@@ -131,6 +161,10 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             self.get_conn().queries().run(queryId=query_id, body=params).execute(num_retries=self.num_retries)
         )
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_report(self, query_id: str, report_id: str) -> dict:
         """
         Retrieve a report.
@@ -146,6 +180,11 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        use_instead="airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation",
+        category=AirflowProviderDeprecationWarning,
+    )
     def upload_line_items(self, line_items: Any) -> list[dict[str, Any]]:
         """
         Upload line items in CSV format.
@@ -167,6 +206,11 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response
 
+    @deprecated(
+        planned_removal_date="September 01, 2025",
+        use_instead="airflow.providers.google.marketing_platform.hooks.display_video.download_media",
+        category=AirflowProviderDeprecationWarning,
+    )
     def download_line_items(self, request_body: dict[str, Any]) -> list[Any]:
         """
         Retrieve line items in CSV format.
@@ -189,7 +233,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param body_request: Body request.
 
-        More information about body request n be found here:
+        More information about body request can be found here:
         https://developers.google.com/display-video/api/reference/rest/v1/sdfdownloadtasks/create
         """
         result = (
@@ -219,7 +263,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         Download media.
 
-        :param resource_name: of the media that is being downloaded.
+        :param resource_name: The resource name of the media that is being downloaded.
         """
         request = self.get_conn_to_display_video().media().download_media(resourceName=resource_name)
         return request

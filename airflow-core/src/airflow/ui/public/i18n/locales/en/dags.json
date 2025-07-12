@@ -6,14 +6,21 @@
       "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
     }
   },
+  "favoriteDag": "Favorite Dag",
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "favorite": {
+      "all": "All",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite"
+    },
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
-    }
+    },
+    "runIdPatternFilter": "Search Dag Runs"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
@@ -83,5 +90,6 @@
       "desc": "Sort by Next Dag Run (Latest-Earliest)"
     },
     "placeholder": "Sort by"
-  }
+  },
+  "unfavoriteDag": "Unfavorite Dag"
 }

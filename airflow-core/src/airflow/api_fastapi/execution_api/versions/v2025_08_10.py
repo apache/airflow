@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,18 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import setproctitle
+from cadwyn import VersionChange, schema
 
-from airflow import settings
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 
 
-def post_worker_init(_):
-    """
-    Set process title.
+class AddDagVersionIdField(VersionChange):
+    """Add the `dag_version_id` field to the TaskInstance model."""
 
-    This is used by airflow.cli.commands.api_server_command to track the status of the worker.
-    """
-    old_title = setproctitle.getproctitle()
-    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("dag_version_id").didnt_exist,)
