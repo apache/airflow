@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
+from itsdangerous import URLSafeSerializer
 from sqlalchemy import delete
 
 from airflow.configuration import conf
@@ -81,6 +83,54 @@ def _add_example_dag_bundle(config_list):
     )
 
 
+def _is_safe_bundle_url(url: str) -> bool:
+    """
+    Check if a bundle URL is safe to use.
+
+    This function validates that the URL:
+    - Uses HTTP or HTTPS schemes (no JavaScript, data, or other schemes)
+    - Is properly formatted
+    - Doesn't contain malicious content
+    """
+    from urllib.parse import urlparse
+
+    if not url:
+        return False
+
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"}:
+            return False
+
+        if not parsed.netloc:
+            return False
+
+        if ";" in url:
+            return False
+        if any(ord(c) < 32 for c in url):
+            return False
+
+        return True
+    except Exception:
+        return False
+
+
+def _sign_bundle_url(url: str, bundle_name: str) -> str:
+    """
+    Sign a bundle URL for integrity verification.
+
+    :param url: The URL to sign
+    :param bundle_name: The name of the bundle (used in the payload)
+    :return: The signed URL token
+    """
+    serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
+    payload = {
+        "url": url,
+        "bundle_name": bundle_name,
+    }
+    return serializer.dumps(payload)
+
+
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
@@ -124,12 +174,44 @@ class DagBundlesManager(LoggingMixin):
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
         self.log.debug("Syncing DAG bundles to the database")
+
+        def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
+            bundle_instance = self.get_bundle(name)
+            new_template_ = bundle_instance.view_url_template()
+            new_params_ = self._extract_template_params(bundle_instance)
+            if new_template_:
+                if not _is_safe_bundle_url(new_template_):
+                    self.log.warning(
+                        "Bundle %s has unsafe URL template '%s', skipping URL update",
+                        bundle_name,
+                        new_template_,
+                    )
+                    new_template_ = None
+                else:
+                    # Sign the URL for integrity verification
+                    new_template_ = _sign_bundle_url(new_template_, bundle_name)
+                    self.log.debug("Signed URL template for bundle %s", bundle_name)
+            return new_template_, new_params_
+
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
+
         for name in self._bundle_config.keys():
             if bundle := stored.pop(name, None):
                 bundle.active = True
+                new_template, new_params = _extract_and_sign_template(name)
+                if new_template != bundle.signed_url_template:
+                    bundle.signed_url_template = new_template
+                    self.log.debug("Updated URL template for bundle %s", name)
+                if new_params != bundle.template_params:
+                    bundle.template_params = new_params
+                    self.log.debug("Updated template parameters for bundle %s", name)
             else:
-                session.add(DagBundleModel(name=name))
+                new_template, new_params = _extract_and_sign_template(name)
+                new_bundle = DagBundleModel(name=name)
+                new_bundle.signed_url_template = new_template
+                new_bundle.template_params = new_params
+
+                session.add(new_bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
 
         for name, bundle in stored.items():
@@ -139,6 +221,23 @@ class DagBundlesManager(LoggingMixin):
 
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
+
+    @staticmethod
+    def _extract_template_params(bundle_instance: BaseDagBundle) -> dict:
+        """
+        Extract template parameters from a bundle instance using its template_fields.
+
+        :param bundle_instance: The bundle instance to extract parameters from
+        :return: Dictionary of template parameters
+        """
+        params = {}
+
+        # Extract values for each field specified in template_fields
+        for field_name in bundle_instance.template_fields:
+            field_value = getattr(bundle_instance, field_name, None)
+            if field_value:
+                params[field_name] = field_value
+        return params
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
         """
@@ -165,5 +264,12 @@ class DagBundlesManager(LoggingMixin):
             yield class_(name=name, version=None, **kwargs)
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
+        warnings.warn(
+            "The 'view_url' method is deprecated and will be removed when providers "
+            "have Airflow 3.1 as the minimum supported version. "
+            "Use DagBundleModel.render_url() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         bundle = self.get_bundle(name, version)
         return bundle.view_url(version=version)
