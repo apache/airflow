@@ -23,30 +23,33 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
-try:
-    import graphviz
-except ImportError:
-    warnings.warn(
-        "Could not import graphviz. Rendering graph to the graphical format will not be possible. \n"
-        "You might need to install the graphviz package and necessary system packages.\n"
-        "Run `pip install graphviz` to attempt to install it.",
-        UserWarning,
-        stacklevel=2,
-    )
-    graphviz = None
-
 from airflow.exceptions import AirflowException
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
+    import graphviz
+
     from airflow.models import TaskInstance
     from airflow.models.dag import DAG
     from airflow.models.taskmixin import DependencyMixin
     from airflow.serialization.dag_dependency import DagDependency
+else:
+    try:
+        import graphviz
+    except ImportError:
+        warnings.warn(
+            "Could not import graphviz. Rendering graph to the graphical format will not be possible. \n"
+            "You might need to install the graphviz package and necessary system packages.\n"
+            "Run `pip install graphviz` to attempt to install it.",
+            UserWarning,
+            stacklevel=2,
+        )
+        graphviz = None
 
 
 def _refine_color(color: str):
@@ -67,7 +70,7 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: MappedOperator | BaseOperator,
+    task: BaseOperator | MappedOperator | SerializedBaseOperator,
     parent_graph: graphviz.Digraph,
     states_by_task_id: dict[Any, Any] | None,
 ) -> None:
@@ -134,7 +137,7 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, (BaseOperator, MappedOperator)):
+    if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator)):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):

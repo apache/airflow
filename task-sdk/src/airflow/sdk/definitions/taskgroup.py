@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 def _default_parent_group() -> TaskGroup | None:
@@ -583,9 +584,10 @@ class TaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    def iter_tasks(self) -> Iterator[AbstractOperator]:
+    def iter_tasks(self) -> Iterator[AbstractOperator | SerializedBaseOperator]:
         """Return an iterator of the child tasks."""
         from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         groups_to_visit = [self]
 
@@ -593,7 +595,7 @@ class TaskGroup(DAGNode):
             visiting = groups_to_visit.pop(0)
 
             for child in visiting.children.values():
-                if isinstance(child, AbstractOperator):
+                if isinstance(child, (AbstractOperator, SerializedBaseOperator)):
                     yield child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
@@ -671,9 +673,9 @@ def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    if isinstance(task := task_item_or_group, AbstractOperator):
+    if isinstance(task := task_item_or_group, (AbstractOperator, SerializedBaseOperator)):
         setup_teardown_type = {}
         is_mapped = {}
         node_type = {"type": "task"}
@@ -683,7 +685,7 @@ def task_group_to_dict(task_item_or_group):
             setup_teardown_type["setup_teardown_type"] = "teardown"
         if isinstance(task, MappedOperator):
             is_mapped["is_mapped"] = True
-        if isinstance(task, BaseSensorOperator):
+        if getattr(task, "_is_sensor", False):
             node_type["type"] = "sensor"
         return {
             "id": task.task_id,

@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
@@ -60,7 +61,7 @@ def dag_edges(dag: DAG):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, AbstractOperator):
+        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator)):
             return
 
         for target_id in task_group.downstream_group_ids:

@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.sdk.types import Operator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
 
@@ -104,7 +105,12 @@ class PrevDagrunDep(BaseTIDep):
         )
 
     @staticmethod
-    def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator, *, session: Session) -> bool:
+    def _has_unsuccessful_dependants(
+        dagrun: DagRun,
+        task: Operator | SerializedBaseOperator,
+        *,
+        session: Session,
+    ) -> bool:
         """
         Check if any of the task's dependants are unsuccessful in a given run.
 

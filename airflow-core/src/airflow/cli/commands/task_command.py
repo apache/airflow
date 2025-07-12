@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
