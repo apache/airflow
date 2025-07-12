@@ -18,3 +18,5 @@
 # Pycharm needs to see this line. VSCode/pyright doesn't care about it, but this file needs to exist
 # https://github.com/microsoft/pyright/issues/9439#issuecomment-2468990559
 from __future__ import annotations
+
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)
