@@ -18,6 +18,7 @@
  */
 import { HStack, Text, Link } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export const AssetSchedule = ({ dag }: Props) => {
+  const { t: translate } = useTranslation("dags");
   const { data: nextRun, isLoading } = useAssetServiceNextRunAssets({ dagId: dag.dag_id });
 
   const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
@@ -72,8 +74,7 @@ export const AssetSchedule = ({ dag }: Props) => {
       <Popover.Trigger asChild>
         <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
-          {pendingEvents.length}
-          {nextRunEvents.length > 1 ? ` of ${nextRunEvents.length} ` : " "}assets updated
+          {translate("assetSchedule", { count: pendingEvents.length, total: nextRunEvents.length })}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">

@@ -283,6 +283,7 @@ def cleanup_tables(args):
         verbose=args.verbose,
         confirm=not args.yes,
         skip_archive=args.skip_archive,
+        batch_size=args.batch_size,
     )
 
 

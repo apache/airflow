@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
@@ -33,7 +34,7 @@ type DeleteDagButtonProps = {
 const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
-
+  const { t: translate } = useTranslation("dags");
   const { isPending, mutate: deleteDag } = useDeleteDag({
     dagId,
     onSuccessConfirm: () => {
@@ -45,11 +46,11 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
   return (
     <>
       <ActionButton
-        actionName="Delete DAG"
+        actionName={translate("dagActions.delete.button")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text="Delete DAG"
+        text={translate("dagActions.delete.button")}
         variant="solid"
         withText={withText}
       />
@@ -60,8 +61,8 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
         onDelete={() => deleteDag({ dagId })}
         open={open}
         resourceName={dagDisplayName}
-        title="Delete DAG"
-        warningText="This will remove all metadata related to the DAG, including DAG Runs and Tasks."
+        title={translate("dagActions.delete.button")}
+        warningText={translate("dagActions.delete.warning")}
       />
     </>
   );

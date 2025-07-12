@@ -18,6 +18,7 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -38,6 +39,7 @@ type Props = {
 const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+  const { t: translate } = useTranslation();
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
@@ -92,8 +94,13 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Clear Task Instance:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} />
+              <strong>
+                {translate("dags:runAndTaskActions.clear.title", {
+                  type: translate("taskInstance_one"),
+                })}
+                :
+              </strong>{" "}
+              {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -103,14 +110,32 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
+              defaultValues={["downstream"]}
               multiple
               onChange={setSelectedOptions}
               options={[
-                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
-                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
-                { label: "Upstream", value: "upstream" },
-                { label: "Downstream", value: "downstream" },
-                { label: "Only Failed", value: "onlyFailed" },
+                {
+                  disabled: taskInstance.logical_date === null,
+                  label: translate("dags:runAndTaskActions.options.past"),
+                  value: "past",
+                },
+                {
+                  disabled: taskInstance.logical_date === null,
+                  label: translate("dags:runAndTaskActions.options.future"),
+                  value: "future",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.upstream"),
+                  value: "upstream",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.downstream"),
+                  value: "downstream",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                  value: "onlyFailed",
+                },
               ]}
             />
           </Flex>
@@ -145,7 +170,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 }
               }}
             >
-              <CgRedo /> Confirm
+              <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

@@ -76,6 +76,7 @@ body:
         - influxdb
         - jdbc
         - jenkins
+        - keycloak
         - microsoft-azure
         - microsoft-mssql
         - microsoft-psrp

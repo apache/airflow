@@ -20,12 +20,14 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+# MAX XCOM Size is 48KB, check discussion: https://github.com/apache/airflow/pull/1618#discussion_r68249677
+MAX_XCOM_SIZE = 49344
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):

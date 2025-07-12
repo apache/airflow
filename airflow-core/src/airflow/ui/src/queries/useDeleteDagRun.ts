@@ -17,12 +17,12 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   useDagRunServiceDeleteDagRun,
   useDagRunServiceGetDagRunsKey,
   UseDagRunServiceGetDagRunKeyFn,
-  UseGridServiceGridDataKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -32,29 +32,28 @@ type DeleteDagRunParams = {
   onSuccessConfirm: () => void;
 };
 
-const onError = () => {
-  toaster.create({
-    description: "Delete DAG Run request failed.",
-    title: "Failed to delete DAG Run",
-    type: "error",
-  });
-};
-
 export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDagRunParams) => {
+  const { t: translate } = useTranslation();
   const queryClient = useQueryClient();
 
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("dags:runAndTaskActions.delete.error", { type: translate("dagRun_one") }),
+      type: "error",
+    });
+  };
+
   const onSuccess = async () => {
-    const queryKeys = [
-      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-      [useDagRunServiceGetDagRunsKey],
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
-    ];
+    const queryKeys = [UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }), [useDagRunServiceGetDagRunsKey]];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: "The DAG Run deletion request was successful.",
-      title: "DAG Run Deleted Successfully",
+      description: translate("dags:runAndTaskActions.delete.success.description", {
+        type: translate("dagRun_one"),
+      }),
+      title: translate("dags:runAndTaskActions.delete.success.title", { type: translate("dagRun_one") }),
       type: "success",
     });
 

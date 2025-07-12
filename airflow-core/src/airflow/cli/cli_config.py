@@ -24,8 +24,8 @@ import argparse
 import json
 import os
 import textwrap
-from collections.abc import Iterable
-from typing import Callable, NamedTuple, Union
+from collections.abc import Callable, Iterable
+from typing import NamedTuple
 
 import lazy_object_proxy
 
@@ -483,6 +483,15 @@ ARG_DB_RETRY_DELAY = Arg(
     type=positive_int(allow_zero=False),
     help="Wait time between retries in seconds",
 )
+ARG_DB_BATCH_SIZE = Arg(
+    ("--batch-size",),
+    default=None,
+    type=positive_int(allow_zero=False),
+    help=(
+        "Maximum number of rows to delete or archive in a single transaction.\n"
+        "Lower values reduce long-running locks but increase the number of batches."
+    ),
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -594,6 +603,12 @@ ARG_DB_SKIP_INIT = Arg(
     default=False,
 )
 
+ARG_DB_MANAGER_PATH = Arg(
+    ("import_path",),
+    help="The import path of the database manager to use. ",
+    default=None,
+)
+
 # api-server
 ARG_API_SERVER_PORT = Arg(
     ("-p", "--port"),
@@ -618,10 +633,10 @@ ARG_API_SERVER_HOSTNAME = Arg(
     default=conf.get("api", "host"),
     help="Set the host on which to run the API server",
 )
-ARG_API_SERVER_ACCESS_LOGFILE = Arg(
-    ("-A", "--access-logfile"),
-    default=conf.get("api", "access_logfile"),
-    help="The logfile to store the access log. Use '-' to print to stdout",
+ARG_API_SERVER_LOG_CONFIG = Arg(
+    ("--log-config",),
+    default=conf.get("api", "log_config", fallback=None),
+    help="(Optional) Path to the logging configuration file for the uvicorn server. If not set, the default uvicorn logging configuration will be used.",
 )
 ARG_API_SERVER_APPS = Arg(
     ("--apps",),
@@ -917,7 +932,7 @@ class GroupCommand(NamedTuple):
     epilog: str | None = None
 
 
-CLICommand = Union[ActionCommand, GroupCommand]
+CLICommand = ActionCommand | GroupCommand
 
 ASSETS_COMMANDS = (
     ActionCommand(
@@ -1446,6 +1461,7 @@ DB_COMMANDS = (
             ARG_VERBOSE,
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
+            ARG_DB_BATCH_SIZE,
         ),
     ),
     ActionCommand(
@@ -1725,6 +1741,59 @@ JOBS_COMMANDS = (
     ),
 )
 
+DB_MANAGERS_COMMANDS = (
+    ActionCommand(
+        name="reset",
+        help="Burn down and rebuild the specified external database",
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="migrate",
+        help="Migrates the specified external database to the latest version",
+        description=(
+            "Migrate the schema of the metadata database. "
+            "Create the database if it does not exist "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.migratedb"),
+        args=(
+            ARG_DB_MANAGER_PATH,
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="downgrade",
+        help="Downgrade the schema of the external metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--to-revision` or `--to-version`. "
+            "To print but not execute commands, use option `--show-sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* Alembic "
+            "revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.downgrade"),
+        args=(
+            ARG_DB_MANAGER_PATH,
+            ARG_DB_REVISION__DOWNGRADE,
+            ARG_DB_VERSION__DOWNGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_YES,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
@@ -1795,7 +1864,7 @@ core_commands: list[CLICommand] = [
             ARG_DAEMON,
             ARG_STDOUT,
             ARG_STDERR,
-            ARG_API_SERVER_ACCESS_LOGFILE,
+            ARG_API_SERVER_LOG_CONFIG,
             ARG_API_SERVER_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
@@ -1913,6 +1982,11 @@ core_commands: list[CLICommand] = [
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
         args=(),
+    ),
+    GroupCommand(
+        name="db-manager",
+        help="Manage externally connected database managers",
+        subcommands=DB_MANAGERS_COMMANDS,
     ),
 ]
 

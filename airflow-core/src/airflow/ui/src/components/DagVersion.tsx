@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type { DagVersionResponse } from "openapi/requests/types.gen";
 
@@ -24,13 +25,15 @@ import Time from "./Time";
 import { Tooltip } from "./ui";
 
 export const DagVersion = ({ version }: { readonly version: DagVersionResponse | null | undefined }) => {
+  const { t: translate } = useTranslation("components");
+
   if (version === null || version === undefined) {
     return undefined;
   }
 
   return (
     <Tooltip content={<Time datetime={version.created_at} />}>
-      <Text as="span">v{version.version_number}</Text>
+      <Text as="span">{translate("versionSelect.versionCode", { versionCode: version.version_number })}</Text>
     </Tooltip>
   );
 };

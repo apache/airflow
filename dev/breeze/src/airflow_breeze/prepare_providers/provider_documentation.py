@@ -195,6 +195,62 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
+def classification_result(provider_id, changed_files):
+    provider_path = f"providers/{provider_id}/"
+    changed_files = list(filter(lambda f: f.startswith(provider_path), changed_files))
+
+    if not changed_files:
+        return "other"
+
+    def is_doc(f):
+        return re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst")
+
+    def is_test_or_example(f):
+        return re.match(r"^providers/[^/]+/tests/", f) or re.match(
+            r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f
+        )
+
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
+        return "documentation"
+    if all_test_or_example:
+        return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
+    return "other"
+
+
+def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
+    """
+    Classify a provider commit based on changed files.
+
+    - Returns 'documentation' if any provider doc files are present.
+    - Returns 'test_or_example_only' if only test/example DAGs changed.
+    - Returns 'other' otherwise.
+    """
+    try:
+        result = run_command(
+            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
+            cwd=AIRFLOW_ROOT_PATH,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        changed_files = result.stdout.strip().splitlines()
+    except subprocess.CalledProcessError:
+        # safe to return other here
+        return "other"
+
+    return classification_result(provider_id, changed_files)
+
+
 def _get_git_log_command(
     folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
 ) -> list[str]:
@@ -732,6 +788,7 @@ def update_release_notes(
     :param base_branch: base branch to check changes in apache remote for changes
     :param regenerate_missing_docs: whether to regenerate missing docs
     :param non_interactive: run in non-interactive mode (useful for CI)
+    :param only_min_version_update: whether to only update min version
     :return: tuple of three bools: (with_breaking_change, maybe_with_new_features, with_min_airflow_version_bump)
     """
     proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
@@ -781,12 +838,28 @@ def update_release_notes(
                 formatted_message = format_message_for_classification(
                     list_of_list_of_changes[0][table_iter].message_without_backticks
                 )
-                get_console().print(
-                    f"[green]Define the type of change for "
-                    f"`{formatted_message}`"
-                    f" by referring to the above table[/]"
-                )
-                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                change = list_of_list_of_changes[0][table_iter]
+
+                classification = classify_provider_pr_files(provider_id, change.full_hash)
+                if classification == "documentation":
+                    get_console().print(
+                        f"[green]Automatically classifying change as DOCUMENTATION since it contains only doc changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.DOCUMENTATION
+                elif classification == "test_or_example_only":
+                    get_console().print(
+                        f"[green]Automatically classifying change as SKIPPED since it only contains test/example changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.SKIP
+                else:
+                    get_console().print(
+                        f"[green]Define the type of change for "
+                        f"`{formatted_message}`"
+                        f" by referring to the above table[/]"
+                    )
+                    type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
 
                 if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                     with_min_airflow_version_bump = True

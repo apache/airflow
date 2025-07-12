@@ -164,7 +164,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache-spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
@@ -396,6 +396,8 @@ pre-installed when Airflow is installed.
 | imap                | ``pip install 'apache-airflow[imap]'``              | IMAP hooks and sensors               |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators             |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| keycloak            | ``pip install apache-airflow[keycloak]``            | Keycloak hooks and operators         |              +
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | microsoft-psrp      | ``pip install 'apache-airflow[microsoft-psrp]'``    | PSRP hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

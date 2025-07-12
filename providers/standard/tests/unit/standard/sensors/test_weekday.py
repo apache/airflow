@@ -26,11 +26,11 @@ from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils import db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -143,10 +143,10 @@ class TestDayOfWeekSensor:
                 use_task_logical_date=True,
                 dag=dag,
             )
-            dr = dag_maker.create_dagrun(
-                run_id="manual_run",
-                start_date=DEFAULT_DATE,
-                logical_date=None,
-                **{"run_after": timezone.utcnow()},
-            )
-            assert op.poke(context={"logical_date": None, "dag_run": dr}) is True
+        dr = dag_maker.create_dagrun(
+            run_id="manual_run",
+            start_date=DEFAULT_DATE,
+            logical_date=None,
+            **{"run_after": timezone.utcnow()},
+        )
+        assert op.poke(context={"logical_date": None, "dag_run": dr}) is True

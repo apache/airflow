@@ -21,7 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase, FiHome } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 
-import { useAuthLinksServiceGetAuthMenus, useVersionServiceGetVersion } from "openapi/queries";
+import {
+  useAuthLinksServiceGetAuthMenus,
+  useVersionServiceGetVersion,
+  usePluginServiceGetPlugins,
+} from "openapi/queries";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
 
@@ -36,15 +40,35 @@ import { UserSettingsButton } from "./UserSettingsButton";
 export const Nav = () => {
   const { data } = useVersionServiceGetVersion();
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
+  const { data: pluginData } = usePluginServiceGetPlugins();
   const { t: translate } = useTranslation("common");
+
+  // Get external views with nav destination
+  const navExternalViews =
+    pluginData?.plugins
+      .flatMap((plugin) => plugin.external_views)
+      .filter((view) => view.destination === "nav") ?? [];
+
+  // Categorize external views by their category
+  const browseViews = navExternalViews.filter((view) => view.category?.toLowerCase() === "browse");
+  const adminViews = navExternalViews.filter((view) => view.category?.toLowerCase() === "admin");
+  const docsViews = navExternalViews.filter((view) => view.category?.toLowerCase() === "docs");
+  const userViews = navExternalViews.filter((view) => view.category?.toLowerCase() === "user");
 
   return (
     <VStack
+      _ltr={{
+        left: 0,
+        right: "auto",
+      }}
+      _rtl={{
+        left: "auto",
+        right: 0,
+      }}
       alignItems="center"
       bg="blue.muted"
       height="100%"
       justifyContent="space-between"
-      left={0}
       position="fixed"
       py={3}
       top={0}
@@ -61,7 +85,7 @@ export const Nav = () => {
         <NavButton
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
           icon={<DagIcon height="1.75rem" width="1.75rem" />}
-          title="Dags"
+          title={translate("nav.dags")}
           to="dags"
         />
         <NavButton
@@ -70,14 +94,24 @@ export const Nav = () => {
           title={translate("nav.assets")}
           to="assets"
         />
-        <BrowseButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
-        <AdminButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
+        <BrowseButton
+          authorizedMenuItems={authLinks?.authorized_menu_items ?? []}
+          externalViews={browseViews}
+        />
+        <AdminButton
+          authorizedMenuItems={authLinks?.authorized_menu_items ?? []}
+          externalViews={adminViews}
+        />
         <SecurityButton />
         <PluginMenus />
       </Flex>
       <Flex flexDir="column">
-        <DocsButton showAPI={authLinks?.authorized_menu_items.includes("Docs")} version={data?.version} />
-        <UserSettingsButton />
+        <DocsButton
+          externalViews={docsViews}
+          showAPI={authLinks?.authorized_menu_items.includes("Docs")}
+          version={data?.version}
+        />
+        <UserSettingsButton externalViews={userViews} />
       </Flex>
     </VStack>
   );

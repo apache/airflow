@@ -41,16 +41,9 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: System tests
-
-    System Tests <_api/tests/system/standard/index>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-standard/|version|/providers/standard/tests/system/standard>
+    Example DAGs <_api/airflow/providers/standard/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-standard/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/standard/index>
@@ -73,7 +66,7 @@ apache-airflow-providers-standard package
 Airflow Standard Provider
 
 
-Release: 1.2.0
+Release: 1.4.0
 
 Provider package
 ----------------

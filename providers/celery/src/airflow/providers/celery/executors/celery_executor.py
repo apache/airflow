@@ -30,7 +30,6 @@ import math
 import operator
 import time
 from collections import Counter
-from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any
@@ -157,6 +156,32 @@ ARG_WITHOUT_GOSSIP = Arg(
     help="Don't subscribe to other workers events",
     action="store_true",
 )
+ARG_OUTPUT = Arg(
+    (
+        "-o",
+        "--output",
+    ),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="table",
+)
+ARG_FULL_CELERY_HOSTNAME = Arg(
+    ("-H", "--celery-hostname"),
+    required=True,
+    help="Specify the full celery hostname. example: celery@hostname",
+)
+ARG_REQUIRED_QUEUES = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to serve",
+    required=True,
+)
+ARG_YES = Arg(
+    ("-y", "--yes"),
+    help="Do not prompt to confirm. Use with care!",
+    action="store_true",
+    default=False,
+)
 
 CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
 
@@ -206,6 +231,42 @@ CELERY_COMMANDS = (
         help="Stop the Celery worker gracefully",
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.stop_worker"),
         args=(ARG_PID, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="list-workers",
+        help="List active celery workers",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.list_workers"),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name="shutdown-worker",
+        help="Request graceful shutdown of celery workers",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_worker"),
+        args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="shutdown-all-workers",
+        help="Request graceful shutdown of all active celery workers",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_all_workers"),
+        args=(ARG_YES,),
+    ),
+    ActionCommand(
+        name="add-queue",
+        help="Subscribe Celery worker to specified queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.add_queue"),
+        args=(
+            ARG_REQUIRED_QUEUES,
+            ARG_FULL_CELERY_HOSTNAME,
+        ),
+    ),
+    ActionCommand(
+        name="remove-queue",
+        help="Unsubscribe Celery worker from specified queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_queue"),
+        args=(
+            ARG_REQUIRED_QUEUES,
+            ARG_FULL_CELERY_HOSTNAME,
+        ),
     ),
 )
 

@@ -1060,6 +1060,55 @@ class TestBulkVariables(TestVariableEndpoint):
             assert response_data[key] == value
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
 
+    @pytest.mark.parametrize(
+        "entity_key, entity_value, entity_description",
+        [
+            (
+                "my_dict_var_param",
+                {"name": "Test Dict Param", "id": 123, "active": True},
+                "A dict value (param)",
+            ),
+            ("my_list_var_param", ["alpha", 42, False, {"nested": "item param"}], "A list value (param)"),
+            ("my_string_var_param", "plain string param", "A plain string (param)"),
+        ],
+        ids=[
+            "dict_variable",
+            "list_variable",
+            "string_variable",
+        ],
+    )
+    def test_bulk_create_entity_serialization(
+        self, test_client, session, entity_key, entity_value, entity_description
+    ):
+        actions = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [
+                        {"key": entity_key, "value": entity_value, "description": entity_description},
+                    ],
+                    "action_on_existence": "fail",
+                }
+            ]
+        }
+
+        response = test_client.patch("/variables", json=actions)
+        assert response.status_code == 200
+
+        if isinstance(entity_value, (dict, list)):
+            retrieved_value_deserialized = Variable.get(entity_key, deserialize_json=True)
+            assert retrieved_value_deserialized == entity_value
+            retrieved_value_raw_string = Variable.get(entity_key, deserialize_json=False)
+            assert retrieved_value_raw_string == json.dumps(entity_value, indent=2)
+        else:
+            retrieved_value_raw = Variable.get(entity_key, deserialize_json=False)
+            assert retrieved_value_raw == str(entity_value)
+
+            with pytest.raises(json.JSONDecodeError):
+                Variable.get(entity_key, deserialize_json=True)
+
+        check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
+
     def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/variables", json={})
         assert response.status_code == 401

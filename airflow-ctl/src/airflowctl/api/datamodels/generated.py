@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
@@ -21,7 +21,7 @@ class AppBuilderMenuItemResponse(BaseModel):
         extra="allow",
     )
     name: Annotated[str, Field(title="Name")]
-    href: Annotated[str | None, Field(title="Href")] = None
+    href: Annotated[str, Field(title="Href")]
     category: Annotated[str | None, Field(title="Category")] = None
 
 
@@ -55,16 +55,6 @@ class BaseInfoResponse(BaseModel):
     """
 
     status: Annotated[str | None, Field(title="Status")] = None
-
-
-class BulkAction(str, Enum):
-    """
-    Bulk Action to be performed on the used model.
-    """
-
-    CREATE = "create"
-    DELETE = "delete"
-    UPDATE = "update"
 
 
 class BulkActionNotOnExistence(str, Enum):
@@ -108,11 +98,26 @@ class BulkActionResponse(BaseModel):
     ] = []
 
 
+class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
 class BulkDeleteActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
@@ -123,7 +128,9 @@ class BulkDeleteActionPoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
@@ -134,7 +141,9 @@ class BulkDeleteActionVariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
@@ -162,6 +171,10 @@ class BulkResponse(BaseModel):
         BulkActionResponse | None,
         Field(description="Details of the bulk delete operation, including successful keys and errors."),
     ] = None
+
+
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class TaskIds(RootModel[list]):
@@ -295,10 +308,6 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
-
-
-class Note(RootModel[str]):
-    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class DAGRunPatchStates(str, Enum):
@@ -459,6 +468,17 @@ class DagWarningType(str, Enum):
     NON_EXISTENT_POOL = "non-existent pool"
 
 
+class DeadlineAlertResponse(BaseModel):
+    """
+    Deadline alert serializer for responses.
+    """
+
+    reference: Annotated[str, Field(title="Reference")]
+    interval: Annotated[timedelta, Field(title="Interval")]
+    callback: Annotated[str, Field(title="Callback")]
+    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -492,6 +512,31 @@ class ExternalLogUrlResponse(BaseModel):
     """
 
     url: Annotated[str, Field(title="Url")]
+
+
+class Destination(str, Enum):
+    NAV = "nav"
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK = "task"
+    TASK_INSTANCE = "task_instance"
+
+
+class ExternalViewResponse(BaseModel):
+    """
+    Serializer for External View Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+    href: Annotated[str, Field(title="Href")]
 
 
 class ExtraLinkCollectionResponse(BaseModel):
@@ -528,35 +573,51 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class HITLDetail(BaseModel):
+    """
+    Schema for Human-in-the-loop detail.
+    """
+
+    ti_id: Annotated[str, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    user_id: Annotated[str | None, Field(title="User Id")] = None
+    response_at: Annotated[datetime | None, Field(title="Response At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    response_received: Annotated[bool | None, Field(title="Response Received")] = False
+
+
+class HITLDetailCollection(BaseModel):
+    """
+    Schema for a collection of Human-in-the-loop details.
+    """
+
+    hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Response of updating a Human-in-the-loop detail.
+    """
+
+    user_id: Annotated[str, Field(title="User Id")]
+    response_at: Annotated[datetime, Field(title="Response At")]
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
 class HTTPExceptionResponse(BaseModel):
     """
     HTTPException Model used for error response.
     """
 
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
-
-
-class Destination(str, Enum):
-    NAV = "nav"
-    DAG = "dag"
-    DAG_RUN = "dag_run"
-    TASK = "task"
-    TASK_INSTANCE = "task_instance"
-
-
-class IFrameViewsResponse(BaseModel):
-    """
-    Serializer for IFrame Plugin responses.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    name: Annotated[str, Field(title="Name")]
-    src: Annotated[str, Field(title="Src")]
-    icon: Annotated[str | None, Field(title="Icon")] = None
-    url_route: Annotated[str | None, Field(title="Url Route")] = None
-    destination: Annotated[Destination | None, Field(title="Destination")] = None
 
 
 class ImportErrorResponse(BaseModel):
@@ -613,28 +674,6 @@ class PluginImportErrorResponse(BaseModel):
 
     source: Annotated[str, Field(title="Source")]
     error: Annotated[str, Field(title="Error")]
-
-
-class PluginResponse(BaseModel):
-    """
-    Plugin serializer.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    macros: Annotated[list[str], Field(title="Macros")]
-    flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
-    fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
-    fastapi_root_middlewares: Annotated[
-        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
-    ]
-    iframe_views: Annotated[list[IFrameViewsResponse], Field(title="Iframe Views")]
-    appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
-    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
-    global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
-    operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
-    source: Annotated[str, Field(title="Source")]
-    listeners: Annotated[list[str], Field(title="Listeners")]
-    timetables: Annotated[list[str], Field(title="Timetables")]
 
 
 class PoolBody(BaseModel):
@@ -703,6 +742,23 @@ class QueuedEventResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
+class ReactAppResponse(BaseModel):
+    """
+    Serializer for React App Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    category: Annotated[str | None, Field(title="Category")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
+    bundle_url: Annotated[str, Field(title="Bundle Url")]
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -743,6 +799,20 @@ class TaskDependencyResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     reason: Annotated[str, Field(title="Reason")]
+
+
+class TaskInletAssetReference(BaseModel):
+    """
+    Task inlet reference serializer for assets.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    created_at: Annotated[datetime, Field(title="Created At")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
 class TaskInstanceState(str, Enum):
@@ -866,6 +936,15 @@ class TriggererInfoResponse(BaseModel):
 
     status: Annotated[str | None, Field(title="Status")] = None
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")] = None
+
+
+class UpdateHITLDetailPayload(BaseModel):
+    """
+    Schema for updating the content of a Human-in-the-loop detail.
+    """
+
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class ValidationError(BaseModel):
@@ -1019,8 +1098,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
+    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None
 
@@ -1065,7 +1145,9 @@ class BulkCreateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be created.", title="Entities")
     ]
@@ -1076,7 +1158,9 @@ class BulkCreateActionPoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be created.", title="Entities")
     ]
@@ -1087,18 +1171,53 @@ class BulkCreateActionVariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be created.", title="Entities")
     ]
     action_on_existence: BulkActionOnExistence | None = "fail"
 
 
+class BulkTaskInstanceBody(BaseModel):
+    """
+    Request body for bulk update, and delete task instances.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    new_state: TaskInstanceState | None = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
+    include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
+    include_future: Annotated[bool | None, Field(title="Include Future")] = False
+    include_past: Annotated[bool | None, Field(title="Include Past")] = False
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
+class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkTaskInstanceBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
 class BulkUpdateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
@@ -1109,7 +1228,9 @@ class BulkUpdateActionPoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
@@ -1120,7 +1241,9 @@ class BulkUpdateActionVariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
@@ -1163,6 +1286,7 @@ class DAGDetailsResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1219,6 +1343,7 @@ class DAGResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1262,6 +1387,7 @@ class DAGRunResponse(BaseModel):
     queued_at: Annotated[datetime | None, Field(title="Queued At")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")] = None
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    duration: Annotated[float | None, Field(title="Duration")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
@@ -1269,6 +1395,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None = None
+    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
@@ -1395,15 +1522,6 @@ class PatchTaskInstanceBody(BaseModel):
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
 
 
-class PluginCollectionResponse(BaseModel):
-    """
-    Plugin Collection serializer.
-    """
-
-    plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
-
-
 class PluginImportErrorCollectionResponse(BaseModel):
     """
     Plugin Import Error Collection serializer.
@@ -1411,6 +1529,35 @@ class PluginImportErrorCollectionResponse(BaseModel):
 
     import_errors: Annotated[list[PluginImportErrorResponse], Field(title="Import Errors")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class PluginResponse(BaseModel):
+    """
+    Plugin serializer.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    macros: Annotated[list[str], Field(title="Macros")]
+    flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
+    fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
+    fastapi_root_middlewares: Annotated[
+        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
+    ]
+    external_views: Annotated[
+        list[ExternalViewResponse],
+        Field(
+            description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here.",
+            title="External Views",
+        ),
+    ]
+    react_apps: Annotated[list[ReactAppResponse], Field(title="React Apps")]
+    appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
+    appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
+    global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
+    operator_extra_links: Annotated[list[str], Field(title="Operator Extra Links")]
+    source: Annotated[str, Field(title="Source")]
+    listeners: Annotated[list[str], Field(title="Listeners")]
+    timetables: Annotated[list[str], Field(title="Timetables")]
 
 
 class PoolCollectionResponse(BaseModel):
@@ -1488,6 +1635,7 @@ class TaskInstanceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_version: DagVersionResponse
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
@@ -1517,7 +1665,6 @@ class TaskInstanceResponse(BaseModel):
     rendered_fields: Annotated[dict[str, Any] | None, Field(title="Rendered Fields")] = None
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
-    dag_version: DagVersionResponse | None = None
 
 
 class TaskResponse(BaseModel):
@@ -1633,6 +1780,19 @@ class BulkBodyVariableBody(BaseModel):
     ]
 
 
+class BulkCreateActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkTaskInstanceBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
+
+
 class DAGCollectionResponse(BaseModel):
     """
     DAG Collection serializer for responses.
@@ -1669,6 +1829,15 @@ class DagStatsCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class PluginCollectionResponse(BaseModel):
+    """
+    Plugin Collection serializer.
+    """
+
+    plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
 class TaskCollectionResponse(BaseModel):
     """
     Task collection serializer for responses.
@@ -1694,3 +1863,17 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class BulkBodyBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionBulkTaskInstanceBody
+            | BulkUpdateActionBulkTaskInstanceBody
+            | BulkDeleteActionBulkTaskInstanceBody
+        ],
+        Field(title="Actions"),
+    ]

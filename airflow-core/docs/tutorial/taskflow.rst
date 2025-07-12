@@ -73,7 +73,7 @@ connected.
 Step 2: Write Your Tasks with ``@task``
 ---------------------------------------
 
-With Taskflow, each task is just a regular Python function. You can use the ``@task`` decorator to turn it into a task
+With TaskFlow, each task is just a regular Python function. You can use the ``@task`` decorator to turn it into a task
 that Airflow can schedule and run. Here's the ``extract`` task:
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
@@ -174,7 +174,7 @@ Here's what the same DAG might have looked like using the traditional approach:
 .. note::
    This version produces the same result as the TaskFlow API example, but requires explicit management of ``XComs`` and task dependencies.
 
-The Taskflow Way
+The TaskFlow Way
 ''''''''''''''''
 
 Using TaskFlow, all of this is handled automatically.
@@ -240,7 +240,7 @@ Nice work! You've now written your first pipeline using the TaskFlow API. Curiou
 
 .. _advanced-taskflow-patterns:
 
-Advanced Taskflow Patterns
+Advanced TaskFlow Patterns
 --------------------------
 
 Once you're comfortable with the basics, here are a few powerful techniques you can try.
@@ -270,7 +270,7 @@ system-level packages. TaskFlow supports multiple execution environments to isol
 Creates a temporary virtualenv at task runtime. Great for experimental or dynamic tasks, but may have cold start
 overhead.
 
-.. exampleinclude:: /../../providers/standard/tests/system/standard/example_python_decorator.py
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags//example_python_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_python_venv]
@@ -284,7 +284,7 @@ overhead.
 
 Executes the task using a pre-installed Python interpreter — ideal for consistent environments or shared virtualenvs.
 
-.. exampleinclude:: /../../providers/standard/tests/system/standard/example_python_decorator.py
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags//example_python_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_python]
@@ -334,7 +334,7 @@ Using Sensors
 Use ``@task.sensor`` to build lightweight, reusable sensors using Python functions. These support both poke and reschedule
 modes.
 
-.. exampleinclude:: /../../providers/standard/tests/system/standard/example_sensor_decorator.py
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags//example_sensor_decorator.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -345,7 +345,7 @@ Mixing with Traditional Tasks
 You can combine decorated tasks with classic Operators. This is helpful when using community providers or when migrating
 incrementally to TaskFlow.
 
-You can chain Taskflow and traditional tasks using ``>>`` or pass data using the ``.output`` attribute.
+You can chain TaskFlow and traditional tasks using ``>>`` or pass data using the ``.output`` attribute.
 
 .. _taskflow/accessing_context_variables:
 

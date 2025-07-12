@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.9")
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
@@ -83,7 +83,7 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 # commands that might change the installed version of apache-airflow should include "apache-airflow==X.Y.Z"
 # in the list of install targets to prevent Airflow accidental upgrade or downgrade.
 #
-# Typical installation process of airflow for Python 3.9 is (with random selection of extras and custom
+# Typical installation process of airflow for Python 3.10 is (with random selection of extras and custom
 # dependencies added), usually consists of two steps:
 #
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):
@@ -346,7 +346,25 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     providers are used by our users to install Airflow in reproducible way.
     :return:
     """
-    run_command(
+
+    # In case we have some problems with installing highest resolution of a dependency of one of our
+    # providers in PyPI - we can exclude the buggy version here. For example this happened with
+    # sqlalchemy-spanner==1.12.0 which did not have `whl` file in PyPI and was not installable
+    # and in this case we excluded it by adding ""sqlalchemy-spanner!=1.12.0" to the list below.
+    # In case we add exclusion here we should always link to the issue in the target dependency
+    # repository that tracks the problem with the dependency (we should create one if it does not exist).
+    #
+    # Example exclusion (not needed any more as sqlalchemy-spanner==1.12.0has been yanked in PyPI):
+    #
+    # additional_constraints_for_highest_resolution: list[str] = ["sqlalchemy-spanner!=1.12.0"]
+    #
+    # Current exclusions:
+    #
+    # * no exclusions
+    #
+    additional_constraints_for_highest_resolution: list[str] = []
+
+    result = run_command(
         cmd=[
             "uv",
             "pip",
@@ -356,6 +374,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "apache-airflow-core[all]",
             "apache-airflow-task-sdk",
             "./airflow-ctl",
+            *additional_constraints_for_highest_resolution,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
@@ -363,8 +382,16 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "file://" + str(AIRFLOW_DIST_PATH),
         ],
         github_actions=config_params.github_actions,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        console.print(
+            "[red]Failed to install airflow with PyPI providers with highest resolution.[/]\n"
+            "[yellow]Please check the output above for details. One of they ways how to resolve it, in "
+            "case it is caused by a specific broken dependency version, is to exclude it above in the "
+            f"`additional_constraints_for_highest_resolution` list in [/] {__file__}"
+        )
+        sys.exit(result.returncode)
     console.print("[success]Installed airflow with PyPI providers with eager upgrade.")
     distributions_to_exclude_from_constraints = get_locally_build_distribution_specs()
     with config_params.current_constraints_file.open("w") as constraints_file:

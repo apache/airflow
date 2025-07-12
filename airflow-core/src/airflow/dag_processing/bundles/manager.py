@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
+
+from sqlalchemy import delete
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle
 
 _example_dag_bundle_name = "example_dags"
-_example_standard_dag_bundle_name = "example_standard_dags"
 
 
 def _bundle_item_exc(msg):
@@ -82,25 +81,6 @@ def _add_example_dag_bundle(config_list):
     )
 
 
-def _add_example_standard_dag_bundle(config_list):
-    # TODO(potiuk): make it more generic - for now we only add standard example_dags if they are locally available
-    try:
-        from system import standard
-    except ImportError:
-        return
-
-    example_dag_folder = next(iter(standard.__path__))
-    config_list.append(
-        {
-            "name": _example_standard_dag_bundle_name,
-            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-            "kwargs": {
-                "path": example_dag_folder,
-            },
-        }
-    )
-
-
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
@@ -133,11 +113,6 @@ class DagBundlesManager(LoggingMixin):
         _validate_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             _add_example_dag_bundle(config_list)
-            if (
-                os.environ.get("BREEZE", "").lower() == "true"
-                or os.environ.get("_IN_UNIT_TESTS", "").lower() == "true"
-            ):
-                _add_example_standard_dag_bundle(config_list)
 
         for cfg in config_list:
             name = cfg["name"]
@@ -150,35 +125,20 @@ class DagBundlesManager(LoggingMixin):
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
         self.log.debug("Syncing DAG bundles to the database")
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
-        active_bundle_names = set(self._bundle_config.keys())
-        for name in active_bundle_names:
+        for name in self._bundle_config.keys():
             if bundle := stored.pop(name, None):
                 bundle.active = True
             else:
                 session.add(DagBundleModel(name=name))
                 self.log.info("Added new DAG bundle %s to the database", name)
-        inactive_bundle_names = []
+
         for name, bundle in stored.items():
             bundle.active = False
-            inactive_bundle_names.append(name)
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+            from airflow.models.errors import ParseImportError
 
-        if inactive_bundle_names and active_bundle_names:
-            new_bundle_name = sorted(active_bundle_names)[0]
-            updated_rows = (
-                session.query(DagVersion)
-                .filter(DagVersion.bundle_name.in_(inactive_bundle_names))
-                .update(
-                    {DagVersion.bundle_name: new_bundle_name},
-                    synchronize_session=False,
-                )
-            )
-
-            self.log.info(
-                "Updated %d DAG versions from inactive bundles to active bundle %s",
-                updated_rows,
-                new_bundle_name,
-            )
+            session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
+            self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
         """

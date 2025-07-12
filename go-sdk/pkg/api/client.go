@@ -59,7 +59,7 @@ func (c *Client) WithBearerToken(token string) (ClientInterface, error) {
 
 	// We don't use SetAuthToken/SetAuthScheme, as that produces a (valid, but annoying) warning about using Auth
 	// over HTTP: "Using sensitive credentials in HTTP mode is not secure." It's a time-limited-token though, so we
-	// can reasonably ignore that herej and setting the header directly by-passes that
+	// can reasonably ignore that here and setting the header directly by-passes that
 	rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	opts := []ClientOption{

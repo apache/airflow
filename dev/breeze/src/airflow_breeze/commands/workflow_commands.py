@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 
@@ -52,8 +53,13 @@ def workflow_run():
     required=True,
 )
 @click.option(
+    "--skip-tag-validation",
+    help="Skip validation of the tag. Allows to use `main` or commit hash. Use with caution.",
+    is_flag=True,
+)
+@click.option(
     "--exclude-docs",
-    help="Comma separated list of docs packages to exclude from the publish.",
+    help="Comma separated short name list of docs packages to exclude from the publish. (example: apache.druid,google)",
     default="no-docs-excluded",
 )
 @click.option(
@@ -61,16 +67,6 @@ def workflow_run():
     help="S3 bucket to which the documentation will be published.",
     default="auto",
     type=BetterChoice(["auto", "live", "staging"]),
-)
-@click.option(
-    "--refresh-site",
-    help="Refresh the site after publishing the documentation.",
-    is_flag=True,
-)
-@click.option(
-    "--sync-s3-to-github",
-    help="Sync S3 docs to GitHub repository on apache/airflow-site-archive repo.",
-    is_flag=True,
 )
 @click.option(
     "--skip-write-to-stable-folder",
@@ -82,29 +78,39 @@ def workflow_run_publish(
     ref: str,
     exclude_docs: str,
     site_env: str,
-    refresh_site: bool,
+    skip_tag_validation: bool,
     doc_packages: tuple[str, ...],
-    sync_s3_to_github: bool = False,
     skip_write_to_stable_folder: bool = False,
 ):
+    if os.environ.get("GITHUB_TOKEN", ""):
+        get_console().print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
+        get_console().print(
+            "\nThis might not be what you want unless your token has "
+            "sufficient permissions to trigger workflows."
+        )
+        get_console().print(
+            "If you remove GITHUB_TOKEN, workflow_run will use the authentication you already "
+            "set-up with `gh auth login`.\n"
+        )
     get_console().print(
         f"[blue]Validating ref: {ref}[/blue]",
     )
 
-    tag_result = run_command(
-        ["gh", "api", f"repos/apache/airflow/git/refs/tags/{ref}"],
-        capture_output=True,
-        check=False,
-    )
-
-    stdout = tag_result.stdout.decode("utf-8")
-    tag_respo = json.loads(stdout)
-
-    if not tag_respo.get("ref"):
-        get_console().print(
-            f"[red]Error: Ref {ref} is not exists in repo apache/airflow .[/red]",
+    if not skip_tag_validation:
+        tag_result = run_command(
+            ["gh", "api", f"repos/apache/airflow/git/refs/tags/{ref}"],
+            capture_output=True,
+            check=False,
         )
-        sys.exit(1)
+
+        stdout = tag_result.stdout.decode("utf-8")
+        tag_respo = json.loads(stdout)
+
+        if not tag_respo.get("ref"):
+            get_console().print(
+                f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
+            )
+            sys.exit(1)
 
     get_console().print(
         f"[blue]Triggering workflow {WORKFLOW_NAME_MAPS['publish-docs']}: at {APACHE_AIRFLOW_REPO}[/blue]",
@@ -116,6 +122,7 @@ def workflow_run_publish(
         "include-docs": " ".join(doc_packages),
         "exclude-docs": exclude_docs,
         "skip-write-to-stable-folder": skip_write_to_stable_folder,
+        "build-sboms": "true" if "apache-airflow" in doc_packages else "false",
     }
 
     trigger_workflow_and_monitor(
@@ -134,32 +141,34 @@ def workflow_run_publish(
 
     branch = "main" if site_env == "live" else "staging"
 
-    if refresh_site:
-        get_console().print(
-            f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
-        )
-        wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
+    get_console().print(
+        f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+    )
+    wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
 
-        get_console().print(
-            f"[blue]Triggering workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
-        )
+    get_console().print(
+        f"[blue]Triggering workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+    )
 
-        trigger_workflow_and_monitor(
-            workflow_name=wf_name,
-            repo=APACHE_AIRFLOW_SITE_REPO,
-            branch=branch,
-        )
+    trigger_workflow_and_monitor(
+        workflow_name=wf_name,
+        repo=APACHE_AIRFLOW_SITE_REPO,
+        branch=branch,
+    )
 
-    if sync_s3_to_github:
-        workflow_fields = {"source": site_env}
+    get_console().print(
+        f"[blue]Refreshing completed workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+    )
 
-        get_console().print(
-            f"[blue]Syncing S3 docs to GitHub repository at {APACHE_AIRFLOW_SITE_ARCHIVE_REPO}[/blue]",
-        )
-        trigger_workflow_and_monitor(
-            workflow_name=WORKFLOW_NAME_MAPS["sync-s3-to-github"],
-            repo=APACHE_AIRFLOW_SITE_ARCHIVE_REPO,
-            branch=branch,
-            **workflow_fields,
-            monitor=False,
-        )
+    workflow_fields = {"source": site_env}
+
+    get_console().print(
+        f"[blue]Syncing S3 docs to GitHub repository at {APACHE_AIRFLOW_SITE_ARCHIVE_REPO}[/blue]",
+    )
+    trigger_workflow_and_monitor(
+        workflow_name=WORKFLOW_NAME_MAPS["sync-s3-to-github"],
+        repo=APACHE_AIRFLOW_SITE_ARCHIVE_REPO,
+        branch=branch,
+        **workflow_fields,
+        monitor=False,
+    )

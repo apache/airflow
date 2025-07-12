@@ -95,7 +95,7 @@ spec:
     - envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
         - name: AIRFLOW__CORE__EXECUTOR
-          value: LocalExecutor
+          value: {{ .Values.executor | quote }}
         {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kerberosInitContainer.enabled}}
         - name: KRB5_CONFIG
           value:  {{ .Values.kerberos.configPath | quote }}

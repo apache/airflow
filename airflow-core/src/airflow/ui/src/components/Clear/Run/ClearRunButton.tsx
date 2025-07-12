@@ -18,6 +18,7 @@
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -34,6 +35,7 @@ type Props = {
 
 const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation();
 
   useHotkeys(
     "shift+c",
@@ -44,13 +46,18 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Pr
   );
 
   return (
-    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!isHotkeyEnabled} openDelay={100}>
+    <Tooltip
+      closeDelay={100}
+      content={translate("dags:runAndTaskActions.clear.buttonTooltip")}
+      disabled={!isHotkeyEnabled}
+      openDelay={100}
+    >
       <Box>
         <ActionButton
-          actionName="Clear Dag Run"
+          actionName={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text="Clear Run"
+          text={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
           withText={withText}
         />
 

@@ -26,10 +26,10 @@ from typing import TYPE_CHECKING, Any
 from spython.main import Client
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.providers.singularity.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.singularity.version_compat import Context
 
 
 class SingularityOperator(BaseOperator):

@@ -470,6 +470,15 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/looker.rst"],
                 "tags": ["gcp"],
             },
+            {
+                "integration-name": "Google Cloud Logging Sink",
+                "external-doc-url": "https://cloud.google.com/logging",
+                "logo": "/docs/integration-logos/Cloud-Logging-Sink.png",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-google/operators/cloud/cloud_logging_sink.rst"
+                ],
+                "tags": ["gcp"],
+            },
         ],
         "operators": [
             {
@@ -527,10 +536,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Compute Engine",
                 "python-modules": ["airflow.providers.google.cloud.operators.compute"],
-            },
-            {
-                "integration-name": "Google Data Catalog",
-                "python-modules": ["airflow.providers.google.cloud.operators.datacatalog"],
             },
             {
                 "integration-name": "Google Dataflow",
@@ -670,6 +675,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.operators.vertex_ai.auto_ml",
                     "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service",
+                    "airflow.providers.google.cloud.operators.vertex_ai.experiment_service",
                     "airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.model_service",
                     "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job",
@@ -693,6 +699,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Managed Service for Apache Kafka",
                 "python-modules": ["airflow.providers.google.cloud.operators.managed_kafka"],
+            },
+            {
+                "integration-name": "Google Cloud Logging Sink",
+                "python-modules": ["airflow.providers.google.cloud.operators.cloud_logging_sink"],
             },
         ],
         "sensors": [
@@ -866,10 +876,6 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Google Data Catalog",
-                "python-modules": ["airflow.providers.google.cloud.hooks.datacatalog"],
-            },
-            {
                 "integration-name": "Google Dataflow",
                 "python-modules": ["airflow.providers.google.cloud.hooks.dataflow"],
             },
@@ -1036,6 +1042,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.auto_ml",
                     "airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job",
                     "airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.experiment_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job",
                     "airflow.providers.google.cloud.hooks.vertex_ai.model_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job",
@@ -1060,6 +1067,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Managed Service for Apache Kafka",
                 "python-modules": ["airflow.providers.google.cloud.hooks.managed_kafka"],
+            },
+            {
+                "integration-name": "Google Cloud Logging",
+                "python-modules": ["airflow.providers.google.cloud.hooks.cloud_logging"],
             },
         ],
         "triggers": [
@@ -1338,6 +1349,12 @@ def get_provider_info():
                 "python-module": "airflow.providers.google.cloud.transfers.azure_blob_to_gcs",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst",
             },
+            {
+                "source-integration-name": "Hypertext Transfer Protocol (HTTP)",
+                "target-integration-name": "Google Cloud Storage (GCS)",
+                "python-module": "airflow.providers.google.cloud.transfers.http_to_gcs",
+                "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/http_to_gcs.rst",
+            },
         ],
         "connection-types": [
             {
@@ -1372,6 +1389,10 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
                 "connection-type": "google_ads",
             },
+            {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
+                "connection-type": "gcp_looker",
+            },
         ],
         "extra-links": [
             "airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink",
@@ -1404,9 +1425,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
-            "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink",
-            "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink",
-            "airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocListLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocClusterLink",

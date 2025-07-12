@@ -27,10 +27,9 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Trigger publish docs workflow",
             "options": [
                 "--ref",
+                "--skip-tag-validation",
                 "--exclude-docs",
                 "--site-env",
-                "--refresh-site",
-                "--sync-s3-to-github",
                 "--skip-write-to-stable-folder",
             ],
         },

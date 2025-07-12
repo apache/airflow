@@ -20,6 +20,7 @@ import { Button, Box, Spacer, HStack, Input, Field, Stack } from "@chakra-ui/rea
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import { useDagParams } from "src/queries/useDagParams";
@@ -49,6 +50,7 @@ export type DagRunTriggerParams = {
 };
 
 const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
+  const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
@@ -110,7 +112,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  Logical Date
+                  {translate("logicalDate")}
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
@@ -127,12 +129,12 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             <Field.Root mt={6} orientation="horizontal">
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  Run ID
+                  {translate("runId")}
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
-                <Field.HelperText>Optional - will be generated if not provided</Field.HelperText>
+                <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText>
               </Stack>
             </Field.Root>
           )}
@@ -142,8 +144,8 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           name="note"
           render={({ field }) => (
             <Field.Root mt={6}>
-              <Field.Label fontSize="md">Dag Run Notes</Field.Label>
-              <EditableMarkdown field={field} placeholder="Click to add note" />
+              <Field.Label fontSize="md">{translate("note.dagRun")}</Field.Label>
+              <EditableMarkdown field={field} placeholder={translate("note.placeholder")} />
             </Field.Root>
           )}
         />
@@ -155,7 +157,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           onChange={() => setUnpause(!unpause)}
           wordBreak="break-all"
         >
-          Unpause {dagDisplayName} on trigger
+          {translate("components:triggerDag.unpause", { dagDisplayName })}
         </Checkbox>
       ) : undefined}
       <ErrorAlert error={errors.date ?? errorTrigger} />
@@ -167,7 +169,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiPlay /> Trigger
+            <FiPlay /> {translate("components:triggerDag.button")}
           </Button>
         </HStack>
       </Box>

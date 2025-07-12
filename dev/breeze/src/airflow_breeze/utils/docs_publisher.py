@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import shutil
 
-from airflow_breeze.global_constants import get_airflow_version
+from airflow_breeze.global_constants import get_airflow_version, get_task_sdk_version
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import get_provider_distributions_metadata, get_short_package_name
@@ -66,6 +66,8 @@ class DocsPublisher:
         if self.package_name.startswith("apache-airflow-providers-"):
             provider = get_provider_distributions_metadata().get(get_short_package_name(self.package_name))
             return provider["versions"][0]
+        if self.package_name == "task-sdk":
+            return get_task_sdk_version()
         if self.package_name == "helm-chart":
             return chart_version()
         raise SystemExit(f"Unsupported package: {self.package_name}")

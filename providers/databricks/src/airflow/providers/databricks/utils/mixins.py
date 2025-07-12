@@ -170,10 +170,11 @@ class DatabricksSQLStatementsMixin:
     def execute_complete(self: ExecuteCompleteHasFields, context: Context, event: dict):
         statement_state = SQLStatementState.from_json(event["state"])
         error = event["error"]
-        statement_id = event["statement_id"]
+        # Save as instance attribute again after coming back from defer (e.g., for later use in listeners)
+        self.statement_id = event["statement_id"]
 
         if statement_state.is_successful:
-            self.log.info("SQL Statement with ID %s completed successfully.", statement_id)
+            self.log.info("SQL Statement with ID %s completed successfully.", self.statement_id)
             return
 
         error_message = f"SQL Statement execution failed with terminal state: {statement_state} and with the error {error}"

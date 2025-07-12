@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Union
+from typing import Any, TypeAlias
 
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster, Session
@@ -31,10 +31,10 @@ from cassandra.policies import (
     WhiteListRoundRobinPolicy,
 )
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.cassandra.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
+Policy: TypeAlias = DCAwareRoundRobinPolicy | RoundRobinPolicy | TokenAwarePolicy | WhiteListRoundRobinPolicy
 
 
 class CassandraHook(BaseHook, LoggingMixin):
@@ -90,7 +90,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 
-        conn_config = {}
+        conn_config: dict[str, Any] = {}
         if conn.host:
             conn_config["contact_points"] = conn.host.split(",")
 
@@ -100,7 +100,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         if conn.login:
             conn_config["auth_provider"] = PlainTextAuthProvider(username=conn.login, password=conn.password)
 
-        policy_name = conn.extra_dejson.get("load_balancing_policy", None)
+        policy_name = str(conn.extra_dejson.get("load_balancing_policy", "undefined"))
         policy_args = conn.extra_dejson.get("load_balancing_policy_args", {})
         lb_policy = self.get_lb_policy(policy_name, policy_args)
         if lb_policy:

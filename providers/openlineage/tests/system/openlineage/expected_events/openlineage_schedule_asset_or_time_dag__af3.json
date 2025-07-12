@@ -1,0 +1,215 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "timetable": {
+                                "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                                "__var": {
+                                    "expression": "21 13 29 2 4",
+                                    "timezone": "UTC",
+                                    "interval": 0.0,
+                                    "run_immediately": false
+                                }
+                            },
+                            "asset_condition": {
+                                "__type": "asset_all",
+                                "objects": [
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket/file.txt",
+                                                "name": "s3://bucket/file.txt",
+                                                "group": "asset",
+                                                "extra": {
+                                                    "a": 1
+                                                }
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket2/file.txt",
+                                                "name": "s3://bucket2/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket3/file.txt",
+                                                "name": "s3://bucket3/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket4/file.txt",
+                                                "name": "s3://bucket4/file.txt",
+                                                "group": "asset",
+                                                "extra": {"b":  2}
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        "timetable_summary": "Asset or 21 13 29 2 4"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_asset_or_time_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "timetable": {
+                                "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                                "__var": {
+                                    "expression": "21 13 29 2 4",
+                                    "timezone": "UTC",
+                                    "interval": 0.0,
+                                    "run_immediately": false
+                                }
+                            },
+                            "asset_condition": {
+                                "__type": "asset_all",
+                                "objects": [
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket/file.txt",
+                                                "name": "s3://bucket/file.txt",
+                                                "group": "asset",
+                                                "extra": {
+                                                    "a": 1
+                                                }
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket2/file.txt",
+                                                "name": "s3://bucket2/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket3/file.txt",
+                                                "name": "s3://bucket3/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket4/file.txt",
+                                                "name": "s3://bucket4/file.txt",
+                                                "group": "asset",
+                                                "extra": {"b":  2}
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        "timetable_summary": "Asset or 21 13 29 2 4"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_asset_or_time_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "timetable": {
+                                "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                                "__var": {
+                                    "expression": "21 13 29 2 4",
+                                    "timezone": "UTC",
+                                    "interval": 0.0,
+                                    "run_immediately": false
+                                }
+                            },
+                            "asset_condition": {
+                                "__type": "asset_all",
+                                "objects": [
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket/file.txt",
+                                                "name": "s3://bucket/file.txt",
+                                                "group": "asset",
+                                                "extra": {
+                                                    "a": 1
+                                                }
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket2/file.txt",
+                                                "name": "s3://bucket2/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket3/file.txt",
+                                                "name": "s3://bucket3/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket4/file.txt",
+                                                "name": "s3://bucket4/file.txt",
+                                                "group": "asset",
+                                                "extra": {"b":  2}
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        "timetable_summary": "Asset or 21 13 29 2 4"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_asset_or_time_dag.do_nothing_task"
+        }
+    }
+]

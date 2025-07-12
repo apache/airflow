@@ -18,7 +18,9 @@
  */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -49,18 +51,24 @@ const {
   STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const taskInstanceColumns = (
-  dagId?: string,
-  runId?: string,
-  taskId?: string,
-): Array<ColumnDef<TaskInstanceResponse>> => [
+const taskInstanceColumns = ({
+  dagId,
+  runId,
+  taskId,
+  translate,
+}: {
+  dagId?: string;
+  runId?: string;
+  taskId?: string;
+  translate: TFunction;
+}): Array<ColumnDef<TaskInstanceResponse>> => [
   ...(Boolean(dagId)
     ? []
     : [
         {
           accessorKey: "dag_display_name",
           enableSorting: false,
-          header: "Dag ID",
+          header: translate("dagId"),
         },
       ]),
   ...(Boolean(runId)
@@ -79,7 +87,7 @@ const taskInstanceColumns = (
             ) : (
               <Time datetime={original.run_after} />
             ),
-          header: "Dag Run",
+          header: translate("dagRun_one"),
         },
       ]),
   ...(Boolean(taskId)
@@ -95,12 +103,12 @@ const taskInstanceColumns = (
             </Link>
           ),
           enableSorting: false,
-          header: "Task ID",
+          header: translate("taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
-    header: "Map Index",
+    header: translate("mapIndex"),
   },
   {
     accessorKey: "state",
@@ -108,8 +116,8 @@ const taskInstanceColumns = (
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
-    header: () => "State",
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
+    header: () => translate("state"),
   },
   {
     accessorKey: "start_date",
@@ -123,33 +131,38 @@ const taskInstanceColumns = (
       ) : (
         <Time datetime={original.start_date} />
       ),
-    header: "Start Date",
+    header: translate("startDate"),
   },
   {
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: "End Date",
+    header: translate("endDate"),
   },
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: translate("tryNumber"),
+  },
+  {
+    accessorKey: "pool",
+    enableSorting: false,
+    header: translate("taskInstance.pool"),
   },
   {
     accessorKey: "operator",
     enableSorting: false,
-    header: "Operator",
+    header: translate("task.operator"),
   },
   {
     cell: ({ row: { original } }) =>
       Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
-    header: "Duration",
+    header: translate("duration"),
   },
   {
     accessorKey: "dag_version",
     cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
     enableSorting: false,
-    header: "Dag Version",
+    header: translate("taskInstance.dagVersion"),
   },
   {
     accessorKey: "actions",
@@ -169,6 +182,7 @@ const taskInstanceColumns = (
 ];
 
 export const TaskInstances = () => {
+  const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -218,12 +232,17 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns(dagId, runId, Boolean(groupId) ? undefined : taskId)}
+        columns={taskInstanceColumns({
+          dagId,
+          runId,
+          taskId: Boolean(groupId) ? undefined : taskId,
+          translate,
+        })}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName="Task Instance"
+        modelName={translate("common:taskInstance_other")}
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

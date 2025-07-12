@@ -93,16 +93,34 @@ class IfExistAction(enum.Enum):
     SKIP = "skip"
 
 
+class _BigQueryHookWithFlexibleProjectId(BigQueryHook):
+    @property
+    def project_id(self) -> str:
+        _, project_id = self.get_credentials_and_project_id()
+        return project_id or PROVIDE_PROJECT_ID
+
+    @project_id.setter
+    def project_id(self, value: str) -> None:
+        cached_creds, _ = self.get_credentials_and_project_id()
+        self._cached_project_id = value or PROVIDE_PROJECT_ID
+        self._cached_credntials = cached_creds
+
+
 class _BigQueryDbHookMixin:
-    def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
+    def get_db_hook(self: BigQueryCheckOperator) -> _BigQueryHookWithFlexibleProjectId:  # type:ignore[misc]
         """Get BigQuery DB Hook."""
-        return BigQueryHook(
+        hook = _BigQueryHookWithFlexibleProjectId(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
             labels=self.labels,
         )
+
+        # mypy assuming project_id is read only, as project_id is a property in GoogleBaseHook.
+        if self.project_id:
+            hook.project_id = self.project_id  # type:ignore[misc]
+        return hook
 
 
 class _BigQueryOperatorsEncryptionConfigurationMixin:
@@ -190,6 +208,7 @@ class BigQueryCheckOperator(
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
         For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
         'parameterValue': { 'value': 'romeoandjuliet' } }]. (templated)
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = (
@@ -208,6 +227,7 @@ class BigQueryCheckOperator(
         *,
         sql: str,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -228,6 +248,7 @@ class BigQueryCheckOperator(
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.query_params = query_params
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -243,7 +264,7 @@ class BigQueryCheckOperator(
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=True,
@@ -257,6 +278,8 @@ class BigQueryCheckOperator(
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
+            if self.project_id is None:
+                self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
@@ -265,7 +288,7 @@ class BigQueryCheckOperator(
                     trigger=BigQueryCheckTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
-                        project_id=hook.project_id,
+                        project_id=self.project_id,
                         location=self.location or hook.location,
                         poll_interval=self.poll_interval,
                         impersonation_chain=self.impersonation_chain,
@@ -342,6 +365,7 @@ class BigQueryValueCheckOperator(
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: (Deferrable mode only) polling period in seconds to
         check for the status of job.
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = (
@@ -363,6 +387,7 @@ class BigQueryValueCheckOperator(
         tolerance: Any = None,
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -380,6 +405,7 @@ class BigQueryValueCheckOperator(
         self.labels = labels
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -398,7 +424,7 @@ class BigQueryValueCheckOperator(
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=True,
@@ -409,7 +435,8 @@ class BigQueryValueCheckOperator(
             super().execute(context=context)
         else:
             hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-
+            if self.project_id is None:
+                self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
@@ -418,7 +445,7 @@ class BigQueryValueCheckOperator(
                     trigger=BigQueryValueCheckTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
-                        project_id=hook.project_id,
+                        project_id=self.project_id,
                         location=self.location or hook.location,
                         sql=self.sql,
                         pass_value=self.pass_value,
@@ -575,6 +602,9 @@ class BigQueryIntervalCheckOperator(
             hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             self.log.info("Using ratio formula: %s", self.ratio_formula)
 
+            if self.project_id is None:
+                self.project_id = hook.project_id
+
             self.log.info("Executing SQL check: %s", self.sql1)
             job_1 = self._submit_job(hook, sql=self.sql1, job_id="")
             context["ti"].xcom_push(key="job_id", value=job_1.job_id)
@@ -587,7 +617,7 @@ class BigQueryIntervalCheckOperator(
                     conn_id=self.gcp_conn_id,
                     first_job_id=job_1.job_id,
                     second_job_id=job_2.job_id,
-                    project_id=hook.project_id,
+                    project_id=self.project_id,
                     table=self.table,
                     location=self.location or hook.location,
                     metrics_thresholds=self.metrics_thresholds,
@@ -654,6 +684,7 @@ class BigQueryColumnCheckOperator(
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = tuple(set(SQLColumnCheckOperator.template_fields) | {"gcp_conn_id"})
@@ -670,6 +701,7 @@ class BigQueryColumnCheckOperator(
         accept_none: bool = True,
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -695,6 +727,7 @@ class BigQueryColumnCheckOperator(
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -706,7 +739,7 @@ class BigQueryColumnCheckOperator(
         self.include_encryption_configuration(configuration, "query")
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=False,
@@ -715,6 +748,9 @@ class BigQueryColumnCheckOperator(
     def execute(self, context=None):
         """Perform checks on the given columns."""
         hook = self.get_db_hook()
+
+        if self.project_id is None:
+            self.project_id = hook.project_id
         failed_tests = []
 
         job = self._submit_job(hook, job_id="")
@@ -786,6 +822,7 @@ class BigQueryTableCheckOperator(
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param encryption_configuration: (Optional) Custom encryption configuration (e.g., Cloud KMS keys).
+    :param project_id: Google Cloud Project where the job is running
 
         .. code-block:: python
 
@@ -805,6 +842,7 @@ class BigQueryTableCheckOperator(
         checks: dict,
         partition_clause: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -819,6 +857,7 @@ class BigQueryTableCheckOperator(
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.encryption_configuration = encryption_configuration
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -832,7 +871,7 @@ class BigQueryTableCheckOperator(
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=False,
@@ -841,6 +880,8 @@ class BigQueryTableCheckOperator(
     def execute(self, context=None):
         """Execute the given checks on the table."""
         hook = self.get_db_hook()
+        if self.project_id is None:
+            self.project_id = hook.project_id
         job = self._submit_job(hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
@@ -1117,7 +1158,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
                     "BigQueryHook.list_rows() returns iterator when return_iterator is False (default)"
                 )
             self.log.info("Total extracted rows: %s", len(rows))
-
+            table_data: list[dict[str, Any]] | list[Any]
             if self.as_dict:
                 table_data = [dict(row) for row in rows]
             else:
@@ -1285,7 +1326,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
                     "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
                     "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
@@ -1304,7 +1344,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
                 self.log.info(error_msg)
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self.project_id or bq_hook.project_id,
                     "dataset_id": self.dataset_id,
                     "table_id": self.table_id,
@@ -1569,7 +1608,6 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
                     "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
                     "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
@@ -1588,7 +1626,6 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
                 self.log.info(error_msg)
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self.project_id or bq_hook.project_id,
                     "dataset_id": self.dataset_id,
                     "table_id": self.table_id,
@@ -1859,7 +1896,6 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 BigQueryTableLink.persist(
                     context=context,
-                    task_instance=self,
                     dataset_id=self._table.dataset_id,
                     project_id=self._table.project,
                     table_id=self._table.table_id,
@@ -1918,7 +1954,6 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table.dataset_id,
                 project_id=self._table.project,
                 table_id=self._table.table_id,
@@ -2116,7 +2151,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             )
             persist_kwargs = {
                 "context": context,
-                "task_instance": self,
                 "project_id": dataset["datasetReference"]["projectId"],
                 "dataset_id": dataset["datasetReference"]["datasetId"],
             }
@@ -2128,7 +2162,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             )
             persist_kwargs = {
                 "context": context,
-                "task_instance": self,
                 "project_id": project_id,
                 "dataset_id": dataset_id,
             }
@@ -2200,7 +2233,6 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
@@ -2349,7 +2381,6 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -2452,7 +2483,6 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
@@ -2624,7 +2654,6 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -2754,7 +2783,6 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -3000,7 +3028,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                             table = job_configuration[job_type][table_prop]
                             persist_kwargs = {
                                 "context": context,
-                                "task_instance": self,
                                 "project_id": self.project_id,
                                 "table_id": table,
                             }
@@ -3022,7 +3049,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
         persist_kwargs = {
             "context": context,
-            "task_instance": self,
             "project_id": self.project_id,
             "location": self.location,
             "job_id": self.job_id,

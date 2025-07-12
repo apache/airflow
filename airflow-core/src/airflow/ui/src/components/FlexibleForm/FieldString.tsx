@@ -17,12 +17,14 @@
  * under the License.
  */
 import { Input } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
 export const FieldString = ({ name, onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
@@ -47,7 +49,7 @@ export const FieldString = ({ name, onUpdate }: FlexibleFormElementProps) => {
         onChange={(event) => {
           handleChange(event.target.value);
         }}
-        placeholder={param.schema.examples ? "Start typing to see options." : undefined}
+        placeholder={param.schema.examples ? translate("flexibleForm.placeholderExamples") : undefined}
         size="sm"
         value={(param.value ?? "") as string}
       />

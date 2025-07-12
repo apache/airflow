@@ -50,7 +50,7 @@ Building documentation with uv in local venv
 Prerequisites
 .............
 
-*  The ``uv`` as mandatory tour
+*  `uv <https://docs.astral.sh/uv/>`_ as mandatory tool.
 
 First of all. you need to have ``uv`` installed. You can very easily build the documentation
 in your local virtualenv using ``uv`` command. Because some dependencies are not easy to be installed
@@ -62,7 +62,7 @@ that installs the documentation dependencies.
 
 .. warning::
 
-   At least until we manage to workaround it you need to uese at most Python 3.11 to build documentation for
+   At least until we manage to workaround it you need to use at most Python 3.11 to build documentation for
    some packages (``samba`` and ``google``).
 
    When you try to build docs locally (at least on MacOS) with Python 3.12, you get

@@ -87,11 +87,11 @@ In case 2) - Follow the steps below:
 
 CI image:
 
-     breeze ci-image build --upgrade-to-newer-dependencies --python 3.9
+     breeze ci-image build --upgrade-to-newer-dependencies --python 3.10
 
 Production image:
 
-     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.9
+     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.10
 
 ***** End of the instructions ****
 """

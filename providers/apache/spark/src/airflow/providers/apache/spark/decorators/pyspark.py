@@ -18,23 +18,16 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
-from airflow.providers.apache.spark.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        DecoratedOperator,
-        TaskDecorator,
-        task_decorator_factory,
-    )
-
-
-from airflow.hooks.base import BaseHook
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
+from airflow.providers.apache.spark.version_compat import (
+    BaseHook,
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 from airflow.providers.common.compat.standard.operators import PythonOperator
 
 if TYPE_CHECKING:

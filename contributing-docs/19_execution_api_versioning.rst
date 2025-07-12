@@ -25,9 +25,14 @@ Why?
 ----
 
 Airflow components (e.g., workers, API servers) could be deployed independently. This can lead
-to version mismatches—for example, a worker using Task SDK 1.0.1 (requiring Airflow >=3.0.1) while the
-API server is still on 3.0.0. Without versioning, such mismatches can cause runtime failures or subtle bugs.
-A strict versioning model allows older clients to continue working with newer servers, enabling safe, incremental upgrades.
+to version mismatches—for example, a worker using Task SDK 1.0.0 (requiring Airflow >=3.0.0) while the
+API server has been upgraded to 3.0.1. Without versioning, such mismatches can cause runtime failures or subtle bugs.
+Enforcing a clear versioning contract ensures backward compatibility and allows for safe, incremental upgrades
+across different components.
+
+Note: We're prioritizing backward compatibility, older clients should continue to work seamlessly with newer servers.
+Since the client (Task SDK) and server (API) are still coupled, we can look at forward compatibility once we have a
+clear versioning strategy between Task SDK and Airflow Core.
 
 Versioning Principles
 ---------------------

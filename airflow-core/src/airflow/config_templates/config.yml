@@ -116,7 +116,7 @@ core:
         schedulers in your cluster, is the maximum number of task instances with the running
         state in the metadata database. The value must be larger or equal 1.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "32"
     max_active_tasks_per_dag:
@@ -129,7 +129,7 @@ core:
         An example scenario when this would be useful is when you want to stop a new dag with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
-      type: string
+      type: integer
       example: ~
       default: "16"
     dags_are_paused_at_creation:
@@ -145,7 +145,7 @@ core:
         if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
         which is defaulted as ``[core] max_active_runs_per_dag``.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "16"
     max_consecutive_failed_dag_runs_per_dag:
@@ -156,7 +156,7 @@ core:
         If not specified, then the value is considered as 0,
         meaning that the dags are never paused out by default.
       version_added: 2.9.0
-      type: string
+      type: integer
       example: ~
       default: "0"
     mp_start_method:
@@ -274,7 +274,7 @@ core:
         When a task is killed forcefully, this is the amount of time in seconds that
         it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "60"
     dag_run_conf_overrides_params:
@@ -307,7 +307,7 @@ core:
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
       version_added: 1.10.6
-      type: string
+      type: integer
       example: ~
       default: "0"
     default_task_retry_delay:
@@ -354,7 +354,7 @@ core:
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
       version_added: 1.10.7
-      type: string
+      type: integer
       example: ~
       default: "30"
     compress_serialized_dags:
@@ -365,7 +365,7 @@ core:
 
             This will disable the DAG dependencies view
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     min_serialized_dag_fetch_interval:
@@ -373,7 +373,7 @@ core:
         Fetching serialized DAG can not be faster than a minimum interval to reduce database
         read rate. This config controls when your DAGs are updated in the Webserver
       version_added: 1.10.12
-      type: string
+      type: integer
       example: ~
       default: "10"
     max_num_rendered_ti_fields_per_task:
@@ -437,7 +437,7 @@ core:
         deployment where the ``default_pool`` is already created. For existing deployments, users can
         change the number of slots using Webserver, API or the CLI
       version_added: 2.2.0
-      type: string
+      type: integer
       example: ~
       default: "128"
     max_map_length:
@@ -572,7 +572,7 @@ database:
         The SQLAlchemy pool size is the maximum number of database connections
         in the pool. 0 indicates no limit.
       version_added: 2.3.0
-      type: string
+      type: integer
       example: ~
       default: "5"
     sql_alchemy_max_overflow:
@@ -587,7 +587,7 @@ database:
         max_overflow can be set to ``-1`` to indicate no overflow limit;
         no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
       version_added: 2.3.0
-      type: string
+      type: integer
       example: ~
       default: "10"
     sql_alchemy_pool_recycle:
@@ -597,7 +597,7 @@ database:
         not apply to sqlite. If the number of DB connections is ever exceeded,
         a lower config value will allow the system to recover faster.
       version_added: 2.3.0
-      type: string
+      type: integer
       example: ~
       default: "1800"
     sql_alchemy_pool_pre_ping:
@@ -608,7 +608,7 @@ database:
         <https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic>`__
         for more details.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "True"
     sql_alchemy_schema:
@@ -1029,7 +1029,7 @@ metrics:
       description: |
         Enables sending metrics to StatsD.
       version_added: 2.0.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     statsd_host:
@@ -1043,14 +1043,14 @@ metrics:
       description: |
         Enables the statsd host to be resolved into IPv6 address
       version_added: 3.0.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     statsd_port:
       description: |
         Specifies the port on which the StatsD daemon (or server) is listening to
       version_added: 2.0.0
-      type: string
+      type: integer
       example: ~
       default: "8125"
     statsd_prefix:
@@ -1078,7 +1078,7 @@ metrics:
       description: |
         To enable datadog integration to send airflow metrics.
       version_added: 2.0.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     statsd_datadog_tags:
@@ -1126,7 +1126,7 @@ metrics:
       description: |
         Enables sending metrics to OpenTelemetry.
       version_added: 2.6.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_host:
@@ -1141,7 +1141,7 @@ metrics:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
-      type: string
+      type: integer
       example: ~
       default: "8889"
     otel_prefix:
@@ -1163,7 +1163,7 @@ metrics:
       description: |
         If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
       version_added: 2.7.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_service:
@@ -1180,7 +1180,7 @@ metrics:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         ``config.yml`` file.
       version_added: 2.7.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
 traces:
@@ -1191,7 +1191,7 @@ traces:
       description: |
         Enables sending traces to OpenTelemetry.
       version_added: 2.10.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_host:
@@ -1206,7 +1206,7 @@ traces:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.10.0
-      type: string
+      type: integer
       example: ~
       default: "8889"
     otel_service:
@@ -1220,7 +1220,7 @@ traces:
       description: |
         If True, all traces are also emitted to the console. Defaults to False.
       version_added: 2.10.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_ssl_active:
@@ -1230,6 +1230,13 @@ traces:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
       version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "False"
+    otel_debug_traces_on:
+      description: |
+        If True, then traces from Airflow internal methods are exported. Defaults to False.
+      version_added: 3.1.0
       type: string
       example: ~
       default: "False"
@@ -1321,6 +1328,12 @@ api:
       type: string
       example: ~
       default: "False"
+    expose_stacktrace:
+      description: Expose stacktrace in the web server
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -1348,23 +1361,24 @@ api:
       description: |
         Number of workers to run on the API server
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "4"
     worker_timeout:
       description: |
         Number of seconds the API server waits before timing out on a worker
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "120"
-    access_logfile:
+    log_config:
       description: |
-        Log files for the api server. '-' means log to stderr.
+        Path to the logging configuration file for the uvicorn server.
+        If not set, the default uvicorn logging configuration will be used.
       version_added: ~
       type: string
-      example: ~
-      default: "-"
+      example: path/to/logging_config.yaml
+      default: ~
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
@@ -1424,15 +1438,6 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
-    enable_xcom_deserialize_support:
-      description: |
-        Indicates whether the **xcomEntries** endpoint supports the **deserialize**
-        flag. If set to ``False``, setting this flag in a request would result in a
-        400 Bad Request error.
-      type: boolean
-      version_added: 2.7.0
-      example: ~
-      default: "False"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -1453,14 +1458,14 @@ api:
         By default, the webserver shows paused DAGs. Flip this to hide paused
         DAGs by default
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "False"
     page_size:
       description: |
         Consistent page size across all listing views in the UI
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "50"
     default_wrap:
@@ -1547,6 +1552,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    socket_cleanup_timeout:
+      description: |
+        Number of seconds to wait after a task process exits before forcibly closing any
+        remaining communication sockets. This helps prevent the task supervisor from hanging
+        indefinitely due to missed EOF signals.
+      version_added: 3.0.3
+      type: float
+      example: ~
+      default: "60.0"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -1863,21 +1877,21 @@ smtp:
       description: |
         Determines whether to use the STARTTLS command when connecting to the SMTP server.
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "True"
     smtp_ssl:
       description: |
         Determines whether to use an SSL connection when talking to the SMTP server.
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "False"
     smtp_port:
       description: |
         Defines the port number on which Airflow connects to the SMTP server to send email notifications.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "25"
     smtp_mail_from:
@@ -1914,7 +1928,7 @@ sentry:
     sentry_on:
       description: Enable error reporting to Sentry
       version_added: 2.0.0
-      type: string
+      type: boolean
       example: ~
       default: "false"
     sentry_dsn:
@@ -2115,16 +2129,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    parsing_pre_import_modules:
-      description: |
-        The scheduler reads dag files to extract the airflow modules that are going to be used,
-        and imports them ahead of time to avoid having to re-do it for each parsing process.
-        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
-        to be freshly imported each time (at the cost of increased DAG parsing time).
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
     dag_stale_not_seen_duration:
       description: |
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
@@ -2225,7 +2229,7 @@ triggerer:
       description: |
         How many triggers a single Triggerer will run at once, by default.
       version_added: 2.2.0
-      type: string
+      type: integer
       example: ~
       default: "1000"
     job_heartbeat_sec:
@@ -2420,7 +2424,7 @@ dag_processor:
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "50"
     print_stats_interval:
@@ -2479,3 +2483,13 @@ dag_processor:
       type: integer
       example: ~
       default: "10"
+    parsing_pre_import_modules:
+      description: |
+        The dag_processor reads dag files to extract the airflow modules that are going to be used,
+        and imports them ahead of time to avoid having to re-do it for each parsing process.
+        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
+        to be freshly imported each time (at the cost of increased DAG parsing time).
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"

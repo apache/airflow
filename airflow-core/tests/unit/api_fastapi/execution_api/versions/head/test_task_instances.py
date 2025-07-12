@@ -33,7 +33,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import TaskGroup, task, task_group
+from airflow.sdk import Asset, TaskGroup, task, task_group
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -705,6 +705,40 @@ class TestTIUpdateState:
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
 
+    def test_ti_update_state_to_failed_with_inactive_asset(self, client, session, create_task_instance):
+        # inactive
+        asset = AssetModel(
+            id=1,
+            name="my-task-2",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        session.add(asset)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task-2", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+
     @pytest.mark.parametrize(
         "outlet_events, expected_extra",
         [
@@ -976,8 +1010,13 @@ class TestTIUpdateState:
             },
         )
 
-        assert response.status_code == 422
-        assert response.json()["detail"]["reason"] == "invalid_reschedule_date"
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
 
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
@@ -1870,7 +1909,7 @@ class TestGetTaskStates:
             },
         }
 
-    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker, serialized=True):
+    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_logical_dates", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
@@ -2139,3 +2178,68 @@ class TestGetTaskStates:
         response = client.get("/execution/task-instances/states", params={"dag_id": dr.dag_id, **params})
         assert response.status_code == 200
         assert response.json() == {"task_states": {dr.run_id: expected}}
+
+
+class TestInvactiveInletsAndOutlets:
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            datetime(2025, 6, 6, tzinfo=timezone.utc),
+            None,
+        ],
+    )
+    def test_ti_inactive_inlets_and_outlets(self, logical_date, client, dag_maker):
+        """Test the inactive assets in inlets and outlets can be found."""
+        with dag_maker("test_inlets_and_outlets"):
+            EmptyOperator(
+                task_id="task1",
+                inlets=[Asset(name="inlet-name"), Asset(name="inlet-name", uri="but-different-uri")],
+                outlets=[
+                    Asset(name="outlet-name", uri="uri"),
+                    Asset(name="outlet-name", uri="second-different-uri"),
+                ],
+            )
+
+        dr = dag_maker.create_dagrun(logical_date=logical_date)
+
+        task1_ti = dr.get_task_instance("task1")
+        response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
+        assert response.status_code == 200
+        inactive_assets = response.json()["inactive_assets"]
+        expected_inactive_assets = (
+            {
+                "name": "inlet-name",
+                "type": "Asset",
+                "uri": "but-different-uri",
+            },
+            {
+                "name": "outlet-name",
+                "type": "Asset",
+                "uri": "second-different-uri",
+            },
+        )
+        for asset in expected_inactive_assets:
+            assert asset in inactive_assets
+
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            datetime(2025, 6, 6, tzinfo=timezone.utc),
+            None,
+        ],
+    )
+    def test_ti_inactive_inlets_and_outlets_without_inactive_assets(self, logical_date, client, dag_maker):
+        """Test the task without inactive assets in its inlets or outlets returns empty list."""
+        with dag_maker("test_inlets_and_outlets_inactive"):
+            EmptyOperator(
+                task_id="inactive_task1",
+                inlets=[Asset(name="inlet-name")],
+                outlets=[Asset(name="outlet-name", uri="uri")],
+            )
+
+        dr = dag_maker.create_dagrun(logical_date=logical_date)
+
+        task1_ti = dr.get_task_instance("inactive_task1")
+        response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
+        assert response.status_code == 200
+        assert response.json() == {"inactive_assets": []}

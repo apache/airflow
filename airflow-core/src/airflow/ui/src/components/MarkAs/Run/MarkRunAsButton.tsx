@@ -19,6 +19,7 @@
 import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { MdArrowDropDown } from "react-icons/md";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
@@ -38,6 +39,7 @@ type Props = {
 const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DAGRunPatchStates>("success");
+  const { t: translate } = useTranslation();
 
   useHotkeys(
     "shift+f",
@@ -62,19 +64,18 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: P
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
           <ActionButton
-            actionName="Mark Dag Run as..."
+            actionName={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
             flexDirection="row-reverse"
             icon={<MdArrowDropDown />}
-            text="Mark Run as..."
+            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
             withText={withText}
           />
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {
-            const content =
-              menuState === "success"
-                ? "Press shift+s to mark as success"
-                : "Press shift+f to mark as failed";
+            const content = translate(
+              `dags:runAndTaskActions.markAs.buttonTooltip.${menuState === "success" ? "success" : "failed"}`,
+            );
 
             return (
               <Tooltip
@@ -97,7 +98,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: P
                   value={menuState}
                 >
                   <StateBadge my={1} state={menuState}>
-                    {menuState}
+                    {translate(`common:states.${menuState}`)}
                   </StateBadge>
                 </Menu.Item>
               </Tooltip>

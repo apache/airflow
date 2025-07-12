@@ -111,6 +111,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_FILES = "task_sdk_files"
     GO_SDK_FILES = "go_sdk_files"
     AIRFLOW_CTL_FILES = "airflow_ctl_files"
+    ALL_PYPROJECT_TOML_FILES = "all_pyproject_toml_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -123,6 +124,7 @@ class FileGroupForCi(Enum):
     TESTS_UTILS_FILES = "test_utils_files"
     ASSET_FILES = "asset_files"
     UNIT_TEST_FILES = "unit_test_files"
+    DEVEL_TOML_FILES = "devel_toml_files"
 
 
 class AllProvidersSentinel:
@@ -186,9 +188,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/tests/unit/kubernetes",
             r"^helm-tests",
         ],
-        FileGroupForCi.DEPENDENCY_FILES: [
-            r"^generated/provider_dependencies.json$",
-        ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
@@ -196,10 +195,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
+            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
             r"^chart",
+            r"^task-sdk/docs/",
             r"^task-sdk/src/",
             r"^airflow-ctl/src/",
             r"^airflow-core/tests/system",
@@ -264,6 +265,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
             r".*/provider\.yaml$",
         ],
+        FileGroupForCi.ALL_PYPROJECT_TOML_FILES: [
+            r".*pyproject\.toml$",
+        ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^airflow-core/tests/unit/utils/",
             r"^devel-common/.*\.py$",
@@ -291,6 +295,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.AIRFLOW_CTL_FILES: [
             r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+        ],
+        FileGroupForCi.DEVEL_TOML_FILES: [
+            r"^devel-common/pyproject\.toml$",
         ],
     }
 )
@@ -503,13 +510,8 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Running everything in all versions as commit is missing[/]")
             return True
-        if self.hatch_build_changed:
-            get_console().print("[warning]Running everything with all versions: hatch_build.py changed[/]")
-            return True
-        if self.pyproject_toml_changed and self.build_system_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Running everything with all versions: build-system changed in pyproject.toml[/]"
-            )
+        if self.pyproject_toml_changed:
+            get_console().print("[warning]Running everything with all versions: changed pyproject.toml[/]")
             return True
         if self.generated_dependencies_changed:
             get_console().print(
@@ -708,6 +710,18 @@ class SelectiveChecks:
     def mypy_checks(self) -> list[str]:
         checks_to_run: list[str] = []
         if (
+            self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
+            and self._default_branch == "main"
+        ):
+            return [
+                "mypy-airflow-core",
+                "mypy-providers",
+                "mypy-dev",
+                "mypy-task-sdk",
+                "mypy-devel-common",
+                "mypy-airflow-ctl",
+            ]
+        if (
             self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
@@ -832,6 +846,7 @@ class SelectiveChecks:
             or self.docs_build
             or self.run_kubernetes_tests
             or self.needs_helm_tests
+            or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
         )
@@ -923,6 +938,8 @@ class SelectiveChecks:
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self._default_branch != "main":
             return []
+        if self.upgrade_to_newer_dependencies:
+            return ["Providers"]
         if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
@@ -1067,10 +1084,6 @@ class SelectiveChecks:
         return "generated/provider_dependencies.json" in self._files
 
     @cached_property
-    def hatch_build_changed(self) -> bool:
-        return "hatch_build.py" in self._files
-
-    @cached_property
     def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine changes as commit is missing[/]")
@@ -1124,35 +1137,9 @@ class SelectiveChecks:
         return True
 
     @cached_property
-    def build_system_changed_in_pyproject_toml(self) -> bool:
-        if not self.pyproject_toml_changed:
-            return False
-        new_build_backend = self._new_toml["build-system"]["build-backend"]
-        old_build_backend = self._old_toml["build-system"]["build-backend"]
-        if new_build_backend != old_build_backend:
-            get_console().print("[warning]Build backend changed in pyproject.toml [/]")
-            self._print_diff([old_build_backend], [new_build_backend])
-            return True
-        new_requires = self._new_toml["build-system"]["requires"]
-        old_requires = self._old_toml["build-system"]["requires"]
-        if new_requires != old_requires:
-            get_console().print("[warning]Build system changed in pyproject.toml [/]")
-            self._print_diff(old_requires, new_requires)
-            return True
-        return False
-
-    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
-        if len(self._matching_files(FileGroupForCi.DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES)) > 0:
+        if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
-            return True
-        if self.hatch_build_changed:
-            get_console().print("[warning]Upgrade to newer dependencies: hatch_build.py changed[/]")
-            return True
-        if self.build_system_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Upgrade to newer dependencies: Build system changed in pyproject.toml[/]"
-            )
             return True
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
             get_console().print("[warning]Upgrade to newer dependencies: Push or Schedule event[/]")
@@ -1193,6 +1180,8 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
+        if any(file.startswith("task-sdk/src/") for file in self._files):
+            packages.append("task-sdk")
         if providers_affected:
             for provider in providers_affected:
                 packages.append(provider.replace("-", "."))
@@ -1225,6 +1214,7 @@ class SelectiveChecks:
                 (
                     "compile-fab-assets",
                     "generate-openapi-spec-fab",
+                    "check-airflow-providers-bug-report-template",
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
@@ -1241,7 +1231,8 @@ class SelectiveChecks:
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
             or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            pre_commits_to_skip.add("ts-compile-format-lint-ui")
+            pre_commits_to_skip.add("ts-compile-lint-ui")
+            pre_commits_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
         if not self._matching_files(FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
             pre_commits_to_skip.add("flynt")
         if not self._matching_files(
@@ -1451,11 +1442,12 @@ class SelectiveChecks:
             if all(keyword in added_lines[line_counter] for keyword in ["def", "caplog", "(", ")"]):
                 return True
             if "def" in added_lines[line_counter] and ")" not in added_lines[line_counter]:
-                while ")" not in added_lines[line_counter]:
+                while line_counter < len(added_lines) and ")" not in added_lines[line_counter]:
                     if "caplog" in added_lines[line_counter]:
                         return True
                     line_counter += 1
             line_counter += 1
+        return None
 
     def _caplog_exists_in_added_lines(self) -> bool:
         """
@@ -1464,7 +1456,7 @@ class SelectiveChecks:
         :return: True if caplog is used in added lines else False
         """
         lines = run_command(
-            ["git", "diff", f"{self._commit_ref}"],
+            ["git", "diff", f"{self._commit_ref}^"],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
@@ -1475,7 +1467,7 @@ class SelectiveChecks:
             return False
 
         added_caplog_lines = [
-            line.lstrip().lstrip("+ ") for line in lines.stdout.split("\n") if line.lstrip().startswith("+ ")
+            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
         ]
         return self._find_caplog_in_def(added_lines=added_caplog_lines)
 

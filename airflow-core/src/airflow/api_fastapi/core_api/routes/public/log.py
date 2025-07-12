@@ -20,15 +20,15 @@ from __future__ import annotations
 import contextlib
 import textwrap
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, URLSafeSerializer
-from pydantic import PositiveInt
+from pydantic import NonNegativeInt, PositiveInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.db.task_instance import get_task_instance_or_history_for_try_number
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrNdjson
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -36,7 +36,8 @@ from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, 
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, Trigger
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.log.log_reader import TaskLogReader
 
 task_instances_log_router = AirflowRouter(
@@ -75,7 +76,7 @@ def get_log(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    try_number: PositiveInt,
+    try_number: NonNegativeInt,
     accept: HeaderAcceptJsonOrNdjson,
     request: Request,
     dag_bag: DagBagDep,
@@ -105,14 +106,34 @@ def get_log(
     if not task_log_reader.supports_read:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Task log handler does not support read logs.")
 
-    ti = get_task_instance_or_history_for_try_number(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        try_number=try_number,
-        session=session,
-        map_index=map_index,
+    query = (
+        select(TaskInstance)
+        .where(
+            TaskInstance.task_id == task_id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == dag_run_id,
+            TaskInstance.map_index == map_index,
+            TaskInstance.try_number == try_number,
+        )
+        .join(TaskInstance.dag_run)
+        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
+        .options(joinedload(TaskInstance.dag_model))
     )
+    ti = session.scalar(query)
+    if ti is None:
+        query = (
+            select(TaskInstanceHistory)
+            .where(
+                TaskInstanceHistory.task_id == task_id,
+                TaskInstanceHistory.dag_id == dag_id,
+                TaskInstanceHistory.run_id == dag_run_id,
+                TaskInstanceHistory.map_index == map_index,
+                TaskInstanceHistory.try_number == try_number,
+            )
+            .options(joinedload(TaskInstanceHistory.dag_run))
+            # we need to joinedload the dag_run, since FileTaskHandler._render_filename needs ti.dag_run
+        )
+        ti = session.scalar(query)
 
     if ti is None:
         metadata["end_of_log"] = True
@@ -123,24 +144,27 @@ def get_log(
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
 
-    if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-        encoded_token = None
+    if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
+        # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
+        headers = None
         if not metadata.get("end_of_log", False):
-            encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-        return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=logs)
-    # text/plain, or something else we don't understand. Return raw log content
+            headers = {
+                "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
+            }
+        return StreamingResponse(media_type="application/x-ndjson", content=log_stream, headers=headers)
 
-    # We need to exhaust the iterator before we can generate the continuation token.
-    # We could improve this by making it a streaming/async response, and by then setting the header using
-    # HTTP Trailers
-    logs = "".join(task_log_reader.read_log_stream(ti, try_number, metadata))
-    headers = None
-    if not metadata.get("end_of_log", False):
-        headers = {
-            "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-        }
-    return Response(media_type="application/x-ndjson", content=logs, headers=headers)
+    # application/json, or something else we don't understand.
+    # Return JSON format, which will be more easily for users to debug.
+
+    # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+    structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)  # type: ignore[arg-type]
+    encoded_token = None
+    if not out_metadata.get("end_of_log", False):
+        encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
+    return TaskInstancesLogResponse.model_construct(
+        continuation_token=encoded_token, content=list(structured_log_stream)
+    )
 
 
 @task_instances_log_router.get(

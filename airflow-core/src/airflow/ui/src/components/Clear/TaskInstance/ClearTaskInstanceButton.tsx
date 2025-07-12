@@ -18,6 +18,7 @@
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -34,6 +35,7 @@ type Props = {
 
 const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation();
 
   useHotkeys(
     "shift+c",
@@ -44,13 +46,20 @@ const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withTe
   );
 
   return (
-    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!isHotkeyEnabled} openDelay={100}>
+    <Tooltip
+      closeDelay={100}
+      content={translate("dags:runAndTaskActions.clear.buttonTooltip")}
+      disabled={!isHotkeyEnabled}
+      openDelay={100}
+    >
       <Box>
         <ActionButton
-          actionName="Clear Task Instance"
+          actionName={translate("dags:runAndTaskActions.clear.button", {
+            type: translate("taskInstance_one"),
+          })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text="Clear Task Instance"
+          text={translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })}
           withText={withText}
         />
 

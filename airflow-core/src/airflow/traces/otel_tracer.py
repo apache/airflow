@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import random
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
@@ -247,7 +248,7 @@ class OtelTrace:
         links=None,
         start_time=None,
         start_as_current: bool = True,
-    ):
+    ) -> AbstractContextManager[trace.span.Span] | trace.span.Span:
         if component is None:
             component = self.otel_service
 
@@ -260,24 +261,24 @@ class OtelTrace:
             links = []
 
         if start_as_current:
-            span = tracer.start_as_current_span(
+            return tracer.start_as_current_span(
                 name=span_name,
                 context=parent_context,
                 links=links,
                 start_time=datetime_to_nano(start_time),
             )
-        else:
-            span = tracer.start_span(
-                name=span_name,
-                context=parent_context,
-                links=links,
-                start_time=datetime_to_nano(start_time),
-            )
-            current_span_ctx = trace.set_span_in_context(NonRecordingSpan(span.get_span_context()))
-            # We have to manually make the span context as the active context.
-            # If the span needs to be injected into the carrier, then this is needed to make sure
-            # that the injected context will point to the span context that was just created.
-            attach(current_span_ctx)
+
+        span = tracer.start_span(
+            name=span_name,
+            context=parent_context,
+            links=links,
+            start_time=datetime_to_nano(start_time),
+        )
+        current_span_ctx = trace.set_span_in_context(NonRecordingSpan(span.get_span_context()))
+        # We have to manually make the span context as the active context.
+        # If the span needs to be injected into the carrier, then this is needed to make sure
+        # that the injected context will point to the span context that was just created.
+        attach(current_span_ctx)
         return span
 
     def inject(self) -> dict:

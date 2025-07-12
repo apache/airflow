@@ -21,8 +21,10 @@
 **Table of contents**
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
+  - [Validating completeness of i18n locale files](#validating-completeness-of-i18n-locale-files)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
+  - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
@@ -69,6 +71,47 @@ The first step of a release is to work out what is being included. This differs 
 - For a *major* or *minor* release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+
+
+## Validating completeness of i18n locale files
+
+At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md) for doing so.
+If there are any incomplete locales, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion of the translation by a due date of your choice
+before cutting the release candidate (RC).
+The reminder should be sent via dev@airflow.apache.org mailing list, preferably with an accompanying GitHub issue for tracking purposes.
+Do not hold the release process beyond the due date if there are still incomplete locales.
+
+Subject:
+
+```shell script
+cat <<EOF
+[REMINDER] Complete translations for Airflow ${VERSION} RC by <date>
+EOF
+```
+
+Body:
+
+```shell script
+cat <<EOF
+Hey fellow Airflowers,
+
+I'm planning to cut the Airflow ${VERSION} RC soon.
+
+After running the i18n completeness script, I found that the following locales are currently incomplete:
+<list of incomplete locales>
+
+I'd like to ask locales' code owners to ensure the completion of the translations for these locales by <due date>,
+and respond to this email after doing so.
+During this time, I'd like all committers to refrain merging PRs that add new terms to the default locale (English),
+or rename/relocate keys of existing terms to avoid overloading the translators.
+When creating a PR, please run locally the i18n completeness script on your locale to ensure all translations are complete.
+Changes applied after this date will not be included in the release, and the missing terms will fall back to English instead.
+
+
+Thanks for your cooperation!
+<your name>
+EOF
+```
 
 ## Selecting what to cherry-pick
 
@@ -139,6 +182,15 @@ to keep a reference to the original commit we cherry picked from. ("cherry picke
 ```shell
 git cherry-pick <hash-commit> -x
 ```
+
+## Collapse Cadwyn Migrations
+
+Before cutting an RC, bump the HEAD date of Cadwyn versioned API (execution api for now: `airflow-core/src/airflow/api_fastapi/execution_api`)
+to reflect the tentative release date of Airflow. All the Cadwyn migrations in between the tentative release date and last release date
+should be collapsed.
+
+Refer https://github.com/apache/airflow/pull/49116 as a good example.
+
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -241,12 +293,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 uv tool install -e ./dev/breeze
 ```
 
-or (if you prefer to use pipx):
-
-```shell script
-pipx install -e ./dev/breeze
-```
-
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
@@ -327,8 +373,7 @@ pipx install -e ./dev/breeze
 - Generate the body of the issue using the below command:
 
   ```shell script
-    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
-    --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
     ```
 
 ## Publish release candidate documentation (staging)
@@ -340,6 +385,34 @@ you need to run several workflows to publish the documentation. More details abo
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
 
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
+```
+
+The `--ref` parameter should be the tag of the release candidate you are publishing.
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+Other available parameters can be found with:
+
+```shell script
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
+
 There are two steps to publish the documentation:
 
 1. Publish the documentation to the `staging` S3 bucket.
@@ -349,7 +422,7 @@ The release manager publishes the documentation using GitHub Actions workflow
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
 manually to be `live` or `staging`.
 
-You should specify 'apache-airflow docker-stack' passed as packages to be
+You should specify 'apache-airflow docker-stack task-sdk' passed as packages to be
 built.
 
 After that step, the provider documentation should be available under https://airflow.stage.apache.org//
@@ -579,11 +652,17 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+
+``` shell
+export PATH_TO_SVN=<set your path to svn here>
+```
+
 Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -716,7 +795,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.9.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.10.txt"
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -728,7 +807,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -736,7 +815,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres \
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -839,7 +918,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.9 3.10 3.11 3.12
+for PYTHON in 3.10 3.11 3.12
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -857,6 +936,34 @@ but the documentation source code and build tools are available in the `apache/a
 you need to run several workflows to publish the documentation. More details about it can be found in
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
+
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
+```
+
+The `--ref` parameter should be the tag of the final candidate you are publishing.
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+Other available parameters can be found with:
+
+```shell
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
 
 There are two steps to publish the documentation:
 

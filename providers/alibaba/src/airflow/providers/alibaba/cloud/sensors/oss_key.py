@@ -26,7 +26,7 @@ from deprecated.classic import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.alibaba.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

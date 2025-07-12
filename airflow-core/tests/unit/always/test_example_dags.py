@@ -27,8 +27,8 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection, DagBag
+from airflow.sdk import BaseHook
 from airflow.utils import yaml
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -51,17 +51,12 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Generally, these should be resolved as soon as a parameter or operator is deprecated.
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
-    "providers/google/tests/system/google/cloud/bigquery/example_bigquery_operations.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_sql.py",
     "providers/google/tests/system/google/cloud/dataproc/example_dataproc_gke.py",
-    "providers/google/tests/system/google/cloud/datapipelines/example_datapipeline.py",
-    "providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
-    "providers/google/tests/system/google/cloud/life_sciences/example_life_sciences.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
 
@@ -117,7 +112,7 @@ def get_python_excluded_providers_folders() -> list[str]:
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = [
-        "airflow/**/example_dags/example_*.py",
+        "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
         "providers/**/example_*.py",
     ]

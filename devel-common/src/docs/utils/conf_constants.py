@@ -338,6 +338,7 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/tests/system/__init__.py",
     "*/tests/system/example_empty.py",
     "*/test_aws_auth_manager.py",
+    "*/check_translations_completeness.py",
 ]
 
 IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)

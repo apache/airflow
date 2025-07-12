@@ -19,7 +19,7 @@ package logging
 
 import "log/slog"
 
-// AttrErr returns an [slog.Attr] that will only include the given error if it is non nill
+// AttrErr returns an [slog.Attr] that will only include the given error if it is non nil
 func AttrErr(err error) slog.Attr {
 	if err == nil {
 		// Return an empty attr

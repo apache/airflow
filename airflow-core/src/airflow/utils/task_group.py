@@ -19,15 +19,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import cache
 from operator import methodcaller
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import airflow.sdk.definitions.taskgroup
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
+    from typing import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
 MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
@@ -44,32 +45,24 @@ def get_task_group_children_getter() -> Callable:
 
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    if isinstance(task := task_item_or_group, AbstractOperator):
-        setup_teardown_type = {}
-        is_mapped = {}
-        node_type = {"type": "task"}
-        node_operator = {}
-        if task.is_setup is True:
-            setup_teardown_type["setup_teardown_type"] = "setup"
-        elif task.is_teardown is True:
-            setup_teardown_type["setup_teardown_type"] = "teardown"
-        if isinstance(task, MappedOperator) or parent_group_is_mapped:
-            is_mapped["is_mapped"] = True
-        if isinstance(task, BaseOperator) or isinstance(task, MappedOperator):
-            node_operator["operator"] = task.operator_name
-
-        return {
+    if isinstance(task := task_item_or_group, (AbstractOperator, SerializedBaseOperator)):
+        node_operator = {
             "id": task.task_id,
             "label": task.label,
-            **is_mapped,
-            **setup_teardown_type,
-            **node_type,
-            **node_operator,
+            "operator": task.operator_name,
+            "type": "task",
         }
+        if task.is_setup:
+            node_operator["setup_teardown_type"] = "setup"
+        elif task.is_teardown:
+            node_operator["setup_teardown_type"] = "teardown"
+        if isinstance(task, MappedOperator) or parent_group_is_mapped:
+            node_operator["is_mapped"] = True
+        return node_operator
 
     task_group = task_item_or_group
     is_mapped = isinstance(task_group, MappedTaskGroup)
@@ -93,4 +86,43 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "is_mapped": is_mapped,
         "children": children,
         "type": "task",
+    }
+
+
+def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
+    """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    if isinstance(task := task_item_or_group, (AbstractOperator, SerializedBaseOperator)):
+        is_mapped = None
+        if isinstance(task, MappedOperator) or parent_group_is_mapped:
+            is_mapped = True
+        setup_teardown_type = None
+        if task.is_setup is True:
+            setup_teardown_type = "setup"
+        elif task.is_teardown is True:
+            setup_teardown_type = "teardown"
+        return {
+            "id": task.task_id,
+            "label": task.label,
+            "is_mapped": is_mapped,
+            "children": None,
+            "setup_teardown_type": setup_teardown_type,
+        }
+
+    task_group = task_item_or_group
+    task_group_sort = get_task_group_children_getter()
+    is_mapped_group = isinstance(task_group, MappedTaskGroup)
+    children = [
+        task_group_to_dict_grid(x, parent_group_is_mapped=parent_group_is_mapped or is_mapped_group)
+        for x in task_group_sort(task_group)
+    ]
+
+    return {
+        "id": task_group.group_id,
+        "label": task_group.label,
+        "is_mapped": is_mapped_group or None,
+        "children": children or None,
     }

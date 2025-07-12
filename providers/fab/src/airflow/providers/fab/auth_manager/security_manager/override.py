@@ -43,6 +43,7 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -61,7 +62,7 @@ from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from itsdangerous import want_bytes
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
@@ -186,6 +187,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     userremoteusermodelview = CustomUserRemoteUserModelView
     useroidmodelview = CustomUserOIDModelView
     userstatschartview = CustomUserStatsChartView
+
+    # API
+    security_api = SecurityApi
+    """ Override if you want your own Security API login endpoint """
 
     jwt_manager = None
     """ Flask-JWT-Extended """
@@ -401,6 +406,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
 
+        # Security APIs
+        self.appbuilder.add_api(self.security_api)
+
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
                 self.registeruser_view = self.registeruserdbview()
@@ -539,8 +547,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user_session_model = interface.sql_session_model
             num_sessions = session.query(user_session_model).count()
             if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
+                safe_username = escape(user.username)
                 self._cli_safe_flash(
-                    f"The old sessions for user {user.username} have <b>NOT</b> been deleted!<br>"
+                    f"The old sessions for user {safe_username} have <b>NOT</b> been deleted!<br>"
                     f"You have a lot ({num_sessions}) of user sessions in the 'SESSIONS' table in "
                     f"your database.<br> "
                     "This indicates that this deployment might have an automated API calls that create "
@@ -557,9 +566,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                         session.delete(s)
                 session.commit()
         else:
+            safe_username = escape(user.username)
             self._cli_safe_flash(
                 "Since you are using `securecookie` session backend mechanism, we cannot prevent "
-                f"some old sessions for user {user.username} to be reused.<br> If you want to make sure "
+                f"some old sessions for user {safe_username} to be reused.<br> If you want to make sure "
                 "that the user is logged out from all sessions, you should consider using "
                 "`database` session backend mechanism.<br> You can also change the 'secret_key` "
                 "webserver configuration for all your webserver instances and restart the webserver. "
@@ -743,6 +753,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Get the builtin roles."""
         return self._builtin_roles
 
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
+
+    @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
+
     def _init_config(self):
         """
         Initialize config.
@@ -767,12 +786,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         parsed_werkzeug_version = Version(werkzeug_version)
         if parsed_werkzeug_version < Version("3.0.0"):
+            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
         else:
+            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"
@@ -1704,7 +1725,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     --------------------
     """
 
-    def auth_user_ldap(self, username, password):
+    def auth_user_ldap(self, username, password, rotate_session_id=True):
         """
         Authenticate user with LDAP.
 
@@ -1871,7 +1892,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # LOGIN SUCCESS (only if user is now registered)
             if user:
-                self._rotate_session_id()
+                if rotate_session_id:
+                    self._rotate_session_id()
                 self.update_user_auth_stat(user)
                 return user
             return None
@@ -1900,7 +1922,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         return check_password_hash(user.password, password)
 
-    def auth_user_db(self, username, password):
+    def auth_user_db(self, username, password, rotate_session_id=True):
         """
         Authenticate user, auth db style.
 
@@ -1908,6 +1930,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             The username or registered email address
         :param password:
             The password, will be tested against hashed password on db
+        :param rotate_session_id:
+            Whether to rotate the session ID
         """
         if username is None or username == "":
             return None
@@ -1923,7 +1947,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
         if check_password_hash(user.password, password):
-            self._rotate_session_id()
+            if rotate_session_id:
+                self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
         self.update_user_auth_stat(user, False)
@@ -2132,8 +2157,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "username": me["nickname"],
                 "role_keys": me.get("groups", []),
             }
-
-        return {}
+        # for other providers
+        data = self.oauth_remotes[provider].userinfo()
+        log.debug("User info from %s: %s", provider, data)
+        return {
+            "username": data.get("preferred_username", ""),
+            "first_name": data.get("given_name", ""),
+            "last_name": data.get("family_name", ""),
+            "email": data.get("email", ""),
+            "role_keys": data.get("groups", []),
+        }
 
     @staticmethod
     def oauth_token_getter():

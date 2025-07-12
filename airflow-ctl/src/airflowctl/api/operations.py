@@ -28,19 +28,21 @@ from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
     AssetAliasResponse,
     AssetCollectionResponse,
+    AssetEventResponse,
     AssetResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
-    BulkActionResponse,
     BulkBodyConnectionBody,
     BulkBodyPoolBody,
     BulkBodyVariableBody,
+    BulkResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
+    CreateAssetEventsBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
@@ -60,6 +62,8 @@ from airflowctl.api.datamodels.generated import (
     PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
+    QueuedEventCollectionResponse,
+    QueuedEventResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -198,6 +202,74 @@ class AssetsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
+    def create_event(
+        self, asset_event_body: CreateAssetEventsBody
+    ) -> AssetEventResponse | ServerResponseError:
+        """Create an asset event."""
+        try:
+            self.response = self.client.post("assets/events", json=asset_event_body.model_dump())
+            return AssetEventResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
+        """Materialize an asset."""
+        try:
+            self.response = self.client.post(f"assets/{asset_id}/materialize")
+            return DAGRunResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:
+        """Get queued events for an asset."""
+        try:
+            self.response = self.client.get(f"assets/{asset_id}/queuedEvents")
+            return QueuedEventCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_dag_queued_events(
+        self, dag_id: str, before: str
+    ) -> QueuedEventCollectionResponse | ServerResponseError:
+        """Get queued events for a dag."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/assets/queuedEvents", params={"before": before})
+            return QueuedEventCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_dag_queued_event(self, dag_id: str, asset_id: str) -> QueuedEventResponse | ServerResponseError:
+        """Get a queued event for a dag."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/assets/{asset_id}/queuedEvents")
+            return QueuedEventResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete_queued_events(self, asset_id: str) -> str | ServerResponseError:
+        """Delete a queued event for an asset."""
+        try:
+            self.client.delete(f"assets/{asset_id}/queuedEvents/")
+            return asset_id
+        except ServerResponseError as e:
+            raise e
+
+    def delete_dag_queued_events(self, dag_id: str, before: str) -> str | ServerResponseError:
+        """Delete a queued event for a dag."""
+        try:
+            self.client.delete(f"assets/dags/{dag_id}/queuedEvents", params={"before": before})
+            return dag_id
+        except ServerResponseError as e:
+            raise e
+
+    def delete_queued_event(self, dag_id: str, asset_id: str) -> str | ServerResponseError:
+        """Delete a queued event for a dag."""
+        try:
+            self.client.delete(f"assets/dags/{dag_id}/assets/{asset_id}/queuedEvents/")
+            return asset_id
+        except ServerResponseError as e:
+            raise e
+
 
 class BackfillsOperations(BaseOperations):
     """Backfill operations."""
@@ -309,11 +381,11 @@ class ConnectionsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, connections: BulkBodyConnectionBody) -> BulkActionResponse | ServerResponseError:
+    def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
         try:
             self.response = self.client.patch("connections", json=connections.model_dump())
-            return BulkActionResponse.model_validate_json(self.response.content)
+            return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
@@ -402,7 +474,7 @@ class DagOperations(BaseOperations):
 
     def delete(self, dag_id: str) -> str | ServerResponseError:
         try:
-            self.response = self.client.delete(f"dags/{dag_id}")
+            self.client.delete(f"dags/{dag_id}")
             return dag_id
         except ServerResponseError as e:
             raise e
@@ -498,11 +570,11 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, limit: int, is_alive: bool
+        self, job_type: str, hostname: str, is_alive: bool
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         try:
-            params = {"limit": limit, "job_type": job_type, "hostname": hostname, "is_alive": is_alive}
+            params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
             self.response = self.client.get("jobs", params=params)  # type: ignore
             return JobCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -536,11 +608,11 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, pools: BulkBodyPoolBody) -> BulkActionResponse | ServerResponseError:
+    def bulk(self, pools: BulkBodyPoolBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple pools."""
         try:
             self.response = self.client.patch("pools", json=pools.model_dump())
-            return BulkActionResponse.model_validate_json(self.response.content)
+            return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
@@ -600,11 +672,11 @@ class VariablesOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, variables: BulkBodyVariableBody) -> BulkActionResponse | ServerResponseError:
+    def bulk(self, variables: BulkBodyVariableBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple variables."""
         try:
             self.response = self.client.patch("variables", json=variables.model_dump())
-            return BulkActionResponse.model_validate_json(self.response.content)
+            return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 

@@ -40,10 +40,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
         type: string
-      use-uv:
-        description: "Whether to use uv to build the image (true/false)"
-        required: true
-        type: string
       upgrade-to-newer-dependencies:
         description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
         required: true
@@ -73,11 +69,11 @@ jobs:
       upload-package-artifact: "false"
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
+      default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
-      use-uv: ${{ inputs.use-uv }}
+      use-uv: "true"
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
@@ -94,7 +90,7 @@ jobs:
       upload-package-artifact: "false"
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
+      default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
