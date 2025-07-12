@@ -70,3 +70,38 @@ def login_callback(request: Request):
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
+
+
+@login_router.get("/refresh")
+def refresh(request: Request) -> RedirectResponse:
+    """Refresh the token."""
+    client = KeycloakAuthManager.get_keycloak_client()
+    redirect_uri = request.url_for("refresh_callback")
+    auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid")
+    return RedirectResponse(auth_url)
+
+
+@login_router.get("/refresh_callback")
+def refresh_callback(request: Request):
+    code = request.query_params.get("code")
+    if not code:
+        return HTMLResponse("Missing code", status_code=400)
+    client = KeycloakAuthManager.get_keycloak_client()
+    redirect_uri = request.url_for("refresh_callback")
+    tokens = client.token(
+        grant_type="authorization_code",
+        code=code,
+        redirect_uri=str(redirect_uri),
+    )
+    userinfo = client.userinfo(tokens["access_token"])
+    user = KeycloakAuthManagerUser(
+        user_id=userinfo["sub"],
+        name=userinfo["preferred_username"],
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+    )
+    token = get_auth_manager().generate_jwt(user)
+    response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
+    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    return response
