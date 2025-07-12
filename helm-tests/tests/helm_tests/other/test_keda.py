@@ -334,3 +334,61 @@ class TestKeda:
             "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
+
+    def test_keda_db_postgresql_custom_connection(self):
+        """Verify custom keda db connection when connectionEnv is set when using postgresql"""
+
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "postgresql"}},
+                "workers": {"keda": {"enabled": True, "connectionEnv": "CUSTOM_DB_CONN"}},
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        keda_autoscaler = docs[0]
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "CUSTOM_DB_CONN"
+
+    def test_keda_db_mysql_custom_connection(self):
+        """Verify custom keda db connection when connectionEnv is set when using mysql"""
+
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql"}},
+                "workers": {"keda": {"enabled": True, "connectionEnv": "CUSTOM_DB_CONN"}},
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        keda_autoscaler = docs[0]
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "CUSTOM_DB_CONN"
+
+    def test_keda_db_postgresql_custom_connection_keda_db_conn(self):
+        """Verify KEDA_DB_CONN db connection when connectionEnv is set to KEDA_DB_CONN when using postgresql and check that secret is available too."""
+
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "postgresql"}},
+                "workers": {"keda": {"enabled": True, "connectionEnv": "KEDA_DB_CONN"}},
+            },
+            show_only=[
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        keda_autoscaler = docs[0]
+        metadata_connection_secret = docs[1]
+
+        secret_data = jmespath.search("data", metadata_connection_secret)
+        assert "kedaConnection" in secret_data.keys()
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "KEDA_DB_CONN"
