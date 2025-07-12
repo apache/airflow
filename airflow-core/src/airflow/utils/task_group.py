@@ -28,7 +28,7 @@ import airflow.sdk.definitions.taskgroup
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
+    from typing import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
 MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup

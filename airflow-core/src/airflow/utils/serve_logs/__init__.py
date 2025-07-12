@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from airflow.sdk import ObjectStoragePath
+from airflow.utils.serve_logs.core import serve_logs
+from airflow.utils.serve_logs.log_server import create_app
 
-__all__ = ["ObjectStoragePath"]
+__all__ = ["serve_logs", "create_app"]

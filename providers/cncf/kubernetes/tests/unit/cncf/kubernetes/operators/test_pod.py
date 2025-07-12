@@ -37,6 +37,7 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -53,7 +54,6 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -107,6 +107,8 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag.add_task(task)
     now = timezone.utcnow()
     if AIRFLOW_V_3_0_PLUS:
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
@@ -124,20 +126,27 @@ def create_context(task, persist_to_db=False, map_index=None):
             dag_id=dag.dag_id,
             execution_date=now,
         )
-    task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dag_version import DagVersion
+
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+    else:
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
     if map_index is not None:
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.models.dagbundle import DagBundleModel
+            # if AIRFLOW_V_3_0_PLUS:
+            #     from airflow.models.dagbundle import DagBundleModel
 
-                bundle_name = "test_bundle"
-                session.add(DagBundleModel(name=bundle_name))
-                session.flush()
-                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
-            else:
+            #     bundle_name = "test_bundle"
+            #     session.add(DagBundleModel(name=bundle_name))
+            #     session.flush()
+            #     session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            # else:
+            if not AIRFLOW_V_3_0_PLUS:
                 session.add(DagModel(dag_id=dag.dag_id))
             session.add(dag_run)
             session.add(task_instance)
@@ -1575,7 +1584,7 @@ class TestKubernetesPodOperator:
         with pytest.raises(AirflowException):
             k.execute(context=context)
 
-        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
+        context["ti"].xcom_push.assert_called_with("return_value", {"Test key": "Test value"})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

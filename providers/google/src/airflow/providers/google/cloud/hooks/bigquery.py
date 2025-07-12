@@ -2248,7 +2248,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         self,
         sql: str,
         pass_value: Any,
-        records: list[Any],
+        records: list[Any] | None = None,
         tolerance: float | None = None,
     ) -> None:
         """
