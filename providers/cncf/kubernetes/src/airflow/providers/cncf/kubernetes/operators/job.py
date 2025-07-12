@@ -152,9 +152,12 @@ class KubernetesJobOperator(KubernetesPodOperator):
         return job_request_obj
 
     def get_or_create_pod(self, pod_request_obj, context):
+        pod = None
         with timeout(seconds=self.pod_creation_timeout, error_message="Exceeded pod_creation_timeout."):
             while pod is None:
-                pod = self.find_pod(self.namespace or self.pod_request_obj.metadata.namespace, context=context)
+                pod = self.find_pod(
+                    self.namespace or self.pod_request_obj.metadata.namespace, context=context
+                )
         return pod_request_obj
 
     def execute(self, context: Context):
