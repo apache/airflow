@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
 
 from tests_common.test_utils.config import conf_vars
@@ -64,7 +65,7 @@ class TestBaseHook:
         hook = BaseHook()
         mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
 
-        with pytest.raises(AirflowRuntimeError, match="CONNECTION_NOT_FOUND"):
+        with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             hook.get_connection(conn_id=conn_id)
 
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):

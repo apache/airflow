@@ -37,7 +37,7 @@ try:
     from airflow.sdk import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperatorLink  # type: ignore[attr-defined,no-redef]
 
 try:
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer

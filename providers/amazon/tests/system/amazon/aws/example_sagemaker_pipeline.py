@@ -17,12 +17,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStartPipelineOperator,
     SageMakerStopPipelineOperator,
@@ -30,6 +28,21 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerPipelineSensor,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain, task
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.example_sagemaker import delete_experiments
@@ -106,7 +119,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
-        create_pipeline,  # type: ignore[arg-type]
+        create_pipeline,
         # TEST BODY
         start_pipeline1,
         start_pipeline2,

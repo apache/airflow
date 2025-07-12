@@ -22,7 +22,7 @@ requires = [
     "hatchling==1.27.0",
     "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
@@ -35,7 +35,7 @@ name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
-requires-python = "~=3.10,<3.13"
+requires-python = ">=3.10,!=3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -80,10 +80,6 @@ dependencies = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
-    # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
-    "flask>=2.1.1",
-    # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
-    "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -107,7 +103,7 @@ dependencies = [
     # This may be removed when future versions of pip are able
     # to handle this dependency resolution automatically.
     "opentelemetry-proto<9999",
-    "packaging>=23.2",
+    "packaging>=25.0",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',

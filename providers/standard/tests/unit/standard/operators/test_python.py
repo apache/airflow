@@ -48,7 +48,7 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.connection import Connection
-from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -74,8 +74,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
+    from airflow.sdk.execution_time.context import set_current_context
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
+
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
