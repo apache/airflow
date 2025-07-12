@@ -752,9 +752,9 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
-    "3.6": "v3.6.1",
-    "3.7": "v3.7.1",
-    "3.8": "v3.8.1",
+    "3.6": "v3.6.15",
+    "3.7": "v3.7.17",
+    "3.8": "v3.8.20",
     "3.9": "v3.9.23",
     "3.10": "v3.10.18",
     "3.11": "v3.11.13",
