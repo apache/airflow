@@ -362,7 +362,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             aws_domain=DataSyncTaskExecutionLink.get_aws_domain(self.hook.conn_partition),
             region_name=self.hook.conn_region_name,
             task_id=self.task_arn.split("/")[-1],
-            task_execution_id=self.task_execution_arn.split("/")[-1],  # type: ignore[union-attr]
+            task_execution_id=self.task_execution_arn.split("/")[-1],
         )
         DataSyncTaskExecutionLink.persist(
             context=context,
@@ -370,7 +370,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             region_name=self.hook.conn_region_name,
             aws_partition=self.hook.conn_partition,
             task_id=self.task_arn.split("/")[-1],
-            task_execution_id=self.task_execution_arn.split("/")[-1],  # type: ignore[union-attr]
+            task_execution_id=self.task_execution_arn.split("/")[-1],
         )
 
         self.log.info("You can view this DataSync task execution at %s", execution_url)
