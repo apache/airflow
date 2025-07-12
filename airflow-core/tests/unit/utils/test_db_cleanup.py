@@ -34,6 +34,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
@@ -671,15 +672,12 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        # session.add(DagBundleModel(name="dags-folder"))
-        # session.flush()
-
-        # dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="dags-folder")
-        # session.add(dag)
+        session.add(DagBundleModel(name="dags-folder"))
+        session.flush()
 
         dag_id = f"test-dag_{uuid4()}"
         dag = DAG(dag_id=dag_id)
-        dm = DagModel(dag_id=dag_id)
+        dm = DagModel(dag_id=dag_id, bundle_name="dags-folder")
         session.add(dm)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_version = DagVersion.get_latest_version(dag.dag_id)

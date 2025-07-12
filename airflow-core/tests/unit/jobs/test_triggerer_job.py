@@ -420,14 +420,13 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(trigger_orm)
     session.flush()
 
-    # bundle_name = "test_bundle"
-    # orm_dag_bundle = DagBundleModel(name=bundle_name)
-    # session.add(orm_dag_bundle)
-    # session.flush()
+    bundle_name = "test_bundle"
+    orm_dag_bundle = DagBundleModel(name=bundle_name)
+    session.add(orm_dag_bundle)
+    session.flush()
 
-    # dag = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     dag = DAG(dag_id="test-dag")
-    dm = DagModel(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
     SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())

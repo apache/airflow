@@ -93,6 +93,14 @@ def temp_override_attr(obj, attr, val):
 
 @pytest.fixture(autouse=True)
 def clear_db():
+    # Clear all database objects before and after each test
+    _clear_all_db_objects()
+    yield
+    _clear_all_db_objects()
+
+
+def _clear_all_db_objects():
+    """Comprehensive cleanup of all database objects that might interfere with tests."""
     db.clear_db_dags()
     db.clear_db_runs()
     if AIRFLOW_V_3_0_PLUS:
@@ -107,6 +115,14 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag.add_task(task)
     now = timezone.utcnow()
     if AIRFLOW_V_3_0_PLUS:
+        with create_session() as session:
+            from airflow.models.dagbundle import DagBundleModel
+
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            session.commit()
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_run = DagRun(
@@ -130,6 +146,12 @@ def create_context(task, persist_to_db=False, map_index=None):
         from airflow.models.dag_version import DagVersion
 
         dag_version = DagVersion.get_latest_version(dag.dag_id)
+        if dag_version is None:
+            with create_session() as session:
+                dag_version = DagVersion(dag_id=dag.dag_id, version_number=1)
+                session.add(dag_version)
+                session.commit()
+                session.refresh(dag_version)
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
     else:
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
@@ -138,14 +160,6 @@ def create_context(task, persist_to_db=False, map_index=None):
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            # if AIRFLOW_V_3_0_PLUS:
-            #     from airflow.models.dagbundle import DagBundleModel
-
-            #     bundle_name = "test_bundle"
-            #     session.add(DagBundleModel(name=bundle_name))
-            #     session.flush()
-            #     session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
-            # else:
             if not AIRFLOW_V_3_0_PLUS:
                 session.add(DagModel(dag_id=dag.dag_id))
             session.add(dag_run)
@@ -1327,6 +1341,8 @@ class TestKubernetesPodOperator:
             ),
         )
 
+        _clear_all_db_objects()
+
         k = KubernetesPodOperator(
             task_id="task",
             affinity=k8s_api_affinity,
@@ -1351,6 +1367,8 @@ class TestKubernetesPodOperator:
         sanitized_pod = self.sanitize_for_serialization(pod)
         assert isinstance(pod.spec.tolerations[0], k8s.V1Toleration)
         assert sanitized_pod["spec"]["tolerations"] == tolerations
+
+        _clear_all_db_objects()
 
         k = KubernetesPodOperator(
             task_id="task",

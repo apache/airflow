@@ -23,7 +23,9 @@ import pytest
 
 from airflow import DAG
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -384,13 +386,13 @@ class TestGetXComEntries(TestXComEndpoint):
 
     @provide_session
     def _create_xcom_entries(self, dag_id, run_id, logical_date, task_id, mapped_ti=False, session=None):
-        # bundle_name = "testing"
-        # orm_dag_bundle = DagBundleModel(name=bundle_name)
-        # session.merge(orm_dag_bundle)
-        # session.flush()
+        bundle_name = "testing"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+        session.commit()
 
-        # dag = DagModel(dag_id=dag_id, bundle_name=bundle_name)
-        # session.add(dag)
         dag = DAG(dag_id=dag_id)
         dag.sync_to_db(session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
