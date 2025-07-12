@@ -97,6 +97,7 @@
     "backfills": "Backfills",
     "code": "Code",
     "details": "Details",
+    "hitlTIs": "HITL Task Instances",
     "logs": "Logs",
     "mappedTaskInstances_one": "Task Instance [{{count}}]",
     "mappedTaskInstances_other": "Task Instances [{{count}}]",

@@ -1875,6 +1875,7 @@ components:
       - Providers
       - Variables
       - XComs
+      - HITL
       title: MenuItem
       description: Define all menu items defined in the menu.
     MenuItemCollectionResponse:
