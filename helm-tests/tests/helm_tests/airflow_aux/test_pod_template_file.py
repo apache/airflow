@@ -84,6 +84,7 @@ class TestPodTemplateFile:
                         "credentialsSecret": None,
                         "knownHosts": None,
                         "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
+                        "gitConfig": "core.autocrlf=true",
                     }
                 },
             },
@@ -115,6 +116,7 @@ class TestPodTemplateFile:
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                {"name": "GITSYNC_GIT_CONFIG", "value": "core.autocrlf=true"},
                 {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
                 {"name": "GITSYNC_ONE_TIME", "value": "true"},
             ],
