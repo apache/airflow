@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+.. warning::
+   Make sure the connection you use to authenticate with Trino, has only one authentication method set (e.g password, jwt) otherwise the task will fail.
+
 6.3.1
 .....
 
