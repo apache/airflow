@@ -43,7 +43,6 @@ import { ToggleGroups } from "./ToggleGroups";
 type Props = {
   readonly dagView: string;
   readonly limit: number;
-  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -72,7 +71,7 @@ const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
+export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "" } = useParams();
   const { fitView } = useReactFlow();
@@ -103,20 +102,10 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
     }
   };
 
-  const handleFocus = (view: string) => {
-    if (panelGroupRef.current) {
-      const panelGroup = panelGroupRef.current;
-
-      if (typeof panelGroup.setLayout === "function") {
-        const newLayout = view === "graph" ? [70, 30] : [30, 70];
-
-        panelGroup.setLayout(newLayout);
-        // Used setTimeout to ensure DOM has been updated
-        setTimeout(() => {
-          void fitView();
-        }, 1);
-      }
-    }
+  const handleFocus = () => {
+    setTimeout(() => {
+      void fitView();
+    }, 1);
   };
 
   return (
@@ -128,7 +117,7 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
           onClick={() => {
             setDagView("grid");
             if (dagView === "grid") {
-              handleFocus("grid");
+              handleFocus();
             }
           }}
           title={translate("dag:panel.buttons.showGrid")}
@@ -142,7 +131,7 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
           onClick={() => {
             setDagView("graph");
             if (dagView === "graph") {
-              handleFocus("graph");
+              handleFocus();
             }
           }}
           title={translate("dag:panel.buttons.showGraph")}
