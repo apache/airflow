@@ -107,7 +107,7 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
             - "--statsd.cache-size={{ .Values.statsd.cacheSize | default 1000 }}"
-            - "--statsd.cache-type={{ .Values.statsd.cacheType | default 'lru' }}"
+            - "--statsd.cache-type={{ .Values.statsd.cacheType | default `lru` }}"
             - "--ttl={{ .Values.statsd.ttl | default '0s'}}"
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
           {{- with .Values.statsd.env }}
