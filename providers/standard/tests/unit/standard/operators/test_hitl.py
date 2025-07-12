@@ -257,7 +257,7 @@ class TestApprovalOperator:
 
 
 class TestHITLEntryOperator:
-    def test_init(self) -> None:
+    def test_init_without_options_and_default(self) -> None:
         op = HITLEntryOperator(
             task_id="hitl_test",
             subject="This is subject",
@@ -267,3 +267,27 @@ class TestHITLEntryOperator:
 
         assert op.options == ["OK"]
         assert op.defaults == ["OK"]
+
+    def test_init_without_options(self) -> None:
+        op = HITLEntryOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            params={"input": 1},
+            defaults=None,
+        )
+
+        assert op.options == ["OK"]
+        assert op.defaults is None
+
+    def test_init_without_default(self) -> None:
+        op = HITLEntryOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            params={"input": 1},
+            options=["OK", "NOT OK"],
+        )
+
+        assert op.options == ["OK", "NOT OK"]
+        assert op.defaults is None

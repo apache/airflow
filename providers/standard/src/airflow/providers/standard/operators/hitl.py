@@ -227,6 +227,8 @@ class HITLEntryOperator(HITLOperator):
     def __init__(self, **kwargs) -> None:
         if "options" not in kwargs:
             kwargs["options"] = ["OK"]
-            kwargs["defaults"] = ["OK"]
+
+            if "defaults" not in kwargs:
+                kwargs["defaults"] = ["OK"]
 
         super().__init__(**kwargs)
