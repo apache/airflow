@@ -33,11 +33,10 @@ import os
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
 
-from setproctitle import setproctitle
-
 from airflow.executors import workloads
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setproctitle import setproctitle
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:

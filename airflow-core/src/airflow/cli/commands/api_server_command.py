@@ -21,7 +21,6 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import sys
 import textwrap
 
 import uvicorn
@@ -31,6 +30,7 @@ from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.exceptions import AirflowConfigException
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.setproctitle import setproctitle
 
 log = logging.getLogger(__name__)
 
@@ -57,14 +57,7 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
     # get ssl cert and key filepaths here instead of passing them as arguments to reduce the number of arguments
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
-    # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
-    os_type = sys.platform
-    if os_type == "darwin":
-        log.debug("Mac OS detected, skipping setproctitle")
-    else:
-        from setproctitle import setproctitle
-
-        setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
+    setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
 
     uvicorn_kwargs = {
         "host": args.host,
