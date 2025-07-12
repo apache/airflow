@@ -1098,13 +1098,13 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
             raise AirflowException("AutoMLTextTrainingJob was not created")
 
         model = self._job.run(
-            dataset=dataset,  # type: ignore[arg-type]
-            training_fraction_split=training_fraction_split,  # type: ignore[call-arg]
-            validation_fraction_split=validation_fraction_split,  # type: ignore[call-arg]
+            dataset=dataset,
+            training_fraction_split=training_fraction_split,
+            validation_fraction_split=validation_fraction_split,
             test_fraction_split=test_fraction_split,
             training_filter_split=training_filter_split,
             validation_filter_split=validation_filter_split,
-            test_filter_split=test_filter_split,  # type: ignore[call-arg]
+            test_filter_split=test_filter_split,
             model_display_name=model_display_name,
             model_labels=model_labels,
             sync=sync,

@@ -1834,7 +1834,7 @@ class CloudDLPListDeidentifyTemplatesOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
             )
 
-        return [DeidentifyTemplate.to_dict(template) for template in templates]  # type: ignore[arg-type]
+        return [DeidentifyTemplate.to_dict(template) for template in templates]
 
 
 class CloudDLPListDLPJobsOperator(GoogleCloudBaseOperator):
@@ -1930,7 +1930,7 @@ class CloudDLPListDLPJobsOperator(GoogleCloudBaseOperator):
             )
 
         # the DlpJob.to_dict does not have the right type defined as possible to pass in constructor
-        return [DlpJob.to_dict(job) for job in jobs]  # type: ignore[arg-type]
+        return [DlpJob.to_dict(job) for job in jobs]
 
 
 class CloudDLPListInfoTypesOperator(GoogleCloudBaseOperator):

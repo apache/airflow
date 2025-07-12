@@ -211,7 +211,7 @@ with DAG(
             get_display_video_gmp_partner_id_task,
             get_display_video_service_account_key_task,
         ]
-        >> create_connection_display_video_task  # type: ignore
+        >> create_connection_display_video_task
         >> create_bucket
         >> create_dataset
         # TEST BODY

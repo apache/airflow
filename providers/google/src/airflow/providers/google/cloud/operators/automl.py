@@ -244,7 +244,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
 
         self.model_id = model_id
         self.endpoint_id = endpoint_id
-        self.operation_params = operation_params  # type: ignore
+        self.operation_params = operation_params
         self.instances = instances
         self.location = location
         self.project_id = project_id
