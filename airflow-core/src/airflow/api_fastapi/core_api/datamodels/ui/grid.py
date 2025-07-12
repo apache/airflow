@@ -24,6 +24,22 @@ from pydantic import BaseModel
 from airflow.utils.state import TaskInstanceState
 
 
+class GridTaskInstanceSummary(BaseModel):
+    """Task Instance Summary model for the Grid UI."""
+
+    task_id: str
+    try_number: int
+    start_date: datetime | None
+    end_date: datetime | None
+    queued_dttm: datetime | None
+    child_states: dict[str, int] | None
+    task_count: int
+    state: TaskInstanceState | None
+    note: str | None
+    dag_version_id: str | None = None
+    dag_version_number: int | None = None
+
+
 class LightGridTaskInstanceSummary(BaseModel):
     """Task Instance Summary model for the Grid UI."""
 
@@ -32,6 +48,8 @@ class LightGridTaskInstanceSummary(BaseModel):
     child_states: dict[TaskInstanceState | None, int] | None
     min_start_date: datetime | None
     max_end_date: datetime | None
+    dag_version_id: str | None = None
+    dag_version_number: int | None = None
 
 
 class GridTISummaries(BaseModel):

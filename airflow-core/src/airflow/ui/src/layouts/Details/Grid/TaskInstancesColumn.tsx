@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
@@ -36,7 +36,7 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
   const [searchParams] = useSearchParams();
   const search = searchParams.toString();
 
-  return nodes.map((node) => {
+  return nodes.map((node, idx) => {
     // todo: how does this work with mapped? same task id for multiple tis
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
@@ -44,18 +44,48 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
+    // Check if dag_version changed compared to previous task
+    const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
+    const prevTaskInstance = prevNode ? taskInstances.find((ti) => ti.task_id === prevNode.id) : undefined;
+
+    const showVersionDivider = Boolean(
+      prevTaskInstance &&
+        taskInstance.dag_version_id !== undefined &&
+        prevTaskInstance.dag_version_id !== undefined &&
+        taskInstance.dag_version_id !== prevTaskInstance.dag_version_id,
+    );
+
     return (
-      <GridTI
-        dagId={dagId}
-        isGroup={node.isGroup}
-        isMapped={node.is_mapped}
-        key={node.id}
-        label={node.label}
-        runId={runId}
-        search={search}
-        state={taskInstance.state}
-        taskId={node.id}
-      />
+      <Box key={`${node.id}-${runId}`} position="relative">
+        {showVersionDivider ? (
+          <Box bg="orange.400" height="2px" left="0" position="absolute" top="-1px" width="18px" zIndex={3}>
+            <Text
+              bg="white"
+              borderRadius="2px"
+              color="orange.700"
+              fontSize="8px"
+              position="absolute"
+              px="1px"
+              right="-8px"
+              top="-4px"
+              whiteSpace="nowrap"
+            >
+              {`v${taskInstance.dag_version_number ?? ""}`}
+            </Text>
+          </Box>
+        ) : undefined}
+        <GridTI
+          dagId={dagId}
+          isGroup={node.isGroup}
+          isMapped={node.is_mapped}
+          key={node.id}
+          label={node.label}
+          runId={runId}
+          search={search}
+          state={taskInstance.state}
+          taskId={node.id}
+        />
+      </Box>
     );
   });
 };
