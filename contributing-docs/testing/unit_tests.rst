@@ -69,6 +69,55 @@ For avoid this make sure:
         with pytest.warns(AirflowProviderDeprecationWarning, match="expected warning pattern"):
             SomeDeprecatedClass(foo="bar", spam="egg")
 
+Mocking time-related functionality in tests
+-------------------------------------------
+
+Mocking sleep calls
+...................
+
+To speed up test execution and avoid unnecessary delays, you should mock sleep calls in tests or set the sleep time to 0.
+If the method you're testing includes a call to ``time.sleep()`` or ``asyncio.sleep()``, mock these calls instead.
+How to mock ``sleep()`` depends on how it's imported:
+
+* If ``time.sleep`` is imported as ``import time``:
+
+.. code-block:: python
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_your_test():
+        pass
+
+* If ``sleep`` is imported directly using ``from time import sleep``:
+
+.. code-block:: python
+
+    @mock.patch("path.to.the.module.sleep", return_value=None)
+    def test_your_test():
+        pass
+
+For methods that use ``asyncio`` for async sleep calls you can proceed identically.
+
+**NOTE:** There are certain cases in which the method functioning correctly depends on actual time passing.
+In those cases the test with the mock will fail. Then it's okay to leave it unmocked.
+Use your judgment and prefer mocking whenever possible.
+
+Controlling date and time
+.........................
+
+Some features rely on the current date and time, e.g a function that generates timestamps, or passing of time.
+To test such features reliably, we use the ``time-machine`` library to control the system's time:
+
+.. code-block:: python
+
+    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    def test_log_message(self):
+        """
+        The tested code uses datetime.now() to generate a timestamp.
+        Freezing time ensures the timestamp is predictable and testable.
+        """
+
+By setting ``tick=False``, time is frozen at the specified moment and does not advance during the test.
+If you want time to progress from a fixed starting point, you can set ``tick=True``.
 
 Airflow configuration for unit tests
 ------------------------------------
