@@ -100,7 +100,7 @@ class KubernetesJobTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job status and yield a TriggerEvent."""
         if self.get_logs or self.do_xcom_push:
             pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
