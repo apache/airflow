@@ -61,3 +61,9 @@ runs:
         platform: ${{ inputs.platform }}
         python: "3.12"
         python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+    - name: "Restore CI docker image ${{ inputs.platform }}:3.13"
+      uses: ./.github/actions/prepare_single_ci_image
+      with:
+        platform: ${{ inputs.platform }}
+        python: "3.13"
+        python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}

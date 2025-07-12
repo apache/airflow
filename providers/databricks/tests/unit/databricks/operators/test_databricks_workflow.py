@@ -21,6 +21,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator

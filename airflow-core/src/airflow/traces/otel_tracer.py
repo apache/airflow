@@ -268,13 +268,13 @@ class OtelTrace:
                 start_time=datetime_to_nano(start_time),
             )
 
-        span = tracer.start_span(
+        span = tracer.start_span(  # type: ignore[assignment]
             name=span_name,
             context=parent_context,
             links=links,
             start_time=datetime_to_nano(start_time),
         )
-        current_span_ctx = trace.set_span_in_context(NonRecordingSpan(span.get_span_context()))
+        current_span_ctx = trace.set_span_in_context(NonRecordingSpan(span.get_span_context()))  # type: ignore[attr-defined]
         # We have to manually make the span context as the active context.
         # If the span needs to be injected into the carrier, then this is needed to make sure
         # that the injected context will point to the span context that was just created.

@@ -45,18 +45,20 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-presto``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-=======================================  ==================
+=======================================  =====================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  =====================================
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``presto-python-client``                 ``>=0.8.4``
-=======================================  ==================
+``pandas``                               ``>=2.1.2; python_version < "3.13"``
+``pandas``                               ``>=2.2.3; python_version >= "3.13"``
+=======================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------

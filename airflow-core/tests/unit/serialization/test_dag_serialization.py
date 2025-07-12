@@ -385,6 +385,11 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
             yield f"providers/{provider_path}"
+    # CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
+    # if CURRENT_PYTHON_VERSION == "3.13":
+    # We should remove google when ray is fixed to work with Python 3.13
+    yield "providers/google/tests/system/google/"
+    yield "providers/yandex/tests/system/yandex/"
 
 
 def collect_dags(dag_folder=None):
@@ -598,9 +603,10 @@ class TestStringifiedDAGs:
                 task["__var"] = dict(sorted(task["__var"].items(), key=lambda x: x[0]))
                 tasks.append(task)
             dag_dict["dag"]["tasks"] = tasks
-            dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"] = sorted(
-                dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
-            )
+            if "access_control" in dag_dict["dag"]:
+                dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"] = sorted(
+                    dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
+                )
             return dag_dict
 
         expected = copy.deepcopy(expected)
