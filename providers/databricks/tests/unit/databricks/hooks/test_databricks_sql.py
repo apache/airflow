@@ -572,8 +572,8 @@ def test_get_df(df_type, df_class, description):
         if df_type == "pandas":
             mock_cursor.fetchall.assert_called_once_with()
             assert df.columns[0] == column
-            assert df.iloc[0][0] == "row1"
-            assert df.iloc[1][0] == "row2"
+            assert df.iloc[0, 0] == "row1"
+            assert df.iloc[1, 0] == "row2"
         else:
             mock_execute.fetchall.assert_called_once_with()
             assert df.columns[0] == column
