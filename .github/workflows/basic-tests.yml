@@ -299,6 +299,7 @@ jobs:
           UPGRADE_PIP: "false"
           UPGRADE_PRE_COMMIT: "false"
           UPGRADE_NODE_LTS: "false"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for pip, pre-commit and node (failing if needed)"
         run: >
           pre-commit run
@@ -312,6 +313,7 @@ jobs:
           UPGRADE_PIP: "true"
           UPGRADE_PRE_COMMIT: "true"
           UPGRADE_NODE_LTS: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
     timeout-minutes: 80
