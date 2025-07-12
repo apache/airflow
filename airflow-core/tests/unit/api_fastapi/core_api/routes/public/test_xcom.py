@@ -23,7 +23,9 @@ import pytest
 
 from airflow import DAG
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -36,7 +38,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -101,6 +103,7 @@ class TestXComEndpoint:
     def clear_db():
         clear_db_dags()
         clear_db_runs()
+        clear_db_dag_bundles()
         clear_db_xcom()
 
     @pytest.fixture(autouse=True)
@@ -383,6 +386,13 @@ class TestGetXComEntries(TestXComEndpoint):
 
     @provide_session
     def _create_xcom_entries(self, dag_id, run_id, logical_date, task_id, mapped_ti=False, session=None):
+        bundle_name = "testing"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+        session.commit()
+
         dag = DAG(dag_id=dag_id)
         dag.sync_to_db(session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing")

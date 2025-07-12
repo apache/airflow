@@ -22,11 +22,13 @@ import pytest
 
 from airflow.models import DagModel
 from airflow.models.backfill import Backfill
+from airflow.models.dagbundle import DagBundleModel
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import (
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -46,6 +48,7 @@ def _clean_db():
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture(autouse=True)
@@ -58,10 +61,16 @@ def clean_db():
 class TestBackfillEndpoint:
     @provide_session
     def _create_dag_models(self, *, count=3, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+        bundle_name = "dags-folder"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.add(orm_dag_bundle)
+        session.flush()
+
         dags = []
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
+                bundle_name=bundle_name,
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",

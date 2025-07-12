@@ -60,6 +60,7 @@ from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
@@ -87,6 +88,7 @@ from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -5895,6 +5897,13 @@ class TestSchedulerJob:
                 # Create a Task Instance for the task that is allegedly deferred
                 # but past its timeout, and one that is still good.
                 # We don't actually need a linked trigger here; the code doesn't check.
+                bundle_name = "testing"
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.merge(orm_dag_bundle)
+                session.flush()
+                dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+                session.merge(dag_model)
+                session.flush()
                 dag.sync_to_db()
                 SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
                 session.flush()
@@ -6709,6 +6718,7 @@ class TestSchedulerJobQueriesCount:
         clear_db_pools()
         clear_db_backfills()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()

@@ -51,12 +51,17 @@ BUNDLE_NAME = "dag_maker"
 
 @pytest.fixture(scope="class")
 @provide_session
-def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    # Create the bundle first
-    bundle = DagBundleModel(name=BUNDLE_NAME)
-    session.add(bundle)
+def dag_bundle(clear_db, session: Session = NEW_SESSION) -> DagBundleModel:
+    orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
+    session.add(orm_dag_bundle)
+    session.flush()
     session.commit()
+    return orm_dag_bundle
 
+
+@pytest.fixture(scope="class")
+@provide_session
+def permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(
         fileloc=FILENAME1,
         relative_fileloc=FILENAME1,
@@ -71,8 +76,14 @@ def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
 
 @pytest.fixture(scope="class")
 @provide_session
-def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
+def not_permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        bundle_name=BUNDLE_NAME,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id4",
+        is_paused=False,
+    )
     session.add(dag_model)
     session.commit()
     return dag_model
@@ -414,7 +425,9 @@ class TestGetImportErrors:
         assert response_json["import_errors"][0]["filename"] == FILENAME1
 
         # Now test that removing the bundle_name from the DagModel causes the import error to not be returned
-        permitted_dag_model.bundle_name = None
+        permitted_dag_model.bundle_name = "another_bundle_name"
+        session.add(DagBundleModel(name="another_bundle_name"))
+        session.flush()
         session.merge(permitted_dag_model)
         session.commit()
 

@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -38,7 +39,13 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
-from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -84,6 +91,7 @@ DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 def setup(request, dag_maker, session=None):
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
 
@@ -1244,8 +1252,14 @@ class TestClearDagRun:
 
 class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.add(orm_dag_bundle)
+        session.flush()
+
         inactive_dag = DagModel(
             dag_id="inactive",
+            bundle_name=bundle_name,
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -1256,6 +1270,7 @@ class TestTriggerDagRun:
 
         import_errors_dag = DagModel(
             dag_id="import_errors",
+            bundle_name=bundle_name,
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
             is_stale=False,

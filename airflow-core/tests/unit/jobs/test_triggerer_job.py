@@ -46,6 +46,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
@@ -61,6 +62,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_variables,
@@ -78,19 +80,25 @@ def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
     yield  # Test runs here
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
-    dag_model = DagModel(dag_id="test_dag")
+    bundle_name = "test_bundle"
+    orm_dag_bundle = DagBundleModel(name=bundle_name)
+    session.add(orm_dag_bundle)
+    session.flush()
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
@@ -411,8 +419,14 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     trigger_orm = Trigger.from_object(trigger)
     session.add(trigger_orm)
     session.flush()
+
+    bundle_name = "test_bundle"
+    orm_dag_bundle = DagBundleModel(name=bundle_name)
+    session.add(orm_dag_bundle)
+    session.flush()
+
     dag = DAG(dag_id="test-dag")
-    dm = DagModel(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
     SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
