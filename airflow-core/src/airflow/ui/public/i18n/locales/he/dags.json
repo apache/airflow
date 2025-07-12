@@ -19,7 +19,8 @@
       "active": "פעיל",
       "all": "הכל",
       "paused": "מושהה"
-    }
+    },
+    "runIdPatternFilter": "חפש הרצת Dag"
   },
   "ownerLink": "קישור בעלים ל-{{owner}}",
   "runAndTaskActions": {

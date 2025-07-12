@@ -215,7 +215,7 @@ class TestDogStats:
         )
 
     def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self):
-        # ToDo: Figure out why it identical to test_does_send_stats_using_dogstatsd_when_dogstatsd_on
+        """Test that dogstatsd works when both statsd and dogstatsd are enabled (dogstatsd takes precedence)."""
         self.dogstatsd.incr("empty_key")
         self.dogstatsd_client.increment.assert_called_once_with(
             metric="empty_key", sample_rate=1, tags=[], value=1
@@ -389,7 +389,7 @@ class TestDogStatsWithAllowList:
         pytest.importorskip("datadog")
         from datadog import DogStatsd
 
-        self.dogstatsd_client = Mock(speck=DogStatsd)
+        self.dogstatsd_client = Mock(spec=DogStatsd)
         self.dogstats = SafeDogStatsdLogger(
             self.dogstatsd_client, PatternAllowListValidator("stats_one, stats_two")
         )
@@ -416,7 +416,7 @@ class TestDogStatsWithMetricsTags:
         pytest.importorskip("datadog")
         from datadog import DogStatsd
 
-        self.dogstatsd_client = Mock(speck=DogStatsd)
+        self.dogstatsd_client = Mock(spec=DogStatsd)
         self.dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
 
     def test_does_send_stats_using_dogstatsd_with_tags(self):
@@ -431,7 +431,7 @@ class TestDogStatsWithDisabledMetricsTags:
         pytest.importorskip("datadog")
         from datadog import DogStatsd
 
-        self.dogstatsd_client = Mock(speck=DogStatsd)
+        self.dogstatsd_client = Mock(spec=DogStatsd)
         self.dogstatsd = SafeDogStatsdLogger(
             self.dogstatsd_client,
             metrics_tags=True,

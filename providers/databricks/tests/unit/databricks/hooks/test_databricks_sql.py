@@ -174,7 +174,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             None,
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            [[Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]],
             [[("id2",), ("value2",)]],
             [Row(id=3, value=4), Row(id=13, value=14)],
             id="The return_last set and split statements set on multiple queries in string",
@@ -186,7 +186,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             None,
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            [[Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
                 [Row(id=1, value=2), Row(id=11, value=12)],
@@ -225,7 +225,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             None,
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            [[Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]],
             [[("id2",), ("value2",)]],
             [Row(id=3, value=4), Row(id=13, value=14)],
             id="The return_last set on multiple queries in list",
@@ -237,7 +237,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             None,
             ["select * from test.test", "select * from test.test2"],
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            [[Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
                 [Row(id=1, value=2), Row(id=11, value=12)],
@@ -298,6 +298,7 @@ def test_query(
 ):
     connections = []
     cursors = []
+
     for index, cursor_description in enumerate(cursor_descriptions):
         conn = mock.MagicMock()
         cur = mock.MagicMock(
@@ -357,19 +358,24 @@ def test_incorrect_column_names(row_objects, fields_names):
     assert result._fields == fields_names
 
 
+@pytest.mark.parametrize(
+    "sql, execution_timeout, cursor_descriptions, cursor_results",
+    [
+        (
+            "select * from test.test",
+            timedelta(microseconds=0),
+            ("id", "value"),
+            (Row(id=1, value=2), Row(id=11, value=12)),
+        )
+    ],
+)
 def test_execution_timeout_exceeded(
     mock_get_conn,
     mock_get_requests,
-    sql="select * from test.test",
-    execution_timeout=timedelta(microseconds=0),
-    cursor_descriptions=(
-        "id",
-        "value",
-    ),
-    cursor_results=(
-        Row(id=1, value=2),
-        Row(id=11, value=12),
-    ),
+    sql,
+    execution_timeout,
+    cursor_descriptions,
+    cursor_results,
 ):
     with (
         patch(
@@ -402,14 +408,15 @@ def test_execution_timeout_exceeded(
         assert "Timeout threshold exceeded" in str(exc_info.value)
 
 
+@pytest.mark.parametrize(
+    "cursor_descriptions",
+    [(("id", "value"),)],
+)
 def test_create_timeout_thread(
     mock_get_conn,
     mock_get_requests,
     mock_timer,
-    cursor_descriptions=(
-        "id",
-        "value",
-    ),
+    cursor_descriptions,
 ):
     cur = mock.MagicMock(
         rowcount=1,
@@ -421,14 +428,15 @@ def test_create_timeout_thread(
     assert thread is not None
 
 
+@pytest.mark.parametrize(
+    "cursor_descriptions",
+    [(("id", "value"),)],
+)
 def test_create_timeout_thread_no_timeout(
     mock_get_conn,
     mock_get_requests,
     mock_timer,
-    cursor_descriptions=(
-        "id",
-        "value",
-    ),
+    cursor_descriptions,
 ):
     cur = mock.MagicMock(
         rowcount=1,
@@ -564,8 +572,8 @@ def test_get_df(df_type, df_class, description):
         if df_type == "pandas":
             mock_cursor.fetchall.assert_called_once_with()
             assert df.columns[0] == column
-            assert df.iloc[0][0] == "row1"
-            assert df.iloc[1][0] == "row2"
+            assert df.iloc[0, 0] == "row1"
+            assert df.iloc[1, 0] == "row2"
         else:
             mock_execute.fetchall.assert_called_once_with()
             assert df.columns[0] == column
@@ -573,6 +581,3 @@ def test_get_df(df_type, df_class, description):
             assert df.row(1)[0] == result_sets[1][0]
 
         assert isinstance(df, df_class)
-
-
-# ruff: noqa: PT028

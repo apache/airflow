@@ -318,8 +318,6 @@ def _add_log_from_parsed_log_streams_to_heap(
                 log_stream_to_remove = []
             log_stream_to_remove.append(idx)
             continue
-        # add type hint to avoid mypy error
-        record = cast("ParsedLog", record)
         timestamp, line_num, line = record
         # take int as sort key to avoid overhead of memory usage
         heapq.heappush(heap, (_create_sort_key(timestamp, line_num), line))

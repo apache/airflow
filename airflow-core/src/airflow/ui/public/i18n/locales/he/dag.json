@@ -34,6 +34,7 @@
     },
     "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
+    "settings": "הגדרות רישום",
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
   },

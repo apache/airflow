@@ -483,7 +483,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             ("resources", coerce_resources),
         ):
             if (v := partial_kwargs.get(fld, NOTSET)) is not NOTSET:
-                partial_kwargs[fld] = convert(v)  # type: ignore[operator]
+                partial_kwargs[fld] = convert(v)
 
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])

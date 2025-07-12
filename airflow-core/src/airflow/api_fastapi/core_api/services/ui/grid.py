@@ -21,42 +21,15 @@ from collections import Counter
 from collections.abc import Iterable
 
 import structlog
-from sqlalchemy import select
 
-from airflow.api_fastapi.common.parameters import (
-    state_priority,
-)
-from airflow.models.dag_version import DagVersion
+from airflow.api_fastapi.common.parameters import state_priority
 from airflow.models.taskmap import TaskMap
-from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import get_task_group_children_getter
 
 log = structlog.get_logger(logger_name=__name__)
-
-
-def _get_serdag(ti, session):
-    dag_version = ti.dag_version
-    if not dag_version:
-        dag_version = session.scalar(
-            select(DagVersion)
-            .where(
-                DagVersion.dag_id == ti.dag_id,
-            )
-            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-            .limit(1)
-        )
-    if not dag_version:
-        raise RuntimeError("No dag_version object could be found.")
-    if not dag_version.serialized_dag:
-        log.error(
-            "No serialized dag found",
-            dag_id=dag_version.dag_id,
-            version_id=dag_version.id,
-            version_number=dag_version.version_number,
-        )
-    return dag_version.serialized_dag
 
 
 def _merge_node_dicts(current, new) -> None:
@@ -105,8 +78,8 @@ def _get_aggs_for_node(detail):
 
 
 def _find_aggregates(
-    node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap,
-    parent_node: TaskGroup | BaseOperator | MappedTaskGroup | TaskMap | None,
+    node: TaskGroup | MappedTaskGroup | SerializedBaseOperator | TaskMap,
+    parent_node: TaskGroup | MappedTaskGroup | SerializedBaseOperator | TaskMap | None,
     ti_details: dict[str, list],
 ) -> Iterable[dict]:
     """Recursively fill the Task Group Map."""
@@ -146,7 +119,7 @@ def _find_aggregates(
                 **_get_aggs_for_node(children),
             }
         return
-    if isinstance(node, BaseOperator):
+    if isinstance(node, SerializedBaseOperator):
         yield {
             "task_id": node_id,
             "type": "task",
