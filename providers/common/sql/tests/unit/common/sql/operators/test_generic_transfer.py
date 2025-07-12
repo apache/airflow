@@ -325,6 +325,20 @@ class TestGenericTransfer:
             **{"rows": [[3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
 
+    def test_template_fields(self):
+        operator = GenericTransfer(
+            task_id="transfer_table",
+            source_conn_id="my_source_conn_id",
+            destination_conn_id="my_destination_conn_id",
+            sql="SELECT * FROM HR.EMPLOYEES ORDER BY ID",
+            destination_table="NEW_HR.EMPLOYEES",
+            page_size=1000,
+            paginated_sql_statement_format="{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY;",
+        )
+
+        for template_field in GenericTransfer.template_fields:
+            getattr(operator, template_field)
+
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """
         Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
