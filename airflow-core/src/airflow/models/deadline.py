@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -29,16 +30,21 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
+from airflow.triggers.deadline import DeadlineCallbackTrigger
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.triggers.base import TriggerEvent
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +69,10 @@ class Deadline(Base):
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
 
     dagrun = relationship("DagRun", back_populates="deadlines")
+
+    # The Trigger where the callback is running
+    trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger = relationship("Trigger", back_populates="deadline")
 
     __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
 
@@ -97,6 +107,36 @@ class Deadline(Base):
             f"[{resource_type} Deadline] {resource_details} needed by "
             f"{self.deadline_time} or run: {self.callback}({callback_kwargs})"
         )
+
+    def handle_miss(self, session: Session):
+        """Handle a missed deadline by creating and starting a trigger to run the callback."""
+        callback_func = import_string(self.callback)
+        # TODO: Improve this check so that the callback doesn't need to be present on the scheduler
+        if not asyncio.iscoroutinefunction(callback_func):
+            # TODO: For sync callbacks, use executor instead of trigger
+            logger.error("Sync callbacks not supported yet: %s", self.callback)
+            return
+
+        callback_trigger = DeadlineCallbackTrigger(
+            callback_path=self.callback,
+            callback_kwargs=self.callback_kwargs or {},
+        )
+
+        trigger_orm = Trigger.from_object(callback_trigger)
+        session.add(trigger_orm)
+        session.flush()
+        self.trigger_id = trigger_orm.id
+        session.add(self)
+
+        # TODO delete deadline and create missed_deadline
+
+    def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if event.payload["status"] == "success":
+            logger.debug("Deadline callback succeeded")
+            self.trigger = None
+            session.add(self)
+        else:
+            logger.error("Unexpected event received: %s", event)
 
 
 class ReferenceModels:
