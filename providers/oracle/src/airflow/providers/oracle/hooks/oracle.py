@@ -231,18 +231,18 @@ class OracleHook(DbApiHook):
         if expire_time:
             conn_config["expire_time"] = expire_time
 
-        conn = oracledb.connect(**conn_config)
+        oracle_conn = oracledb.connect(**conn_config)
         if mod is not None:
-            conn.module = mod
+            oracle_conn.module = mod
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
         # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
         if schema and service_name:
-            conn.current_schema = schema
+            oracle_conn.current_schema = schema
 
-        return conn
+        return oracle_conn
 
     def insert_rows(
         self,
