@@ -26,7 +26,7 @@ from airflow.models import Connection
 from airflow.providers.github.hooks.github import GithubHook
 
 github_client_mock = Mock(name="github_client_for_test")
-
+github_app_client_mock = Mock(name="github_app_client_for_test")
 
 class TestGithubHook:
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
@@ -40,6 +40,14 @@ class TestGithubHook:
                 host="https://mygithub.com/api/v3",
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="github_app_conn",
+                conn_type="github",
+                host="https://mygithub.com/api/v3",
+                extra='{"app_id": "123456", "installation_id": 654321, "private_key": "FAKE_PRIVATE_KEY"}',
+            )
+        )
 
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
@@ -51,8 +59,9 @@ class TestGithubHook:
         assert isinstance(github_hook.client, Mock)
         assert github_hook.client.name == github_mock.return_value.name
 
-    def test_connection_success(self):
-        hook = GithubHook()
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
+    def test_connection_success(self, conn_id):
+        hook = GithubHook(github_conn_id=conn_id)
         hook.client = Mock(spec=Github)
         hook.client.get_user.return_value = NamedUser.NamedUser
 
@@ -61,8 +70,9 @@ class TestGithubHook:
         assert status is True
         assert msg == "Successfully connected to GitHub."
 
-    def test_connection_failure(self):
-        hook = GithubHook()
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
+    def test_connection_failure(self, conn_id):
+        hook = GithubHook(github_conn_id=conn_id)
         hook.client.get_user = Mock(
             side_effect=BadCredentialsException(
                 status=401,
@@ -74,3 +84,13 @@ class TestGithubHook:
 
         assert status is False
         assert msg == '401 {"message": "Bad credentials"}'
+
+    @patch("airflow.providers.github.hooks.github.Auth.AppAuth.get_installation_auth", return_value="fake-auth-token")
+    @patch("airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_app_client_mock)
+    def test_github_app_authentication(self, github_mock, get_auth_mock):
+        github_hook = GithubHook(github_conn_id="github_app_conn")
+
+        assert github_mock.called
+        github_mock.assert_called_once_with(auth=get_auth_mock.return_value)
+        assert isinstance(github_hook.client, Mock)
+        assert github_hook.client == github_app_client_mock

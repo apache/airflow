@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from github import Github as GithubClient
+from github import Github as GithubClient, GithubIntegration, Auth
 
 from airflow.exceptions import AirflowException
 from airflow.providers.github.version_compat import BaseHook
@@ -55,17 +55,27 @@ class GithubHook(BaseHook):
         conn = self.get_connection(self.github_conn_id)
         access_token = conn.password
         host = conn.host
+        extras = conn.extra_dejson or {}
 
         # Currently the only method of authenticating to GitHub in Airflow is via a token. This is not the
         # only means available, but raising an exception to enforce this method for now.
         # TODO: When/If other auth methods are implemented this exception should be removed/modified.
         if not access_token:
-            raise AirflowException("An access token is required to authenticate to GitHub.")
+            if not extras:
+                raise AirflowException("An access token is required to authenticate to GitHub.")
 
-        if not host:
-            self.client = GithubClient(login_or_token=access_token)
+            private_key = extras.get("private_key", None)
+            app_id = extras.get("app_id", "")
+            installation_id = extras.get("installation_id", None)
+            token_permissions = extras.get("token_permissions", None)
+            auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
+
+            self.client = GithubClient(auth=auth)
         else:
-            self.client = GithubClient(login_or_token=access_token, base_url=host)
+            if not host:
+                self.client = GithubClient(login_or_token=access_token)
+            else:
+                self.client = GithubClient(login_or_token=access_token, base_url=host)
 
         return self.client
 

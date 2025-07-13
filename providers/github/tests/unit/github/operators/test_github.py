@@ -42,26 +42,37 @@ class TestGithubOperator:
                 host="https://mygithub.com/api/v3",
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="github_app_conn",
+                conn_type="github",
+                host="https://mygithub.com/api/v3",
+                extra='{"app_id": "123456", "installation_id": 654321, "private_key": "FAKE_PRIVATE_KEY"}',
+            )
+        )
 
     def setup_class(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
 
-    def test_operator_init_with_optional_args(self):
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
+    def test_operator_init_with_optional_args(self, conn_id):
         github_operator = GithubOperator(
             task_id="github_list_repos",
             github_method="get_user",
+            github_conn_id=conn_id,
         )
 
         assert github_operator.github_method_args == {}
         assert github_operator.result_processor is None
 
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
     @pytest.mark.db_test
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
     )
-    def test_find_repos(self, github_mock, dag_maker):
+    def test_find_repos(self, github_mock, dag_maker, conn_id):
         class MockRepository:
             pass
 
@@ -74,6 +85,7 @@ class TestGithubOperator:
                 task_id="github-test",
                 github_method="get_repo",
                 github_method_args={"full_name_or_id": "apache/airflow"},
+                github_conn_id=conn_id,
                 result_processor=lambda r: r.full_name,
             )
         dr = dag_maker.create_dagrun()

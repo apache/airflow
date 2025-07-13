@@ -42,18 +42,27 @@ class TestGithubSensor:
                 host="https://mygithub.com/api/v3",
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="github_app_conn",
+                conn_type="github",
+                host="https://mygithub.com/api/v3",
+                extra='{"app_id": "123456", "installation_id": 654321, "private_key": "FAKE_PRIVATE_KEY"}',
+            )
+        )
 
     def setup_class(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
 
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
     @patch(
         "airflow.providers.github.hooks.github.GithubClient",
         autospec=True,
         return_value=github_client_mock,
     )
-    def test_github_tag_created(self, github_mock):
+    def test_github_tag_created(self, github_mock, conn_id):
         class MockTag:
             pass
 
@@ -63,12 +72,13 @@ class TestGithubSensor:
         github_mock.return_value.get_repo.return_value.get_tags.return_value = [tag]
 
         github_tag_sensor = GithubTagSensor(
-            task_id="search-ticket-test",
+            task_id=f"search-ticket-test-{conn_id}",
             tag_name="v1.0",
             repository_name="pateash/jetbrains_settings",
             timeout=60,
             poke_interval=10,
             dag=self.dag,
+            github_conn_id=conn_id,
         )
 
         github_tag_sensor.execute({})
