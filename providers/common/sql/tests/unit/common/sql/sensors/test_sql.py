@@ -226,7 +226,7 @@ class TestSqlSensor:
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
-            failure=[1],  # type: ignore[arg-type]
+            failure=[1],
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
@@ -246,7 +246,7 @@ class TestSqlSensor:
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
-            success=[1],  # type: ignore[arg-type]
+            success=[1],
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)

@@ -1247,7 +1247,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
-        self.skip_all_except(context["ti"], follow_branch)  # type: ignore[arg-type]
+        self.skip_all_except(context["ti"], follow_branch)
 
 
 def _initialize_partition_clause(clause: str | None) -> str | None:
