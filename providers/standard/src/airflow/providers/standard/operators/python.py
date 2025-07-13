@@ -62,7 +62,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
+    from airflow.models.skipmixin import SkipMixin
     from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 
@@ -330,7 +330,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 self.skip(
                     dag_run=context["dag_run"],
                     tasks=to_skip,
-                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg]
                     map_index=context["ti"].map_index,
                 )
 

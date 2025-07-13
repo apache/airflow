@@ -45,7 +45,7 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     else:
         from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-        from airflow.models.mappedoperator import MappedOperator  # type: ignore[no-redef]
+        from airflow.models.mappedoperator import MappedOperator
 
     return [n for n in nodes if isinstance(n, (BaseOperator, MappedOperator))]
 

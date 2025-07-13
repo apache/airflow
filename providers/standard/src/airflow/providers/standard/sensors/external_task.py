@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.context import Context
     else:
-        from airflow.utils.context import Context  # type: ignore[no-redef]
+        from airflow.utils.context import Context
 
 
 class ExternalDagLink(BaseOperatorLink):
