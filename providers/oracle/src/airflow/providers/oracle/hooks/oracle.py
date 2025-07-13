@@ -144,7 +144,7 @@ class OracleHook(DbApiHook):
 
 
         """
-        conn = self.get_connection(self.oracle_conn_id)
+        conn = self.get_connection(self.get_conn_id())
         conn_config: dict[str, Any] = {"user": conn.login, "password": conn.password}
         sid = conn.extra_dejson.get("sid")
         mod = conn.extra_dejson.get("module")
