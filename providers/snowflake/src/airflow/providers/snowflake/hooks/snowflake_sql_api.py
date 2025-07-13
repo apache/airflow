@@ -464,7 +464,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :return: The response object from the API call.
         """
         async with aiohttp.ClientSession(headers=headers) as session:
-            async for attempt in AsyncRetrying(**self.retry_config):  # type: ignore
+            async for attempt in AsyncRetrying(**self.retry_config):
                 with attempt:
                     if method.upper() == "GET":
                         async with session.request(method=method.lower(), url=url, params=params) as response:

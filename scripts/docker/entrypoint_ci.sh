@@ -137,7 +137,7 @@ function environment_initialization() {
     CI=${CI:="false"}
 
     # Added to have run-tests on path
-    export PATH=${PATH}:${AIRFLOW_SOURCES}
+    export PATH=${PATH}:${AIRFLOW_SOURCES}:/usr/local/go/bin/
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -357,13 +357,19 @@ function check_force_lowest_dependencies() {
             exit 0
         fi
         cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
-        uv sync --resolution lowest-direct
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
         cd "${AIRFLOW_SOURCES}/airflow-core"
-        uv sync --resolution lowest-direct
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec
     fi
 }
 

@@ -53,6 +53,8 @@ if len(sys.argv) < 2:
 
 mypy_folders = sys.argv[1:]
 
+show_unused_warnings = os.environ.get("SHOW_UNUSED_MYPY_WARNINGS", "false")
+
 for mypy_folder in mypy_folders:
     if mypy_folder not in ALLOWED_FOLDERS:
         console.print(
@@ -125,7 +127,16 @@ else:
 
 print(f"Running mypy with {FILE_ARGUMENT}")
 
-cmd = ["bash", "-c", f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"]
+if show_unused_warnings == "true":
+    console.print(
+        "[info]Running mypy with --warn-unused-ignores to display unused ignores, unset environment variable: SHOW_UNUSED_MYPY_WARNINGS to runoff this behaviour"
+    )
+
+    mypy_cmd = f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)} --warn-unused-ignores"
+else:
+    mypy_cmd = f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"
+
+cmd = ["bash", "-c", mypy_cmd]
 
 res = run_command_via_breeze_shell(
     cmd=cmd,

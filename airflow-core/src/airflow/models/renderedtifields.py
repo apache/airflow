@@ -48,10 +48,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import FromClause
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.sdk.types import Operator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
-def get_serialized_template_fields(task: Operator):
+def get_serialized_template_fields(task: SerializedBaseOperator):
     """
     Get and serialize the template fields for a task.
 
@@ -125,7 +125,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             ti.render_templates()
 
         if TYPE_CHECKING:
-            assert ti.task
+            assert isinstance(ti.task, SerializedBaseOperator)
 
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):

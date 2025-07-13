@@ -26,12 +26,8 @@ from urllib.parse import quote_plus
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.pinot.version_compat import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -299,7 +295,7 @@ class PinotDbApiHook(DbApiHook):
 
     def get_conn(self) -> Any:
         """Establish a connection to pinot broker through pinot dbapi."""
-        conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
+        conn = self.get_connection(self.get_conn_id())
 
         pinot_broker_conn = connect(
             host=conn.host,

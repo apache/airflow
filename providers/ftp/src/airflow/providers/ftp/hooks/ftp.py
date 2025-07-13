@@ -23,10 +23,7 @@ import logging
 from collections.abc import Callable
 from typing import Any, cast
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.ftp.version_compat import BaseHook
 
 logger = logging.getLogger(__name__)
 

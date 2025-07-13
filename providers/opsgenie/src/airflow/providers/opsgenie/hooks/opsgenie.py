@@ -29,10 +29,7 @@ from opsgenie_sdk import (
     SuccessResponse,
 )
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.opsgenie.version_compat import BaseHook
 
 
 class OpsgenieAlertHook(BaseHook):
@@ -56,7 +53,7 @@ class OpsgenieAlertHook(BaseHook):
     hook_name = "Opsgenie"
 
     def __init__(self, opsgenie_conn_id: str = "opsgenie_default") -> None:
-        super().__init__()  # type: ignore[misc]
+        super().__init__()
         self.conn_id = opsgenie_conn_id
         configuration = Configuration()
         conn = self.get_connection(self.conn_id)

@@ -35,12 +35,8 @@ import asyncssh
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.sftp.version_compat import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
@@ -759,7 +755,7 @@ class SFTPHookAsync(BaseHook):
             if self.known_hosts.lower() == "none":
                 conn_config.update(known_hosts=None)
             else:
-                conn_config.update(known_hosts=self.known_hosts)  # type: ignore
+                conn_config.update(known_hosts=self.known_hosts)
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)
             conn_config["client_keys"] = [_private_key]

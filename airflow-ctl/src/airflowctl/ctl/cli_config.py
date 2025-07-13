@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import getpass
 import inspect
 import os
@@ -442,6 +443,33 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
+    def _python_type_from_string(type_name: str) -> type:
+        """
+        Return the corresponding Python *type* for a primitive type name string.
+
+        This helper is used when generating ``argparse`` CLI arguments from the
+        OpenAPI-derived operation signatures. Without this mapping the CLI would
+        incorrectly assume every primitive parameter is a *string*, potentially
+        leading to type errors or unexpected behaviour when invoking the REST
+        API.
+        """
+        mapping: dict[str, type] = {
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "str": str,
+            "bytes": bytes,
+            "list": list,
+            "dict": dict,
+            "tuple": tuple,
+            "set": set,
+            "datetime.datetime": datetime.datetime,
+        }
+        # Default to ``str`` to preserve previous behaviour for any unrecognised
+        # type names while still allowing the CLI to function.
+        return mapping.get(type_name, str)
+
+    @staticmethod
     def _create_arg(
         arg_flags: tuple,
         arg_type: type,
@@ -507,15 +535,15 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
+                        python_type = self._python_type_from_string(parameter_type)
+                        is_bool = parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=type(parameter_type),
-                                arg_action=argparse.BooleanOptionalAction
-                                if type(parameter_type) is bool
-                                else None,
+                                arg_type=None if is_bool else python_type,
+                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=False if type(parameter_type) is bool else None,
+                                arg_default=False if is_bool else None,
                             )
                         )
                     else:

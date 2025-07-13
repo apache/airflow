@@ -203,7 +203,10 @@ class TestOpenLineageListenerAirflow2:
             state=DagRunState.RUNNING,
             execution_date=date,  # type: ignore
         )
-        task_instance = TaskInstance(t, run_id=run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            task_instance = TaskInstance(t, run_id=run_id, dag_version_id=dagrun.created_dag_version_id)
+        else:
+            task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         return dagrun, task_instance
 
     def _create_listener_and_task_instance(self) -> tuple[OpenLineageListener, TaskInstance]:
@@ -241,8 +244,10 @@ class TestOpenLineageListenerAirflow2:
         adapter.fail_task = mock.Mock()
         adapter.complete_task = mock.Mock()
         listener.adapter = adapter
-
-        task_instance = TaskInstance(task=mock.Mock())
+        if AIRFLOW_V_3_0_PLUS:
+            task_instance = TaskInstance(task=mock.Mock(), dag_version_id=mock.MagicMock())
+        else:
+            task_instance = TaskInstance(task=mock.Mock())  # type: ignore
         task_instance.dag_run = DagRun()
         task_instance.dag_run.run_id = "dag_run_run_id"
         task_instance.dag_run.data_interval_start = None
@@ -957,6 +962,7 @@ class TestOpenLineageListenerAirflow3:
             run_id=run_id,
             try_number=1,
             map_index=-1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
@@ -1042,9 +1048,9 @@ class TestOpenLineageListenerAirflow3:
             start_date=date,
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.QUEUED,
-            **dagrun_kwargs,  # type: ignore
+            **dagrun_kwargs,  # type: ignore[arg-type]
         )
-        task_instance = TaskInstance(t, run_id=run_id)
+        task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         task_instance.dag_run = dagrun
         return dagrun, task_instance
 
@@ -1068,7 +1074,7 @@ class TestOpenLineageListenerAirflow3:
 
         if not runtime_ti:
             # TaskInstance is used when on API server (when listener gets called about manual state change)
-            task_instance = TaskInstance(task=MagicMock())  # type: ignore
+            task_instance = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
             task_instance.dag_run = DagRun()
             task_instance.dag_run.dag_id = "dag_id_from_dagrun_and_not_ti"
             task_instance.dag_run.run_id = "dag_run_run_id"
@@ -1109,6 +1115,7 @@ class TestOpenLineageListenerAirflow3:
                 run_id="dag_run_run_id",
                 try_number=1,
                 map_index=-1,
+                dag_version_id=uuid7(),
             )
             task_instance = RuntimeTaskInstance.model_construct(  # type: ignore
                 **sdk_task_instance.model_dump(exclude_unset=True),
@@ -1860,7 +1867,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.QUEUED,
             execution_date=date,
-        )  # type: ignore
+        )
         self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id, map_index=-1)
         self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id, map_index=-1)
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun
