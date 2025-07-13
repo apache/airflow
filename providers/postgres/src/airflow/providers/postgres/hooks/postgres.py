@@ -204,7 +204,7 @@ class PostgresHook(DbApiHook):
         sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
-        df_type="pandas",
+        df_type: Literal["pandas", "polars"] = "pandas",
         **kwargs: Any,
     ) -> PandasDataFrame | PolarsDataFrame:
         """
