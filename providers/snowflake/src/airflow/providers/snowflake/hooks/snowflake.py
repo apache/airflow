@@ -253,7 +253,7 @@ class SnowflakeHook(DbApiHook):
 
         This is used in ``get_uri()`` and ``get_connection()``.
         """
-        conn = self.get_connection(self.snowflake_conn_id)
+        conn = self.get_connection(self.get_conn_id())
         extra_dict = conn.extra_dejson
         account = self._get_field(extra_dict, "account") or ""
         warehouse = self._get_field(extra_dict, "warehouse") or ""
