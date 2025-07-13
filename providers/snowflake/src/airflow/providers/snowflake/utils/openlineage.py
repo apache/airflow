@@ -249,8 +249,10 @@ def _get_queries_details_from_snowflake(
     )
 
     try:
-        # Can't import the SnowflakeSqlApiHook class and do proper isinstance check - circular imports
-        if hook.__class__.__name__ == "SnowflakeSqlApiHook":
+        # Note: need to lazy import here to avoid circular imports
+        from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+
+        if isinstance(hook, SnowflakeSqlApiHook):
             result = _run_single_query_with_api_hook(hook=hook, sql=query)
             result = _process_data_from_api(data=result)
         else:
