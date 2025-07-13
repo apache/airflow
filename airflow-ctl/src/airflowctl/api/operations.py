@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
 import structlog
@@ -72,7 +73,11 @@ from airflowctl.api.datamodels.generated import (
 )
 from airflowctl.exceptions import AirflowCtlConnectionException
 
+T = TypeVar("T", bound=Callable)
+
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflowctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
@@ -147,6 +152,25 @@ class BaseOperations:
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
+    def execute_operation(
+        self,
+        *,
+        method: str,
+        url: str,
+        data_model: type[BaseModel] | None = None,
+        return_entry: str | None = None,
+        **kwargs,
+    ):
+        try:
+            print("try")
+            self.response = self.client.request(method, url, **kwargs)
+            if data_model:
+                return data_model.model_validate_json(self.response.content)
+
+            return return_entry
+        except ServerResponseError as e:
+            raise e
+
 
 # Login operations
 class LoginOperations:
@@ -172,103 +196,80 @@ class AssetsOperations(BaseOperations):
 
     def get(self, asset_id: str) -> AssetResponse | ServerResponseError:
         """Get an asset from the API server."""
-        try:
-            self.response = self.client.get(f"assets/{asset_id}")
-            return AssetResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url=f"assets/{asset_id}", data_model=AssetResponse)
 
     def get_by_alias(self, alias: str) -> AssetAliasResponse | ServerResponseError:
         """Get an asset by alias from the API server."""
-        try:
-            self.response = self.client.get(f"assets/aliases/{alias}")
-            return AssetAliasResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"assets/aliases/{alias}", data_model=AssetAliasResponse
+        )
 
-    def list(self) -> AssetCollectionResponse | ServerResponseError:
+    def list(self):
         """List all assets from the API server."""
-        try:
-            self.response = self.client.get("assets")
-            return AssetCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="assets", data_model=AssetCollectionResponse)
 
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
-        try:
-            self.response = self.client.get("/assets/aliases")
-            return AssetAliasCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url="/assets/aliases", data_model=AssetAliasCollectionResponse
+        )
 
     def create_event(
         self, asset_event_body: CreateAssetEventsBody
     ) -> AssetEventResponse | ServerResponseError:
         """Create an asset event."""
-        try:
-            self.response = self.client.post("assets/events", json=asset_event_body.model_dump())
-            return AssetEventResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="post", url="assets/events", data_model=AssetEventResponse)
 
     def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
         """Materialize an asset."""
-        try:
-            self.response = self.client.post(f"assets/{asset_id}/materialize")
-            return DAGRunResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url=f"assets/{asset_id}/materialize", data_model=DAGRunResponse
+        )
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:
         """Get queued events for an asset."""
-        try:
-            self.response = self.client.get(f"assets/{asset_id}/queuedEvents")
-            return QueuedEventCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"assets/{asset_id}/queuedEvents", data_model=QueuedEventCollectionResponse
+        )
 
     def get_dag_queued_events(
         self, dag_id: str, before: str
     ) -> QueuedEventCollectionResponse | ServerResponseError:
-        """Get queued events for a dag."""
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/assets/queuedEvents", params={"before": before})
-            return QueuedEventCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get",
+            url=f"dags/{dag_id}/assets/queuedEvents",
+            data_model=QueuedEventCollectionResponse,
+            params={"before": before},
+        )
 
     def get_dag_queued_event(self, dag_id: str, asset_id: str) -> QueuedEventResponse | ServerResponseError:
         """Get a queued event for a dag."""
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/assets/{asset_id}/queuedEvents")
-            return QueuedEventResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"dags/{dag_id}/assets/{asset_id}/queuedEvents", data_model=QueuedEventResponse
+        )
 
     def delete_queued_events(self, asset_id: str) -> str | ServerResponseError:
         """Delete a queued event for an asset."""
-        try:
-            self.client.delete(f"assets/{asset_id}/queuedEvents/")
-            return asset_id
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="delete", url=f"assets/{asset_id}/queuedEvents/", return_entity=asset_id
+        )
 
     def delete_dag_queued_events(self, dag_id: str, before: str) -> str | ServerResponseError:
         """Delete a queued event for a dag."""
-        try:
-            self.client.delete(f"assets/dags/{dag_id}/queuedEvents", params={"before": before})
-            return dag_id
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="delete",
+            url=f"assets/dags/{dag_id}/queuedEvents",
+            return_delete_entry=dag_id,
+            params={"before": before},
+        )
 
     def delete_queued_event(self, dag_id: str, asset_id: str) -> str | ServerResponseError:
         """Delete a queued event for a dag."""
-        try:
-            self.client.delete(f"assets/dags/{dag_id}/assets/{asset_id}/queuedEvents/")
-            return asset_id
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="delete",
+            url=f"assets/dags/{dag_id}/assets/{asset_id}/queuedEvents/",
+            return_delete_entry=asset_id,
+        )
 
 
 class BackfillsOperations(BaseOperations):
@@ -276,59 +277,43 @@ class BackfillsOperations(BaseOperations):
 
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a backfill."""
-        try:
-            self.response = self.client.post("backfills", data=backfill.model_dump())
-            return BackfillResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url="backfills", data_model=BackfillResponse, data=backfill.model_dump()
+        )
 
     def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a dry run backfill."""
-        try:
-            self.response = self.client.post("backfills/dry_run", data=backfill.model_dump())
-            return BackfillResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url="backfills/dry_run", data_model=BackfillResponse, data=backfill.model_dump()
+        )
 
     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Get a backfill."""
-        try:
-            self.response = self.client.get(f"backfills/{backfill_id}")
-            return BackfillResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"backfills/{backfill_id}", data_model=BackfillResponse
+        )
 
     def list(self) -> BackfillCollectionResponse | ServerResponseError:
         """List all backfills."""
-        try:
-            self.response = self.client.get("backfills")
-            return BackfillCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="backfills", data_model=BackfillCollectionResponse)
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
-        try:
-            self.response = self.client.post(f"backfills/{backfill_id}/pause")
-            return BackfillResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url=f"backfills/{backfill_id}/pause", data_model=BackfillResponse
+        )
 
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
-        try:
-            self.response = self.client.post(f"backfills/{backfill_id}/unpause")
-            return BackfillResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url=f"backfills/{backfill_id}/unpause", data_model=BackfillResponse
+        )
 
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
-        try:
-            self.response = self.client.post(f"backfills/{backfill_id}/cancel")
-            return BackfillResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url=f"backfills/{backfill_id}/cancel", data_model=BackfillResponse
+        )
 
 
 class ConfigOperations(BaseOperations):
@@ -336,19 +321,13 @@ class ConfigOperations(BaseOperations):
 
     def get(self, section: str, option: str) -> Config | ServerResponseError:
         """Get a config from the API server."""
-        try:
-            self.response = self.client.get(f"/config/section/{section}/option/{option}")
-            return Config.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"/config/section/{section}/option/{option}", data_model=Config
+        )
 
     def list(self) -> Config | ServerResponseError:
         """List all configs from the API server."""
-        try:
-            self.response = self.client.get("/config")
-            return Config.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="/config", data_model=Config)
 
 
 class ConnectionsOperations(BaseOperations):
@@ -356,30 +335,24 @@ class ConnectionsOperations(BaseOperations):
 
     def get(self, conn_id: str) -> ConnectionResponse | ServerResponseError:
         """Get a connection from the API server."""
-        try:
-            self.response = self.client.get(f"connections/{conn_id}")
-            return ConnectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"connections/{conn_id}", data_model=ConnectionResponse
+        )
 
     def list(self) -> ConnectionCollectionResponse | ServerResponseError:
         """List all connections from the API server."""
-        try:
-            self.response = self.client.get("connections")
-            return ConnectionCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url="connections", data_model=ConnectionCollectionResponse
+        )
 
     def create(
         self,
         connection: ConnectionBody,
     ) -> ConnectionResponse | ServerResponseError:
         """Create a connection."""
-        try:
-            self.response = self.client.post("connections", json=connection.model_dump())
-            return ConnectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url="connections", data_model=ConnectionResponse, json=connection.model_dump()
+        )
 
     def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
@@ -388,46 +361,36 @@ class ConnectionsOperations(BaseOperations):
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
+        # return super().execute_operation(method="patch",url = "connections",data_model = BulkResponse,json=connections.model_dump())
 
     def create_defaults(self) -> None | ServerResponseError:
         """Create default connections."""
-        try:
-            self.response = self.client.post("connections/defaults")
-            return None
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="post", url="connections/defaults")
 
     def delete(self, conn_id: str) -> str | ServerResponseError:
         """Delete a connection."""
-        try:
-            self.client.delete(f"connections/{conn_id}")
-            return conn_id
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="delete", url=f"connections/{conn_id}")
 
     def update(
         self,
         connection: ConnectionBody,
     ) -> ConnectionResponse | ServerResponseError:
         """Update a connection."""
-        try:
-            self.response = self.client.patch(
-                f"connections/{connection.connection_id}", json=connection.model_dump()
-            )
-            return ConnectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="patch",
+            url=f"connections/{connection.connection_id}",
+            data_model=ConnectionResponse,
+            json=connection.model_dump(),
+        )
 
     def test(
         self,
         connection: ConnectionBody,
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
-        try:
-            self.response = self.client.post("connections/test", json=connection.model_dump())
-            return ConnectionTestResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url="connections/test", data_model=ConnectionTestResponse
+        )
 
 
 class DagOperations(BaseOperations):
@@ -435,91 +398,57 @@ class DagOperations(BaseOperations):
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
         """Get a DAG."""
-        try:
-            self.response = self.client.get(f"dags/{dag_id}")
-            return DAGResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="dags/{dag_id}", data_model=DAGResponse)
 
     def get_details(self, dag_id: str) -> DAGDetailsResponse | ServerResponseError:
         """Get a DAG details."""
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/details")
-            return DAGDetailsResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"dags/{dag_id}/details", data_model=DAGDetailsResponse
+        )
 
     def get_tags(self) -> DAGTagCollectionResponse | ServerResponseError:
         """Get all DAG tags."""
-        try:
-            self.response = self.client.get("dagTags")
-            return DAGTagCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="dagTags", data_model=DAGTagCollectionResponse)
 
     def list(self) -> DAGCollectionResponse | ServerResponseError:
         """List DAGs."""
-        try:
-            self.response = self.client.get("dags")
-            return DAGCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="dags", data_model=DAGCollectionResponse)
 
     def patch(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
-        try:
-            self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump())
-            return DAGResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="patch", url=f"dags/{dag_id}", data_model=DAGResponse)
 
     def delete(self, dag_id: str) -> str | ServerResponseError:
-        try:
-            self.client.delete(f"dags/{dag_id}")
-            return dag_id
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="delete", url=f"dags/{dag_id}", return_entry=dag_id)
 
     def get_import_error(self, import_error_id: str) -> ImportErrorResponse | ServerResponseError:
-        try:
-            self.response = self.client.get(f"importErrors/{import_error_id}")
-            return ImportErrorResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"importErrors/{import_error_id}", data_model=ImportErrorResponse
+        )
 
     def list_import_error(self) -> ImportErrorCollectionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get("importErrors")
-            return ImportErrorCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url="importErrors", data_model=ImportErrorCollectionResponse
+        )
 
     def get_stats(self, dag_ids: list) -> DagStatsCollectionResponse | ServerResponseError:  # type: ignore
-        try:
-            self.response = self.client.get("dagStats", params={"dag_ids": dag_ids})
-            return DagStatsCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url="dagStats", data_model=DagStatsCollectionResponse, params={"dag_ids": dag_ids}
+        )
 
     def get_version(self, dag_id: str, version_number: int) -> DagVersionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/dagVersions/{version_number}")
-            return DagVersionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"dags/{dag_id}/dagVersions/{version_number}", data_model=DagVersionResponse
+        )
 
     def list_version(self, dag_id: str) -> DAGVersionCollectionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/dagVersions")
-            return DAGVersionCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"dags/{dag_id}/dagVersions", data_model=DAGVersionCollectionResponse
+        )
 
     def list_warning(self) -> DAGWarningCollectionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get("dagWarnings")
-            return DAGWarningCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url="dagWarnings", data_model=DAGWarningCollectionResponse
+        )
 
 
 class DagRunOperations(BaseOperations):
@@ -527,11 +456,9 @@ class DagRunOperations(BaseOperations):
 
     def get(self, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
-        try:
-            self.response = self.client.get(f"dag_runs/{dag_run_id}")
-            return DAGRunResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"dag_runs/{dag_run_id}", data_model=DAGRunResponse
+        )
 
     def list(
         self,
@@ -542,28 +469,26 @@ class DagRunOperations(BaseOperations):
         limit: int,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """List all dag runs."""
-        try:
-            params = {
-                "start_date": start_date,
-                "end_date": end_date,
-                "state": state,
-                "limit": limit,
-            }
-            self.response = self.client.get("dag_runs", params=params)  # type: ignore
-            return DAGRunCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": state,
+            "limit": limit,
+        }
+        return super().execute_operation(
+            method="get", url="dag_runs", data_model=DAGRunCollectionResponse, params=params
+        )
 
     def create(
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
     ) -> DAGRunResponse | ServerResponseError:
         """Create a dag run."""
-        try:
-            # It is model_dump_json() because it has unparsable json datetime objects
-            self.response = self.client.post(f"dag_runs/{dag_id}", json=trigger_dag_run.model_dump_json())
-            return DAGRunResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post",
+            url=f"dag_runs/{dag_id}",
+            data_model=DAGRunResponse,
+            json=trigger_dag_run.model_dump_json(),
+        )
 
 
 class JobsOperations(BaseOperations):
@@ -573,12 +498,10 @@ class JobsOperations(BaseOperations):
         self, job_type: str, hostname: str, is_alive: bool
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        try:
-            params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
-            self.response = self.client.get("jobs", params=params)  # type: ignore
-            return JobCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
+        return super().execute_operation(
+            method="get", url="jobs", data_model=JobCollectionResponse, params=params
+        )
 
 
 class PoolsOperations(BaseOperations):
@@ -586,11 +509,7 @@ class PoolsOperations(BaseOperations):
 
     def get(self, pool_name: str) -> PoolResponse | ServerResponseError:
         """Get a pool."""
-        try:
-            self.response = self.client.get(f"pools/{pool_name}")
-            return PoolResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url=f"pools/{pool_name}", data_model=PoolResponse)
 
     def list(self) -> PoolCollectionResponse | ServerResponseError:
         """List all pools."""
@@ -602,11 +521,9 @@ class PoolsOperations(BaseOperations):
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
-        try:
-            self.response = self.client.post("pools", json=pool.model_dump())
-            return PoolResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url="pools", data_model=PoolResponse, json=pool.model_dump()
+        )
 
     def bulk(self, pools: BulkBodyPoolBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple pools."""
@@ -618,19 +535,16 @@ class PoolsOperations(BaseOperations):
 
     def delete(self, pool: str) -> str | ServerResponseError:
         """Delete a pool."""
-        try:
-            self.client.delete(f"pools/{pool}")
-            return pool
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="delete", url=f"pools/{pool}", return_entry=pool)
 
     def update(self, pool_body: PoolPatchBody) -> PoolResponse | ServerResponseError:
         """Update a pool."""
-        try:
-            self.response = self.client.patch(f"pools/{pool_body.pool}", json=pool_body.model_dump())
-            return PoolResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="patch",
+            url=f"pools/{pool_body.pool}",
+            data_model=PoolResponse,
+            json=pool_body.model_dump(),
+        )
 
 
 class ProvidersOperations(BaseOperations):
@@ -638,11 +552,7 @@ class ProvidersOperations(BaseOperations):
 
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
-        try:
-            self.response = self.client.get("providers")
-            return ProviderCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="providers", data_model=ProviderCollectionResponse)
 
 
 class VariablesOperations(BaseOperations):
@@ -650,11 +560,9 @@ class VariablesOperations(BaseOperations):
 
     def get(self, variable_key: str) -> VariableResponse | ServerResponseError:
         """Get a variable."""
-        try:
-            self.response = self.client.get(f"variables/{variable_key}")
-            return VariableResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="get", url=f"variables/{variable_key}", data_model=VariableResponse
+        )
 
     def list(self) -> VariableCollectionResponse | ServerResponseError:
         """List all variables."""
@@ -666,11 +574,9 @@ class VariablesOperations(BaseOperations):
 
     def create(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Create a variable."""
-        try:
-            self.response = self.client.post("variables", json=variable.model_dump())
-            return VariableResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="post", url="variables", data_model=VariableResponse, json=variable.model_dump()
+        )
 
     def bulk(self, variables: BulkBodyVariableBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple variables."""
@@ -682,19 +588,18 @@ class VariablesOperations(BaseOperations):
 
     def delete(self, variable_key: str) -> str | ServerResponseError:
         """Delete a variable."""
-        try:
-            self.client.delete(f"variables/{variable_key}")
-            return variable_key
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="delete", url=f"variables/{variable_key}", return_entry=variable_key
+        )
 
     def update(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Update a variable."""
-        try:
-            self.response = self.client.patch(f"variables/{variable.key}", json=variable.model_dump())
-            return VariableResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(
+            method="patch",
+            url=f"variables/{variable.key}",
+            data_model=VariableResponse,
+            json=variable.model_dump(),
+        )
 
 
 class VersionOperations(BaseOperations):
@@ -702,8 +607,4 @@ class VersionOperations(BaseOperations):
 
     def get(self) -> VersionInfo | ServerResponseError:
         """Get the version."""
-        try:
-            self.response = self.client.get("version")
-            return VersionInfo.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_operation(method="get", url="version", data_model=VersionInfo)
