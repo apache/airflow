@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import Connection
     else:
-        from airflow.models.connection import Connection
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
@@ -135,7 +135,7 @@ class MySqlHook(DbApiHook):
 
         if conn.extra_dejson.get("charset", False):
             conn_config["charset"] = conn.extra_dejson["charset"]
-            if conn_config.get("charset", "undef").lower() in ("utf8", "utf-8"):
+            if str(conn_config.get("charset", "undef")).lower() in ("utf8", "utf-8"):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get("cursor", False):
             try:
