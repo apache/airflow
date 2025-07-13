@@ -93,7 +93,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    if: inputs.upgrade-to-newer-dependencies != 'false' && inputs.platform == 'linux/amd64'
+    if: inputs.platform == 'linux/amd64'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -190,6 +190,3 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: >
-      inputs.canary-run == 'true' &&
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')

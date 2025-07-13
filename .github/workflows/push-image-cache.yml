@@ -229,4 +229,3 @@ jobs:
           --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
-          --push

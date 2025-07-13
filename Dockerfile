@@ -54,8 +54,8 @@ ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.1.1
-# ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
+#ARG AIRFLOW_PIP_VERSION=25.1.1
+ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
 ARG AIRFLOW_UV_VERSION=0.7.20
 ARG AIRFLOW_USE_UV="false"
