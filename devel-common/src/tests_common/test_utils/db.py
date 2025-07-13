@@ -330,7 +330,7 @@ def clear_dag_specific_permissions():
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
     except ImportError:
         # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
-        from airflow.providers.fab.auth.managers.fab.models import (  # type: ignore[no-redef]
+        from airflow.providers.fab.auth.managers.fab.models import (
             Permission,
             Resource,
             assoc_permission_role,
@@ -338,7 +338,7 @@ def clear_dag_specific_permissions():
     except RuntimeError as e:
         # Handle case where FAB provider is not even usable
         if "needs Apache Airflow 2.9.0" in str(e):
-            from airflow.providers.fab.auth.managers.fab.models import (  # type: ignore[no-redef]
+            from airflow.providers.fab.auth.managers.fab.models import (
                 Permission,
                 Resource,
                 assoc_permission_role,

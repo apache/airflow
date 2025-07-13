@@ -20,9 +20,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import Directive, directives
 from docutils.parsers.rst.roles import code_role
 from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import HighlightLanguageTransform
