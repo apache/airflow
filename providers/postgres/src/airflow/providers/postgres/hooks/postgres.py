@@ -21,7 +21,7 @@ import os
 from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, Union, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
 
 import psycopg2
 import psycopg2.extensions
@@ -183,36 +183,34 @@ class PostgresHook(DbApiHook):
     def get_df(
         self,
         sql: str | list[str],
-        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = ...,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
-        df_type: Literal["pandas"] = ...,
+        df_type: Literal["pandas"] = "pandas",
         **kwargs: Any,
-    ) -> PandasDataFrame:
-        ...
+    ) -> PandasDataFrame: ...
 
     @overload
     def get_df(
         self,
         sql: str | list[str],
-        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = ...,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
-        df_type: Literal["polars"],
+        df_type: Literal["polars"] = ...,
         **kwargs: Any,
-    ) -> PolarsDataFrame:
-        ...
+    ) -> PolarsDataFrame: ...
 
     def get_df(
         self,
-        sqls: str | list[str],
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
-        df_type: Literal["pandas", "polars"] = "pandas",
-        **kwargs,
+        df_type="pandas",
+        **kwargs: Any,
     ) -> PandasDataFrame | PolarsDataFrame:
         """
         Execute the sql and returns a dataframe.
 
-        :param sqls: the sql statement to be executed (str) or a list of sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         :param df_type: Type of dataframe to return, either "pandas" or "polars"
         :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
@@ -229,10 +227,10 @@ class PostgresHook(DbApiHook):
 
             engine = self.get_sqlalchemy_engine()
             with engine.connect() as conn:
-                return psql.read_sql(sqls, con=conn, params=parameters, **kwargs)
+                return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
         elif df_type == "polars":
-            return self._get_polars_df(sqls, parameters, **kwargs)
+            return self._get_polars_df(sql, parameters, **kwargs)
 
         else:
             raise ValueError(f"Unsupported df_type: {df_type}")

@@ -521,18 +521,19 @@ class TestPostgresHook:
         else:
             assert expected_serialized == raw_cell
 
-
     @pytest.mark.parametrize(
-    "df_type, expected_type",
-    [
-        ("pandas", pd.DataFrame),
-        ("polars", pl.DataFrame),
-    ]
+        "df_type, expected_type",
+        [
+            ("pandas", pd.DataFrame),
+            ("polars", pl.DataFrame),
+        ],
     )
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook._get_polars_df")
     @mock.patch("pandas.io.sql.read_sql")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.get_sqlalchemy_engine")
-    def test_get_df_with_df_type(self, mock_get_engine, mock_read_sql, mock_polars_df, df_type, expected_type):
+    def test_get_df_with_df_type(
+        self, mock_get_engine, mock_read_sql, mock_polars_df, df_type, expected_type
+    ):
         hook = mock_db_hook(PostgresHook)
         mock_read_sql.return_value = pd.DataFrame()
         mock_polars_df.return_value = pl.DataFrame()
@@ -549,8 +550,6 @@ class TestPostgresHook:
             df = hook.get_df(sql, df_type="polars")
             mock_polars_df.assert_called_once_with(sql, None)
             assert isinstance(df, expected_type)
-
-
 
     def test_insert_rows(self):
         table = "table"
