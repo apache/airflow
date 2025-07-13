@@ -219,7 +219,7 @@ class WasbHook(BaseHook):
         )
 
     # TODO: rework the interface as it might also return AsyncContainerClient
-    def _get_container_client(self, container_name: str) -> ContainerClient:  # type: ignore[override]
+    def _get_container_client(self, container_name: str) -> ContainerClient:
         """
         Instantiate a container client.
 
@@ -621,7 +621,7 @@ class WasbAsyncHook(WasbHook):
             self.blob_service_client = AsyncBlobServiceClient(
                 account_url=account_url,
                 credential=token_credential,
-                **extra,  # type:ignore[arg-type]
+                **extra,
             )
             return self.blob_service_client
 

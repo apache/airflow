@@ -250,14 +250,10 @@ class WinRMHook(BaseHook):
             if ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", command)
                 encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
-                command_id = winrm_client.run_command(  # type: ignore[attr-defined]
-                    shell_id, f"{ps_path} -encodedcommand {encoded_ps}"
-                )
+                command_id = winrm_client.run_command(shell_id, f"{ps_path} -encodedcommand {encoded_ps}")
             else:
                 self.log.info("Running command: '%s'...", command)
-                command_id = winrm_client.run_command(  # type: ignore[attr-defined]
-                    shell_id, command
-                )
+                command_id = winrm_client.run_command(shell_id, command)
 
                 # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
             stdout_buffer = []
@@ -271,9 +267,7 @@ class WinRMHook(BaseHook):
                         stderr,
                         return_code,
                         command_done,
-                    ) = winrm_client.get_command_output_raw(  # type: ignore[attr-defined]
-                        shell_id, command_id
-                    )
+                    ) = winrm_client.get_command_output_raw(shell_id, command_id)
 
                     # Only buffer stdout if we need to so that we minimize memory usage.
                     if return_output:
@@ -285,12 +279,10 @@ class WinRMHook(BaseHook):
                     for line in stderr.decode(output_encoding).splitlines():
                         self.log.warning(line)
 
-            winrm_client.cleanup_command(  # type: ignore[attr-defined]
-                shell_id, command_id
-            )
+            winrm_client.cleanup_command(shell_id, command_id)
 
             return return_code, stdout_buffer, stderr_buffer
         except Exception as e:
             raise AirflowException(f"WinRM operator error: {e}")
         finally:
-            winrm_client.close_shell(shell_id)  # type: ignore[attr-defined]
+            winrm_client.close_shell(shell_id)

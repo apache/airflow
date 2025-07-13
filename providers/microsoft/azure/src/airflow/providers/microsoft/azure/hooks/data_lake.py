@@ -338,7 +338,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         """Return the DataLakeServiceClient object (cached)."""
         return self.get_conn()
 
-    def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
+    def get_conn(self) -> DataLakeServiceClient:
         """Return the DataLakeServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}

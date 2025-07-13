@@ -213,9 +213,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
         ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
         url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
         EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
-            "https://app.powerbi.com"  # type: ignore[attr-defined]
-            f"/groups/{GROUP_ID}/datasets/{DATASET_ID}"  # type: ignore[attr-defined]
-            "/details?experience=power-bi"
+            f"https://app.powerbi.com/groups/{GROUP_ID}/datasets/{DATASET_ID}/details?experience=power-bi"
         )
 
         assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK
