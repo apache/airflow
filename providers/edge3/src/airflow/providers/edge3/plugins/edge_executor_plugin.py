@@ -215,6 +215,10 @@ except AirflowConfigException:
     EDGE_EXECUTOR_ACTIVE = False
 
 # Load the API endpoint only on api-server (Airflow 3.x) or webserver (Airflow 2.x)
+# todo(jscheffl): Remove this check when the discussion in
+#                 https://lists.apache.org/thread/w170czq6r7bslkqp1tk6bjjjo0789wgl
+#                 resulted in a proper API to selective initialize. Maybe backcompat-shim
+#                 is also needed to support Airflow-versions prior the rework.
 if AIRFLOW_V_3_0_PLUS:
     RUNNING_ON_APISERVER = sys.argv[1] in ["api-server"] if len(sys.argv) > 1 else False
 else:
