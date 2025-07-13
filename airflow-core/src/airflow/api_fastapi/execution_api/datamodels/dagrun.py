@@ -36,3 +36,16 @@ class DagRunStateResponse(BaseModel):
     """Schema for DAG Run State response."""
 
     state: DagRunState
+
+
+class DagRunResponse(BaseModel):
+    """Schema for DAG Run response."""
+
+    dag_id: str
+    run_id: str
+    logical_date: UtcDateTime
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None
+    state: DagRunState
+    data_interval_start: UtcDateTime | None = None
+    data_interval_end: UtcDateTime | None = None

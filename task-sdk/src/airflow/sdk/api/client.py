@@ -31,6 +31,7 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunResponse
 from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
@@ -557,6 +558,11 @@ class DagRunOperations:
 
     def __init__(self, client: Client):
         self.client = client
+
+    def get(self, dag_id: str, run_id: str) -> DagRunResponse:
+        """Get a DAG run via the API server."""
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}")
+        return DagRunResponse.model_validate_json(resp.read())
 
     def trigger(
         self,

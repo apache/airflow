@@ -68,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -78,6 +79,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPrevSuccessfulDagRun,
@@ -1183,6 +1185,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.logical_date,
                 msg.reset_dag_run,
             )
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp)

@@ -26,7 +26,11 @@ from sqlalchemy import func, select
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
+from airflow.api_fastapi.execution_api.datamodels.dagrun import (
+    DagRunResponse,
+    DagRunStateResponse,
+    TriggerDAGRunPayload,
+)
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -37,6 +41,31 @@ router = APIRouter()
 
 
 log = logging.getLogger(__name__)
+
+
+@router.get(
+    "/{dag_id}/{run_id}",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found for the given dag_id and run_id"},
+    },
+)
+def get_dag_run(
+    dag_id: str,
+    run_id: str,
+    session: SessionDep,
+) -> DagRunResponse:
+    """Get a DAG Run."""
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+            },
+        )
+
+    return DagRunResponse.model_validate(dag_run)
 
 
 @router.post(

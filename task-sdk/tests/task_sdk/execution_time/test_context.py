@@ -23,7 +23,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk import BaseOperator, get_current_context
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
+    AssetReferenceAssetEventDagRun,
+    AssetResponse,
+)
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -37,14 +41,17 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
+    AssetEventSourceDagRun,
     AssetEventSourceTaskInstance,
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetDagRun,
     GetXCom,
     VariableResult,
     XComResult,
@@ -546,6 +553,57 @@ class TestTriggeringAssetEventsAccessor:
                 map_index=-1,
             ),
         )
+
+    def test_source_dag_run(self, mock_supervisor_comms, accessor):
+        """Test source_dag_run property returns correct AssetEventSourceDagRun when source_dag_id and source_run_id are available."""
+
+        from airflow.utils.timezone import datetime
+
+        # Create a test AssetEventDagRunReferenceResult with source information
+        asset_event_ref = AssetEventDagRunReferenceResult(
+            asset=AssetReferenceAssetEventDagRun(name="test_asset", uri="test://asset", extra={}),
+            extra={},
+            source_aliases=[],
+            timestamp=timezone.utcnow(),
+            source_dag_id="test_dag",
+            source_run_id="test_run",
+            source_task_id="test_task",
+            source_map_index=0,
+        )
+
+        # Mock DagRunResult response
+        mock_dag_run_response = DagRunResult(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            start_date=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2023, 1, 1, 12, 30, 0, tzinfo=timezone.utc),
+            state="success",
+            data_interval_start=datetime(2023, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            data_interval_end=datetime(2023, 1, 2, 0, 0, 0, tzinfo=timezone.utc),
+            type="DagRunResult",
+        )
+
+        # Mock the supervisor comms to return the DagRunResult
+        mock_supervisor_comms.send.return_value = mock_dag_run_response
+
+        # Call the source_dag_run property
+        result = asset_event_ref.source_dag_run
+
+        # Verify the supervisor comms was called correctly
+        mock_supervisor_comms.send.assert_called_once_with(GetDagRun(dag_id="test_dag", run_id="test_run"))
+
+        # Verify the result is correct
+        assert result is not None
+        assert isinstance(result, AssetEventSourceDagRun)
+        assert result.dag_id == "test_dag"
+        assert result.run_id == "test_run"
+        assert result.logical_date == mock_dag_run_response.logical_date
+        assert result.start_date == mock_dag_run_response.start_date
+        assert result.end_date == mock_dag_run_response.end_date
+        assert result.state == mock_dag_run_response.state
+        assert result.data_interval_start == mock_dag_run_response.data_interval_start
+        assert result.data_interval_end == mock_dag_run_response.data_interval_end
 
 
 TEST_ASSET = Asset(name="test_uri", uri="test://test")

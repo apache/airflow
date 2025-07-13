@@ -31,6 +31,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagRun,
     DagRunState,
     DagRunStateResponse,
     VariableResponse,
@@ -980,6 +981,37 @@ class TestAssetOperations:
 
 
 class TestDagRunOperations:
+    def test_get(self):
+        """Test that the client can get a dag run"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_get/test_run_id":
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_get",
+                        "run_id": "test_run_id",
+                        "logical_date": "2025-01-01T00:00:00Z",
+                        "data_interval_start": "2025-01-01T00:00:00Z",
+                        "data_interval_end": "2025-01-02T00:00:00Z",
+                        "run_after": "2025-01-01T00:00:00Z",
+                        "start_date": "2025-01-01T00:00:00Z",
+                        "end_date": None,
+                        "clear_number": 0,
+                        "run_type": "manual",
+                        "conf": {},
+                        "consumed_asset_events": [],
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get(dag_id="test_get", run_id="test_run_id")
+
+        assert isinstance(result, DagRun)
+        assert result.dag_id == "test_get"
+        assert result.run_id == "test_run_id"
+
     def test_trigger(self):
         # Simulate a successful response from the server when triggering a dag run
         def handle_request(request: httpx.Request) -> httpx.Response:
