@@ -204,7 +204,7 @@ class SparkSqlHook(BaseHook):
             spark_sql_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, **kwargs
         )
 
-        for line in iter(self._sp.stdout):  # type: ignore
+        for line in iter(self._sp.stdout):
             self.log.info(line)
 
         returncode = self._sp.wait()

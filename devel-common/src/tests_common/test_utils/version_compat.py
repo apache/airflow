@@ -41,7 +41,7 @@ if AIRFLOW_V_3_1_PLUS:
 
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
-    from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]
+    from airflow.utils.xcom import XCOM_RETURN_KEY
 
 
 def get_sqlalchemy_version_tuple() -> tuple[int, int, int]:
