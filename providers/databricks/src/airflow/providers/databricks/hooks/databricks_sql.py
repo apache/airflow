@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
-LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/endpoints")
 
 
 T = TypeVar("T")
