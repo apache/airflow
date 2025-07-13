@@ -452,7 +452,7 @@ class OracleHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Get the URI for the Oracle connection."""
-        conn = self.get_connection(self.oracle_conn_id)
+        conn = self.get_connection(self.get_conn_id())
         login = conn.login
         password = conn.password
         host = conn.host
