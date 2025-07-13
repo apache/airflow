@@ -1644,7 +1644,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_op = DagModelOperation(
             bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
-        )  # type: ignore[misc]
+        )
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, session=session)

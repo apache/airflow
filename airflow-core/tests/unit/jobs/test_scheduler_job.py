@@ -6120,7 +6120,7 @@ class TestSchedulerJob:
             if state in (DagRunState.SUCCESS, DagRunState.FAILED):
                 # Stop the scheduler
                 self.job_runner.num_runs = 1  # type: ignore[union-attr]
-            orig_set_state(dr, state, **kwargs)  # type: ignore[call-arg]
+            orig_set_state(dr, state, **kwargs)
 
         def watch_heartbeat(*args, **kwargs):
             if len(num_queued_tis) < 3 or len(num_finished_events) < 3:

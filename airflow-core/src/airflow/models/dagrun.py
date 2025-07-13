@@ -1347,7 +1347,7 @@ class DagRun(Base, LoggingMixin):
 
     def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
-        context: Context = {  # type: ignore[assignment]
+        context: Context = {
             "dag": dag,
             "run_id": str(self.run_id),
             "reason": reason,
