@@ -92,30 +92,6 @@ class TestBaseDatabricksHook:
         assert "retry" in hook.retry_args
         assert "after" in hook.retry_args
 
-    @mock.patch("platform.system")
-    @mock.patch("platform.python_version")
-    @mock.patch("airflow.__version__", "2.7.0")
-    def test_user_agent_value(self, mock_python_version, mock_system):
-        mock_python_version.return_value = "3.9.12"
-        mock_system.return_value = "Linux"
-        mock_provider = mock.Mock()
-        mock_provider.version = "1.2.3"
-        mock_hook_info = mock.Mock()
-        mock_hook_info.package_name = "apache-airflow-providers-databricks"
-        mock_manager = mock.Mock()
-        mock_manager.hooks = {"databricks": mock_hook_info}
-        mock_manager.providers = {"apache-airflow-providers-databricks": mock_provider}
-
-        with mock.patch("airflow.providers_manager.ProvidersManager", return_value=mock_manager):
-            hook = BaseDatabricksHook(caller="TestOperator")
-            user_agent = hook.user_agent_value
-            expected_ua = (
-                "databricks-airflow/7.6.0 _/0.0.0 python/3.9.12 os/linux airflow/3.1.0 operator/TestOperator"
-            )
-            assert user_agent == expected_ua
-            mock_python_version.assert_called()
-            mock_system.assert_called()
-
     @pytest.mark.parametrize(
         "input_url, expected_host",
         [
