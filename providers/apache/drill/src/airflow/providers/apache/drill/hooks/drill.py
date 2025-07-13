@@ -90,7 +90,7 @@ class DrillHook(DbApiHook):
 
     # The superclass DbApiHook's method implementation has a return type `None` and mypy fails saying
     # return type `NotImplementedError` is incompatible with it. Hence, we ignore the mypy error here.
-    def insert_rows(  # type: ignore[override]
+    def insert_rows(
         self,
         table: str,
         rows: Iterable[tuple[str]],
