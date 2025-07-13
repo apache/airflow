@@ -92,7 +92,7 @@ class InfluxDBHook(BaseHook):
         self.connection = self.get_connection(self.influxdb_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
-        self.uri = self.get_uri(self.connection)  # type: ignore[arg-type]
+        self.uri = self.get_uri(self.connection)
         self.log.info("URI: %s", self.uri)
 
         if self.client is not None:
