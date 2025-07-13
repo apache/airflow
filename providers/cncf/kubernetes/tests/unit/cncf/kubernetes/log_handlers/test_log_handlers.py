@@ -30,7 +30,6 @@ from kubernetes.client import models as k8s
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_loader
 from airflow.models.dag import DAG
-from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import (
@@ -44,6 +43,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -58,9 +58,9 @@ FILE_TASK_HANDLER = "task"
 
 class TestFileTaskLogHandler:
     def clean_up(self):
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_dag_bundles()
 
     def setup_method(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -133,8 +133,18 @@ class TestFileTaskLogHandler:
                 "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
+            from airflow.models.dag import DagModel
+            from airflow.models.dagbundle import DagBundleModel
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.flush()
+                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+                session.commit()
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
         dagrun = dag.create_dagrun(

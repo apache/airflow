@@ -38,6 +38,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -61,6 +62,16 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dag_version import DagVersion
+        from airflow.models.dagbundle import DagBundleModel
+
+        with create_session() as session:
+            bundle_name = "testing"
+            orm_dag_bundle = DagBundleModel(name=bundle_name)
+            session.add(orm_dag_bundle)
+            session.flush()
+            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            session.commit()
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_run = DagRun(
@@ -88,14 +99,7 @@ def create_context(task, persist_to_db=False, map_index=None):
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.models.dagbundle import DagBundleModel
-
-                bundle_name = "test_bundle"
-                session.add(DagBundleModel(name=bundle_name))
-                session.flush()
-                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
-            else:
+            if not AIRFLOW_V_3_0_PLUS:
                 session.add(DagModel(dag_id=dag.dag_id))
             session.add(dag_run)
             session.add(task_instance)
@@ -121,6 +125,9 @@ class TestKubernetesJobOperator:
         yield
 
         patch.stopall()
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_dag_bundles()
 
     def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesJobOperator"

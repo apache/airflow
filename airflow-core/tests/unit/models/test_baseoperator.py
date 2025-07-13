@@ -221,6 +221,7 @@ def test_teardown_and_fail_fast(dag_maker):
 
 
 @pytest.mark.db_test
+@pytest.mark.usefixtures("testing_dag_bundle")
 def test_get_task_instances(session):
     import pendulum
 
@@ -230,7 +231,7 @@ def test_get_task_instances(session):
 
     test_dag = DAG(dag_id="test_dag", schedule=None, start_date=first_logical_date)
     task = BaseOperator(task_id="test_task", dag=test_dag)
-    test_dag.sync_to_db()
+    DAG.bulk_write_to_db("testing", None, [test_dag])
     SerializedDagModel.write_dag(test_dag, bundle_name="testing")
     dag_version = DagVersion.get_latest_version(test_dag.dag_id)
 

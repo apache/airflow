@@ -35,7 +35,7 @@ except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import Connection, DagRun, TaskInstance as TI
+from airflow.models import Connection
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
@@ -56,15 +56,15 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.models.xcom import XComModel as XCom
     from airflow.utils.types import DagRunTriggeredByType
 else:
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
+    pass  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -1088,14 +1088,20 @@ class TestSqlBranch:
     Test for SQL Branch Operator
     """
 
+    @staticmethod
+    def clear_db():
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_xcom()
+        clear_db_dag_bundles()
+
     @classmethod
     def setup_class(cls):
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-            session.query(XCom).delete()
+        cls.clear_db()
 
     def setup_method(self):
+        self.clear_db()
+
         self.dag = DAG(
             "sql_branch_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -1105,8 +1111,19 @@ class TestSqlBranch:
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag import DagModel
+            from airflow.models.dagbundle import DagBundleModel
+
+            with create_session() as session:
+                bundle_name = "testing"
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.flush()
+                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
+                session.commit()
+
             self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
 
     def get_ti(self, task_id, dr=None):
         if dr is None:
@@ -1133,10 +1150,7 @@ class TestSqlBranch:
         return ti
 
     def teardown_method(self):
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-            session.query(XCom).delete()
+        self.clear_db()
 
     @pytest.fixture
     def branch_op(self):

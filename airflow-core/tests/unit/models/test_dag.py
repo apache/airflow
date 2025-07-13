@@ -58,6 +58,7 @@ from airflow.models.dag import (
     get_asset_triggered_next_run_info,
 )
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -150,8 +151,14 @@ def _create_dagrun(
     start_date: datetime.datetime | None = None,
     **kwargs,
 ) -> DagRun:
-    dag.sync_to_db()
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    bundle_name = "testing"
+    with create_session() as session:
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        session.commit()
+    DAG.bulk_write_to_db(bundle_name, None, [dag])
+    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
     logical_date = timezone.coerce_datetime(logical_date)
     if not isinstance(data_interval, DataInterval):
         data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
@@ -237,14 +244,16 @@ class TestDag:
         ti = dr.get_task_instance(task.task_id)
         assert ti.priority_weight == expected
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"
         test_task_id = "task_1"
 
         test_dag = DAG(dag_id=test_dag_id, schedule=None, start_date=DEFAULT_DATE)
         test_task = EmptyOperator(task_id=test_task_id, dag=test_dag)
-        test_dag.sync_to_db()
-        SerializedDagModel.write_dag(test_dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [test_dag])
+        SerializedDagModel.write_dag(test_dag, bundle_name=bundle_name)
         dag_version = DagVersion.get_latest_version(test_dag_id)
         dag_version_id = dag_version.id
 
@@ -332,6 +341,7 @@ class TestDag:
         )
         session.close()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_task_instances_before(self):
         BASE_DATE = timezone.datetime(2022, 7, 20, 20)
 
@@ -340,8 +350,9 @@ class TestDag:
 
         test_dag = DAG(dag_id=test_dag_id, schedule=None, start_date=BASE_DATE)
         EmptyOperator(task_id=test_task_id, dag=test_dag)
-        test_dag.sync_to_db()
-        SerializedDagModel.write_dag(test_dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [test_dag])
+        SerializedDagModel.write_dag(test_dag, bundle_name=bundle_name)
 
         session = settings.Session()
 
@@ -545,12 +556,14 @@ class TestDag:
 
         assert task.test_field == ["{{ ds }}", "some_string"]
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_create_dagrun_when_schedule_is_none_and_empty_start_date(self):
         # Check that we don't get an AttributeError 'start_date' for self.start_date when schedule is none
         dag = DAG("dag_with_none_schedule_and_empty_start_date", schedule=None)
         dag.add_task(BaseOperator(task_id="task_without_start_date"))
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dagrun = dag.create_dagrun(
             run_id="test",
             state=State.RUNNING,
@@ -1035,6 +1048,7 @@ class TestDag:
         dag = DAG("DAG", schedule=None, default_args=default_args)
         assert dag.timezone.name == local_tz.name
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_schedule_dag_no_previous_runs(self):
         """
         Tests scheduling a dag with no previous runs
@@ -1042,8 +1056,9 @@ class TestDag:
         dag_id = "test_schedule_dag_no_previous_runs"
         dag = DAG(dag_id=dag_id, schedule=None)
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dag_run = dag.create_dagrun(
             run_id="test",
             run_type=DagRunType.SCHEDULED,
@@ -1063,6 +1078,7 @@ class TestDag:
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @patch("airflow.models.dagrun.Stats")
     def test_dag_handle_callback_crash(self, mock_stats):
         """
@@ -1080,8 +1096,9 @@ class TestDag:
         )
         when = TEST_DATE
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=when))
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         with create_session() as session:
             dag_run = dag.create_dagrun(
@@ -1104,6 +1121,7 @@ class TestDag:
             tags={"dag_id": "test_dag_callback_crash"},
         )
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dag_handle_callback_with_removed_task(self, dag_maker, session):
         """
         Tests avoid crashes when a removed task is the last one in the list of task instance
@@ -1118,8 +1136,9 @@ class TestDag:
         ) as dag:
             EmptyOperator(task_id="faketastic")
             task_removed = EmptyOperator(task_id="removed_task")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         with create_session() as session:
             dag_run = dag.create_dagrun(
                 run_id="test",
@@ -1198,17 +1217,8 @@ class TestDag:
         assert isinstance(dag.timetable, OnceTimetable)
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
 
-        session = settings.Session()
-        orm_dag = DagModel(
-            dag_id=dag.dag_id,
-            bundle_name="testing",
-            is_stale=False,
-        )
-        session.add(orm_dag)
-        session.flush()
-
         # Sync once to create the DagModel
-        dag.sync_to_db()
+        DAG.bulk_write_to_db("testing", None, [dag])
 
         _create_dagrun(
             dag,
@@ -1219,7 +1229,7 @@ class TestDag:
         )
 
         # Then sync again after creating the dag run -- this should update next_dagrun
-        dag.sync_to_db()
+        DAG.bulk_write_to_db("testing", None, [dag])
         with create_session() as session:
             model = session.get(DagModel, dag.dag_id)
 
@@ -1376,10 +1386,11 @@ class TestDag:
         assert dag.timetable == timetable
         assert dag.timetable.description == expected_description
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_create_dagrun_job_id_is_set(self):
         job_id = 42
         dag = DAG(dag_id="test_create_dagrun_job_id_is_set", schedule=None)
-        dag.sync_to_db()
+        DAG.bulk_write_to_db("testing", None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         dr = dag.create_dagrun(
             run_id="test_create_dagrun_job_id_is_set",
@@ -1529,10 +1540,12 @@ class TestDag:
         dagrun: DagRun = dagruns[0]
         assert dagrun.state == dag_run_state
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dag_test_basic(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1546,10 +1559,12 @@ class TestDag:
         dag.test()
         mock_object.assert_called_once()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dag_test_with_dependencies(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1567,6 +1582,7 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with("output of first task")
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dag_test_with_fail_handler(self):
         mock_handle_object_1 = mock.MagicMock()
         mock_handle_object_2 = mock.MagicMock()
@@ -1589,8 +1605,9 @@ class TestDag:
 
         mock_task_object_1 = mock.MagicMock()
         mock_task_object_2 = mock.MagicMock()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         @task_decorator
         def check_task():
@@ -1620,6 +1637,7 @@ class TestDag:
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dag_connection_file(self, tmp_path):
         test_connections_string = """
 ---
@@ -1628,8 +1646,9 @@ my_postgres_conn:
     conn_type: postgres
         """
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         @task_decorator
         def check_task():
@@ -2029,10 +2048,12 @@ my_postgres_conn:
             EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
             dag.validate()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_validate_params_on_trigger_dag(self):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
@@ -2610,17 +2631,22 @@ class TestDagModel:
 class TestQueries:
     def setup_method(self) -> None:
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     @pytest.mark.parametrize("tasks_count", [3, 12])
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_count_number_queries(self, tasks_count):
         dag = DAG("test_dagrun_query_count", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
+        DAG.bulk_write_to_db("testing", None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         with assert_queries_count(5):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",

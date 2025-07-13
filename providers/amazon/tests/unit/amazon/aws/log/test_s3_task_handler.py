@@ -27,7 +27,7 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.models import DAG, DagModel, DagRun, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
@@ -36,6 +36,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -47,6 +48,11 @@ def s3mock():
 
 @pytest.mark.db_test
 class TestS3RemoteLogIO:
+    def clear_db(self):
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_log_template, tmp_path_factory, session):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
@@ -64,8 +70,19 @@ class TestS3RemoteLogIO:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag import DagModel
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.flush()
+                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
+                session.commit()
             self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -101,8 +118,7 @@ class TestS3RemoteLogIO:
 
         self.dag.clear()
 
-        session.query(DagRun).delete()
-        session.query(DagModel).delete()
+        self.clear_db()
         if self.s3_task_handler.handler:
             with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)
@@ -175,6 +191,11 @@ class TestS3RemoteLogIO:
 
 @pytest.mark.db_test
 class TestS3TaskHandler:
+    def clear_db(self):
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_log_template, tmp_path_factory, session):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
@@ -191,8 +212,19 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag import DagModel
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.flush()
+                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
+                session.commit()
             self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -228,7 +260,7 @@ class TestS3TaskHandler:
 
         self.dag.clear()
 
-        session.query(DagRun).delete()
+        self.clear_db()
         if self.s3_task_handler.handler:
             with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)

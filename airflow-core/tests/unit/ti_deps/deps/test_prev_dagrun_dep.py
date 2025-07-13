@@ -42,6 +42,7 @@ class TestPrevDagrunDep:
     def teardown_method(self):
         clear_db_runs()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_first_task_run_of_new_task(self):
         """
         The first task run of a new task in an old DAG should pass if the task has
@@ -55,7 +56,7 @@ class TestPrevDagrunDep:
             start_date=START_DATE,
             wait_for_downstream=False,
         )
-        dag.sync_to_db()
+        DAG.bulk_write_to_db("testing", None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         # Old DAG run will include only TaskInstance of old_task
         dag.create_dagrun(

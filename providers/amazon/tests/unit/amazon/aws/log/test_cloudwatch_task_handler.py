@@ -41,10 +41,12 @@ from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -174,8 +176,21 @@ class TestCloudRemoteLogIO:
 
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:
+    def clear_db(self):
+        # Expunge any TaskInstance from the session before clearing DB
+        # to avoid StaleDataError when the session tries to update deleted rows
+        if hasattr(self, "ti") and self.ti:
+            from sqlalchemy.orm import object_session
+
+            session = object_session(self.ti)
+            if session:
+                session.expunge(self.ti)
+        clear_db_dags()
+        clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
     def setup(self, create_log_template, tmp_path_factory, session):
+        self.clear_db()
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_group = "log_group_name"
             self.region_name = "us-west-2"
@@ -195,6 +210,16 @@ class TestCloudwatchTaskHandler:
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag import DagModel
+            from airflow.models.dagbundle import DagBundleModel
+
+            with create_session() as session:
+                bundle_name = "testing"
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.flush()
+                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
+                session.commit()
             self.dag.sync_to_db()
             SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             dag_run = DagRun(
@@ -236,6 +261,8 @@ class TestCloudwatchTaskHandler:
 
         self.cloudwatch_task_handler.handler = None
         del self.cloudwatch_task_handler
+
+        self.clear_db()
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)

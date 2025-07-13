@@ -62,6 +62,7 @@ class TestSqlAlchemyUtils:
 
         self.session = session
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_utc_transformations(self):
         """
         Test whether what we are storing is what we are retrieving
@@ -74,8 +75,8 @@ class TestSqlAlchemyUtils:
 
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        DAG.bulk_write_to_db("testing", None, [dag], session=self.session)
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=self.session)
         run = dag.create_dagrun(
             run_id=iso_date,
             run_type=DagRunType.MANUAL,

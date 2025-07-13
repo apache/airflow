@@ -32,6 +32,7 @@ from unit.models import DEFAULT_DATE
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.usefixtures("testing_dag_bundle")
 def test_dagrun_state_enum_escape():
     """
     Make sure DagRunState.QUEUED is converted to string 'queued' when
@@ -39,7 +40,7 @@ def test_dagrun_state_enum_escape():
     """
     with create_session() as session:
         dag = DAG(dag_id="test_dagrun_state_enum_escape", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
-        dag.sync_to_db()
+        DAG.bulk_write_to_db("testing", None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(

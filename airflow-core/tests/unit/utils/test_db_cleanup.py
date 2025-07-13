@@ -672,14 +672,15 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        session.add(DagBundleModel(name="dags-folder"))
+        bundle_name = "testing"
+        session.add(DagBundleModel(name=bundle_name))
         session.flush()
 
         dag_id = f"test-dag_{uuid4()}"
         dag = DAG(dag_id=dag_id)
-        dm = DagModel(dag_id=dag_id, bundle_name="dags-folder")
+        dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
         session.add(dm)
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for num in range(num_tis):
             start_date = base_date.add(days=num)
