@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     try:
         from airflow.sdk.definitions.context import Context
     except ImportError:
-        from airflow.utils.context import Context  # type: ignore[no-redef]
+        from airflow.utils.context import Context
 
 
 class PineconeIngestOperator(BaseOperator):

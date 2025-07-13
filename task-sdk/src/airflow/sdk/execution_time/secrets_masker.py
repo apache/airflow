@@ -27,12 +27,9 @@ from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TextIO, TypeAlias, TypeVar
+from typing import Any, TextIO, TypeAlias, TypeVar
 
 from airflow import settings
-
-if TYPE_CHECKING:
-    from typing import TypeGuard
 
 V1EnvVar = TypeVar("V1EnvVar")
 Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list[Any]
@@ -154,7 +151,8 @@ def _get_v1_env_var_type() -> type:
     return V1EnvVar
 
 
-def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+# TODO update return type to TypeGuard[V1EnvVar] once mypy 1.17.0 is available
+def _is_v1_env_var(v: Any) -> bool:
     return isinstance(v, _get_v1_env_var_type())
 
 
@@ -256,8 +254,8 @@ class SecretsMasker(logging.Filter):
                 return to_return
             if isinstance(item, Enum):
                 return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
-            if _is_v1_env_var(item):
-                tmp: dict = item.to_dict()  # type: ignore[attr-defined] # V1EnvVar has a to_dict method
+            if _is_v1_env_var(item) and hasattr(item, "to_dict"):
+                tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
