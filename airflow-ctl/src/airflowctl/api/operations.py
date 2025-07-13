@@ -156,7 +156,7 @@ class BaseOperations:
         total_entries: int,
         data_model: type[BaseModel],
         entry_list: list,
-        offset: int = 50, # Initial pass added; default limit is set to 50
+        offset: int = 50,  # Initial pass added; default limit is set to 50
         limit: int = 50,
         params: dict | None = None,
         **kwargs,
