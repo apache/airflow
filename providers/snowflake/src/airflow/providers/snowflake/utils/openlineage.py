@@ -249,9 +249,11 @@ def _get_queries_details_from_snowflake(
     )
 
     try:
-        # Can't import the SnowflakeSqlApiHook class and do proper isinstance check - circular imports
-        if hook.__class__.__name__ == "SnowflakeSqlApiHook":
-            result = _run_single_query_with_api_hook(hook=hook, sql=query)  # type: ignore[arg-type]
+        # Note: need to lazy import here to avoid circular imports
+        from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+
+        if isinstance(hook, SnowflakeSqlApiHook):
+            result = _run_single_query_with_api_hook(hook=hook, sql=query)
             result = _process_data_from_api(data=result)
         else:
             result = _run_single_query_with_hook(hook=hook, sql=query)
@@ -426,8 +428,8 @@ def emit_openlineage_events_for_snowflake_queries(
         event_batch = _create_snowflake_event_pair(
             job_namespace=namespace(),
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
-            start_time=query_metadata.get("START_TIME", default_event_time),  # type: ignore[arg-type]
-            end_time=query_metadata.get("END_TIME", default_event_time),  # type: ignore[arg-type]
+            start_time=query_metadata.get("START_TIME", default_event_time),
+            end_time=query_metadata.get("END_TIME", default_event_time),
             # `EXECUTION_STATUS` can be `success`, `fail` or `incident` (Snowflake outage, so still failure)
             is_successful=query_metadata.get("EXECUTION_STATUS", default_state).lower() == "success",
             run_facets={**query_specific_run_facets, **common_run_facets, **additional_run_facets},
