@@ -907,7 +907,7 @@ class HiveServer2Hook(DbApiHook):
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            db = self.get_connection(self.hiveserver2_conn_id)
+            db = self.get_connection(self.get_conn_id())
             # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
