@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-13T02:23:11.130668
+# This constraints file was automatically generated on 2025-07-13T13:48:15.623632
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -137,7 +137,7 @@ botocore==1.38.27
 build==1.2.2.post1
 cachelib==0.13.0
 cachetools==5.5.2
-cadwyn==5.4.3
+cadwyn==5.4.4
 cassandra-driver==3.29.2
 cattrs==25.1.1
 celery==5.5.3
@@ -559,7 +559,7 @@ rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.14.8
 rich==13.9.4
-rignore==0.5.1
+rignore==0.6.2
 rpds-py==0.26.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
