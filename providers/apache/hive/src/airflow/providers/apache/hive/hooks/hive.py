@@ -865,7 +865,7 @@ class HiveServer2Hook(DbApiHook):
         username: str | None = None
         password: str | None = None
 
-        db = self.get_connection(self.hiveserver2_conn_id)
+        db = self.get_connection(self.get_conn_id())
 
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:
