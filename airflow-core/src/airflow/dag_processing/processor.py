@@ -219,7 +219,7 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
     # TODO:We need a proper context object!
-    context: Context = {  # type: ignore[assignment]
+    context: Context = {
         "dag": dag,
         "run_id": request.run_id,
         "reason": request.msg,
@@ -357,7 +357,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.send_msg(msg, request_id=0)
 
-    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
         resp: BaseModel | None = None

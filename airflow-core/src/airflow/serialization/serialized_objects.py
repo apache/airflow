@@ -164,7 +164,7 @@ def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
 def decode_relativedelta(var: dict[str, Any]) -> relativedelta.relativedelta:
     """Dencode a relativedelta object."""
     if "weekday" in var:
-        var["weekday"] = relativedelta.weekday(*var["weekday"])  # type: ignore
+        var["weekday"] = relativedelta.weekday(*var["weekday"])
     return relativedelta.relativedelta(**var)
 
 
@@ -399,14 +399,14 @@ def encode_outlet_event_accessors(var: OutletEventAccessors) -> dict[str, Any]:
         "__type": DAT.ASSET_EVENT_ACCESSORS,
         "_dict": [
             {"key": BaseSerialization.serialize(k), "value": encode_outlet_event_accessor(v)}
-            for k, v in var._dict.items()  # type: ignore[attr-defined]
+            for k, v in var._dict.items()
         ],
     }
 
 
 def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
-    d = OutletEventAccessors()  # type: ignore[assignment]
-    d._dict = {  # type: ignore[attr-defined]
+    d = OutletEventAccessors()
+    d._dict = {
         BaseSerialization.deserialize(row["key"]): decode_outlet_event_accessor(row["value"])
         for row in var["_dict"]
     }
@@ -1524,7 +1524,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
                 if v is False:
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
-                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})  # type: ignore[union-attr]
+                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
             elif (
                 k in cls._decorated_fields

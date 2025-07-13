@@ -97,6 +97,6 @@ def _get_tzinfo_name(tzinfo: datetime.tzinfo | None) -> str | None:
         return tzinfo.name
     if hasattr(tzinfo, "zone"):
         # pytz timezone
-        return tzinfo.zone  # type: ignore[no-any-return]
+        return tzinfo.zone
 
     return None

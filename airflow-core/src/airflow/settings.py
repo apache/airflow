@@ -165,7 +165,7 @@ def replace_showwarning(replacement):
 original_show_warning = replace_showwarning(custom_show_warning)
 atexit.register(functools.partial(replace_showwarning, original_show_warning))
 
-POLICY_PLUGIN_MANAGER: Any = None  # type: ignore
+POLICY_PLUGIN_MANAGER: Any = None
 
 
 def task_policy(task):
@@ -417,7 +417,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson("database", "sql_alchemy_engine_args", fallback=default_args)  # type: ignore
+    engine_args: dict = conf.getjson("database", "sql_alchemy_engine_args", fallback=default_args)
 
     if pool_class:
         # Don't use separate settings for size etc, only those from sql_alchemy_engine_args

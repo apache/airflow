@@ -336,7 +336,7 @@ class TestDagRun:
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        ti_op2.task.trigger_rule = "invalid"  # type: ignore
+        ti_op2.task.trigger_rule = "invalid"
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 

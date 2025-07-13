@@ -961,10 +961,10 @@ class AirflowConfigParser(ConfigParser):
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
-    @overload  # type: ignore[override]
+    @overload
     def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
-    def get(  # type: ignore[override,misc]
+    def get(  # type: ignore[misc]
         self,
         section: str,
         key: str,
@@ -2102,7 +2102,7 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             )
         else:
             # there
-            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
+            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
             warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
 
 

@@ -58,7 +58,7 @@ log = structlog.get_logger(__name__)
     getstate_setstate=False,
     repr=False,
 )
-class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complains about weight_rule being different
+class MappedOperator(TaskSDKMappedOperator):
     """Object representing a mapped operator in a DAG."""
 
     deps: frozenset[BaseTIDep] = attrs.field(init=False, default=DEFAULT_OPERATOR_DEPS)
@@ -145,7 +145,7 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type]
+        return link.get_link(self, ti_key=ti.key)
 
 
 @functools.singledispatch

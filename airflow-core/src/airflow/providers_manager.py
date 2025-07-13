@@ -396,7 +396,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._asset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
         self._asset_factories: dict[str, Callable[..., Asset]] = {}
         self._asset_to_openlineage_converters: dict[str, Callable] = {}
-        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
+        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
         self._dialect_provider_dict: dict[str, DialectInfo] = {}
@@ -447,7 +447,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 connection_type=None,
                 package_name="apache-airflow-providers-standard",
                 hook_class_name=class_name,
-                provider_info=None,  # type: ignore[argument]
+                provider_info=None,
             )
 
     @provider_info_cache("list")

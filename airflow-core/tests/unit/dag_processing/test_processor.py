@@ -81,7 +81,7 @@ def inprocess_client():
     """Provides an in-process Client backed by a single API server."""
     api = InProcessExecutionAPI()
     client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
-    client.base_url = "http://in-process.invalid/"  # type: ignore[assignment]
+    client.base_url = "http://in-process.invalid/"
     return client
 
 
