@@ -37,6 +37,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
+from airflow.providers.databricks.hooks.databricks import LIST_SQL_ENDPOINTS_ENDPOINT
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
@@ -45,9 +46,6 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection as AirflowConnection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-
-
-LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 T = TypeVar("T")
