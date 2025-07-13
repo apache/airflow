@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.providers.mysql.version_compat import AIRFLOW_V_3_0_PLUS
 
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models import Connection
+        from airflow.sdk import Connection
     else:
         from airflow.models.connection import Connection
 
