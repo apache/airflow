@@ -30,7 +30,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from airflow.models import Connection
+    from airflow.providers.mysql.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models import Connection
+    else:
+        from airflow.models.connection import Connection
 
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
@@ -130,7 +135,7 @@ class MySqlHook(DbApiHook):
 
         if conn.extra_dejson.get("charset", False):
             conn_config["charset"] = conn.extra_dejson["charset"]
-            if conn_config["charset"].lower() in ("utf8", "utf-8"):
+            if conn_config.get("charset", "undef").lower() in ("utf8", "utf-8"):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get("cursor", False):
             try:
