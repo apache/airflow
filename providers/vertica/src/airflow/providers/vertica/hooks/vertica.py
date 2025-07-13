@@ -67,7 +67,7 @@ class VerticaHook(DbApiHook):
 
     def get_conn(self) -> connect:
         """Return vertica connection object."""
-        conn = self.get_connection(self.vertica_conn_id)
+        conn = self.get_connection(self.get_conn_id())
         conn_config: dict[str, Any] = {
             "user": conn.login,
             "password": conn.password or "",
