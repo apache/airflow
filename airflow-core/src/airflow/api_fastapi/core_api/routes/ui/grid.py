@@ -272,6 +272,9 @@ def get_grid_runs(
 
         return response
 
+    except HTTPException:
+        # Re-raise HTTPException (like 404 from _get_latest_serdag) without modification
+        raise
     except ValueError as e:
         log.error("Invalid data format while retrieving grid runs", dag_id=dag_id, error=str(e))
         raise HTTPException(
