@@ -146,7 +146,7 @@ class TrinoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Return a connection object."""
-        db = self.get_connection(self.trino_conn_id)
+        db = self.get_connection(self.get_conn_id())
         extra = db.extra_dejson
         auth = None
         user = db.login
@@ -218,7 +218,7 @@ class TrinoHook(DbApiHook):
 
     def get_isolation_level(self) -> Any:
         """Return an isolation level."""
-        db = self.get_connection(self.trino_conn_id)
+        db = self.get_connection(self.get_conn_id())
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
