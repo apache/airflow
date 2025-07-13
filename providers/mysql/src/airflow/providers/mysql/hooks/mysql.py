@@ -225,7 +225,7 @@ class MySqlHook(DbApiHook):
                     "installed in case you see compilation error during installation."
                 )
 
-            conn_config = self._get_conn_config_mysql_client(conn)  # type: ignore[arg-type]
+            conn_config = self._get_conn_config_mysql_client(conn)
             return MySQLdb.connect(**conn_config)
 
         if client_name == "mysql-connector-python":
@@ -238,7 +238,7 @@ class MySqlHook(DbApiHook):
                     "'mysql-connector-python'. Warning! It might cause dependency conflicts."
                 )
 
-            conn_config = self._get_conn_config_mysql_connector_python(conn)  # type: ignore[arg-type]
+            conn_config = self._get_conn_config_mysql_connector_python(conn)
             return mysql.connector.connect(**conn_config)
 
         raise ValueError("Unknown MySQL client name provided!")
