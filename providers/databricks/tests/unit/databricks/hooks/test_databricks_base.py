@@ -26,7 +26,7 @@ import time_machine
 from aiohttp.client_exceptions import ClientConnectorError
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
-from tenacity import RetryError
+from tenacity import Future, RetryError
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -282,7 +282,8 @@ class TestBaseDatabricksHook:
             if sp_token and hook._is_oauth_token_valid(sp_token):
                 return sp_token["access_token"]
             try:
-                raise RetryError()  # type: ignore[call-arg]
+                future = Future(attempt_number=3)
+                raise RetryError(future)
             except RetryError:
                 raise AirflowException(
                     f"API requests to Databricks failed {hook.retry_limit} times. Giving up."
