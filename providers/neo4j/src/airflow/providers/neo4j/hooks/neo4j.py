@@ -60,12 +60,12 @@ class Neo4jHook(BaseHook):
 
         self.connection = self.get_connection(self.neo4j_conn_id)
 
-        uri = self.get_uri(self.connection)  # type: ignore[arg-type]
+        uri = self.get_uri(self.connection)
         self.log.info("URI: %s", uri)
 
         is_encrypted = self.connection.extra_dejson.get("encrypted", False)
 
-        self.client = self.get_client(self.connection, is_encrypted, uri)  # type: ignore[arg-type]
+        self.client = self.get_client(self.connection, is_encrypted, uri)
 
         return self.client
 
