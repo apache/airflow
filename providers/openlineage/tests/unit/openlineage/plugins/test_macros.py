@@ -27,6 +27,7 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
     lineage_parent_id,
+    lineage_root_run_id,
     lineage_run_id,
 )
 
@@ -108,3 +109,24 @@ def test_lineage_parent_id(mock_run_id):
     actual = lineage_parent_id(task_instance)
     expected = f"{_DAG_NAMESPACE}/dag_id.task_id/run_id"
     assert actual == expected
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
+def test_lineage_root_run_id_with_runtime_task_instance(create_runtime_ti):
+    """Test lineage_root_run_id with real RuntimeTaskInstance object doesn't throw AttributeError."""
+    from airflow.sdk.bases.operator import BaseOperator
+
+    task = BaseOperator(task_id="test_task")
+
+    runtime_ti = create_runtime_ti(
+        task=task,
+        dag_id="test_dag",
+        run_id="test_run_id",
+    )
+
+    # Explicitly test that the function doesn't throw an AttributeError
+    # This was the original issue: AttributeError: 'RuntimeTaskInstance' object has no attribute 'dag_run'
+    try:
+        assert lineage_root_run_id(runtime_ti) is not None
+    except AttributeError as e:
+        pytest.fail(f"lineage_root_run_id should not throw AttributeError with RuntimeTaskInstance: {e}")

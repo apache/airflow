@@ -26,12 +26,12 @@ import os
 import shutil
 import time
 import warnings
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
@@ -51,7 +51,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
 

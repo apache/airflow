@@ -50,7 +50,7 @@ const FailedLogs = ({
     <Flex flexDirection="column" gap={3}>
       <Flex alignItems="center" justifyContent="space-between">
         <Heading size="md">{translate("overview.failedLogs.title")}</Heading>
-        <Tooltip closeDelay={100} content={translate("common:wrap.tooltip")} openDelay={100}>
+        <Tooltip closeDelay={100} content={translate("common:wrap.tooltip", { hotkey: "w" })} openDelay={100}>
           <Button
             aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
             bg="bg.panel"

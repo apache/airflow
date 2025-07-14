@@ -24,6 +24,7 @@ from enum import Enum
 from pathlib import Path
 
 import requests
+from packaging.version import Version
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
@@ -50,6 +51,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
 ]
 
@@ -62,6 +64,35 @@ def get_latest_pypi_version(package_name: str) -> str:
     data = response.json()
     latest_version = data["info"]["version"]  # The version info is under the 'info' key
     return latest_version
+
+
+def get_latest_python_version(python_major_minor: str, github_token: str | None) -> str | None:
+    latest_version = None
+    # Matches versions of vA.B.C and vA.B where C can only be numeric and v is optional
+    version_match = re.compile(rf"^v?{python_major_minor}\.?\d*$")
+    headers = {"User-Agent": "Python requests"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    for i in range(5):
+        response = requests.get(
+            f"https://api.github.com/repos/python/cpython/tags?per_page=100&page={i + 1}",
+            headers=headers,
+        )
+        response.raise_for_status()  # Ensure we got a successful response
+        data = response.json()
+        versions = [str(tag["name"]) for tag in data if version_match.match(tag.get("name", ""))]
+        if versions:
+            latest_version = sorted(versions, key=Version, reverse=True)[0]
+            break
+    return latest_version
+
+
+def get_latest_golang_version() -> str:
+    response = requests.get("https://go.dev/dl/?mode=json")
+    response.raise_for_status()  # Ensure we got a successful response
+    versions = response.json()
+    stable_versions = [release["version"].replace("go", "") for release in versions if release["stable"]]
+    return sorted(stable_versions, key=Version, reverse=True)[0]
 
 
 def get_latest_lts_node_version() -> str:
@@ -91,16 +122,25 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
 ]
 
+PYTHON_PATTERNS: list[tuple[str, Quoting]] = [
+    (r"(\"{python_major_minor}\": \")(v[0-9.]+)(\")", Quoting.UNQUOTED),
+]
+
+GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+]
+
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(uv>=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(UV_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to "
+            r"(\")([0-9.]+)(\"  # Keep this comment to "
             r"allow automatic replacement of uv version)"
         ),
         Quoting.UNQUOTED,
@@ -123,7 +163,7 @@ PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit version)"
         ),
         Quoting.UNQUOTED,
@@ -142,7 +182,7 @@ PRE_COMMIT_UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
     (
         re.compile(
-            r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
             r"replacement of pre-commit-uv version)"
         ),
         Quoting.UNQUOTED,
@@ -166,9 +206,19 @@ def get_replacement(value: str, quoting: Quoting) -> str:
 
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
+UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", "true").lower() == "true"
+UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", "true").lower() == "true"
 UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
+UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", "true").lower() == "true"
+UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true"
+UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
+UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
+
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+
+GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
@@ -200,11 +250,16 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 if __name__ == "__main__":
     changed = False
+    golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
     setuptools_version = get_latest_pypi_version("setuptools")
     pre_commit_version = get_latest_pypi_version("pre-commit")
     pre_commit_uv_version = get_latest_pypi_version("pre-commit-uv")
+    hatch_version = get_latest_pypi_version("hatch")
+    pyyaml_version = get_latest_pypi_version("PyYAML")
+    gitpython_version = get_latest_pypi_version("GitPython")
+    rich_version = get_latest_pypi_version("rich")
     node_lts_version = get_latest_lts_node_version()
     for file, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file}")
@@ -215,6 +270,28 @@ if __name__ == "__main__":
             for line_pattern, quoting in PIP_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
+                )
+        if UPGRADE_PYTHON:
+            for python_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
+                latest_python_version = get_latest_python_version(python_version, GITHUB_TOKEN)
+                if latest_python_version:
+                    console.print(
+                        f"[bright_blue]Latest python {python_version} version: {latest_python_version}"
+                    )
+                    for line_format, quoting in PYTHON_PATTERNS:
+                        line_pattern = re.compile(line_format.format(python_major_minor=python_version))
+                        console.print(line_pattern)
+                        new_content = replace_version(
+                            line_pattern,
+                            get_replacement(latest_python_version, quoting),
+                            new_content,
+                            keep_length,
+                        )
+        if UPGRADE_GOLANG:
+            console.print(f"[bright_blue]Latest golang version: {golang_version}")
+            for line_pattern, quoting in GOLANG_PATTERNS:
+                new_content = replace_version(
+                    line_pattern, get_replacement(golang_version, quoting), new_content, keep_length
                 )
         if UPGRADE_SETUPTOOLS:
             console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
@@ -252,6 +329,54 @@ if __name__ == "__main__":
                     new_content,
                     keep_length,
                 )
+        if UPGRADE_HATCH:
+            console.print(f"[bright_blue]Latest hatch version: {hatch_version}")
+            new_content = re.sub(
+                r"(HATCH_VERSION = )(\"[0-9.]+\")",
+                f'HATCH_VERSION = "{hatch_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(HATCH_VERSION=)(\"[0-9.]+\")",
+                f'HATCH_VERSION="{hatch_version}"',
+                new_content,
+            )
+        if UPGRADE_PYYAML:
+            console.print(f"[bright_blue]Latest PyYAML version: {pyyaml_version}")
+            new_content = re.sub(
+                r"(PYYAML_VERSION = )(\"[0-9.]+\")",
+                f'PYYAML_VERSION = "{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(PYYAML_VERSION=)(\"[0-9.]+\")",
+                f'PYYAML_VERSION="{pyyaml_version}"',
+                new_content,
+            )
+        if UPGRADE_GITPYTHON:
+            console.print(f"[bright_blue]Latest GitPython version: {gitpython_version}")
+            new_content = re.sub(
+                r"(GITPYTHON_VERSION = )(\"[0-9.]+\")",
+                f'GITPYTHON_VERSION = "{gitpython_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(GITPYTHON_VERSION=)(\"[0-9.]+\")",
+                f'GITPYTHON_VERSION="{gitpython_version}"',
+                new_content,
+            )
+        if UPGRADE_RICH:
+            console.print(f"[bright_blue]Latest rich version: {rich_version}")
+            new_content = re.sub(
+                r"(RICH_VERSION = )(\"[0-9.]+\")",
+                f'RICH_VERSION = "{rich_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(RICH_VERSION=)(\"[0-9.]+\")",
+                f'RICH_VERSION="{rich_version}"',
+                new_content,
+            )
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")

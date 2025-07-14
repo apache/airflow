@@ -807,7 +807,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         if project_id:
             DataprocClusterLink.persist(
                 context=context,
-                operator=self,
                 cluster_id=self.cluster_name,
                 project_id=project_id,
                 region=self.region,
@@ -1174,7 +1173,6 @@ class DataprocStartClusterOperator(_DataprocStartStopClusterBaseOperator):
         cluster = super().execute(context)
         DataprocClusterLink.persist(
             context=context,
-            operator=self,
             cluster_id=self.cluster_name,
             project_id=self._get_project_id(),
             region=self.region,
@@ -1355,7 +1353,11 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             self.log.info("Job %s submitted successfully.", job_id)
             # Save data required for extra links no matter what the job status will be
             DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_JOB_LINK_DEPRECATED, resource=job_id
+                context=context,
+                url=DATAPROC_JOB_LINK_DEPRECATED,
+                resource=job_id,
+                region=self.region,
+                project_id=self.project_id,
             )
 
             if self.deferrable:
@@ -1459,7 +1461,6 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         if project_id:
             DataprocWorkflowTemplateLink.persist(
                 context=context,
-                operator=self,
                 workflow_template_id=self.template["id"],
                 region=self.region,
                 project_id=project_id,
@@ -1571,7 +1572,6 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         if project_id:
             DataprocWorkflowLink.persist(
                 context=context,
-                operator=self,
                 workflow_id=workflow_id,
                 region=self.region,
                 project_id=project_id,
@@ -1727,7 +1727,6 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         if project_id:
             DataprocWorkflowLink.persist(
                 context=context,
-                operator=self,
                 workflow_id=workflow_id,
                 region=self.region,
                 project_id=project_id,
@@ -1901,7 +1900,6 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         if project_id:
             DataprocJobLink.persist(
                 context=context,
-                operator=self,
                 job_id=new_job_id,
                 region=self.region,
                 project_id=project_id,
@@ -2074,7 +2072,6 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         if project_id:
             DataprocClusterLink.persist(
                 context=context,
-                operator=self,
                 cluster_id=self.cluster_name,
                 project_id=project_id,
                 region=self.region,
@@ -2373,7 +2370,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             # Persist the link earlier so users can observe the progress
             DataprocBatchLink.persist(
                 context=context,
-                operator=self,
                 project_id=self.project_id,
                 region=self.region,
                 batch_id=self.batch_id,
@@ -2410,7 +2406,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
 
         DataprocBatchLink.persist(
             context=context,
-            operator=self,
             project_id=self.project_id,
             region=self.region,
             batch_id=batch_id,
@@ -2493,13 +2488,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, batch_id=batch_id)
         if state == Batch.State.FAILED:
             raise AirflowException(
-                f"Batch job {batch_id} failed with error: {state_message}\nDriver Logs: {link}"
+                f"Batch job {batch_id} failed with error: {state_message}.\nDriver logs: {link}"
             )
         if state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
-            raise AirflowException(f"Batch job {batch_id} was cancelled. Driver logs: {link}")
+            raise AirflowException(f"Batch job {batch_id} was cancelled.\nDriver logs: {link}")
         if state == Batch.State.STATE_UNSPECIFIED:
-            raise AirflowException(f"Batch job {batch_id} unspecified. Driver logs: {link}")
-        self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
+            raise AirflowException(f"Batch job {batch_id} unspecified.\nDriver logs: {link}")
+        self.log.info("Batch job %s completed.\nDriver logs: %s", batch_id, link)
 
     def retry_batch_creation(
         self,
@@ -2723,7 +2718,6 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
         if project_id:
             DataprocBatchLink.persist(
                 context=context,
-                operator=self,
                 project_id=project_id,
                 region=self.region,
                 batch_id=self.batch_id,
@@ -2806,7 +2800,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         if project_id:
-            DataprocBatchesListLink.persist(context=context, operator=self, project_id=project_id)
+            DataprocBatchesListLink.persist(context=context, project_id=project_id)
         return [Batch.to_dict(result) for result in results]
 
 

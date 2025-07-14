@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.11.13",
+    "ruff==0.12.3",
     "semver>=3.0.2",
     "time-machine>=2.13.0",
     "wheel>=0.42.0",
@@ -103,7 +103,7 @@ dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.9.0",
+    "mypy==1.16.1",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -143,6 +143,11 @@ dependencies = [
     "blinker>=1.7.0",
     "beautifulsoup4>=4.7.1",
 ]
+"sqlalchemy" = [
+    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    "sqlalchemy-jsonfield>=1.0",
+    "sqlalchemy-utils>=0.41.2",
+]
 "basic" = [
     "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
 ]
@@ -150,7 +155,7 @@ dependencies = [
     "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"
 ]
 "all" = [
-    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry]",
+    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry,sqlalchemy]",
 ]
 
 [dependency-groups]

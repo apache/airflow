@@ -25,6 +25,7 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
 import { AssetsList } from "src/pages/AssetsList";
+import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
@@ -37,27 +38,37 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { Iframe } from "src/pages/Iframe";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
+import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
+import { Security } from "src/pages/Security";
 import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
+import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { Configs } from "./pages/Configs";
-import { GroupTaskInstance } from "./pages/GroupTaskInstance";
-import { AssetEvents as DagRunAssetEvents } from "./pages/Run/AssetEvents";
-import { Security } from "./pages/Security";
-import { AssetEvents as TaskInstanceAssetEvents } from "./pages/TaskInstance/AssetEvents";
 import { client } from "./queryClient";
+
+const iframeRoute = {
+  // The following iframe sandbox setting is intentionally less restrictive.
+  // This is considered safe because the framed content originates from the Plugins,
+  // which is part of the deployment of Airflow and trusted as per our security policy.
+  // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+  // They are not user provided plugins.
+  element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+  path: "plugin/:page",
+};
 
 const taskInstanceRoutes = [
   { element: <Logs />, index: true },
@@ -68,6 +79,7 @@ const taskInstanceRoutes = [
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
+  iframeRoute,
 ];
 
 export const routerConfig = [
@@ -141,6 +153,7 @@ export const routerConfig = [
         element: <Connections />,
         path: "connections",
       },
+      iframeRoute,
       {
         children: [
           { element: <Overview />, index: true },
@@ -150,6 +163,7 @@ export const routerConfig = [
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagDetails />, path: "details" },
+          iframeRoute,
         ],
         element: <Dag />,
         path: "dags/:dagId",
@@ -161,6 +175,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          iframeRoute,
         ],
         element: <Run />,
         path: "dags/:dagId/runs/:runId",
@@ -184,6 +199,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          iframeRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/group/:groupId",
@@ -198,6 +214,7 @@ export const routerConfig = [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
           { element: <Events />, path: "events" },
+          iframeRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",

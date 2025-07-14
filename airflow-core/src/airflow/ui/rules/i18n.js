@@ -20,12 +20,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import jsoncParser from "jsonc-eslint-parser";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const i18nNamespace = "i18n";
-
 /**
  * Extract all nested keys from translation object
  * @param {Record<string, any>} obj
@@ -50,7 +50,7 @@ const getKeys = (obj, prefix = "") => {
 };
 
 // Path to locales directory
-const localesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/i18n/locales");
+const localesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public/i18n/locales");
 
 // Default language (English) as reference
 const defaultLanguage = "en";
@@ -72,7 +72,7 @@ fs.readdirSync(defaultLanguageDir)
   });
 
 export const i18nPlugin = {
-  files: ["**/i18n/locales/**/*.json"],
+  files: ["public/i18n/locales/**/*.json"],
   rules: {
     "check-translation-completeness": {
       /** @param {import('@typescript-eslint/utils').TSESLint.RuleContext<'missingKeys' | 'fileError', []>} context */
@@ -155,13 +155,17 @@ export const i18nPlugin = {
 
 /** @type {import("@typescript-eslint/utils/ts-eslint").FlatConfig.Config} */
 export const i18nRules = {
-  files: ["**/i18n/locales/**/*.json"],
+  files: ["public/i18n/locales/**/*.json"],
+  languageOptions: {
+    parser: jsoncParser,
+    parserOptions: {
+      extraFileExtensions: [".json"],
+    },
+  },
   plugins: {
     [i18nNamespace]: i18nPlugin,
   },
   rules: {
-    "@typescript-eslint/no-unused-expressions": "off",
     [`${i18nNamespace}/check-translation-completeness`]: "warn",
-    "no-unused-expressions": "off",
   },
 };

@@ -34,4 +34,33 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_1 = get_base_airflow_version_tuple() == (3, 0, 1)
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-[].sort()
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk.bases.xcom import BaseXCom
+
+    XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
+else:
+    from airflow.utils.xcom import XCOM_RETURN_KEY
+
+
+def get_sqlalchemy_version_tuple() -> tuple[int, int, int]:
+    import sqlalchemy
+    from packaging.version import Version
+
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    return sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro
+
+
+SQLALCHEMY_V_1_4 = (1, 4, 0) <= get_sqlalchemy_version_tuple() < (2, 0, 0)
+SQLALCHEMY_V_2_0 = (2, 0, 0) <= get_sqlalchemy_version_tuple() < (2, 1, 0)
+
+
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_0_1",
+    "AIRFLOW_V_3_1_PLUS",
+    "SQLALCHEMY_V_1_4",
+    "SQLALCHEMY_V_2_0",
+    "XCOM_RETURN_KEY",
+]

@@ -23,8 +23,8 @@ from collections.abc import Sequence
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
@@ -98,7 +98,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
 
         self.log.info("Dumping Oracle query results to local file")
         conn = oracle_hook.get_conn()
-        cursor = conn.cursor()  # type: ignore[attr-defined]
+        cursor = conn.cursor()
         cursor.execute(self.sql, self.sql_params)
 
         with TemporaryDirectory(prefix="airflow_oracle_to_azure_op_") as temp:
@@ -108,4 +108,4 @@ class OracleToAzureDataLakeOperator(BaseOperator):
                 os.path.join(temp, self.filename), os.path.join(self.azure_data_lake_path, self.filename)
             )
         cursor.close()
-        conn.close()  # type: ignore[attr-defined]
+        conn.close()

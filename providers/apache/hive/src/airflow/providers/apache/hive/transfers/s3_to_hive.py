@@ -29,9 +29,9 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.providers.apache.hive.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

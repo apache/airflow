@@ -24,6 +24,7 @@ import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
+import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -68,17 +69,19 @@ export const Header = ({
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header={translate("note.dagRun")}
-              icon={<FiMessageSquare />}
-              isPending={isPending}
-              mdContent={note}
-              onConfirm={onConfirm}
-              placeholder={translate("note.placeholder")}
-              setMdContent={setNote}
-              text={Boolean(dagRun.note) ? translate("note.label") : translate("note.add")}
-              withText={containerWidth > 700}
-            />
+            {!Boolean(dagRun.note) && (
+              <EditableMarkdownButton
+                header={translate("note.dagRun")}
+                icon={<FiMessageSquare />}
+                isPending={isPending}
+                mdContent={note}
+                onConfirm={onConfirm}
+                placeholder={translate("note.placeholder")}
+                setMdContent={setNote}
+                text={translate("note.add")}
+                withText={containerWidth > 700}
+              />
+            )}
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
           </>
@@ -121,6 +124,9 @@ export const Header = ({
         ]}
         title={<Time datetime={dagRun.run_after} />}
       />
+      {Boolean(dagRun.note) && (
+        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
+      )}
     </Box>
   );
 };

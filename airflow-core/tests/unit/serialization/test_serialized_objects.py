@@ -26,6 +26,7 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from uuid6 import uuid7
 
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
@@ -38,12 +39,13 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
+from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -174,12 +176,14 @@ TI = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=uuid7(),
 )
 
 TI_WITH_START_DAY = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=uuid7(),
 )
 TI_WITH_START_DAY.start_date = timezone.utcnow()
 
@@ -223,9 +227,8 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
-    return a._dict.keys() == b._dict.keys() and all(  # type: ignore[attr-defined]
-        equal_outlet_event_accessor(a._dict[key], b._dict[key])  # type: ignore[attr-defined]
-        for key in a._dict  # type: ignore[attr-defined]
+    return a._dict.keys() == b._dict.keys() and all(
+        equal_outlet_event_accessor(a._dict[key], b._dict[key]) for key in a._dict
     )
 
 
@@ -326,7 +329,6 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.ASSET,
             equals,
         ),
-        (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
             DAT.CONNECTION,
@@ -613,6 +615,47 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
     assert lazy_serialized_dag.has_task_concurrency_limits
 
 
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "create_dag_run_kwargs",
+    (
+        {},
+        {
+            "data_interval": None,
+            "logical_date": pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
+        },
+        {"data_interval": None, "logical_date": None},
+    ),
+    ids=["post-AIP-39", "pre-AIP-39-should-infer", "pre-AIP-39"],
+)
+def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, session):
+    """Test whether LazyDeserializedDAG can correctly get dag run data_interval
+
+    post-AIP-39: the dag run itself contains both data_interval start and data_interval end, and thus can
+        be retrieved directly
+    pre-AIP-39-should-infer: the dag run itself has neither data_interval_start nor data_interval_end,
+        and thus needs to infer the data_interval from its timetable
+    pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
+        is none. it should return data_interval as none
+    """
+    with dag_maker(dag_id="test_dag", session=session, serialized=True) as dag:
+        BaseOperator(task_id="test_task")
+    session.commit()
+
+    dr = dag_maker.create_dagrun(**create_dag_run_kwargs)
+    ser_dict = SerializedDAG.to_dict(dag)
+    deser_dag = LazyDeserializedDAG(data=ser_dict)
+    if "logical_date" in create_dag_run_kwargs and create_dag_run_kwargs["logical_date"] is None:
+        data_interval = deser_dag.get_run_data_interval(dr)
+        assert data_interval is None
+    else:
+        data_interval = deser_dag.get_run_data_interval(dr)
+        assert data_interval == DataInterval(
+            start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
+            end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
+        )
+
+
 def test_get_task_assets():
     asset1 = Asset("1")
     with DAG("testdag") as source_dag:
@@ -641,7 +684,7 @@ def test_lazy_dag_run_interval_wrong_dag():
 def test_lazy_dag_run_interval_missing_interval():
     lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
 
-    with pytest.raises(ValueError, match="Cannot calculate data interval"):
+    with pytest.raises(ValueError, match="Unsure how to deserialize version '<not present>'"):
         lazy.get_run_data_interval(DAG_RUN)
 
 
@@ -751,3 +794,27 @@ def test_encode_timezone():
     assert encode_timezone(FixedTimezone(0)) == "UTC"
     with pytest.raises(ValueError):
         encode_timezone(object())
+
+
+class TestSerializedBaseOperator:
+    # ensure the default logging config is used for this test, no matter what ran before
+    @pytest.mark.usefixtures("reset_logging_config")
+    def test_logging_propogated_by_default(self, caplog):
+        """Test that when set_context hasn't been called that log records are emitted"""
+        BaseOperator(task_id="test").log.warning("test")
+        # This looks like "how could it fail" but this actually checks that the handler called `emit`. Testing
+        # the other case (that when we have set_context it goes to the file is harder to achieve without
+        # leaking a lot of state)
+        assert caplog.messages == ["test"]
+
+    def test_resume_execution(self):
+        from airflow.exceptions import TaskDeferralTimeout
+        from airflow.models.trigger import TriggerFailureReason
+
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )

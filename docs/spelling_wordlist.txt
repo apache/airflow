@@ -215,12 +215,14 @@ botocore
 BounceX
 Bq
 bq
+bteq
 bugfix
 bugfixes
 buildType
 burstable
 bytestring
 cacert
+Cadwyn
 callables
 camelCase
 Cancelled
@@ -770,6 +772,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+googleapis
 GoogleDisplayVideo
 gpu
 gpus
@@ -785,6 +788,7 @@ grpc
 GSoD
 gsuite
 Gunicorn
+gunicorn
 gz
 Gzip
 gzipped
@@ -830,6 +834,7 @@ hotfix
 Hou
 howto
 hql
+href
 html
 htmlcontent
 Http
@@ -1154,6 +1159,7 @@ mssql
 mTLS
 mtls
 muldelete
+multimodal
 Multinamespace
 mutex
 mv
@@ -1547,6 +1553,7 @@ sagemaker
 salesforce
 samesite
 saml
+sandboxed
 sanitization
 sas
 Sasl
@@ -1701,6 +1708,7 @@ StrictUndefined
 Stringified
 stringified
 Struct
+StructuredLogMessage
 STS
 subchart
 subclassed
