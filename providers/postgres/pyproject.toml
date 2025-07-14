@@ -72,6 +72,13 @@ dependencies = [
 "openlineage" = [
     "apache-airflow-providers-openlineage"
 ]
+"pandas" = [
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
+]
+"polars" = [
+    "polars>=1.26.0"
+]
 
 [dependency-groups]
 dev = [
@@ -82,6 +89,8 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-common-sql[polars]",
 ]
 
 # To build docs:
