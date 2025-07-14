@@ -256,6 +256,7 @@ class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
@@ -291,6 +292,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
+    GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
 }

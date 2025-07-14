@@ -1,0 +1,441 @@
+
+*****************************************************
+Summary
+-------
+Generated at: 2025-07-10T11:36:18+05:30
+
+Notes: 0
+Binaries: 0
+Archives: 0
+Standards: 195
+
+Apache Licensed: 178
+Generated Documents: 9
+
+JavaDocs are generated, thus a license header is optional.
+Generated files do not require license headers.
+
+8 Unknown Licenses
+
+*****************************************************
+
+Files with unapproved licenses:
+
+  ./Dockerfile.pmc
+  ./packages.txt
+  ./report.txt
+  ./breeze/autocomplete/breeze-complete-bash.sh
+  ./breeze/autocomplete/breeze-complete-fish.sh
+  ./breeze/autocomplete/breeze-complete-zsh.sh
+  ./breeze/src/airflow_breeze/provider_issue_TEMPLATE.md.jinja2
+  ./stats/explore_pr_candidates.ipynb
+
+*****************************************************
+
+*****************************************************
+  Files with Apache License headers will be marked AL
+  Binary files (which do not require any license headers) will be marked B
+  Compressed archives will be marked A
+  Notices, licenses etc. will be marked N
+  AL    ./AIRFLOW_ERROR_GUIDE.md
+  AL    ./CHERRY_PICK_SUMMARY.txt.jinja2
+ !????? ./Dockerfile.pmc
+  AL    ./ISSUE_TEMPLATE.md.jinja2
+  AL    ./MANUALLY_BUILDING_IMAGES.md
+  AL    ./MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md
+  AL    ./PROJECT_GUIDELINES.md
+  AL    ./PROVIDER_DISTRIBUTIONS_DETAILS.md
+  AL    ./README.md
+  AL    ./README_AIRFLOW3_DEV.md
+  AL    ./README_RELEASE_AIRFLOW.md
+  AL    ./README_RELEASE_HELM_CHART.md
+  AL    ./README_RELEASE_PROVIDERS.md
+  AL    ./README_RELEASE_PYTHON_CLIENT.md
+  AL    ./WHAT_GOES_INTO_THE_NEXT_RELEASE.md
+  AL    ./airflow-github
+  AL    ./airflow-license
+  AL    ./assign_cherry_picked_prs_with_milestone.py
+  AL    ./check_files.py
+  AL    ./get_devel_deps.sh
+ !????? ./packages.txt
+  AL    ./prepare_bulk_issues.py
+  AL    ./provider_db_inventory.py
+  AL    ./pyproject.toml
+  AL    ./refresh_images.sh
+  AL    ./remove_artifacts.sh
+ !????? ./report.txt
+  AL    ./retag_docker_images.py
+  AL    ./send_email.py
+  AL    ./sign.sh
+  AL    ./validate_version_added_fields_in_config.py
+  AL    ./airflow_mypy/__init__.py
+  AL    ./airflow_mypy/plugin/__init__.py
+  AL    ./airflow_mypy/plugin/decorators.py
+  AL    ./airflow_mypy/plugin/outputs.py
+  AL    ./airflow_perf/__init__.py
+  AL    ./airflow_perf/scheduler_dag_execution_timing.py
+  AL    ./airflow_perf/sql_queries.py
+  AL    ./backport/update_backport_status.py
+  AL    ./breeze/README.md
+  AL    ./breeze/pyproject.toml
+ !????? ./breeze/autocomplete/breeze-complete-bash.sh
+ !????? ./breeze/autocomplete/breeze-complete-fish.sh
+ !????? ./breeze/autocomplete/breeze-complete-zsh.sh
+  AL    ./breeze/doc/01_installation.rst
+  AL    ./breeze/doc/02_customizing.rst
+  AL    ./breeze/doc/03_developer_tasks.rst
+  AL    ./breeze/doc/04_troubleshooting.rst
+  AL    ./breeze/doc/05_test_commands.rst
+  AL    ./breeze/doc/06_managing_docker_images.rst
+  AL    ./breeze/doc/07_breeze_maintenance_tasks.rst
+  AL    ./breeze/doc/08_ci_tasks.rst
+  AL    ./breeze/doc/09_release_management_tasks.rst
+  AL    ./breeze/doc/10_advanced_breeze_topics.rst
+  AL    ./breeze/doc/README.rst
+  AL    ./breeze/doc/adr/0001-record-architecture-decisions.md
+  AL    ./breeze/doc/adr/0002-implement-standalone-python-command.md
+  AL    ./breeze/doc/adr/0003-bootstrapping-virtual-environment.md
+  AL    ./breeze/doc/adr/0004-using-docker-images-as-test-environment.md
+  AL    ./breeze/doc/adr/0005-preventing-using-contributed-code-when-building-images.md
+  AL    ./breeze/doc/adr/0006-using-root-user-and-fixing-ownership-for-ci-container.md
+  AL    ./breeze/doc/adr/0007-using-database-volumes-for-backends.md
+  AL    ./breeze/doc/adr/0008-fixing-group-permissions-before-build.md
+  AL    ./breeze/doc/adr/0009-exclude-all-files-from-dockerignore-by-default.md
+  AL    ./breeze/doc/adr/0010-use-pipx-to-install-breeze.md
+  AL    ./breeze/doc/adr/0011-unified-communication-with-the-users.md
+  AL    ./breeze/doc/adr/0012-asking-user-for-confirmation.md
+  AL    ./breeze/doc/adr/0013-get-rid-of-submodules.md
+  AL    ./breeze/doc/adr/0014-fix-root-ownership-after-exiting-docker-command.md
+  AL    ./breeze/doc/adr/0015-handling-rootless-docker.md
+  AL    ./breeze/doc/adr/0016-use-uv-tool-to-install-breeze.md
+  AL    ./breeze/doc/ci/01_ci_environment.md
+  AL    ./breeze/doc/ci/02_images.md
+  AL    ./breeze/doc/ci/03_github_variables.md
+  AL    ./breeze/doc/ci/04_selective_checks.md
+  AL    ./breeze/doc/ci/05_workflows.md
+  AL    ./breeze/doc/ci/06_debugging.md
+  AL    ./breeze/doc/ci/07_running_ci_locally.md
+  AL    ./breeze/doc/ci/README.md
+  AL    ./breeze/src/airflow_breeze/__init__.py
+  AL    ./breeze/src/airflow_breeze/branch_defaults.py
+  AL    ./breeze/src/airflow_breeze/breeze.py
+  AL    ./breeze/src/airflow_breeze/configure_rich_click.py
+  AL    ./breeze/src/airflow_breeze/global_constants.py
+  GEN   ./breeze/src/airflow_breeze/pre_commit_ids.py
+  GEN   ./breeze/src/airflow_breeze/pre_commit_ids_TEMPLATE.py.jinja2
+ !????? ./breeze/src/airflow_breeze/provider_issue_TEMPLATE.md.jinja2
+  AL    ./breeze/src/airflow_breeze/commands/ISSUE_TEMPLATE.md.jinja2
+  AL    ./breeze/src/airflow_breeze/commands/__init__.py
+  AL    ./breeze/src/airflow_breeze/commands/ci_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/ci_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/ci_image_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/ci_image_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/common_image_options.py
+  AL    ./breeze/src/airflow_breeze/commands/common_options.py
+  AL    ./breeze/src/airflow_breeze/commands/common_package_installation_options.py
+  AL    ./breeze/src/airflow_breeze/commands/developer_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/developer_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/kubernetes_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/kubernetes_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/main_command.py
+  AL    ./breeze/src/airflow_breeze/commands/minor_release_command.py
+  AL    ./breeze/src/airflow_breeze/commands/production_image_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/production_image_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/release_candidate_command.py
+  AL    ./breeze/src/airflow_breeze/commands/release_command.py
+  AL    ./breeze/src/airflow_breeze/commands/release_management_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/release_management_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/release_management_group.py
+  AL    ./breeze/src/airflow_breeze/commands/sbom_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/sbom_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/setup_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/setup_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/testing_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/testing_commands_config.py
+  AL    ./breeze/src/airflow_breeze/commands/workflow_commands.py
+  AL    ./breeze/src/airflow_breeze/commands/workflow_commands_config.py
+  AL    ./breeze/src/airflow_breeze/params/__init__.py
+  AL    ./breeze/src/airflow_breeze/params/build_ci_params.py
+  AL    ./breeze/src/airflow_breeze/params/build_prod_params.py
+  AL    ./breeze/src/airflow_breeze/params/common_build_params.py
+  AL    ./breeze/src/airflow_breeze/params/doc_build_params.py
+  AL    ./breeze/src/airflow_breeze/params/shell_params.py
+  AL    ./breeze/src/airflow_breeze/prepare_providers/provider_distributions.py
+  AL    ./breeze/src/airflow_breeze/prepare_providers/provider_documentation.py
+  AL    ./breeze/src/airflow_breeze/templates/CHANGELOG_TEMPLATE.rst.jinja2
+  GEN   ./breeze/src/airflow_breeze/templates/PROVIDER_CHANGELOG_TEMPLATE.rst.jinja2
+  GEN   ./breeze/src/airflow_breeze/templates/PROVIDER_COMMITS_TEMPLATE.rst.jinja2
+  GEN   ./breeze/src/airflow_breeze/templates/PROVIDER_INDEX_TEMPLATE.rst.jinja2
+  AL    ./breeze/src/airflow_breeze/templates/PROVIDER_LICENSE.txt
+  GEN   ./breeze/src/airflow_breeze/templates/PROVIDER_README_TEMPLATE.rst.jinja2
+  GEN   ./breeze/src/airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2
+  AL    ./breeze/src/airflow_breeze/templates/UPDATE_CHANGELOG_TEMPLATE.rst.jinja2
+  AL    ./breeze/src/airflow_breeze/templates/conf_TEMPLATE.py.jinja2
+  GEN   ./breeze/src/airflow_breeze/templates/get_provider_info_TEMPLATE.py.jinja2
+  GEN   ./breeze/src/airflow_breeze/templates/pyproject_TEMPLATE.toml.jinja2
+  AL    ./breeze/src/airflow_breeze/utils/__init__.py
+  AL    ./breeze/src/airflow_breeze/utils/add_back_references.py
+  AL    ./breeze/src/airflow_breeze/utils/black_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/cache.py
+  AL    ./breeze/src/airflow_breeze/utils/cdxgen.py
+  AL    ./breeze/src/airflow_breeze/utils/ci_group.py
+  AL    ./breeze/src/airflow_breeze/utils/click_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/coertions.py
+  AL    ./breeze/src/airflow_breeze/utils/confirm.py
+  AL    ./breeze/src/airflow_breeze/utils/console.py
+  AL    ./breeze/src/airflow_breeze/utils/constraints_version_check.py
+  AL    ./breeze/src/airflow_breeze/utils/custom_param_types.py
+  AL    ./breeze/src/airflow_breeze/utils/debug_pyproject_toml.py
+  AL    ./breeze/src/airflow_breeze/utils/docker_command_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/docs_publisher.py
+  AL    ./breeze/src/airflow_breeze/utils/exclude_from_matrix.py
+  AL    ./breeze/src/airflow_breeze/utils/functools_cache.py
+  AL    ./breeze/src/airflow_breeze/utils/gh_workflow_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/github.py
+  AL    ./breeze/src/airflow_breeze/utils/helm_chart_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/host_info_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/image.py
+  AL    ./breeze/src/airflow_breeze/utils/kubernetes_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/mark_image_as_refreshed.py
+  AL    ./breeze/src/airflow_breeze/utils/md5_build_check.py
+  AL    ./breeze/src/airflow_breeze/utils/packages.py
+  AL    ./breeze/src/airflow_breeze/utils/parallel.py
+  AL    ./breeze/src/airflow_breeze/utils/path_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/platforms.py
+  AL    ./breeze/src/airflow_breeze/utils/projects_google_spreadsheet.py
+  AL    ./breeze/src/airflow_breeze/utils/provider_dependencies.py
+  AL    ./breeze/src/airflow_breeze/utils/publish_docs_helpers.py
+  AL    ./breeze/src/airflow_breeze/utils/publish_docs_to_s3.py
+  AL    ./breeze/src/airflow_breeze/utils/python_versions.py
+  AL    ./breeze/src/airflow_breeze/utils/recording.py
+  AL    ./breeze/src/airflow_breeze/utils/reinstall.py
+  AL    ./breeze/src/airflow_breeze/utils/reproducible.py
+  AL    ./breeze/src/airflow_breeze/utils/run_tests.py
+  AL    ./breeze/src/airflow_breeze/utils/run_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/selective_checks.py
+  AL    ./breeze/src/airflow_breeze/utils/shared_options.py
+  AL    ./breeze/src/airflow_breeze/utils/uv_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/version_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/versions.py
+  AL    ./breeze/src/airflow_breeze/utils/virtualenv_utils.py
+  AL    ./breeze/src/airflow_breeze/utils/visuals.py
+  AL    ./chart/build_changelog_annotations.py
+  AL    ./stats/calculate_statistics_provider_testing_issues.py
+ !????? ./stats/explore_pr_candidates.ipynb
+  AL    ./stats/get_important_pr_candidates.py
+  AL    ./system_tests/README.md
+  AL    ./system_tests/update_issue_status.py
+  AL    ./templates/announce_email.j2
+  AL    ./templates/example_dags_template.txt.jinja2
+  AL    ./templates/result_email.j2
+  AL    ./templates/slack.j2
+  AL    ./templates/system_test_template.txt.jinja2
+  AL    ./templates/twitter.j2
+  AL    ./templates/vote_email.j2
+
+*****************************************************
+
+ Printing headers for text files without a valid license header...
+
+=====================================================
+== File: ./Dockerfile.pmc
+=====================================================
+FROM python:3.9
+
+# Upgrade
+RUN pip install "apache-airflow==3.0.3rc5"
+
+
+=====================================================
+== File: ./packages.txt
+=====================================================
+https://pypi.org/project/apache-airflow-providers-amazon/9.10.0rc1/
+
+=====================================================
+== File: ./report.txt
+=====================================================
+
+=====================================================
+== File: ./breeze/autocomplete/breeze-complete-bash.sh
+=====================================================
+_breeze_completion() {
+    local IFS=$'\n'
+    local response
+
+    response=$(env COMP_WORDS="${COMP_WORDS[*]}" COMP_CWORD=$COMP_CWORD _BREEZE_COMPLETE=bash_complete $1)
+
+    for completion in $response; do
+        IFS=',' read type value <<< "$completion"
+
+        if [[ $type == 'dir' ]]; then
+            COMPREPLY=()
+            compopt -o dirnames
+        elif [[ $type == 'file' ]]; then
+            COMPREPLY=()
+            compopt -o default
+        elif [[ $type == 'plain' ]]; then
+            COMPREPLY+=($value)
+        fi
+    done
+
+    return 0
+}
+
+_breeze_completion_setup() {
+    complete -o nosort -F _breeze_completion breeze
+}
+
+_breeze_completion_setup;
+
+=====================================================
+== File: ./breeze/autocomplete/breeze-complete-fish.sh
+=====================================================
+function _breeze_completion;
+    set -l response;
+
+    for value in (env _BREEZE_COMPLETE=fish_complete COMP_WORDS=(commandline -cp) COMP_CWORD=(commandline -t) breeze);
+        set response $response $value;
+    end;
+
+    for completion in $response;
+        set -l metadata (string split "," $completion);
+
+        if test $metadata[1] = "dir";
+            __fish_complete_directories $metadata[2];
+        else if test $metadata[1] = "file";
+            __fish_complete_path $metadata[2];
+        else if test $metadata[1] = "plain";
+            echo $metadata[2];
+        end;
+    end;
+end;
+
+complete --no-files --command breeze --arguments "(_breeze_completion)";
+
+=====================================================
+== File: ./breeze/autocomplete/breeze-complete-zsh.sh
+=====================================================
+#compdef breeze
+
+_breeze_completion() {
+    local -a completions
+    local -a completions_with_descriptions
+    local -a response
+    (( ! $+commands[breeze] )) && return 1
+
+    response=("${(@f)$(env COMP_WORDS="${words[*]}" COMP_CWORD=$((CURRENT-1)) _BREEZE_COMPLETE=zsh_complete breeze)}")
+
+    for type key descr in ${response}; do
+        if [[ "$type" == "plain" ]]; then
+            if [[ "$descr" == "_" ]]; then
+                completions+=("$key")
+            else
+                completions_with_descriptions+=("$key":"$descr")
+            fi
+        elif [[ "$type" == "dir" ]]; then
+            _path_files -/
+        elif [[ "$type" == "file" ]]; then
+            _path_files -f
+        fi
+    done
+
+    if [ -n "$completions_with_descriptions" ]; then
+        _describe -V unsorted completions_with_descriptions -U
+    fi
+
+    if [ -n "$completions" ]; then
+        compadd -U -V unsorted -a completions
+    fi
+}
+
+compdef _breeze_completion breeze;
+
+=====================================================
+== File: ./breeze/src/airflow_breeze/provider_issue_TEMPLATE.md.jinja2
+=====================================================
+I have a kind request for all the contributors to the latest provider distributions release.
+Could you please help us to test the RC versions of the providers?
+
+The guidelines on how to test providers can be found in
+
+[Verify providers by contributors](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDERS.md#verify-the-release-candidate-by-contributors)
+
+Let us know in the comments, whether the issue is addressed.
+
+These are providers that require testing as there were some substantial changes introduced:
+
+{% for provider_id, provider_info in providers.items()  %}
+## Provider [{{ provider_id }}: {{ provider_info.version }}{{ provider_info.suffix }}](https://pypi.org/project/{{ provider_info.pypi_package_name }}/{{ provider_info.version }}{{ provider_info.suffix }})
+{%- for pr in provider_info.pr_list %}
+   - [ ] [{{ pr.title }} (#{{ pr.number }})]({{ pr.html_url }}): @{{ pr.user.login }}
+   {%- if pr.number in linked_issues %}
+     Linked issues:
+     {%- for linked_issue in linked_issues[pr.number] %}
+       - [Linked Issue #{{ linked_issue.number }}]({{ linked_issue.html_url }}): @{{ linked_issue.user.login }}
+     {%- endfor %}
+   {%- endif %}
+{%- endfor %}
+{%- endfor %}
+
+<!--
+
+NOTE TO RELEASE MANAGER:
+
+You can move here the providers that have doc-only changes or for which changes are trivial, and
+you could assess that they are OK.
+
+-->
+
+=====================================================
+== File: ./stats/explore_pr_candidates.ipynb
+=====================================================
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "sys.path.append(\".\")\n",
+    "\n",
+    "import pickle\n",
+    "import pandas as pd\n",
+    "from get_important_pr_candidates import PrStat"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "file = open(\"prlist\", \"rb\")  # open the pickled file\n",
+    "selected_prs = pickle.load(file)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "rows = pd.DataFrame()\n",
+    "\n",
+    "for pr_stat in selected_prs:\n",
+    "    data = {\n",
+    "        \"number\": [pr_stat.pull_request.number],\n",
+    "        \"url\": [pr_stat.pull_request.html_url],\n",
+    "        \"title\": [pr_stat.pull_request.title],\n",
+    "        \"overall_score\": [pr_stat.score],\n",
+    "        \"label_score\": [pr_stat.label_score],\n",
+    "        \"length_score\": [pr_stat.length_score],\n",
+    "        \"body_length\": [pr_stat.body_length],\n",
+    "        \"comment_length\": [pr_stat.comment_length],\n",
+    "        \"interaction_score\": [pr_stat.interaction_score],\n",
+    "        \"comments\": [pr_stat.num_comments],\n",
+    "        \"reactions\": [pr_stat.num_reactions],\n",
+    "        \"reviews\": [pr_stat.num_reviews],\n",
+    "        \"num_interacting_users\": [pr_stat.num_interacting_users],\n",
+    "        \"change_score\": [pr_stat.change_score],\n",
+    "        \"additions\": [pr_stat.num_additions],\n",
