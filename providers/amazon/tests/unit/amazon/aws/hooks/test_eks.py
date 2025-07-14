@@ -273,7 +273,7 @@ class TestEksHooks:
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
                 name=generated_test_data.existing_cluster_name,
-                **dict(ClusterInputs.REQUIRED),  # type: ignore
+                **dict(ClusterInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -434,7 +434,7 @@ class TestEksHooks:
             eks_hook.create_nodegroup(
                 clusterName=non_existent_cluster_name,
                 nodegroupName=non_existent_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),  # type: ignore
+                **dict(NodegroupInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -458,7 +458,7 @@ class TestEksHooks:
             eks_hook.create_nodegroup(
                 clusterName=generated_test_data.cluster_name,
                 nodegroupName=generated_test_data.existing_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),  # type: ignore
+                **dict(NodegroupInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -488,7 +488,7 @@ class TestEksHooks:
                 eks_hook.create_nodegroup(
                     clusterName=generated_test_data.cluster_name,
                     nodegroupName=non_existent_nodegroup_name,
-                    **dict(NodegroupInputs.REQUIRED),  # type: ignore
+                    **dict(NodegroupInputs.REQUIRED),
                 )
 
         assert_client_error_exception_thrown(
@@ -846,7 +846,7 @@ class TestEksHooks:
             eks_hook.create_fargate_profile(
                 clusterName=non_existent_cluster_name,
                 fargateProfileName=non_existent_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
+                **dict(FargateProfileInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -867,7 +867,7 @@ class TestEksHooks:
             eks_hook.create_fargate_profile(
                 clusterName=generated_test_data.cluster_name,
                 fargateProfileName=generated_test_data.existing_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
+                **dict(FargateProfileInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -897,7 +897,7 @@ class TestEksHooks:
                 eks_hook.create_fargate_profile(
                     clusterName=generated_test_data.cluster_name,
                     fargateProfileName=non_existent_fargate_profile_name,
-                    **dict(FargateProfileInputs.REQUIRED),  # type: ignore
+                    **dict(FargateProfileInputs.REQUIRED),
                 )
 
         assert_client_error_exception_thrown(
