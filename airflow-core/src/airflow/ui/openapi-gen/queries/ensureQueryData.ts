@@ -325,7 +325,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, dagVersion, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ dagId, dagVersion, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -342,7 +342,7 @@ export const ensureUseDagRunServiceWaitDagRunUntilFinishedData = (queryClient: Q
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => DagRunService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
