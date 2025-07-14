@@ -28,10 +28,10 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import dateutil
+import google.cloud.storage as storage
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.exceptions import NotFound
-from google.cloud.storage import Blob, Bucket
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
@@ -336,7 +336,7 @@ class TestGCSHook:
 
         destination_bucket_instance = mock_bucket
         source_blob = mock_bucket.blob(source_object)
-        destination_blob = Blob(bucket=destination_bucket_instance, name=destination_object)
+        destination_blob = storage.Blob(bucket=destination_bucket_instance, name=destination_object)
 
         # Given
         bucket_mock = mock_service.return_value.bucket
@@ -417,12 +417,14 @@ class TestGCSHook:
         destination_bucket_name = "test-dest-bucket"
         destination_object_name = "test-dest-object"
 
-        source_bucket = Bucket(mock_service, source_bucket_name)
-        mock_copy.return_value = Blob(
-            name=destination_object_name, bucket=Bucket(mock_service, destination_bucket_name)
+        source_bucket = storage.Bucket(mock_service, source_bucket_name)
+        mock_copy.return_value = storage.Blob(
+            name=destination_object_name, bucket=storage.Bucket(mock_service, destination_bucket_name)
         )
         mock_service.return_value.bucket.side_effect = lambda name: (
-            source_bucket if name == source_bucket_name else Bucket(mock_service, destination_bucket_name)
+            source_bucket
+            if name == source_bucket_name
+            else storage.Bucket(mock_service, destination_bucket_name)
         )
 
         self.gcs_hook.copy(
@@ -509,12 +511,12 @@ class TestGCSHook:
         destination_bucket_name = "test-dest-bucket"
         destination_object_name = "test-dest-object"
 
-        dest_bucket = Bucket(mock_service, destination_bucket_name)
-        blob = MagicMock(spec=Blob)
+        dest_bucket = storage.Bucket(mock_service, destination_bucket_name)
+        blob = MagicMock(spec=storage.Blob)
         blob.rewrite = MagicMock(return_value=(None, None, None))
         dest_bucket.blob = MagicMock(return_value=blob)
         mock_service.return_value.bucket.side_effect = lambda name: (
-            Bucket(mock_service, source_bucket_name) if name == source_bucket_name else dest_bucket
+            storage.Bucket(mock_service, source_bucket_name) if name == source_bucket_name else dest_bucket
         )
 
         self.gcs_hook.rewrite(
@@ -538,7 +540,7 @@ class TestGCSHook:
     def test_delete(self, mock_service, mock_bucket):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        blob_to_be_deleted = Blob(name=test_object, bucket=mock_bucket)
+        blob_to_be_deleted = storage.Blob(name=test_object, bucket=mock_bucket)
 
         get_bucket_method = mock_service.return_value.get_bucket
         get_blob_method = get_bucket_method.return_value.get_blob
@@ -566,7 +568,7 @@ class TestGCSHook:
         test_bucket = "test_bucket"
         test_object = "test_object"
 
-        mock_service.return_value.bucket.return_value = Bucket(mock_service, test_bucket)
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, test_bucket)
 
         self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
@@ -814,7 +816,7 @@ class TestGCSHook:
         source_object_names = ["test-source-object1", "test-source-object2"]
         destination_object_name = "test-dest-object"
 
-        mock_service.return_value.bucket.return_value = Bucket(mock_service, test_bucket)
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, test_bucket)
 
         self.gcs_hook.compose(
             bucket_name=test_bucket,
@@ -854,7 +856,7 @@ class TestGCSHook:
         source_bucket_name = "test-source-bucket"
         source_object_name = "test-source-object"
 
-        mock_service.return_value.bucket.return_value = Bucket(mock_service, source_bucket_name)
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
 
         self.gcs_hook.download(bucket_name=source_bucket_name, object_name=source_object_name, filename=None)
 
@@ -894,7 +896,7 @@ class TestGCSHook:
         source_object_name = "test-source-object"
         file_name = "test.txt"
 
-        mock_service.return_value.bucket.return_value = Bucket(mock_service, source_bucket_name)
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
 
         self.gcs_hook.download(
             bucket_name=source_bucket_name, object_name=source_object_name, filename=file_name
@@ -1148,7 +1150,7 @@ class TestGCSHookUpload:
         source_object_name = "test-source-object"
         file_name = "test.txt"
 
-        mock_service.return_value.bucket.return_value = Bucket(mock_service, source_bucket_name)
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
 
         self.gcs_hook.upload(
             bucket_name=source_bucket_name, object_name=source_object_name, filename=file_name
@@ -1234,7 +1236,7 @@ class TestGCSHookUpload:
         source_bucket_name = "test-source-bucket"
         source_object_name = "test-source-object"
 
-        mock_service.return_value.bucket.return_value = Bucket(mock_service, source_bucket_name)
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
 
         self.gcs_hook.upload(bucket_name=source_bucket_name, object_name=source_object_name, data="test")
 

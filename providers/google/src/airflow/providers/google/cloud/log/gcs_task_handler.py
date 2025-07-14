@@ -26,7 +26,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import attrs
-from google.cloud.storage import Blob, Client
+
+# Make mypy happy by importing as aliases
+import google.cloud.storage as storage
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -96,7 +98,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         return None
 
     @cached_property
-    def client(self) -> Client:
+    def client(self) -> storage.Client:
         """Returns GCS Client."""
         if self.hook:
             credentials, project_id = self.hook.get_credentials_and_project_id()
@@ -107,7 +109,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
                 scopes=self.scopes,
                 disable_logging=True,
             )
-        return Client(
+        return storage.Client(
             credentials=credentials,
             client_info=CLIENT_INFO,
             project=self.project_id if self.project_id else project_id,
@@ -122,14 +124,14 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         :return: whether the log is successfully written to remote location or not.
         """
         try:
-            blob = Blob.from_string(remote_log_location, self.client)
+            blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
             log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
             if not self.no_log_found(e):
                 self.log.warning("Error checking for previous log: %s", e)
         try:
-            blob = Blob.from_string(remote_log_location, self.client)
+            blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error("Could not write logs to %s: %s", remote_log_location, e)
@@ -166,7 +168,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
         try:
             for key in sorted(uris):
-                blob = Blob.from_string(key, self.client)
+                blob = storage.Blob.from_string(key, self.client)
                 remote_log = blob.download_as_bytes().decode()
                 if remote_log:
                     logs.append(remote_log)
