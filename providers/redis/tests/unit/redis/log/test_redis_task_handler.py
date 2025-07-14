@@ -44,7 +44,8 @@ class TestRedisTaskHandler:
     def clear_db():
         clear_db_dags()
         clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     @pytest.fixture
     def ti(self):

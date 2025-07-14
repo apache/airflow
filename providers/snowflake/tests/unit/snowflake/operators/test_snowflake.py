@@ -229,13 +229,15 @@ class TestSnowflakeSqlApiOperator:
     def setup_tests(self):
         clear_db_dags()
         clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
         yield
 
         clear_db_dags()
         clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     @pytest.fixture
     def mock_execute_query(self):

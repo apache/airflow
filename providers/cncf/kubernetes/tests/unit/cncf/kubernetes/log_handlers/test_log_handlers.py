@@ -60,7 +60,8 @@ class TestFileTaskLogHandler:
     def clean_up(self):
         clear_db_dags()
         clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     def setup_method(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)

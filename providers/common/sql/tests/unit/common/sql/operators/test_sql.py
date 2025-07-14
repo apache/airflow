@@ -1090,11 +1090,11 @@ class TestSqlBranch:
 
     @staticmethod
     def clear_db():
-        if AIRFLOW_V_3_0_PLUS:
-            clear_db_dags()
-            clear_db_runs()
-            clear_db_dag_bundles()
+        clear_db_dags()
+        clear_db_runs()
         clear_db_xcom()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     @classmethod
     def setup_class(cls):
