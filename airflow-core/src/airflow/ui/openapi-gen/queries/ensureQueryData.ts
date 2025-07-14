@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1172,6 +1172,45 @@ export const ensureUseDagVersionServiceGetDagVersionsData = (queryClient: QueryC
   versionNumber?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) });
 /**
+* Get Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) });
+/**
+* Get Mapped Ti Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
+/**
+* Get Hitl Details
+* Get Human-in-the-loop details.
+* @returns HITLDetailCollection Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(), queryFn: () => HumanInTheLoopService.getHitlDetails() });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError
@@ -1264,41 +1303,6 @@ export const ensureUseStructureServiceStructureDataData = (queryClient: QueryCli
   root?: string;
   versionNumber?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }), queryFn: () => StructureService.structureData({ dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }) });
-/**
-* Grid Data
-* Return grid data.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.includeUpstream
-* @param data.includeDownstream
-* @param data.root
-* @param data.offset
-* @param data.runType
-* @param data.state
-* @param data.limit
-* @param data.orderBy
-* @param data.runAfterGte
-* @param data.runAfterLte
-* @param data.logicalDateGte
-* @param data.logicalDateLte
-* @returns GridResponse Successful Response
-* @throws ApiError
-*/
-export const ensureUseGridServiceGridDataData = (queryClient: QueryClient, { dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }: {
-  dagId: string;
-  includeDownstream?: boolean;
-  includeUpstream?: boolean;
-  limit?: number;
-  logicalDateGte?: string;
-  logicalDateLte?: string;
-  offset?: number;
-  orderBy?: string;
-  root?: string;
-  runAfterGte?: string;
-  runAfterLte?: string;
-  runType?: string[];
-  state?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) });
 /**
 * Get Dag Structure
 * Return dag structure for grid view.

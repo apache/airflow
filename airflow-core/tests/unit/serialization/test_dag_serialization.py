@@ -54,17 +54,17 @@ from airflow.exceptions import (
     SerializationError,
 )
 from airflow.models.asset import AssetModel
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
@@ -85,7 +85,6 @@ from airflow.utils import timezone
 from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -2588,7 +2587,7 @@ def test_operator_expand_xcomarg_serde():
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_literal_serde(strict):
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.serialized_objects import _XComRef
+    from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
@@ -2633,7 +2632,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
     }
 
     op = BaseSerialization.deserialize(serialized)
-    assert op.deps == mapped.deps
+    assert op.deps == DEFAULT_OPERATOR_DEPS
     assert op._disallow_kwargs_override == strict
 
     # The XComArg can't be deserialized before the DAG is.

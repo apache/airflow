@@ -44,6 +44,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, BaseSensorOperator
 else:
     from airflow.models import BaseOperator
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[attr-defined,no-redef]
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 __all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseHook", "BaseOperator", "BaseSensorOperator"]

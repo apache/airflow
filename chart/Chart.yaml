@@ -19,7 +19,7 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.18.0
+version: 1.19.0-dev
 appVersion: 3.0.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
@@ -44,7 +44,7 @@ type: application
 annotations:
   artifacthub.io/links: |
     - name: Documentation
-      url: https://airflow.apache.org/docs/helm-chart/1.18.0/
+      url: https://airflow.apache.org/docs/helm-chart/1.19.0/
   artifacthub.io/screenshots: |
     - title: Home Page
       url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/home_dark.png
@@ -73,6 +73,11 @@ annotations:
       links:
       - name: '#52166'
         url: https://github.com/apache/airflow/pull/52166
+    - description: Allow ``valuesFrom`` in ``gitSync.env``
+      kind: changed
+      links:
+      - name: '#50228'
+        url: https://github.com/apache/airflow/pull/50228
     - description: Fix JWT secret name
       kind: fixed
       links:
@@ -101,6 +106,11 @@ annotations:
       links:
       - name: '#52269'
         url: https://github.com/apache/airflow/pull/52269
+    - description: Fix for ``fernetkey`` and add test of its value
+      kind: fixed
+      links:
+      - name: '#52977'
+        url: https://github.com/apache/airflow/pull/52977
     - description: 'Docs: Update supported executors in docs'
       kind: changed
       links:
