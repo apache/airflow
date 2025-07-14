@@ -223,7 +223,7 @@ class OpenLineageTestOperator(BaseOperator):
         if self.file_path is not None:
             self.event_templates = {}
             self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
-            with open(self.file_path) as f:  # type: ignore[arg-type]
+            with open(self.file_path) as f:
                 events = json.load(f)
             for event in events:
                 # Just a single event per job and event type is loaded as this is the most common scenario

@@ -47,12 +47,13 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from requests import Response
 
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
-    from airflow.typing_compat import TypeAlias
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
@@ -317,8 +318,6 @@ def _add_log_from_parsed_log_streams_to_heap(
                 log_stream_to_remove = []
             log_stream_to_remove.append(idx)
             continue
-        # add type hint to avoid mypy error
-        record = cast("ParsedLog", record)
         timestamp, line_num, line = record
         # take int as sort key to avoid overhead of memory usage
         heapq.heappush(heap, (_create_sort_key(timestamp, line_num), line))
@@ -740,11 +739,7 @@ class FileTaskHandler(logging.Handler):
             try_number = task_instance.try_number
 
         if try_number == 0 and task_instance.state == TaskInstanceState.SKIPPED:
-            logs = [
-                StructuredLogMessage(  # type: ignore[call-arg]
-                    event="Task was skipped, no logs available."
-                )
-            ]
+            logs = [StructuredLogMessage(event="Task was skipped, no logs available.")]
             return chain(logs), {"end_of_log": True}
 
         if try_number is None or try_number < 1:

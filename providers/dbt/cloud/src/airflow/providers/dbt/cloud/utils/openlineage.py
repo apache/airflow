@@ -113,7 +113,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     try:
         log.debug("Retrieving information about catalog artifact from DBT.")
         catalog = operator.hook.get_job_run_artifact(operator.run_id, path="catalog.json").json()["data"]
-    except Exception:  # type: ignore
+    except Exception:
         log.info(
             "Openlineage could not find DBT catalog artifact, usually available when docs are generated."
             "Proceeding with metadata extraction. "
