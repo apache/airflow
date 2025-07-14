@@ -226,7 +226,7 @@ def _conf_factory(section, key, **kwargs):
     def factory() -> str:
         from airflow.configuration import conf
 
-        return conf.get(section, key, **kwargs, suppress_warnings=True)  # type: ignore[return-value]
+        return conf.get(section, key, **kwargs, suppress_warnings=True)
 
     return factory
 
@@ -538,7 +538,7 @@ def get_signing_key(section: str, key: str, make_secret_key_if_needed: bool = Tr
             raise ValueError(f"The value {section}/{key} must be set!")
 
     # Mypy can't grock the `if not secret_key`
-    return secret_key  # type: ignore[return-value]
+    return secret_key
 
 
 def get_signing_args(make_secret_key_if_needed: bool = True) -> dict[str, Any]:

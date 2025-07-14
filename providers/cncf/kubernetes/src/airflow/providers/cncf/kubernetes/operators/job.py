@@ -209,10 +209,10 @@ class KubernetesJobOperator(KubernetesPodOperator):
     def execute_deferrable(self):
         self.defer(
             trigger=KubernetesJobTrigger(
-                job_name=self.job.metadata.name,  # type: ignore[union-attr]
-                job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
-                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
-                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                job_name=self.job.metadata.name,
+                job_namespace=self.job.metadata.namespace,
+                pod_name=self.pod.metadata.name,
+                pod_namespace=self.pod.metadata.namespace,
                 base_container_name=self.base_container_name,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
