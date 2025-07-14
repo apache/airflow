@@ -133,17 +133,14 @@ class TestFileTaskLogHandler:
                 "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
-            from airflow.models.dag import DagModel
             from airflow.models.dagbundle import DagBundleModel
 
             bundle_name = "testing"
             with create_session() as session:
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
                 session.commit()
-            dag.sync_to_db()
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}

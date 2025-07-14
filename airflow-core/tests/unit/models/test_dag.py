@@ -155,7 +155,6 @@ def _create_dagrun(
     with create_session() as session:
         orm_dag_bundle = DagBundleModel(name=bundle_name)
         session.merge(orm_dag_bundle)
-        session.flush()
         session.commit()
     DAG.bulk_write_to_db(bundle_name, None, [dag])
     SerializedDagModel.write_dag(dag, bundle_name=bundle_name)

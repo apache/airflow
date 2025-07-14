@@ -1111,18 +1111,14 @@ class TestSqlBranch:
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag import DagModel
             from airflow.models.dagbundle import DagBundleModel
 
             with create_session() as session:
                 bundle_name = "testing"
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
                 session.commit()
-
-            self.dag.sync_to_db()
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
 
     def get_ti(self, task_id, dr=None):

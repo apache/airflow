@@ -670,7 +670,6 @@ class TestS3DeleteObjectsOperator:
                 state=DagRunState.RUNNING,
             )
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag import DagModel
             from airflow.models.dag_version import DagVersion
             from airflow.models.dagbundle import DagBundleModel
             from airflow.utils.session import create_session
@@ -679,11 +678,8 @@ class TestS3DeleteObjectsOperator:
             with create_session() as session:
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
                 session.commit()
-
-            dag.sync_to_db()
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)

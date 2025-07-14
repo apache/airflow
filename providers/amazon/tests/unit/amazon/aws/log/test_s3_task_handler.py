@@ -70,7 +70,6 @@ class TestS3RemoteLogIO:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag import DagModel
             from airflow.models.dagbundle import DagBundleModel
             from airflow.utils.session import create_session
 
@@ -78,10 +77,8 @@ class TestS3RemoteLogIO:
             with create_session() as session:
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
                 session.commit()
-            self.dag.sync_to_db()
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
@@ -212,7 +209,6 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag import DagModel
             from airflow.models.dagbundle import DagBundleModel
             from airflow.utils.session import create_session
 
@@ -220,10 +216,8 @@ class TestS3TaskHandler:
             with create_session() as session:
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
                 session.commit()
-            self.dag.sync_to_db()
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,

@@ -62,18 +62,15 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.dag_version import DagVersion
         from airflow.models.dagbundle import DagBundleModel
 
         with create_session() as session:
             bundle_name = "testing"
             orm_dag_bundle = DagBundleModel(name=bundle_name)
             session.add(orm_dag_bundle)
-            session.flush()
-            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
             session.commit()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE

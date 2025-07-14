@@ -75,20 +75,16 @@ class TestRedisTaskHandler:
             session.refresh(dag_run)
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag import DagModel
             from airflow.models.dag_version import DagVersion
             from airflow.models.dagbundle import DagBundleModel
 
+            bundle_name = "testing"
             with create_session() as session:
-                bundle_name = "testing"
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
                 session.commit()
-            dag.sync_to_db()
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:

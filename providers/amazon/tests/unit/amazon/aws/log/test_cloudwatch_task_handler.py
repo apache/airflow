@@ -210,18 +210,16 @@ class TestCloudwatchTaskHandler:
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag import DagModel
             from airflow.models.dagbundle import DagBundleModel
 
+            bundle_name = "testing"
             with create_session() as session:
-                bundle_name = "testing"
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
-                session.flush()
-                session.add(DagModel(dag_id=self.dag.dag_id, bundle_name=bundle_name))
                 session.commit()
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
