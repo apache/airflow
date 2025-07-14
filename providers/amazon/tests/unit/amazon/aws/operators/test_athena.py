@@ -231,16 +231,23 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(
-        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
+        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_dagruns_and_dag_bundles
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
 
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=self.athena, dag_version_id=dag_version.id)
             dag_run = DagRun(

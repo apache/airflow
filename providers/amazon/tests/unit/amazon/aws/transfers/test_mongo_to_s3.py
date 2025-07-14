@@ -83,7 +83,7 @@ class TestMongoToS3Operator:
         )
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, clean_dags_dagruns_and_dag_bundles):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
             from airflow.models.dagbundle import DagBundleModel

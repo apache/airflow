@@ -263,7 +263,7 @@ class TestDynamodbToS3:
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, clean_dags_dagruns_and_dag_bundles):
         dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",

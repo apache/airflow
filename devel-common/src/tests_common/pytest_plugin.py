@@ -1856,15 +1856,20 @@ def hook_lineage_collector():
 
 
 @pytest.fixture
-def clean_dags_and_dagruns():
+def clean_dags_dagruns_and_dag_bundles():
     """Fixture that cleans the database before and after every test."""
-    from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+    from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     clear_db_runs()
     clear_db_dags()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
 
 
 @pytest.fixture

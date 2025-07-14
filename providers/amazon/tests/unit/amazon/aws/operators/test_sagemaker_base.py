@@ -196,7 +196,7 @@ class TestSageMakerExperimentOperator:
         "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
         new_callable=mock.PropertyMock,
     )
-    def test_create_experiment(self, conn_mock, session, clean_dags_and_dagruns):
+    def test_create_experiment(self, conn_mock, session, clean_dags_dagruns_and_dag_bundles):
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         # putting a DAG around the operator so that jinja template gets rendered

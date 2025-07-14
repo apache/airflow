@@ -34,30 +34,12 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
 class TestS3KeySensor:
-    @staticmethod
-    def _clear_db():
-        clear_db_runs()
-        clear_db_dags()
-        clear_db_dag_bundles()
-
-    @pytest.fixture
-    def setup_teardown_db(self):
-        """Setup and teardown for database tests."""
-        if AIRFLOW_V_3_0_PLUS:
-            self._clear_db()
-
-        yield
-
-        if AIRFLOW_V_3_0_PLUS:
-            self._clear_db()
-
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None
@@ -132,9 +114,7 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key_from_jinja(
-        self, mock_head_object, session, clean_dags_and_dagruns, setup_teardown_db
-    ):
+    def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_dagruns_and_dag_bundles):
         mock_head_object.return_value = None
 
         Variable.set("test_bucket_key", "s3://bucket/key", session=session)
@@ -192,7 +172,7 @@ class TestS3KeySensor:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_parse_list_of_bucket_keys_from_jinja(
-        self, mock_head_object, session, clean_dags_and_dagruns, setup_teardown_db
+        self, mock_head_object, session, clean_dags_dagruns_and_dag_bundles
     ):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
@@ -531,7 +511,7 @@ class TestS3KeysUnchangedSensor:
             )
 
     @pytest.mark.db_test
-    def test_render_template_fields(self, clean_dags_and_dagruns):
+    def test_render_template_fields(self, clean_dags_dagruns_and_dag_bundles):
         S3KeysUnchangedSensor(
             task_id="sensor_3",
             bucket_name="test-bucket",

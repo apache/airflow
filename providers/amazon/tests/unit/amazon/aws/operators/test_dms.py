@@ -49,7 +49,6 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -57,12 +56,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 
 TASK_ARN = "test_arn"
-
-
-def _clear_db():
-    clear_db_runs()
-    clear_db_dags()
-    clear_db_dag_bundles()
 
 
 class TestDmsCreateTaskOperator:
@@ -271,17 +264,6 @@ class TestDmsDescribeTasksOperator:
         }
     ]
 
-    @pytest.fixture
-    def setup_teardown_db(self):
-        """Setup and teardown for database tests."""
-        if AIRFLOW_V_3_0_PLUS:
-            _clear_db()
-
-        yield
-
-        if AIRFLOW_V_3_0_PLUS:
-            _clear_db()
-
     def setup_method(self):
         args = {
             "owner": "airflow",
@@ -332,7 +314,7 @@ class TestDmsDescribeTasksOperator:
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
     def test_describe_tasks_return_value(
-        self, mock_conn, mock_describe_replication_tasks, session, setup_teardown_db
+        self, mock_conn, mock_describe_replication_tasks, session, clean_dags_dagruns_and_dag_bundles
     ):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
@@ -528,24 +510,13 @@ class TestDmsStopTaskOperator:
 class TestDmsDescribeReplicationConfigsOperator:
     filter = [{"Name": "replication-type", "Values": ["cdc"]}]
 
-    @pytest.fixture
-    def setup_teardown_db(self):
-        """Setup and teardown for database tests."""
-        if AIRFLOW_V_3_0_PLUS:
-            _clear_db()
-
-        yield
-
-        if AIRFLOW_V_3_0_PLUS:
-            _clear_db()
-
     def test_init(self):
         op = DmsDescribeReplicationConfigsOperator(task_id="test_task")
         assert op.filter is None
 
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
-    def test_template_fields_native(self, mock_conn, session, setup_teardown_db):
+    def test_template_fields_native(self, mock_conn, session, clean_dags_dagruns_and_dag_bundles):
         logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
 
