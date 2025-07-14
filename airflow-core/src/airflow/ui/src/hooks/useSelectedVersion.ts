@@ -62,6 +62,7 @@ const useSelectedVersion = (): number | undefined => {
     undefined,
     { enabled: runData !== undefined },
   );
+
   const taskNode = structureData?.nodes.find((node) => node.id === taskId);
   const isMapped = taskNode?.is_mapped;
 

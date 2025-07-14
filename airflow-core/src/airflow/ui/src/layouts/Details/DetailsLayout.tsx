@@ -79,7 +79,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       </HStack>
       <Toaster />
       <BackfillBanner dagId={dagId} />
-      <Box data-testid="debug-box" flex={1} minH={0}>
+      <Box flex={1} minH={0}>
         {isRightPanelCollapsed ? (
           <Tooltip content={translate("common:showDetailsPanel")}>
             <IconButton
@@ -99,23 +99,11 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             </IconButton>
           </Tooltip>
         ) : undefined}
-        <PanelGroup
-          autoSaveId={dagId}
-          data-testid="debug-panel-group"
-          direction="horizontal"
-          ref={panelGroupRef}
-        >
+        <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box
-              data-testid="debug-panel-group-box"
-              height="100%"
-              overflowY="auto"
-              position="relative"
-              pr={2}
-            >
+            <Box height="100%" overflowY="auto" position="relative" pr={2}>
               <PanelButtons
                 dagView={dagView}
-                data-testid="debug-panel-buttons"
                 limit={limit}
                 panelGroupRef={panelGroupRef}
                 setDagView={setDagView}
