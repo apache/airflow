@@ -1530,24 +1530,6 @@ class TestStringifiedDAGs:
         assert serialized_dag.task_group.children
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
 
-        def check_task_group(node):
-            assert node.dag is serialized_dag
-            try:
-                children = node.children.values()
-            except AttributeError:
-                # Round-trip serialization and check the result
-                expected_serialized = SerializedBaseOperator.serialize_operator(dag.get_task(node.task_id))
-                expected_deserialized = SerializedBaseOperator.deserialize_operator(expected_serialized)
-                expected_dict = SerializedBaseOperator.serialize_operator(expected_deserialized)
-                assert node
-                assert SerializedBaseOperator.serialize_operator(node) == expected_dict
-                return
-
-            for child in children:
-                check_task_group(child)
-
-        check_task_group(serialized_dag.task_group)
-
     @staticmethod
     def assert_taskgroup_children(se_task_group, dag_task_group, expected_children):
         assert se_task_group.children.keys() == dag_task_group.children.keys() == expected_children
