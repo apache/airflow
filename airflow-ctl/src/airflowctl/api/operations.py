@@ -162,14 +162,16 @@ class BaseOperations:
         **kwargs,
     ) -> list | ServerResponseError:
         shared_params = {**(params or {}), **kwargs}
-        while offset < total_entries:
-            loop_params = {**shared_params, "offset": offset}
-            self.response = self.client.get(path, params=loop_params)
-            entry = data_model.model_validate_json(self.response.content)
-            offset = offset + limit
-            entry_list.append(entry)
-
-        return entry_list
+        try:
+            while offset < total_entries:
+                loop_params = {**shared_params, "offset": offset}
+                self.response = self.client.get(path, params=loop_params)
+                entry = data_model.model_validate_json(self.response.content)
+                offset = offset + limit
+                entry_list.append(entry)
+            return entry_list
+        except ServerResponseError as e:
+            raise e
 
 
 # Login operations
