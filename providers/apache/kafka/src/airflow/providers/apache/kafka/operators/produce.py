@@ -122,7 +122,7 @@ class ProduceToTopicOperator(BaseOperator):
             )
 
         producer_callable = partial(
-            self.producer_function,  # type: ignore
+            self.producer_function,
             *self.producer_function_args,
             **self.producer_function_kwargs,
         )

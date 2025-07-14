@@ -227,9 +227,8 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
-    return a._dict.keys() == b._dict.keys() and all(  # type: ignore[attr-defined]
-        equal_outlet_event_accessor(a._dict[key], b._dict[key])  # type: ignore[attr-defined]
-        for key in a._dict  # type: ignore[attr-defined]
+    return a._dict.keys() == b._dict.keys() and all(
+        equal_outlet_event_accessor(a._dict[key], b._dict[key]) for key in a._dict
     )
 
 

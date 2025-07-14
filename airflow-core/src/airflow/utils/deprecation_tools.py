@@ -178,7 +178,7 @@ def add_deprecated_classes(
                 override_deprecated_classes_for_module = {}
 
             # Mypy is not able to derive the right function signature https://github.com/python/mypy/issues/2427
-            module_type.__getattr__ = functools.partial(  # type: ignore[assignment]
+            module_type.__getattr__ = functools.partial(  # type: ignore[method-assign]
                 getattr_with_deprecation,
                 imports,
                 full_module_name,

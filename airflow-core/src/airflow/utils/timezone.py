@@ -284,7 +284,7 @@ def parse_timezone(name: str | int) -> FixedTimezone | Timezone:
     """
     if _PENDULUM3:
         # This only presented in pendulum 3 and code do not reached into the pendulum 2
-        return pendulum.timezone(name)  # type: ignore[operator]
+        return pendulum.timezone(name)
     # In pendulum 2 this refers to the function, in pendulum 3 refers to the module
     return pendulum.tz.timezone(name)  # type: ignore[operator]
 
