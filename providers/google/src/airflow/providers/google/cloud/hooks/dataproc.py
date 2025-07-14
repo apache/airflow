@@ -1341,11 +1341,12 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         template_client = await self.get_template_client(region=region)
         return template_client.transport.operations_client
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def get_cluster(
         self,
         region: str,
-        project_id: str,
         cluster_name: str,
+        project_id: str,
         retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1354,8 +1355,8 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         Get a cluster.
 
         :param region: Cloud Dataproc region in which to handle the request.
-        :param project_id: Google Cloud project ID that the cluster belongs to.
         :param cluster_name: Name of the cluster to get.
+        :param project_id: Google Cloud project ID that the cluster belongs to.
         :param retry: A retry object used to retry requests. If *None*, requests
             will not be retried.
         :param timeout: The amount of time, in seconds, to wait for the request
@@ -1372,6 +1373,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def create_cluster(
         self,
         region: str,
@@ -1441,6 +1443,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def delete_cluster(
         self,
         region: str,
@@ -1486,6 +1489,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def diagnose_cluster(
         self,
         region: str,
@@ -1535,6 +1539,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def list_clusters(
         self,
         region: str,
@@ -1572,6 +1577,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def update_cluster(
         self,
         cluster_name: str,
@@ -1656,6 +1662,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return operation
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def create_workflow_template(
         self,
         template: dict | WorkflowTemplate,
@@ -1687,6 +1694,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
             request={"parent": parent, "template": template}, retry=retry, timeout=timeout, metadata=metadata
         )
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def instantiate_workflow_template(
         self,
         template_name: str,
@@ -1733,6 +1741,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return operation
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def instantiate_inline_workflow_template(
         self,
         template: dict | WorkflowTemplate,
@@ -1776,6 +1785,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         operations_client = await self.get_operations_client(region)
         return await operations_client.get_operation(name=operation_name)
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def get_job(
         self,
         job_id: str,
@@ -1807,6 +1817,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return job
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def submit_job(
         self,
         job: dict | Job,
@@ -1842,6 +1853,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
             metadata=metadata,
         )
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def cancel_job(
         self,
         job_id: str,
@@ -1874,6 +1886,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return job
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def create_batch(
         self,
         region: str,
@@ -1921,6 +1934,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def delete_batch(
         self,
         batch_id: str,
@@ -1955,6 +1969,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
             metadata=metadata,
         )
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def get_batch(
         self,
         batch_id: str,
@@ -1990,6 +2005,7 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     async def list_batches(
         self,
         region: str,
