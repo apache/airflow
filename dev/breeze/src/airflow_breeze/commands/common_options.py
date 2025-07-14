@@ -477,6 +477,16 @@ option_install_airflow_with_constraints_default_true = click.option(
     envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
     help="Install airflow in a separate step, with constraints determined from package or airflow version.",
 )
+option_debug_components = click.option(
+    "--debug",
+    help="Enable debugging for specific Airflow components. Can be one or more of: "
+    "scheduler, triggerer, api-server, dag-processor, edge-worker, flower, celery-worker.",
+    type=BetterChoice(
+        ["scheduler", "triggerer", "api-server", "dag-processor", "edge-worker", "flower", "celery-worker"]
+    ),
+    multiple=True,
+    envvar="DEBUG_COMPONENTS",
+)
 
 
 def _is_number_greater_than_expected(value: str) -> bool:

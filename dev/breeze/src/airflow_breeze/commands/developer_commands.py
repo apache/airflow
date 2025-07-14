@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_options import (
     option_builder,
     option_clean_airflow_installation,
     option_db_reset,
+    option_debug_components,
     option_docker_host,
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
@@ -504,6 +505,7 @@ option_auth_manager_start_airflow = click.option(
 @option_celery_broker
 @option_celery_flower
 @option_db_reset
+@option_debug_components
 @option_docker_host
 @option_dry_run
 @option_executor_start_airflow
@@ -548,6 +550,7 @@ def start_airflow(
     celery_flower: bool,
     clean_airflow_installation: bool,
     db_reset: bool,
+    debug_components: tuple[str, ...],
     dev_mode: bool,
     docker_host: str | None,
     executor: str | None,
@@ -617,6 +620,7 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        debug_components=debug_components,
         db_reset=db_reset,
         dev_mode=dev_mode,
         docker_host=docker_host,
