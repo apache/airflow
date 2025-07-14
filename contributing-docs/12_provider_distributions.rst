@@ -169,7 +169,7 @@ there where you should add and remove dependencies for providers (following by r
 of Airflow).
 
 The ``provider.yaml`` file is compliant with the schema that is available in
-`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
+`json-schema specification <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/provider.yaml.schema.json>`_.
 
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
 Airflow sources, without preparing and releasing them as distributions separately, which would be rather
