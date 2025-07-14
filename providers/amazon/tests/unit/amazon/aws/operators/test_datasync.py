@@ -348,7 +348,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dag_bundles):
+    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -577,7 +577,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dag_bundles):
+    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -708,7 +708,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dag_bundles):
+    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -932,7 +932,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dag_bundles):
+    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -1059,7 +1059,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dag_bundles):
+    def test_return_value(self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client

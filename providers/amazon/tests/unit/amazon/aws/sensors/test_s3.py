@@ -114,7 +114,7 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_dagruns_and_dag_bundles):
+    def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_dagruns_and_dagbundles):
         mock_head_object.return_value = None
 
         Variable.set("test_bucket_key", "s3://bucket/key", session=session)
@@ -172,7 +172,7 @@ class TestS3KeySensor:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_parse_list_of_bucket_keys_from_jinja(
-        self, mock_head_object, session, clean_dags_dagruns_and_dag_bundles
+        self, mock_head_object, session, clean_dags_dagruns_and_dagbundles
     ):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
@@ -511,7 +511,7 @@ class TestS3KeysUnchangedSensor:
             )
 
     @pytest.mark.db_test
-    def test_render_template_fields(self, clean_dags_dagruns_and_dag_bundles):
+    def test_render_template_fields(self, clean_dags_dagruns_and_dagbundles):
         S3KeysUnchangedSensor(
             task_id="sensor_3",
             bucket_name="test-bucket",

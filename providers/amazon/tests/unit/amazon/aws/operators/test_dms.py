@@ -314,7 +314,7 @@ class TestDmsDescribeTasksOperator:
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
     def test_describe_tasks_return_value(
-        self, mock_conn, mock_describe_replication_tasks, session, clean_dags_dagruns_and_dag_bundles
+        self, mock_conn, mock_describe_replication_tasks, session, clean_dags_dagruns_and_dagbundles
     ):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
@@ -516,7 +516,7 @@ class TestDmsDescribeReplicationConfigsOperator:
 
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
-    def test_template_fields_native(self, mock_conn, session, clean_dags_dagruns_and_dag_bundles):
+    def test_template_fields_native(self, mock_conn, session, clean_dags_dagruns_and_dagbundles):
         logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
 

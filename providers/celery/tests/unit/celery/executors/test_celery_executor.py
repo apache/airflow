@@ -193,7 +193,7 @@ class TestCeleryExecutor:
                 ) or mock_fork.call_args == ((command, "abcdef-124215-abcdef"),)
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_try_adopt_task_instances_none(self, clean_dags_dagruns_and_dag_bundles):
+    def test_try_adopt_task_instances_none(self, clean_dags_dagruns_and_dagbundles):
         start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_try_adopt_task_instances_none", schedule=None) as dag:
@@ -223,7 +223,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     @time_machine.travel("2020-01-01", tick=False)
-    def test_try_adopt_task_instances(self, clean_dags_dagruns_and_dag_bundles):
+    def test_try_adopt_task_instances(self, clean_dags_dagruns_and_dagbundles):
         start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_try_adopt_task_instances_none", schedule=None) as dag:
@@ -276,7 +276,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
-    def test_cleanup_stuck_queued_tasks(self, mock_fail, clean_dags_dagruns_and_dag_bundles):
+    def test_cleanup_stuck_queued_tasks(self, mock_fail, clean_dags_dagruns_and_dagbundles):
         start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None) as dag:
@@ -320,7 +320,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
-    def test_revoke_task(self, mock_fail, clean_dags_dagruns_and_dag_bundles):
+    def test_revoke_task(self, mock_fail, clean_dags_dagruns_and_dagbundles):
         start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_revoke_task", schedule=None) as dag:

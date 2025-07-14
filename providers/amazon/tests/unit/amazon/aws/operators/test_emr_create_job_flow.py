@@ -98,7 +98,7 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_dagruns_and_dag_bundles):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
@@ -158,7 +158,7 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_dagruns_and_dag_bundles):
+    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 

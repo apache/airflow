@@ -232,7 +232,7 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_return_value(
-        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_dagruns_and_dag_bundles
+        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_dagruns_and_dagbundles
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         if AIRFLOW_V_3_0_PLUS:

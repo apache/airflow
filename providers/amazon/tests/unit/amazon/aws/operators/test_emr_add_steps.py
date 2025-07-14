@@ -100,7 +100,7 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_dagruns_and_dag_bundles):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dagbundle import DagBundleModel
             from airflow.utils.session import create_session
@@ -156,7 +156,7 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_dagruns_and_dag_bundles):
+    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles):
         dag = DAG(
             dag_id="test_file",
             schedule=None,

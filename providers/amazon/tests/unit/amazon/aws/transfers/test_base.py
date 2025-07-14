@@ -38,7 +38,7 @@ class TestAwsToAwsBaseOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_dagruns_and_dag_bundles):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles):
         operator = AwsToAwsBaseOperator(
             task_id="dynamodb_to_s3_test_render",
             dag=self.dag,
