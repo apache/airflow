@@ -43,5 +43,8 @@ __deprecated_classes = {
         "BaseSetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.BaseSetupTeardownContext",
         "SetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.SetupTeardownContext",
     },
+    "warnings": {
+        "capture_with_reraise": "airflow.models.dagbag._capture_with_reraise",
+    },
 }
 add_deprecated_classes(__deprecated_classes, __name__)
