@@ -36,10 +36,8 @@ from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage import Blob, Bucket, Client
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -149,12 +147,12 @@ PROVIDE_BUCKET: str = cast("str", None)
 class GCSHook(GoogleBaseHook):
     """Use the Google Cloud connection to interact with Google Cloud Storage."""
 
-    _conn: storage.Client | None = None
+    _conn: Client | None = None
 
-    def get_conn(self) -> storage.Client:
+    def get_conn(self) -> Client:
         """Return a Google Cloud Storage service object."""
         if not self._conn:
-            self._conn = storage.Client(
+            self._conn = Client(
                 credentials=self.get_credentials(), client_info=CLIENT_INFO, project=self.project_id
             )
 
@@ -724,7 +722,7 @@ class GCSHook(GoogleBaseHook):
 
         self.log.info("Blob %s deleted.", object_name)
 
-    def get_bucket(self, bucket_name: str) -> storage.Bucket:
+    def get_bucket(self, bucket_name: str) -> Bucket:
         """
         Get a bucket object from the Google Cloud Storage.
 
@@ -1361,7 +1359,7 @@ class GCSHook(GoogleBaseHook):
         self.log.info("Synchronization finished.")
 
     def _calculate_sync_destination_path(
-        self, blob: storage.Blob, destination_object: str | None, source_object_prefix_len: int
+        self, blob: Blob, destination_object: str | None, source_object_prefix_len: int
     ) -> str:
         return (
             os.path.join(destination_object, blob.name[source_object_prefix_len:])
@@ -1371,12 +1369,12 @@ class GCSHook(GoogleBaseHook):
 
     @staticmethod
     def _prepare_sync_plan(
-        source_bucket: storage.Bucket,
-        destination_bucket: storage.Bucket,
+        source_bucket: Bucket,
+        destination_bucket: Bucket,
         source_object: str | None,
         destination_object: str | None,
         recursive: bool,
-    ) -> tuple[set[storage.Blob], set[storage.Blob], set[storage.Blob]]:
+    ) -> tuple[set[Blob], set[Blob], set[Blob]]:
         # Calculate the number of characters that are removed from the name, because they contain information
         # about the parent's path
         source_object_prefix_len = len(source_object) if source_object else 0
@@ -1403,12 +1401,12 @@ class GCSHook(GoogleBaseHook):
         # Determine objects to copy and delete
         to_copy = source_names - destination_names
         to_delete = destination_names - source_names
-        to_copy_blobs: set[storage.Blob] = {source_names_index[a] for a in to_copy}
-        to_delete_blobs: set[storage.Blob] = {destination_names_index[a] for a in to_delete}
+        to_copy_blobs: set[Blob] = {source_names_index[a] for a in to_copy}
+        to_delete_blobs: set[Blob] = {destination_names_index[a] for a in to_delete}
 
         # Find names that are in both buckets
         names_to_check = source_names.intersection(destination_names)
-        to_rewrite_blobs: set[storage.Blob] = set()
+        to_rewrite_blobs: set[Blob] = set()
         # Compare objects based on crc32
         for current_name in names_to_check:
             source_blob = source_names_index[current_name]
