@@ -177,17 +177,10 @@ class TestCloudRemoteLogIO:
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:
     def clear_db(self):
-        # Expunge any TaskInstance from the session before clearing DB
-        # to avoid StaleDataError when the session tries to update deleted rows
-        if hasattr(self, "ti") and self.ti:
-            from sqlalchemy.orm import object_session
-
-            session = object_session(self.ti)
-            if session:
-                session.expunge(self.ti)
-        clear_db_dags()
-        clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup(self, create_log_template, tmp_path_factory, session):

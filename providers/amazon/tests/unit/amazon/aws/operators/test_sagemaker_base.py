@@ -196,7 +196,6 @@ class TestSageMakerExperimentOperator:
         "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
         new_callable=mock.PropertyMock,
     )
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_create_experiment(self, conn_mock, session, clean_dags_and_dagruns):
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
@@ -212,9 +211,17 @@ class TestSageMakerExperimentOperator:
         )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
 
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(

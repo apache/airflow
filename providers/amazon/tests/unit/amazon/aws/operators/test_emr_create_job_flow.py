@@ -36,6 +36,7 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -75,6 +76,20 @@ class TestEmrCreateJobFlowOperator:
         ],
     }
 
+    @staticmethod
+    def _clear_db():
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        self._clear_db()
+        yield
+        self._clear_db()
+
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.operator = EmrCreateJobFlowOperator(
@@ -98,14 +113,21 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template(self, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
 
-            DAG.bulk_write_to_db("testing", None, [self.operator.dag])
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
@@ -151,16 +173,23 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
 
-            DAG.bulk_write_to_db("testing", None, [self.operator.dag])
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(

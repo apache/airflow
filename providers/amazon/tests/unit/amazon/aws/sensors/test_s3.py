@@ -34,12 +34,27 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
 class TestS3KeySensor:
+    @staticmethod
+    def _clear_db():
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        self._clear_db()
+        yield
+        self._clear_db()
+
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None
@@ -114,7 +129,6 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
 
@@ -132,9 +146,17 @@ class TestS3KeySensor:
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
 
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -164,7 +186,6 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
@@ -191,9 +212,17 @@ class TestS3KeySensor:
             ti = TaskInstance(task=op)
         else:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
 
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,

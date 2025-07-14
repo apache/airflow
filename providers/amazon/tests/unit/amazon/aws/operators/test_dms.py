@@ -49,6 +49,7 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -264,6 +265,20 @@ class TestDmsDescribeTasksOperator:
         }
     ]
 
+    @staticmethod
+    def _clear_db():
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        self._clear_db()
+        yield
+        self._clear_db()
+
     def setup_method(self):
         args = {
             "owner": "airflow",
@@ -313,15 +328,23 @@ class TestDmsDescribeTasksOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=describe_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
@@ -500,13 +523,26 @@ class TestDmsStopTaskOperator:
 class TestDmsDescribeReplicationConfigsOperator:
     filter = [{"Name": "replication-type", "Values": ["cdc"]}]
 
+    @staticmethod
+    def _clear_db():
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        self._clear_db()
+        yield
+        self._clear_db()
+
     def test_init(self):
         op = DmsDescribeReplicationConfigsOperator(task_id="test_task")
         assert op.filter is None
 
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_template_fields_native(self, mock_conn, session):
         logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
@@ -522,8 +558,17 @@ class TestDmsDescribeReplicationConfigsOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(

@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -62,6 +63,20 @@ class TestEmrAddStepsOperator:
             },
         }
     ]
+
+    @staticmethod
+    def _clear_db():
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        self._clear_db()
+        yield
+        self._clear_db()
 
     def setup_method(self):
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -100,11 +115,19 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template(self, session, clean_dags_and_dagruns):
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.operator.dag])
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
@@ -148,7 +171,6 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         dag = DAG(
             dag_id="test_file",
@@ -177,8 +199,17 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(dag.dag_id)

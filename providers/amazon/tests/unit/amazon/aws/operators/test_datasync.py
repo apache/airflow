@@ -33,6 +33,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -76,6 +77,13 @@ MOCK_DATA = {
 @mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class DataSyncTestCaseBase:
+    @staticmethod
+    def _clear_db():
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
+            clear_db_dags()
+            clear_db_dag_bundles()
+
     # Runs once for each test
     def setup_method(self, method):
         args = {
@@ -113,6 +121,8 @@ class DataSyncTestCaseBase:
         for location in locations["Locations"]:
             self.client.delete_location(LocationArn=location["LocationArn"])
         self.client = None
+
+        self._clear_db()
 
 
 def test_generic_params():
@@ -348,7 +358,6 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -357,8 +366,17 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
@@ -569,7 +587,6 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -578,8 +595,17 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
@@ -692,7 +718,6 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -701,8 +726,17 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
@@ -908,7 +942,6 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -917,8 +950,17 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
@@ -1027,7 +1069,6 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -1036,8 +1077,17 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            DAG.bulk_write_to_db("testing", None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.utils.session import create_session
+
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
