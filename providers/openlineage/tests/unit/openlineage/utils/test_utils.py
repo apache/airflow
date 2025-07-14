@@ -68,7 +68,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, task
 else:
-    from airflow.decorators import task  # type: ignore[no-redef]
+    from airflow.decorators import task
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"

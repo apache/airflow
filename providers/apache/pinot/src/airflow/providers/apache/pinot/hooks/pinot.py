@@ -295,7 +295,7 @@ class PinotDbApiHook(DbApiHook):
 
     def get_conn(self) -> Any:
         """Establish a connection to pinot broker through pinot dbapi."""
-        conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
+        conn = self.get_connection(self.get_conn_id())
 
         pinot_broker_conn = connect(
             host=conn.host,

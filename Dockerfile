@@ -57,7 +57,7 @@ ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.7.19
+ARG AIRFLOW_UV_VERSION=0.7.20
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -948,7 +948,7 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-packag xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
             set +x
         fi
     fi

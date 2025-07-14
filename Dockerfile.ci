@@ -16,13 +16,13 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
+ARG BASE_IMAGE="debian:bookworm-slim"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
-# We use PYTHON_BASE_IMAGE to make sure that the scripts are different for different platforms.
+# We use BASE_IMAGE to make sure that the scripts are different for different platforms.
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as scripts
+FROM ${BASE_IMAGE} as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
@@ -31,22 +31,27 @@ FROM ${PYTHON_BASE_IMAGE} as scripts
 # make the PROD Dockerfile standalone
 ##############################################################################################
 
-# The content below is automatically copied from scripts/docker/install_os_dependencies.sh
-COPY <<"EOF" /install_os_dependencies.sh
+# The content below is automatically copied from scripts/docker/install_os_dependencies_ci.sh
+COPY <<"EOF" /install_os_dependencies_ci.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
-    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     exit 1
 fi
+
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-v3.10.10}
+GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
 elif   [[ "${1}" == "dev" ]]; then
-    INSTALLATION_TYPE="dev"
+    INSTALLATION_TYPE="DEV"
+elif   [[ "${1}" == "ci" ]]; then
+    INSTALLATION_TYPE="CI"
 else
-    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
     exit 1
 fi
 
@@ -56,7 +61,10 @@ function get_dev_apt_deps() {
 freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev \
+gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
+libzstd-dev"
         export DEV_APT_DEPS
     fi
 }
@@ -143,14 +151,36 @@ function install_debian_runtime_dependencies() {
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
+function install_python() {
+    git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
+    cd cpython
+    ./configure --enable-optimizations
+    make -s -j "$(nproc)" all
+    make -s -j "$(nproc)" install
+    ln -s /usr/local/bin/python3 /usr/local/bin/python
+    ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+    cd ..
+    rm -rf cpython
+}
+
+function install_golang() {
+    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
 
 else
+
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_python
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        install_golang
+    fi
     install_docker_cli
 fi
 EOF
@@ -701,7 +731,7 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-packag xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
             set +x
         fi
     fi
@@ -939,7 +969,7 @@ function environment_initialization() {
     CI=${CI:="false"}
 
     # Added to have run-tests on path
-    export PATH=${PATH}:${AIRFLOW_SOURCES}
+    export PATH=${PATH}:${AIRFLOW_SOURCES}:/usr/local/go/bin/
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -1257,13 +1287,13 @@ COPY <<"EOF" /entrypoint_exec.sh
 exec /bin/bash "${@}"
 EOF
 
-FROM ${PYTHON_BASE_IMAGE} as main
+FROM ${BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE
+ARG BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies.
@@ -1273,7 +1303,7 @@ ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG DEPENDENCIES_EPOCH_NUMBER="15"
 
 # Make sure noninteractive debian install is used and language variables set
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
@@ -1284,7 +1314,7 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     UV_CACHE_DIR=/root/.cache/uv
 
 
-RUN echo "Base image version: ${PYTHON_BASE_IMAGE}"
+RUN echo "Base image version: ${BASE_IMAGE}"
 
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
@@ -1299,8 +1329,13 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-RUN bash /scripts/docker/install_os_dependencies.sh dev
+ARG AIRFLOW_PYTHON_VERSION=v3.10.18
+ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
+ENV GOLANG_MAJOR_MINOR_VERSION=1.24.5
+
+COPY --from=scripts install_os_dependencies_ci.sh /scripts/docker/
+
+RUN bash /scripts/docker/install_os_dependencies_ci.sh ci
 
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1427,7 +1462,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.7.19
+ARG AIRFLOW_UV_VERSION=0.7.20
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
