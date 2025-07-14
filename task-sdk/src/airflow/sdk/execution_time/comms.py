@@ -422,7 +422,6 @@ class AssetEventDagRunReferenceResult(AssetEventDagRunReference):
             # Check for required fields and provide defaults for optional datetime fields
             if (
                 dag_run_response.start_date is None
-                or dag_run_response.end_date is None
                 or dag_run_response.data_interval_start is None
                 or dag_run_response.data_interval_end is None
             ):
