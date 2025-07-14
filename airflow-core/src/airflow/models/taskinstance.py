@@ -223,7 +223,7 @@ def clear_task_instances(
     task_instance_ids: list[str] = []
     from airflow.models.dagbag import SchedulerDagBag
 
-    scheduler_dagbag = SchedulerDagBag()
+    scheduler_dagbag = SchedulerDagBag(load_op_links=False)
 
     for ti in tis:
         task_instance_ids.append(ti.id)
