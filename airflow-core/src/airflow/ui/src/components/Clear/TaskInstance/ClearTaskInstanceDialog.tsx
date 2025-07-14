@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
+import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import Time from "src/components/Time";
@@ -67,6 +68,11 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     taskId,
   });
 
+  // Get current DAG's bundle version to compare with task instance's DAG version bundle version
+  const { data: dagDetails } = useDagServiceGetDagDetails({
+    dagId,
+  });
+
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
@@ -89,6 +95,15 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     task_instances: [],
     total_entries: 0,
   };
+
+  // Check if bundle versions are different
+  const currentDagBundleVersion = dagDetails?.bundle_version;
+  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version.bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
+  const shouldShowBundleVersionOption =
+    bundleVersionsDiffer &&
+    taskInstanceDagVersionBundleVersion !== null &&
+    taskInstanceDagVersionBundleVersion !== "";
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -143,20 +158,11 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
-            {...(taskInstance.dag_version.bundle_version !== null &&
-            taskInstance.dag_version.bundle_version !== ""
-              ? { alignItems: "center" }
-              : {})}
-            justifyContent={
-              taskInstance.dag_version.bundle_version !== null &&
-              taskInstance.dag_version.bundle_version !== ""
-                ? "space-between"
-                : "end"
-            }
+            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
             mt={3}
           >
-            {taskInstance.dag_version.bundle_version !== null &&
-            taskInstance.dag_version.bundle_version !== "" ? (
+            {shouldShowBundleVersionOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
                 onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}

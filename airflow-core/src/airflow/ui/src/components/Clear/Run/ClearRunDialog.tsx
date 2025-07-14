@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
+import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { Button, Dialog, Checkbox } from "src/components/ui";
@@ -45,6 +46,11 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
+  // Get current DAG's bundle version to compare with DAG run's bundle version
+  const { data: dagDetails } = useDagServiceGetDagDetails({
+    dagId,
+  });
+
   const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
     dagId,
     dagRunId,
@@ -62,6 +68,13 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagRunId,
     onSuccess: onClose,
   });
+
+  // Check if bundle versions are different
+  const currentDagBundleVersion = dagDetails?.bundle_version;
+  const dagRunBundleVersion = dagRun.bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
+  const shouldShowBundleVersionOption =
+    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -103,15 +116,11 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
-            {...(dagRun.bundle_version !== null && dagRun.bundle_version !== ""
-              ? { alignItems: "center" }
-              : {})}
-            justifyContent={
-              dagRun.bundle_version !== null && dagRun.bundle_version !== "" ? "space-between" : "end"
-            }
+            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
             mt={3}
           >
-            {dagRun.bundle_version !== null && dagRun.bundle_version !== "" ? (
+            {shouldShowBundleVersionOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
                 onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
