@@ -43,17 +43,20 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 class TestS3KeySensor:
     @staticmethod
     def _clear_db():
-        if AIRFLOW_V_3_0_PLUS:
-            clear_db_runs()
-            clear_db_dags()
-            clear_db_dag_bundles()
+        clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self._clear_db()
+    @pytest.fixture
+    def setup_teardown_db(self):
+        """Setup and teardown for database tests."""
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
+
         yield
-        self._clear_db()
+
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
 
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
@@ -129,7 +132,9 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
+    def test_parse_bucket_key_from_jinja(
+        self, mock_head_object, session, clean_dags_and_dagruns, setup_teardown_db
+    ):
         mock_head_object.return_value = None
 
         Variable.set("test_bucket_key", "s3://bucket/key", session=session)
@@ -186,7 +191,9 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
+    def test_parse_list_of_bucket_keys_from_jinja(
+        self, mock_head_object, session, clean_dags_and_dagruns, setup_teardown_db
+    ):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
 

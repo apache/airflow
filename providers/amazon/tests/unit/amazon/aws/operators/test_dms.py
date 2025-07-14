@@ -59,6 +59,12 @@ if AIRFLOW_V_3_0_PLUS:
 TASK_ARN = "test_arn"
 
 
+def _clear_db():
+    clear_db_runs()
+    clear_db_dags()
+    clear_db_dag_bundles()
+
+
 class TestDmsCreateTaskOperator:
     TASK_DATA = {
         "replication_task_id": "task_id",
@@ -265,19 +271,16 @@ class TestDmsDescribeTasksOperator:
         }
     ]
 
-    @staticmethod
-    def _clear_db():
+    @pytest.fixture
+    def setup_teardown_db(self):
+        """Setup and teardown for database tests."""
         if AIRFLOW_V_3_0_PLUS:
-            clear_db_runs()
-            clear_db_dags()
-            clear_db_dag_bundles()
+            _clear_db()
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self._clear_db()
         yield
-        self._clear_db()
+
+        if AIRFLOW_V_3_0_PLUS:
+            _clear_db()
 
     def setup_method(self):
         args = {
@@ -328,7 +331,9 @@ class TestDmsDescribeTasksOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
-    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
+    def test_describe_tasks_return_value(
+        self, mock_conn, mock_describe_replication_tasks, session, setup_teardown_db
+    ):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
@@ -523,19 +528,16 @@ class TestDmsStopTaskOperator:
 class TestDmsDescribeReplicationConfigsOperator:
     filter = [{"Name": "replication-type", "Values": ["cdc"]}]
 
-    @staticmethod
-    def _clear_db():
+    @pytest.fixture
+    def setup_teardown_db(self):
+        """Setup and teardown for database tests."""
         if AIRFLOW_V_3_0_PLUS:
-            clear_db_runs()
-            clear_db_dags()
-            clear_db_dag_bundles()
+            _clear_db()
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self._clear_db()
         yield
-        self._clear_db()
+
+        if AIRFLOW_V_3_0_PLUS:
+            _clear_db()
 
     def test_init(self):
         op = DmsDescribeReplicationConfigsOperator(task_id="test_task")
@@ -543,7 +545,7 @@ class TestDmsDescribeReplicationConfigsOperator:
 
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
-    def test_template_fields_native(self, mock_conn, session):
+    def test_template_fields_native(self, mock_conn, session, setup_teardown_db):
         logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
 

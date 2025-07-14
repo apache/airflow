@@ -78,17 +78,20 @@ class TestEmrCreateJobFlowOperator:
 
     @staticmethod
     def _clear_db():
-        if AIRFLOW_V_3_0_PLUS:
-            clear_db_runs()
-            clear_db_dags()
-            clear_db_dag_bundles()
+        clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self._clear_db()
+    @pytest.fixture
+    def setup_teardown_db(self):
+        """Setup and teardown for database tests."""
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
+
         yield
-        self._clear_db()
+
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -113,7 +116,7 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_and_dagruns, setup_teardown_db):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
@@ -173,7 +176,9 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_and_dagruns, setup_teardown_db
+    ):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 

@@ -66,17 +66,20 @@ class TestEmrAddStepsOperator:
 
     @staticmethod
     def _clear_db():
-        if AIRFLOW_V_3_0_PLUS:
-            clear_db_runs()
-            clear_db_dags()
-            clear_db_dag_bundles()
+        clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self._clear_db()
+    @pytest.fixture
+    def setup_teardown_db(self):
+        """Setup and teardown for database tests."""
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
+
         yield
-        self._clear_db()
+
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
 
     def setup_method(self):
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -115,7 +118,7 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_and_dagruns, setup_teardown_db):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dagbundle import DagBundleModel
             from airflow.utils.session import create_session
@@ -171,7 +174,9 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_and_dagruns, setup_teardown_db
+    ):
         dag = DAG(
             dag_id="test_file",
             schedule=None,

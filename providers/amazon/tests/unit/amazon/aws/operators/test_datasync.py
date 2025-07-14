@@ -79,10 +79,20 @@ MOCK_DATA = {
 class DataSyncTestCaseBase:
     @staticmethod
     def _clear_db():
+        clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
+
+    @pytest.fixture
+    def setup_teardown_db(self):
+        """Setup and teardown for database tests."""
         if AIRFLOW_V_3_0_PLUS:
-            clear_db_runs()
-            clear_db_dags()
-            clear_db_dag_bundles()
+            self._clear_db()
+
+        yield
+
+        if AIRFLOW_V_3_0_PLUS:
+            self._clear_db()
 
     # Runs once for each test
     def setup_method(self, method):
@@ -121,8 +131,6 @@ class DataSyncTestCaseBase:
         for location in locations["Locations"]:
             self.client.delete_location(LocationArn=location["LocationArn"])
         self.client = None
-
-        self._clear_db()
 
 
 def test_generic_params():
@@ -358,7 +366,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns, setup_teardown_db):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -587,7 +595,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns, setup_teardown_db):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -718,7 +726,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns, setup_teardown_db):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -942,7 +950,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns, setup_teardown_db):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -1069,7 +1077,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns, setup_teardown_db):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
