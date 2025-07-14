@@ -203,12 +203,6 @@ integrations:
     external-doc-url: https://cloud.google.com/security-key-management/
     logo: /docs/integration-logos/Key-Management-Service.png
     tags: [gcp]
-  - integration-name: Google Cloud Life Sciences
-    external-doc-url: https://cloud.google.com/life-sciences/
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
-    logo: /docs/integration-logos/Google-Cloud-Life-Sciences.png
-    tags: [gcp]
   - integration-name: Google Cloud Managed Service for Apache Kafka
     external-doc-url: https://cloud.google.com/managed-service-for-apache-kafka/docs/
     how-to-guide:
@@ -534,9 +528,6 @@ operators:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.operators.kubernetes_engine
-  - integration-name: Google Cloud Life Sciences
-    python-modules:
-      - airflow.providers.google.cloud.operators.life_sciences
   - integration-name: Google Machine Learning Engine
     python-modules:
       - airflow.providers.google.cloud.operators.mlengine
@@ -800,9 +791,6 @@ hooks:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.hooks.kubernetes_engine
-  - integration-name: Google Cloud Life Sciences
-    python-modules:
-      - airflow.providers.google.cloud.hooks.life_sciences
   - integration-name: Google Machine Learning Engine
     python-modules:
       - airflow.providers.google.cloud.hooks.mlengine
@@ -1214,7 +1202,6 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
-  - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferListLink
