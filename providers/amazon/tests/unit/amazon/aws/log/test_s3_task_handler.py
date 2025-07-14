@@ -248,6 +248,7 @@ class TestS3TaskHandler:
         expected_s3_uri = f"s3://bucket/{self.remote_log_key}"
 
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert expected_s3_uri in log[0].sources
             assert log[1].event == "::endgroup::"
@@ -268,6 +269,7 @@ class TestS3TaskHandler:
         self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
         log, metadata = self.s3_task_handler.read(ti)
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert len(log) == 2
             assert metadata == {"end_of_log": True, "log_pos": 0}
         else:

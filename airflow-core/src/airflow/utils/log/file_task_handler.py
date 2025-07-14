@@ -19,43 +19,97 @@
 
 from __future__ import annotations
 
-import itertools
+import heapq
+import io
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
+from itertools import chain, islice
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Union
+from types import GeneratorType
+from typing import IO, TYPE_CHECKING, Optional, TypedDict, Union, cast
 from urllib.parse import urljoin
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, ValidationError
+from typing_extensions import NotRequired
 
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
+from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from requests import Response
+
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.typing_compat import TypeAlias
 
+CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
+DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
+DEFAULT_SORT_TIMESTAMP = int(DEFAULT_SORT_DATETIME.timestamp() * 1000)
+SORT_KEY_OFFSET = 10000000
+"""An offset used by the _create_sort_key utility.
+
+Assuming 50 characters per line, an offset of 10,000,000 can represent approximately 500 MB of file data, which is sufficient for use as a constant.
+"""
+HEAP_DUMP_SIZE = 5000
+HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
-LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
-"""The log messages themselves, either in already sturcutured form, or a single string blob to be parsed later"""
+LogMessages: TypeAlias = list[str]
+"""The legacy format of log messages before 3.0.2"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
-LogMetadata: TypeAlias = dict[str, Any]
+RawLogStream: TypeAlias = Generator[str, None, None]
+"""Raw log stream, containing unparsed log lines."""
+LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
+"""Legacy log response, containing source information and log messages."""
+LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
+LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
+"""Log response, containing source information, stream of log lines, and total log size."""
+StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
+"""Structured log stream, containing structured log messages."""
+LogHandlerOutputStream: TypeAlias = Union[
+    StructuredLogStream, Iterator["StructuredLogMessage"], chain["StructuredLogMessage"]
+]
+"""Output stream, containing structured log messages or a chain of them."""
+ParsedLog: TypeAlias = tuple[Optional[datetime], int, "StructuredLogMessage"]
+"""Parsed log record, containing timestamp, line_num and the structured log message."""
+ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
+LegacyProvidersLogType: TypeAlias = Union[list["StructuredLogMessage"], str, list[str]]
+"""Return type used by legacy `_read` methods for Alibaba Cloud, Elasticsearch, OpenSearch, and Redis log handlers.
+
+- For Elasticsearch and OpenSearch: returns either a list of structured log messages.
+- For Alibaba Cloud: returns a string.
+- For Redis: returns a list of strings.
+"""
+
 
 logger = logging.getLogger(__name__)
+
+
+class LogMetadata(TypedDict):
+    """Metadata about the log fetching process, including `end_of_log` and `log_pos`."""
+
+    end_of_log: bool
+    log_pos: NotRequired[int]
+    # the following attributes are used for Elasticsearch and OpenSearch log handlers
+    offset: NotRequired[str | int]
+    # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
+    # on the client. Sending as a string prevents this issue.
+    # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
+    last_log_timestamp: NotRequired[str]
+    max_offset: NotRequired[str]
 
 
 class StructuredLogMessage(BaseModel):
@@ -63,6 +117,15 @@ class StructuredLogMessage(BaseModel):
 
     timestamp: datetime | None = None
     event: str
+
+    # Collisions of sort_key may occur due to duplicated messages. If this happens, the heap will use the second element,
+    # which is the StructuredLogMessage for comparison. Therefore, we need to define a comparator for it.
+    def __lt__(self, other: StructuredLogMessage) -> bool:
+        return self.sort_key < other.sort_key
+
+    @property
+    def sort_key(self) -> datetime:
+        return self.timestamp or DEFAULT_SORT_DATETIME
 
     # We don't need to cache string when parsing in to this, as almost every line will have a different
     # values; `extra=allow` means we'll create extra properties as needed. Only timestamp and event are
@@ -100,7 +163,7 @@ def _set_task_deferred_context_var():
         h.ctx_task_deferred = True
 
 
-def _fetch_logs_from_service(url, log_relative_path):
+def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
@@ -111,7 +174,6 @@ def _fetch_logs_from_service(url, log_relative_path):
         secret_key=get_signing_key("api", "secret_key"),
         # Since we are using a secret key, we need to be explicit about the algorithm here too
         algorithm="HS512",
-        private_key=None,
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
@@ -120,6 +182,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         url,
         timeout=timeout,
         headers={"Authorization": generator.generate({"filename": log_relative_path})},
+        stream=True,
     )
     response.encoding = "utf-8"
     return response
@@ -134,28 +197,68 @@ if not _parse_timestamp:
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
-def _parse_log_lines(
-    lines: str | LogMessages,
-) -> Iterable[tuple[datetime | None, int, StructuredLogMessage]]:
+def _stream_lines_by_chunk(
+    log_io: IO[str],
+) -> RawLogStream:
+    """
+    Stream lines from a file-like IO object.
+
+    :param log_io: A file-like IO object to read from.
+    :return: A generator that yields individual lines within the specified range.
+    """
+    # Skip processing if file is already closed
+    if log_io.closed:
+        return
+
+    # Seek to beginning if possible
+    if log_io.seekable():
+        try:
+            log_io.seek(0)
+        except Exception as e:
+            logger.error("Error seeking in log stream: %s", e)
+            return
+
+    buffer = ""
+    while True:
+        # Check if file is already closed
+        if log_io.closed:
+            break
+
+        try:
+            chunk = log_io.read(CHUNK_SIZE)
+        except Exception as e:
+            logger.error("Error reading log stream: %s", e)
+            break
+
+        if not chunk:
+            break
+
+        buffer += chunk
+        *lines, buffer = buffer.split("\n")
+        yield from lines
+
+    if buffer:
+        yield from buffer.split("\n")
+
+
+def _log_stream_to_parsed_log_stream(
+    log_stream: RawLogStream,
+) -> ParsedLogStream:
+    """
+    Turn a str log stream into a generator of parsed log lines.
+
+    :param log_stream: The stream to parse.
+    :return: A generator of parsed log lines.
+    """
     from airflow.utils.timezone import coerce_datetime
 
     timestamp = None
     next_timestamp = None
-    if isinstance(lines, str):
-        lines = lines.splitlines()
-    if isinstance(lines, list) and len(lines) and isinstance(lines[0], str):
-        # A list of content from each location. It's a super odd format, but this is what we load
-        # [['a\nb\n'], ['c\nd\ne\n']] -> ['a', 'b', 'c', 'd', 'e']
-        lines = itertools.chain.from_iterable(map(str.splitlines, lines))  # type: ignore[assignment,arg-type]
-
-    # https://github.com/python/mypy/issues/8586
-    for idx, line in enumerate[Union[str, StructuredLogMessage]](lines):
+    idx = 0
+    for line in log_stream:
         if line:
             try:
-                if isinstance(line, StructuredLogMessage):
-                    log = line
-                else:
-                    log = StructuredLogMessage.model_validate_json(line)
+                log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
@@ -166,17 +269,146 @@ def _parse_log_lines(
                 log.timestamp = coerce_datetime(log.timestamp)
                 timestamp = log.timestamp
             yield timestamp, idx, log
+        idx += 1
 
 
-def _interleave_logs(*logs: str | LogMessages) -> Iterable[StructuredLogMessage]:
-    min_date = pendulum.datetime(2000, 1, 1)
+def _create_sort_key(timestamp: datetime | None, line_num: int) -> int:
+    """
+    Create a sort key for log record, to be used in K-way merge.
 
-    records = itertools.chain.from_iterable(_parse_log_lines(log) for log in logs)
-    last = None
-    for timestamp, _, msg in sorted(records, key=lambda x: (x[0] or min_date, x[1])):
-        if msg != last or not timestamp:  # dedupe
-            yield msg
-        last = msg
+    :param timestamp: timestamp of the log line
+    :param line_num: line number of the log line
+    :return: a integer as sort key to avoid overhead of memory usage
+    """
+    return int((timestamp or DEFAULT_SORT_DATETIME).timestamp() * 1000) * SORT_KEY_OFFSET + line_num
+
+
+def _is_sort_key_with_default_timestamp(sort_key: int) -> bool:
+    """
+    Check if the sort key was generated with the DEFAULT_SORT_TIMESTAMP.
+
+    This is used to identify log records that don't have timestamp.
+
+    :param sort_key: The sort key to check
+    :return: True if the sort key was generated with DEFAULT_SORT_TIMESTAMP, False otherwise
+    """
+    # Extract the timestamp part from the sort key (remove the line number part)
+    timestamp_part = sort_key // SORT_KEY_OFFSET
+    return timestamp_part == DEFAULT_SORT_TIMESTAMP
+
+
+def _add_log_from_parsed_log_streams_to_heap(
+    heap: list[tuple[int, StructuredLogMessage]],
+    parsed_log_streams: dict[int, ParsedLogStream],
+) -> None:
+    """
+    Add one log record from each parsed log stream to the heap, and will remove empty log stream from the dict after iterating.
+
+    :param heap: heap to store log records
+    :param parsed_log_streams: dict of parsed log streams
+    """
+    # We intend to initialize the list lazily, as in most cases we don't need to remove any log streams.
+    # This reduces memory overhead, since this function is called repeatedly until all log streams are empty.
+    log_stream_to_remove: list[int] | None = None
+    for idx, log_stream in parsed_log_streams.items():
+        record: ParsedLog | None = next(log_stream, None)
+        if record is None:
+            if log_stream_to_remove is None:
+                log_stream_to_remove = []
+            log_stream_to_remove.append(idx)
+            continue
+        # add type hint to avoid mypy error
+        record = cast("ParsedLog", record)
+        timestamp, line_num, line = record
+        # take int as sort key to avoid overhead of memory usage
+        heapq.heappush(heap, (_create_sort_key(timestamp, line_num), line))
+    # remove empty log stream from the dict
+    if log_stream_to_remove is not None:
+        for idx in log_stream_to_remove:
+            del parsed_log_streams[idx]
+
+
+def _flush_logs_out_of_heap(
+    heap: list[tuple[int, StructuredLogMessage]],
+    flush_size: int,
+    last_log_container: list[StructuredLogMessage | None],
+) -> Generator[StructuredLogMessage, None, None]:
+    """
+    Flush logs out of the heap, deduplicating them based on the last log.
+
+    :param heap: heap to flush logs from
+    :param flush_size: number of logs to flush
+    :param last_log_container: a container to store the last log, to avoid duplicate logs
+    :return: a generator that yields deduplicated logs
+    """
+    last_log = last_log_container[0]
+    for _ in range(flush_size):
+        sort_key, line = heapq.heappop(heap)
+        if line != last_log or _is_sort_key_with_default_timestamp(sort_key):  # dedupe
+            yield line
+        last_log = line
+    # update the last log container with the last log
+    last_log_container[0] = last_log
+
+
+def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
+    """
+    Merge parsed log streams using K-way merge.
+
+    By yielding HALF_CHUNK_SIZE records when heap size exceeds CHUNK_SIZE, we can reduce the chance of messing up the global order.
+    Since there are multiple log streams, we can't guarantee that the records are in global order.
+
+    e.g.
+
+    log_stream1: ----------
+    log_stream2:   ----
+    log_stream3:     --------
+
+    The first record of log_stream3 is later than the fourth record of log_stream1 !
+    :param parsed_log_streams: parsed log streams
+    :return: interleaved log stream
+    """
+    # don't need to push whole tuple into heap, which increases too much overhead
+    # push only sort_key and line into heap
+    heap: list[tuple[int, StructuredLogMessage]] = []
+    # to allow removing empty streams while iterating, also turn the str stream into parsed log stream
+    parsed_log_streams: dict[int, ParsedLogStream] = {
+        idx: _log_stream_to_parsed_log_stream(log_stream) for idx, log_stream in enumerate(log_streams)
+    }
+
+    # keep adding records from logs until all logs are empty
+    last_log_container: list[StructuredLogMessage | None] = [None]
+    while parsed_log_streams:
+        _add_log_from_parsed_log_streams_to_heap(heap, parsed_log_streams)
+
+        # yield HALF_HEAP_DUMP_SIZE records when heap size exceeds HEAP_DUMP_SIZE
+        if len(heap) >= HEAP_DUMP_SIZE:
+            yield from _flush_logs_out_of_heap(heap, HALF_HEAP_DUMP_SIZE, last_log_container)
+
+    # yield remaining records
+    yield from _flush_logs_out_of_heap(heap, len(heap), last_log_container)
+    # free memory
+    del heap
+    del parsed_log_streams
+
+
+def _is_logs_stream_like(log) -> bool:
+    """Check if the logs are stream-like."""
+    return isinstance(log, (chain, GeneratorType))
+
+
+def _get_compatible_log_stream(
+    log_messages: LogMessages,
+) -> RawLogStream:
+    """
+    Convert legacy log message blobs into a generator that yields log lines.
+
+    :param log_messages: List of legacy log message strings.
+    :return: A generator that yields interleaved log lines.
+    """
+    yield from chain.from_iterable(
+        _stream_lines_by_chunk(io.StringIO(log_message)) for log_message in log_messages
+    )
 
 
 class FileTaskHandler(logging.Handler):
@@ -345,8 +577,8 @@ class FileTaskHandler(logging.Handler):
         self,
         ti: TaskInstance | TaskInstanceHistory,
         try_number: int,
-        metadata: dict[str, Any] | None = None,
-    ):
+        metadata: LogMetadata | None = None,
+    ) -> tuple[LogHandlerOutputStream | LegacyProvidersLogType, LogMetadata]:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -370,22 +602,38 @@ class FileTaskHandler(logging.Handler):
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
+        sources: LogSourceInfo = []
         source_list: list[str] = []
-        remote_logs: LogMessages | None = []
-        local_logs: list[str] = []
-        sources: list[str] = []
-        executor_logs: list[str] = []
-        served_logs: LogMessages = []
+        remote_logs: list[RawLogStream] = []
+        local_logs: list[RawLogStream] = []
+        executor_logs: list[RawLogStream] = []
+        served_logs: list[RawLogStream] = []
         with suppress(NotImplementedError):
-            sources, remote_logs = self._read_remote_logs(ti, try_number, metadata)
-
+            sources, logs = self._read_remote_logs(ti, try_number, metadata)
+            if not logs:
+                remote_logs = []
+            elif isinstance(logs, list) and isinstance(logs[0], str):
+                # If the logs are in legacy format, convert them to a generator of log lines
+                remote_logs = [
+                    # We don't need to use the log_pos here, as we are using the metadata to track the position
+                    _get_compatible_log_stream(cast("list[str]", logs))
+                ]
+            elif isinstance(logs, list) and _is_logs_stream_like(logs[0]):
+                # If the logs are already in a stream-like format, we can use them directly
+                remote_logs = cast("list[RawLogStream]", logs)
+            else:
+                # If the logs are in a different format, raise an error
+                raise TypeError("Logs should be either a list of strings or a generator of log lines.")
+            # Extend LogSourceInfo
             source_list.extend(sources)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
             executor_get_task_log = self._get_executor_get_task_log(ti)
             response = executor_get_task_log(ti, try_number)
             if response:
-                sources, executor_logs = response
+                sources, logs = response
+                # make the logs stream-like compatible
+                executor_logs = [_get_compatible_log_stream(logs)]
             if sources:
                 source_list.extend(sources)
                 has_k8s_exec_pod = True
@@ -404,15 +652,13 @@ class FileTaskHandler(logging.Handler):
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
 
-        logs = list(
-            _interleave_logs(
-                *local_logs,
-                (remote_logs or []),
-                *(executor_logs or []),
-                *served_logs,
-            )
+        out_stream: LogHandlerOutputStream = _interleave_logs(
+            *local_logs,
+            *remote_logs,
+            *executor_logs,
+            *served_logs,
         )
-        log_pos = len(logs)
+
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
         header = [
@@ -423,12 +669,22 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
         )
-        if metadata and "log_pos" in metadata:
-            previous_line = metadata["log_pos"]
-            logs = logs[previous_line:]  # Cut off previously passed log test as new tail
-        else:
-            logs = header + logs
-        return logs, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+            log_pos = stream_accumulator.total_lines
+            out_stream = stream_accumulator.stream
+
+            # skip log stream until the last position
+            if metadata and "log_pos" in metadata:
+                islice(out_stream, metadata["log_pos"])
+            else:
+                # first time reading log, add messages before interleaved log stream
+                out_stream = chain(header, out_stream)
+
+            return out_stream, {
+                "end_of_log": end_of_log,
+                "log_pos": log_pos,
+            }
 
     @staticmethod
     @staticmethod
@@ -469,8 +725,8 @@ class FileTaskHandler(logging.Handler):
         self,
         task_instance: TaskInstance | TaskInstanceHistory,
         try_number: int | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> tuple[list[StructuredLogMessage] | str, dict[str, Any]]:
+        metadata: LogMetadata | None = None,
+    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
         """
         Read logs of given task instance from local machine.
 
@@ -489,7 +745,7 @@ class FileTaskHandler(logging.Handler):
                     event="Task was skipped, no logs available."
                 )
             ]
-            return logs, {"end_of_log": True}
+            return chain(logs), {"end_of_log": True}
 
         if try_number is None or try_number < 1:
             logs = [
@@ -497,9 +753,38 @@ class FileTaskHandler(logging.Handler):
                     level="error", event=f"Error fetching the logs. Try number {try_number} is invalid."
                 )
             ]
-            return logs, {"end_of_log": True}
+            return chain(logs), {"end_of_log": True}
 
-        return self._read(task_instance, try_number, metadata)
+        # compatibility for es_task_handler and os_task_handler
+        read_result = self._read(task_instance, try_number, metadata)
+        out_stream, metadata = read_result
+        # If the out_stream is None or empty, return the read result
+        if not out_stream:
+            out_stream = cast("Generator[StructuredLogMessage, None, None]", out_stream)
+            return out_stream, metadata
+
+        if _is_logs_stream_like(out_stream):
+            out_stream = cast("Generator[StructuredLogMessage, None, None]", out_stream)
+            return out_stream, metadata
+        if isinstance(out_stream, list) and isinstance(out_stream[0], StructuredLogMessage):
+            out_stream = cast("list[StructuredLogMessage]", out_stream)
+            return (log for log in out_stream), metadata
+        if isinstance(out_stream, list) and isinstance(out_stream[0], str):
+            # If the out_stream is a list of strings, convert it to a generator
+            out_stream = cast("list[str]", out_stream)
+            raw_stream = _stream_lines_by_chunk(io.StringIO("".join(out_stream)))
+            out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
+            return out_stream, metadata
+        if isinstance(out_stream, str):
+            # If the out_stream is a string, convert it to a generator
+            raw_stream = _stream_lines_by_chunk(io.StringIO(out_stream))
+            out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
+            return out_stream, metadata
+        raise TypeError(
+            "Invalid log stream type. Expected a generator of StructuredLogMessage, list of StructuredLogMessage, list of str or str."
+            f" Got {type(out_stream).__name__} instead."
+            f" Content type: {type(out_stream[0]).__name__ if isinstance(out_stream, (list, tuple)) and out_stream else 'empty'}"
+        )
 
     @staticmethod
     def _prepare_log_folder(directory: Path, new_folder_permissions: int):
@@ -565,15 +850,28 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
     @staticmethod
-    def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
+    def _read_from_local(
+        worker_log_path: Path,
+    ) -> LogResponse:
+        sources: LogSourceInfo = []
+        log_streams: list[RawLogStream] = []
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        sources = [os.fspath(x) for x in paths]
-        logs = [file.read_text() for file in paths]
-        return sources, logs
+        if not paths:
+            return sources, log_streams
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[LogSourceInfo, LogMessages]:
-        sources = []
-        logs = []
+        for path in paths:
+            sources.append(os.fspath(path))
+            # Read the log file and yield lines
+            log_streams.append(_stream_lines_by_chunk(open(path, encoding="utf-8")))
+        return sources, log_streams
+
+    def _read_from_logs_server(
+        self,
+        ti: TaskInstance,
+        worker_log_rel_path: str,
+    ) -> LogResponse:
+        sources: LogSourceInfo = []
+        log_streams: list[RawLogStream] = []
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
@@ -590,20 +888,26 @@ class FileTaskHandler(logging.Handler):
             else:
                 # Check if the resource was properly fetched
                 response.raise_for_status()
-                if response.text:
+                if int(response.headers.get("Content-Length", 0)) > 0:
                     sources.append(url)
-                    logs.append(response.text)
+                    log_streams.append(
+                        _stream_lines_by_chunk(io.TextIOWrapper(cast("IO[bytes]", response.raw)))
+                    )
         except Exception as e:
             from requests.exceptions import InvalidURL
 
-            if isinstance(e, InvalidURL) and ti.task.inherits_from_empty_operator is True:
+            if (
+                isinstance(e, InvalidURL)
+                and ti.task is not None
+                and ti.task.inherits_from_empty_operator is True
+            ):
                 sources.append(self.inherits_from_empty_operator_log_message)
             else:
                 sources.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
-        return sources, logs
+        return sources, log_streams
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[LogSourceInfo, LogMessages]:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> LegacyLogResponse | LogResponse:
         """
         Implement in subclasses to read from the remote service.
 

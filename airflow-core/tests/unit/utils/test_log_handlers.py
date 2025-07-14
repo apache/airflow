@@ -17,15 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import heapq
+import io
 import itertools
 import logging
 import logging.config
 import os
 import re
-from collections.abc import Iterable
 from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
+from typing import cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -46,41 +48,40 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
+    DEFAULT_SORT_DATETIME,
     FileTaskHandler,
     LogType,
+    ParsedLogStream,
     StructuredLogMessage,
+    _add_log_from_parsed_log_streams_to_heap,
+    _create_sort_key,
     _fetch_logs_from_service,
+    _flush_logs_out_of_heap,
     _interleave_logs,
-    _parse_log_lines,
+    _is_logs_stream_like,
+    _is_sort_key_with_default_timestamp,
+    _log_stream_to_parsed_log_stream,
+    _stream_lines_by_chunk,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.file_task_handler import (
+    convert_list_to_stream,
+    extract_events,
+    mock_parsed_logs_factory,
+)
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
-DEFAULT_DATE = datetime(2016, 1, 1)
+DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
-
-
-def events(logs: Iterable[StructuredLogMessage], skip_source_info=True) -> list[str]:
-    """Helper function to return just the event (a.k.a message) from a list of StructuredLogMessage"""
-    logs = iter(logs)
-    if skip_source_info:
-
-        def is_source_group(log: StructuredLogMessage):
-            return not hasattr(log, "timestamp") or log.event == "::endgroup"
-
-        logs = itertools.dropwhile(is_source_group, logs)
-
-    return [s.event for s in logs]
 
 
 class TestFileTaskLogHandler:
@@ -144,9 +145,11 @@ class TestFileTaskLogHandler:
         assert hasattr(file_handler, "read")
         # Return value of read must be a tuple of list and list.
         # passing invalid `try_number` to read function
-        log, metadata = file_handler.read(ti, 0)
+        log_handler_output_stream, metadata = file_handler.read(ti, 0)
         assert isinstance(metadata, dict)
-        assert log[0].event == "Error fetching the logs. Try number 0 is invalid."
+        assert extract_events(log_handler_output_stream) == [
+            "Error fetching the logs. Try number 0 is invalid."
+        ]
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
@@ -182,7 +185,8 @@ class TestFileTaskLogHandler:
         assert log_filename.endswith("0.log"), log_filename
 
         # Return value of read must be a tuple of list and list.
-        logs, metadata = file_handler.read(ti)
+        log_handler_output_stream, metadata = file_handler.read(ti)
+        logs = list(log_handler_output_stream)
         assert logs[0].event == "Task was skipped, no logs available."
 
         # Remove the generated tmp log file.
@@ -225,14 +229,16 @@ class TestFileTaskLogHandler:
         file_handler.close()
 
         assert hasattr(file_handler, "read")
-        log, metadata = file_handler.read(ti, 1)
+        log_handler_output_stream, metadata = file_handler.read(ti, 1)
         assert isinstance(metadata, dict)
         target_re = re.compile(r"\A\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\Z")
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
 
-        assert any(re.search(target_re, e) for e in events(log)), "Logs were " + str(log)
+        assert any(re.search(target_re, e) for e in extract_events(log_handler_output_stream)), (
+            f"Logs were {log_handler_output_stream}"
+        )
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
@@ -352,8 +358,8 @@ class TestFileTaskLogHandler:
         logger.info("Test")
 
         # Return value of read must be a tuple of list and list.
-        logs, metadata = file_handler.read(ti)
-        assert isinstance(logs, list)
+        log_handler_output_stream, metadata = file_handler.read(ti)
+        assert _is_logs_stream_like(log_handler_output_stream)
         # Logs for running tasks should show up too.
         assert isinstance(metadata, dict)
 
@@ -430,7 +436,7 @@ class TestFileTaskLogHandler:
         assert find_rotate_log_1 is True
 
         # Logs for running tasks should show up too.
-        assert isinstance(logs, list)
+        assert _is_logs_stream_like(logs)
 
         # Remove the two generated tmp log files.
         os.remove(log_filename)
@@ -445,7 +451,7 @@ class TestFileTaskLogHandler:
         path = Path(
             "dag_id=dag_for_testing_local_log_read/run_id=scheduled__2016-01-01T00:00:00+00:00/task_id=task_for_testing_local_log_read/attempt=1.log"
         )
-        mock_read_local.return_value = (["the messages"], ["the log"])
+        mock_read_local.return_value = (["the messages"], [convert_list_to_stream(["the log"])])
         local_log_file_read = create_task_instance(
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
@@ -453,24 +459,23 @@ class TestFileTaskLogHandler:
             logical_date=DEFAULT_DATE,
         )
         fth = FileTaskHandler("")
-        logs, metadata = fth._read(ti=local_log_file_read, try_number=1)
+        log_handler_output_stream, metadata = fth._read(ti=local_log_file_read, try_number=1)
         mock_read_local.assert_called_with(path)
-        as_text = events(logs)
-        assert logs[0].sources == ["the messages"]
-        assert as_text[-1] == "the log"
+        assert extract_events(log_handler_output_stream) == ["the log"]
         assert metadata == {"end_of_log": True, "log_pos": 1}
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
         path1 = tmp_path / "hello1.log"
         path2 = tmp_path / "hello1.log.suffix.log"
-        path1.write_text("file1 content")
-        path2.write_text("file2 content")
+        path1.write_text("file1 content\nfile1 content2")
+        path2.write_text("file2 content\nfile2 content2")
         fth = FileTaskHandler("")
-        assert fth._read_from_local(path1) == (
-            [str(path1), str(path2)],
-            ["file1 content", "file2 content"],
-        )
+        log_source_info, log_streams = fth._read_from_local(path1)
+        assert log_source_info == [str(path1), str(path2)]
+        assert len(log_streams) == 2
+        assert list(log_streams[0]) == ["file1 content", "file1 content2"]
+        assert list(log_streams[1]) == ["file2 content", "file2 content2"]
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -500,32 +505,57 @@ class TestFileTaskLogHandler:
             logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
+        expected_logs = ["::group::Log message source details", "::endgroup::"]
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
             if remote_logs:
                 fth._read_remote_logs = mock.Mock()
                 fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
+                expected_logs.extend(
+                    [
+                        "remote",
+                        "log",
+                        "content",
+                    ]
+                )
             if local_logs:
                 fth._read_from_local = mock.Mock()
-                fth._read_from_local.return_value = ["found local logs"], ["local\nlog\ncontent"]
+                fth._read_from_local.return_value = (
+                    ["found local logs"],
+                    [convert_list_to_stream("local\nlog\ncontent".splitlines())],
+                )
+                # only when not read from remote and TI is unfinished will read from local
+                if not remote_logs:
+                    expected_logs.extend(
+                        [
+                            "local",
+                            "log",
+                            "content",
+                        ]
+                    )
             fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
+            fth._read_from_logs_server.return_value = (
+                ["this message"],
+                [convert_list_to_stream("this\nlog\ncontent".splitlines())],
+            )
+            # only when not read from remote and not read from local will read from logs server
+            if served_logs_checked:
+                expected_logs.extend(
+                    [
+                        "this",
+                        "log",
+                        "content",
+                    ]
+                )
+
             logs, metadata = fth._read(ti=ti, try_number=1)
         if served_logs_checked:
             fth._read_from_logs_server.assert_called_once()
-            assert events(logs) == [
-                "::group::Log message source details",
-                "::endgroup::",
-                "this",
-                "log",
-                "content",
-            ]
-            assert metadata == {"end_of_log": True, "log_pos": 3}
         else:
             fth._read_from_logs_server.assert_not_called()
-            assert logs
-            assert metadata
+        assert extract_events(logs, False) == expected_logs
+        assert metadata == {"end_of_log": True, "log_pos": 3}
 
     def test_add_triggerer_suffix(self):
         sample = "any/path/to/thing.txt"
@@ -733,11 +763,119 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 """
 
 
-def test_parse_timestamps():
-    actual = []
-    for timestamp, _, _ in _parse_log_lines(log_sample.splitlines()):
-        actual.append(timestamp)
-    assert actual == [
+@pytest.mark.parametrize(
+    "chunk_size, expected_read_calls",
+    [
+        (10, 4),
+        (20, 3),
+        # will read all logs in one call, but still need another call to get empty string at the end to escape the loop
+        (50, 2),
+        (100, 2),
+    ],
+)
+def test__stream_lines_by_chunk(chunk_size, expected_read_calls):
+    # Mock CHUNK_SIZE to a smaller value to test
+    with mock.patch("airflow.utils.log.file_task_handler.CHUNK_SIZE", chunk_size):
+        log_io = io.StringIO("line1\nline2\nline3\nline4\n")
+        log_io.read = mock.MagicMock(wraps=log_io.read)
+
+        # Stream lines using the function
+        streamed_lines = list(_stream_lines_by_chunk(log_io))
+
+        # Verify the output matches the input split by lines
+        expected_output = ["line1", "line2", "line3", "line4"]
+        assert log_io.read.call_count == expected_read_calls, (
+            f"Expected {expected_read_calls} calls to read, got {log_io.read.call_count}"
+        )
+        assert streamed_lines == expected_output, f"Expected {expected_output}, got {streamed_lines}"
+
+
+@pytest.mark.parametrize(
+    "seekable",
+    [
+        pytest.param(True, id="seekable_stream"),
+        pytest.param(False, id="non_seekable_stream"),
+    ],
+)
+@pytest.mark.parametrize(
+    "closed",
+    [
+        pytest.param(False, id="not_closed_stream"),
+        pytest.param(True, id="closed_stream"),
+    ],
+)
+@pytest.mark.parametrize(
+    "unexpected_exception",
+    [
+        pytest.param(None, id="no_exception"),
+        pytest.param(ValueError, id="value_error"),
+        pytest.param(IOError, id="io_error"),
+        pytest.param(Exception, id="generic_exception"),
+    ],
+)
+@mock.patch(
+    "airflow.utils.log.file_task_handler.CHUNK_SIZE", 10
+)  # Mock CHUNK_SIZE to a smaller value for testing
+def test__stream_lines_by_chunk_error_handling(seekable, closed, unexpected_exception):
+    """
+    Test that _stream_lines_by_chunk handles errors correctly.
+    """
+    log_io = io.StringIO("line1\nline2\nline3\nline4\n")
+    log_io.seekable = mock.MagicMock(return_value=seekable)
+    log_io.seek = mock.MagicMock(wraps=log_io.seek)
+    # Mock the read method to check the call count and handle exceptions
+    if unexpected_exception:
+        expected_error = unexpected_exception("An error occurred while reading the log stream.")
+        log_io.read = mock.MagicMock(side_effect=expected_error)
+    else:
+        log_io.read = mock.MagicMock(wraps=log_io.read)
+
+    # Setup closed state if needed - must be done before starting the test
+    if closed:
+        log_io.close()
+
+    # If an exception is expected, we mock the read method to raise it
+    if unexpected_exception and not closed:
+        # Only expect logger error if stream is not closed and there's an exception
+        with mock.patch("airflow.utils.log.file_task_handler.logger.error") as mock_logger_error:
+            result = list(_stream_lines_by_chunk(log_io))
+            mock_logger_error.assert_called_once_with("Error reading log stream: %s", expected_error)
+    else:
+        # For normal case or closed stream with exception, collect the output
+        result = list(_stream_lines_by_chunk(log_io))
+
+    # Check if seekable was called properly
+    if seekable and not closed:
+        log_io.seek.assert_called_once_with(0)
+    if not seekable:
+        log_io.seek.assert_not_called()
+
+    # Validate the results based on the conditions
+    if not closed and not unexpected_exception:  # Non-seekable streams without errors should still get lines
+        assert log_io.read.call_count > 1, "Expected read method to be called at least once."
+        assert result == ["line1", "line2", "line3", "line4"]
+    elif closed:
+        assert log_io.read.call_count == 0, "Read method should not be called on a closed stream."
+        assert result == [], "Expected no lines to be yield from a closed stream."
+    elif unexpected_exception:  # If an exception was raised
+        assert log_io.read.call_count == 1, "Read method should be called once."
+        assert result == [], "Expected no lines to be yield from a stream that raised an exception."
+
+
+def test__log_stream_to_parsed_log_stream():
+    parsed_log_stream = _log_stream_to_parsed_log_stream(io.StringIO(log_sample))
+
+    actual_timestamps = []
+    last_idx = -1
+    for parsed_log in parsed_log_stream:
+        timestamp, idx, structured_log = parsed_log
+        actual_timestamps.append(timestamp)
+        if last_idx != -1:
+            assert idx > last_idx
+        last_idx = idx
+        assert isinstance(structured_log, StructuredLogMessage)
+
+    assert actual_timestamps == [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -761,34 +899,249 @@ def test_parse_timestamps():
     ]
 
 
+def test__create_sort_key():
+    # assert _sort_key should return int
+    sort_key = _create_sort_key(pendulum.parse("2022-11-16T00:05:54.278000-08:00"), 10)
+    assert sort_key == 16685859542780000010
+
+
+@pytest.mark.parametrize(
+    "timestamp, line_num, expected",
+    [
+        pytest.param(
+            pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
+            10,
+            False,
+            id="normal_timestamp_1",
+        ),
+        pytest.param(
+            pendulum.parse("2022-11-16T00:05:54.457000-08:00"),
+            2025,
+            False,
+            id="normal_timestamp_2",
+        ),
+        pytest.param(
+            DEFAULT_SORT_DATETIME,
+            200,
+            True,
+            id="default_timestamp",
+        ),
+    ],
+)
+def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
+    assert _is_sort_key_with_default_timestamp(_create_sort_key(timestamp, line_num)) == expected
+
+
+@pytest.mark.parametrize(
+    "log_stream, expected",
+    [
+        pytest.param(
+            convert_list_to_stream(
+                [
+                    "2022-11-16T00:05:54.278000-08:00",
+                    "2022-11-16T00:05:54.457000-08:00",
+                ]
+            ),
+            True,
+            id="normal_log_stream",
+        ),
+        pytest.param(
+            itertools.chain(
+                [
+                    "2022-11-16T00:05:54.278000-08:00",
+                    "2022-11-16T00:05:54.457000-08:00",
+                ],
+                convert_list_to_stream(
+                    [
+                        "2022-11-16T00:05:54.278000-08:00",
+                        "2022-11-16T00:05:54.457000-08:00",
+                    ]
+                ),
+            ),
+            True,
+            id="chain_log_stream",
+        ),
+        pytest.param(
+            [
+                "2022-11-16T00:05:54.278000-08:00",
+                "2022-11-16T00:05:54.457000-08:00",
+            ],
+            False,
+            id="non_stream_log",
+        ),
+    ],
+)
+def test__is_logs_stream_like(log_stream, expected):
+    assert _is_logs_stream_like(log_stream) == expected
+
+
+def test__add_log_from_parsed_log_streams_to_heap():
+    """
+    Test cases:
+
+    Timestamp: 26 27 28 29 30 31
+    Source 1:     --
+    Source 2:           -- --
+    Source 3:        -- -- --
+    """
+    heap: list[tuple[int, StructuredLogMessage]] = []
+    input_parsed_log_streams: dict[int, ParsedLogStream] = {
+        0: convert_list_to_stream(
+            mock_parsed_logs_factory("Source 1", pendulum.parse("2022-11-16T00:05:54.270000-08:00"), 1)
+        ),
+        1: convert_list_to_stream(
+            mock_parsed_logs_factory("Source 2", pendulum.parse("2022-11-16T00:05:54.290000-08:00"), 2)
+        ),
+        2: convert_list_to_stream(
+            mock_parsed_logs_factory("Source 3", pendulum.parse("2022-11-16T00:05:54.380000-08:00"), 3)
+        ),
+    }
+
+    # Check that we correctly get the first line of each non-empty log stream
+
+    # First call: should add log records for all log streams
+    _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
+    assert len(input_parsed_log_streams) == 3
+    assert len(heap) == 3
+    # Second call: source 1 is empty, should add log records for source 2 and source 3
+    _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
+    assert len(input_parsed_log_streams) == 2  # Source 1 should be removed
+    assert len(heap) == 5
+    # Third call: source 1 and source 2 are empty, should add log records for source 3
+    _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
+    assert len(input_parsed_log_streams) == 1  # Source 2 should be removed
+    assert len(heap) == 6
+    # Fourth call: source 1, source 2, and source 3 are empty, should not add any log records
+    _add_log_from_parsed_log_streams_to_heap(heap, input_parsed_log_streams)
+    assert len(input_parsed_log_streams) == 0  # Source 3 should be removed
+    assert len(heap) == 6
+    # Fifth call: all sources are empty, should not add any log records
+    assert len(input_parsed_log_streams) == 0  # remains empty
+    assert len(heap) == 6  # no change in heap size
+    # Check heap
+    expected_logs: list[str] = [
+        "Source 1 Event 0",
+        "Source 2 Event 0",
+        "Source 3 Event 0",
+        "Source 2 Event 1",
+        "Source 3 Event 1",
+        "Source 3 Event 2",
+    ]
+    actual_logs: list[str] = []
+    for _ in range(len(heap)):
+        _, log = heapq.heappop(heap)
+        actual_logs.append(log.event)
+    assert actual_logs == expected_logs
+
+
+@pytest.mark.parametrize(
+    "heap_setup, flush_size, last_log, expected_events",
+    [
+        pytest.param(
+            [("msg1", "2023-01-01"), ("msg2", "2023-01-02")],
+            2,
+            None,
+            ["msg1", "msg2"],
+            id="exact_size_flush",
+        ),
+        pytest.param(
+            [
+                ("msg1", "2023-01-01"),
+                ("msg2", "2023-01-02"),
+                ("msg3", "2023-01-03"),
+                ("msg3", "2023-01-03"),
+                ("msg5", "2023-01-05"),
+            ],
+            5,
+            None,
+            ["msg1", "msg2", "msg3", "msg5"],  # msg3 is deduplicated, msg5 has default timestamp
+            id="flush_with_duplicates",
+        ),
+        pytest.param(
+            [("msg1", "2023-01-01"), ("msg1", "2023-01-01"), ("msg2", "2023-01-02")],
+            3,
+            "msg1",
+            ["msg2"],  # The last_log is "msg1", so any duplicates of "msg1" should be skipped
+            id="flush_with_last_log",
+        ),
+        pytest.param(
+            [("msg1", "DEFAULT"), ("msg1", "DEFAULT"), ("msg2", "DEFAULT")],
+            3,
+            "msg1",
+            [
+                "msg1",
+                "msg1",
+                "msg2",
+            ],  # All messages have default timestamp, so they should be flushed even if last_log is "msg1"
+            id="flush_with_default_timestamp_and_last_log",
+        ),
+        pytest.param(
+            [("msg1", "2023-01-01"), ("msg2", "2023-01-02"), ("msg3", "2023-01-03")],
+            2,
+            None,
+            ["msg1", "msg2"],  # Only the first two messages should be flushed
+            id="flush_size_smaller_than_heap",
+        ),
+    ],
+)
+def test__flush_logs_out_of_heap(heap_setup, flush_size, last_log, expected_events):
+    """Test the _flush_logs_out_of_heap function with different scenarios."""
+
+    # Create structured log messages from the test setup
+    heap = []
+    messages = {}
+    for i, (event, timestamp_str) in enumerate(heap_setup):
+        if timestamp_str == "DEFAULT":
+            timestamp = DEFAULT_SORT_DATETIME
+        else:
+            timestamp = pendulum.parse(timestamp_str)
+
+        msg = StructuredLogMessage(event=event, timestamp=timestamp)
+        messages[event] = msg
+        heapq.heappush(heap, (_create_sort_key(msg.timestamp, i), msg))
+
+    # Set last_log if specified in the test case
+    last_log_obj = messages.get(last_log) if last_log is not None else None
+    last_log_container = [last_log_obj]
+
+    # Run the function under test
+    result = list(_flush_logs_out_of_heap(heap, flush_size, last_log_container))
+
+    # Verify the results
+    assert len(result) == len(expected_events)
+    assert len(heap) == (len(heap_setup) - flush_size)
+    for i, expected_event in enumerate(expected_events):
+        assert result[i].event == expected_event, f"result = {result}, expected_event = {expected_events}"
+
+    # verify that the last log is updated correctly
+    last_log_obj = last_log_container[0]
+    assert last_log_obj is not None
+    last_log_obj = cast("StructuredLogMessage", last_log_obj)
+    assert last_log_obj.event == expected_events[-1]
+
+
 def test_interleave_interleaves():
-    log_sample1 = "\n".join(
-        [
-            "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
-        ]
-    )
-    log_sample2 = "\n".join(
-        [
-            "[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00",
-            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
-            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
-            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
-            "[2022-11-16T00:05:54.306-0800] {standard_task_runner.py:82} INFO - Running: ['airflow', 'tasks', 'run', 'simple_async_timedelta', 'wait', 'manual__2022-11-16T08:05:52.324532+00:00', '--job-id', '33648', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmp725r305n']",
-            "[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait",
-        ]
-    )
-    log_sample3 = "\n".join(
-        [
-            "[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan",
-            "[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=airflow",
-            "AIRFLOW_CTX_DAG_ID=simple_async_timedelta",
-            "AIRFLOW_CTX_TASK_ID=wait",
-            "AIRFLOW_CTX_LOGICAL_DATE=2022-11-16T08:05:52.324532+00:00",
-            "AIRFLOW_CTX_TRY_NUMBER=1",
-            "AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00",
-            "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
-        ]
-    )
+    log_sample1 = [
+        "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
+    ]
+    log_sample2 = [
+        "[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00",
+        "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+        "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+        "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+        "[2022-11-16T00:05:54.306-0800] {standard_task_runner.py:82} INFO - Running: ['airflow', 'tasks', 'run', 'simple_async_timedelta', 'wait', 'manual__2022-11-16T08:05:52.324532+00:00', '--job-id', '33648', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmp725r305n']",
+        "[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait",
+    ]
+    log_sample3 = [
+        "[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan",
+        "[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=airflow",
+        "AIRFLOW_CTX_DAG_ID=simple_async_timedelta",
+        "AIRFLOW_CTX_TASK_ID=wait",
+        "AIRFLOW_CTX_LOGICAL_DATE=2022-11-16T08:05:52.324532+00:00",
+        "AIRFLOW_CTX_TRY_NUMBER=1",
+        "AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00",
+        "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
+    ]
 
     # -08:00
     tz = pendulum.tz.fixed_timezone(-28800)
@@ -865,11 +1218,14 @@ def test_interleave_interleaves():
         },
     ]
     # Use a type adapter to durn it in to dicts -- makes it easier to compare/test than a bunch of objects
-    results = TypeAdapter(list[StructuredLogMessage]).dump_python(
-        _interleave_logs(log_sample2, log_sample1, log_sample3)
+    results: list[StructuredLogMessage] = list(
+        _interleave_logs(
+            convert_list_to_stream(log_sample2),
+            convert_list_to_stream(log_sample1),
+            convert_list_to_stream(log_sample3),
+        )
     )
-    # TypeAdapter gives us a generator out when it's generator is an input. Nice, but not useful for testing
-    results = list(results)
+    results: list[dict] = TypeAdapter(list[StructuredLogMessage]).dump_python(results)
     assert results == expected
 
 
@@ -886,7 +1242,13 @@ def test_interleave_logs_correct_ordering():
     [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
     """
 
-    logs = events(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
+    logs = extract_events(
+        _interleave_logs(
+            convert_list_to_stream(sample_with_dupe.splitlines()),
+            convert_list_to_stream([]),
+            convert_list_to_stream(sample_with_dupe.splitlines()),
+        )
+    )
     assert sample_with_dupe == "\n".join(logs)
 
 
@@ -902,7 +1264,12 @@ def test_interleave_logs_correct_dedupe():
     test,
     test"""
 
-    logs = events(_interleave_logs(",\n    ".join(["test"] * 10)))
+    input_logs = ",\n    ".join(["test"] * 10)
+    logs = extract_events(
+        _interleave_logs(
+            convert_list_to_stream(input_logs.splitlines()),
+        )
+    )
     assert sample_without_dupe == "\n".join(logs)
 
 
