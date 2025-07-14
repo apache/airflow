@@ -54,7 +54,7 @@ class TestGlueJobTrigger:
             waiter_delay=10,
         )
         generator = trigger.run()
-        event = await generator.asend(None)  # type:ignore[attr-defined]
+        event = await generator.asend(None)
 
         assert_expected_waiter_type(mock_get_waiter, "job_complete")
         mock_get_waiter().wait.assert_called_once()
@@ -87,7 +87,7 @@ class TestGlueJobTrigger:
         generator = trigger.run()
 
         with pytest.raises(AirflowException):
-            await generator.asend(None)  # type:ignore[attr-defined]
+            await generator.asend(None)
         assert_expected_waiter_type(mock_get_waiter, "job_complete")
 
     def test_serialization(self):

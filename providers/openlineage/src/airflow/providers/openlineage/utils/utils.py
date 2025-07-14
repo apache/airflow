@@ -310,7 +310,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
-        return operator._task_module + "." + operator._task_type  # type: ignore
+        return operator._task_module + "." + operator._task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
@@ -947,7 +947,7 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
         from airflow.sdk.definitions.asset import _get_normalized_scheme
     else:
         try:
-            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
         except ImportError:
             return None
 

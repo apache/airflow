@@ -163,7 +163,7 @@ def _create_dagrun(
         data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        run_after=logical_date or data_interval.end,  # type: ignore
+        run_after=logical_date or data_interval.end,
         data_interval=data_interval,
     )
     return dag.create_dagrun(
@@ -1690,7 +1690,7 @@ my_postgres_conn:
         ) as dag:
             EmptyOperator(task_id=task_id)
 
-        session = settings.Session()  # type: ignore
+        session = settings.Session()
         dagrun_1 = dag_maker.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,

@@ -541,7 +541,7 @@ class CommandFactory:
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
                                 arg_type=None if is_bool else python_type,
-                                arg_action=argparse.BooleanOptionalAction if is_bool else None,  # type: ignore
+                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if is_bool else None,
                             )
