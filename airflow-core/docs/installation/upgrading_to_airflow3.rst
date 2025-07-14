@@ -108,9 +108,25 @@ Some changes can be automatically fixed. To do so, run the following command:
     ruff check dag/ --select AIR301 --fix --preview
 
 
+Some of the fixes are marked as unsafe. Unsafe fixes usually do not break dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
+To trigger these fixes, run the following command:
+
+.. code-block:: bash
+
+    ruff check dags/ --select AIR301 --fix --unsafe-fixes --preview
+
+.. note::
+  Ruff has strict policy about when a rule becomes stable. Till it does you must use --preview flag.
+  The progress of Airflow Ruff rule become stable can be tracked in https://github.com/astral-sh/ruff/issues/17749
+  That said, from Airflow side the rules are perfectly fine to be used.
+
+.. note::
+
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to `from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
+
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
-Step 4: Install the Standard Providers
+Step 4: Install the Standard Provider
 --------------------------------------
 
 - Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
