@@ -100,9 +100,10 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template(self, session, clean_dags_and_dagruns):
         if AIRFLOW_V_3_0_PLUS:
-            self.operator.dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [self.operator.dag])
             SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
@@ -147,6 +148,7 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         dag = DAG(
             dag_id="test_file",
@@ -175,7 +177,7 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 

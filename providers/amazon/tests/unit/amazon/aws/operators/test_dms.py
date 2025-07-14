@@ -313,13 +313,14 @@ class TestDmsDescribeTasksOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=describe_task, dag_version_id=dag_version.id)
@@ -505,6 +506,7 @@ class TestDmsDescribeReplicationConfigsOperator:
 
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_template_fields_native(self, mock_conn, session):
         logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
@@ -520,7 +522,7 @@ class TestDmsDescribeReplicationConfigsOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)

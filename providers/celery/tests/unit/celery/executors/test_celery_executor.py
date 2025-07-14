@@ -193,6 +193,7 @@ class TestCeleryExecutor:
                 ) or mock_fork.call_args == ((command, "abcdef-124215-abcdef"),)
 
     @pytest.mark.backend("mysql", "postgres")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_try_adopt_task_instances_none(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -200,7 +201,7 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             key1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
@@ -214,6 +215,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     @time_machine.travel("2020-01-01", tick=False)
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -222,7 +224,7 @@ class TestCeleryExecutor:
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
@@ -258,6 +260,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -265,7 +268,7 @@ class TestCeleryExecutor:
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(task.dag.dag_id)
             ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
@@ -293,6 +296,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_revoke_task(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -300,7 +304,7 @@ class TestCeleryExecutor:
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(task.dag.dag_id)
             ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)

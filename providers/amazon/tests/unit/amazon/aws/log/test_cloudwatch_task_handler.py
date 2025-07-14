@@ -46,7 +46,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -186,6 +186,7 @@ class TestCloudwatchTaskHandler:
             if session:
                 session.expunge(self.ti)
         clear_db_dags()
+        clear_db_runs()
         clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)

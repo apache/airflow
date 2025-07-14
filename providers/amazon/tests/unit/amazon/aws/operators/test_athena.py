@@ -231,6 +231,7 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_return_value(
         self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
     ):
@@ -238,7 +239,7 @@ class TestAthenaOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=self.athena, dag_version_id=dag_version.id)

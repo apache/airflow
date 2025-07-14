@@ -51,7 +51,8 @@ class TestS3RemoteLogIO:
     def clear_db(self):
         clear_db_dags()
         clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_log_template, tmp_path_factory, session):
@@ -191,7 +192,8 @@ class TestS3TaskHandler:
     def clear_db(self):
         clear_db_dags()
         clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_log_template, tmp_path_factory, session):

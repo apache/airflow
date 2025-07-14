@@ -69,14 +69,19 @@ def get_test_run(dag, **test_kwargs):
         # DAG
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag import DagModel
+            from airflow.models.dagbundle import DagBundleModel
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.settings import Session
 
-            d = DagModel(dag_id=dag.dag_id)
             s = Session()
+            bundle_name = "testing"
+            orm_dag_bundle = DagBundleModel(name=bundle_name)
+            s.add(orm_dag_bundle)
+            s.flush()
+            d = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
             s.add(d)
             s.commit()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         dag_run = dag.test(
             use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1",

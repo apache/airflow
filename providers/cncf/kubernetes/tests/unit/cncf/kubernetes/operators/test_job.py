@@ -122,9 +122,10 @@ class TestKubernetesJobOperator:
         yield
 
         patch.stopall()
-        clear_db_dags()
-        clear_db_runs()
-        clear_db_dag_bundles()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dags()
+            clear_db_runs()
+            clear_db_dag_bundles()
 
     def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesJobOperator"
@@ -505,152 +506,6 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name) is not None
 
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
-    @patch(HOOK_CLASS)
-    def test_execute(self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod):
-        mock_hook.return_value.is_job_failed.return_value = False
-        mock_job_request_obj = mock_build_job_request_obj.return_value
-        mock_job_expected = mock_create_job.return_value
-        mock_ti = mock.MagicMock()
-        context = dict(ti=mock_ti)
-
-        op = KubernetesJobOperator(
-            task_id="test_task_id",
-        )
-        execute_result = op.execute(context=context)
-
-        mock_build_job_request_obj.assert_called_once_with(context)
-        mock_create_job.assert_called_once_with(job_request_obj=mock_job_request_obj)
-        mock_ti.xcom_push.assert_has_calls(
-            [
-                mock.call(key="job_name", value=mock_job_expected.metadata.name),
-                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
-                mock.call(key="job", value=mock_job_expected.to_dict.return_value),
-            ]
-        )
-
-        assert op.job_request_obj == mock_job_request_obj
-        assert op.job == mock_job_expected
-        assert not op.wait_until_job_complete
-        assert execute_result is None
-        assert not mock_hook.wait_until_job_complete.called
-
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.execute_deferrable"))
-    @patch(HOOK_CLASS)
-    def test_execute_in_deferrable(
-        self,
-        mock_hook,
-        mock_execute_deferrable,
-        mock_create_job,
-        mock_build_job_request_obj,
-        mock_get_or_create_pod,
-    ):
-        mock_hook.return_value.is_job_failed.return_value = False
-        mock_job_request_obj = mock_build_job_request_obj.return_value
-        mock_job_expected = mock_create_job.return_value
-        mock_ti = mock.MagicMock()
-        context = dict(ti=mock_ti)
-
-        op = KubernetesJobOperator(
-            task_id="test_task_id",
-            wait_until_job_complete=True,
-            deferrable=True,
-        )
-        actual_result = op.execute(context=context)
-
-        mock_build_job_request_obj.assert_called_once_with(context)
-        mock_create_job.assert_called_once_with(job_request_obj=mock_job_request_obj)
-        mock_ti.xcom_push.assert_has_calls(
-            [
-                mock.call(key="job_name", value=mock_job_expected.metadata.name),
-                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
-            ]
-        )
-        mock_execute_deferrable.assert_called_once()
-
-        assert op.job_request_obj == mock_job_request_obj
-        assert op.job == mock_job_expected
-        assert actual_result is None
-        assert not mock_hook.wait_until_job_complete.called
-
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
-    @patch(HOOK_CLASS)
-    def test_execute_fail(
-        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod
-    ):
-        mock_hook.return_value.is_job_failed.return_value = "Error"
-
-        op = KubernetesJobOperator(
-            task_id="test_task_id",
-            wait_until_job_complete=True,
-        )
-
-        with pytest.raises(AirflowException):
-            op.execute(context=dict(ti=mock.MagicMock()))
-
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.defer"))
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobTrigger"))
-    def test_execute_deferrable(self, mock_trigger, mock_execute_deferrable):
-        mock_cluster_context = mock.MagicMock()
-        mock_config_file = mock.MagicMock()
-        mock_in_cluster = mock.MagicMock()
-
-        mock_job = mock.MagicMock()
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
-
-        mock_pod = mock.MagicMock()
-        mock_pod.metadata.name = POD_NAME
-        mock_pod.metadata.namespace = POD_NAMESPACE
-
-        mock_trigger_instance = mock_trigger.return_value
-
-        op = KubernetesJobOperator(
-            task_id="test_task_id",
-            kubernetes_conn_id=KUBERNETES_CONN_ID,
-            cluster_context=mock_cluster_context,
-            config_file=mock_config_file,
-            in_cluster=mock_in_cluster,
-            job_poll_interval=POLL_INTERVAL,
-            wait_until_job_complete=True,
-            deferrable=True,
-        )
-        op.job = mock_job
-        op.pod = mock_pod
-
-        actual_result = op.execute_deferrable()
-
-        mock_execute_deferrable.assert_called_once_with(
-            trigger=mock_trigger_instance,
-            method_name="execute_complete",
-        )
-        mock_trigger.assert_called_once_with(
-            job_name=JOB_NAME,
-            job_namespace=JOB_NAMESPACE,
-            pod_name=POD_NAME,
-            pod_namespace=POD_NAMESPACE,
-            base_container_name=op.BASE_CONTAINER_NAME,
-            kubernetes_conn_id=KUBERNETES_CONN_ID,
-            cluster_context=mock_cluster_context,
-            config_file=mock_config_file,
-            in_cluster=mock_in_cluster,
-            poll_interval=POLL_INTERVAL,
-            get_logs=True,
-            do_xcom_push=False,
-        )
-        assert actual_result is None
-
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
@@ -704,66 +559,6 @@ class TestKubernetesJobOperator:
         else:
             mocked_write_logs.assert_not_called()
 
-    @pytest.mark.non_db_test_override
-    def test_execute_complete_fail(self):
-        mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti}
-        mock_job = mock.MagicMock()
-        event = {"job": mock_job, "status": "error", "message": "error message"}
-
-        with pytest.raises(AirflowException):
-            KubernetesJobOperator(task_id="test_task_id").execute_complete(context=context, event=event)
-
-        mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
-
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
-    def test_on_kill(self, mock_client):
-        mock_job = mock.MagicMock()
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
-
-        op = KubernetesJobOperator(task_id="test_task_id")
-        op.job = mock_job
-        op.on_kill()
-
-        mock_client.delete_namespaced_job.assert_called_once_with(
-            name=JOB_NAME,
-            namespace=JOB_NAMESPACE,
-        )
-
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
-    def test_on_kill_termination_grace_period(self, mock_client):
-        mock_job = mock.MagicMock()
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
-        mock_termination_grace_period = mock.MagicMock()
-
-        op = KubernetesJobOperator(
-            task_id="test_task_id", termination_grace_period=mock_termination_grace_period
-        )
-        op.job = mock_job
-        op.on_kill()
-
-        mock_client.delete_namespaced_job.assert_called_once_with(
-            name=JOB_NAME,
-            namespace=JOB_NAMESPACE,
-            grace_period_seconds=mock_termination_grace_period,
-        )
-
-    @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
-    @patch(HOOK_CLASS)
-    def test_on_kill_none_job(self, mock_hook, mock_client):
-        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
-
-        op = KubernetesJobOperator(task_id="test_task_id")
-        op.on_kill()
-
-        mock_client.delete_namespaced_job.assert_not_called()
-        mock_serialize.assert_not_called()
-
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.extract_xcom"))
@@ -806,6 +601,216 @@ class TestKubernetesJobOperator:
             mocked_fetch_logs.assert_called_once()
         else:
             mocked_fetch_logs.assert_not_called()
+
+
+@pytest.mark.execution_timeout(300)
+class TestKubernetesJobOperatorNonDB:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self._default_client_mock = self._default_client_patch.start()
+
+        yield
+
+        patch.stopall()
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
+    @patch(HOOK_CLASS)
+    def test_on_kill_none_job(self, mock_hook, mock_client):
+        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+
+        op = KubernetesJobOperator(task_id="test_task_id")
+        op.on_kill()
+
+        mock_client.delete_namespaced_job.assert_not_called()
+        mock_serialize.assert_not_called()
+
+    def test_execute_complete_fail(self):
+        mock_ti = mock.MagicMock()
+        context = {"ti": mock_ti}
+        mock_job = mock.MagicMock()
+        event = {"job": mock_job, "status": "error", "message": "error message"}
+
+        with pytest.raises(AirflowException):
+            KubernetesJobOperator(task_id="test_task_id").execute_complete(context=context, event=event)
+
+        mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_kill(self, mock_client):
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+
+        op = KubernetesJobOperator(task_id="test_task_id")
+        op.job = mock_job
+        op.on_kill()
+
+        mock_client.delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
+        )
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_kill_termination_grace_period(self, mock_client):
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_termination_grace_period = mock.MagicMock()
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id", termination_grace_period=mock_termination_grace_period
+        )
+        op.job = mock_job
+        op.on_kill()
+
+        mock_client.delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
+            grace_period_seconds=mock_termination_grace_period,
+        )
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute(self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod):
+        mock_hook.return_value.is_job_failed.return_value = False
+        mock_job_request_obj = mock_build_job_request_obj.return_value
+        mock_job_expected = mock_create_job.return_value
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+        )
+        execute_result = op.execute(context=context)
+
+        mock_build_job_request_obj.assert_called_once_with(context)
+        mock_create_job.assert_called_once_with(job_request_obj=mock_job_request_obj)
+        mock_ti.xcom_push.assert_has_calls(
+            [
+                mock.call(key="job_name", value=mock_job_expected.metadata.name),
+                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
+                mock.call(key="job", value=mock_job_expected.to_dict.return_value),
+            ]
+        )
+
+        assert op.job_request_obj == mock_job_request_obj
+        assert op.job == mock_job_expected
+        assert not op.wait_until_job_complete
+        assert execute_result is None
+        assert not mock_hook.wait_until_job_complete.called
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.execute_deferrable"))
+    @patch(HOOK_CLASS)
+    def test_execute_in_deferrable(
+        self,
+        mock_hook,
+        mock_execute_deferrable,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_or_create_pod,
+    ):
+        mock_hook.return_value.is_job_failed.return_value = False
+        mock_job_request_obj = mock_build_job_request_obj.return_value
+        mock_job_expected = mock_create_job.return_value
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            deferrable=True,
+        )
+        actual_result = op.execute(context=context)
+
+        mock_build_job_request_obj.assert_called_once_with(context)
+        mock_create_job.assert_called_once_with(job_request_obj=mock_job_request_obj)
+        mock_ti.xcom_push.assert_has_calls(
+            [
+                mock.call(key="job_name", value=mock_job_expected.metadata.name),
+                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
+            ]
+        )
+        mock_execute_deferrable.assert_called_once()
+
+        assert op.job_request_obj == mock_job_request_obj
+        assert op.job == mock_job_expected
+        assert actual_result is None
+        assert not mock_hook.wait_until_job_complete.called
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_fail(
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod
+    ):
+        mock_hook.return_value.is_job_failed.return_value = "Error"
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute(context=dict(ti=mock.MagicMock()))
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.defer"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobTrigger"))
+    def test_execute_deferrable(self, mock_trigger, mock_execute_deferrable):
+        mock_cluster_context = mock.MagicMock()
+        mock_config_file = mock.MagicMock()
+        mock_in_cluster = mock.MagicMock()
+
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = POD_NAME
+        mock_pod.metadata.namespace = POD_NAMESPACE
+
+        mock_trigger_instance = mock_trigger.return_value
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            kubernetes_conn_id=KUBERNETES_CONN_ID,
+            cluster_context=mock_cluster_context,
+            config_file=mock_config_file,
+            in_cluster=mock_in_cluster,
+            job_poll_interval=POLL_INTERVAL,
+            wait_until_job_complete=True,
+            deferrable=True,
+        )
+        op.job = mock_job
+        op.pod = mock_pod
+
+        actual_result = op.execute_deferrable()
+
+        mock_execute_deferrable.assert_called_once_with(
+            trigger=mock_trigger_instance,
+            method_name="execute_complete",
+        )
+        mock_trigger.assert_called_once_with(
+            job_name=JOB_NAME,
+            job_namespace=JOB_NAMESPACE,
+            pod_name=POD_NAME,
+            pod_namespace=POD_NAMESPACE,
+            base_container_name=op.BASE_CONTAINER_NAME,
+            kubernetes_conn_id=KUBERNETES_CONN_ID,
+            cluster_context=mock_cluster_context,
+            config_file=mock_config_file,
+            in_cluster=mock_in_cluster,
+            poll_interval=POLL_INTERVAL,
+            get_logs=True,
+            do_xcom_push=False,
+        )
+        assert actual_result is None
 
 
 @pytest.mark.db_test

@@ -114,6 +114,7 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
 
@@ -132,7 +133,7 @@ class TestS3KeySensor:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
@@ -163,6 +164,7 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
@@ -190,7 +192,7 @@ class TestS3KeySensor:
         else:
             from airflow.models.dag_version import DagVersion
 
-            dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(

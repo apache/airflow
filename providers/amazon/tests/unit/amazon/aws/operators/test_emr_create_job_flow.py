@@ -98,12 +98,13 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template(self, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.operator.dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [self.operator.dag])
             SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
@@ -150,6 +151,7 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
@@ -157,7 +159,7 @@ class TestEmrCreateJobFlowOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.operator.dag.sync_to_db()
+            DAG.bulk_write_to_db("testing", None, [self.operator.dag])
             SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
