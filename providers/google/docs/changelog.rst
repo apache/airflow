@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+17.0.0
+......
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove operator LifeSciencesRunPipelineOperator use Google Cloud Batch operators instead``
+  * ``Remove operator BigQueryCreateEmptyTableOperator use BigQueryCreateTableOperator instead``
+  * ``Remove operator BigQueryCreateExternalTableOperator use BigQueryCreateTableOperator instead``
+
+* Hooks
+
+  * ``Remove LifeSciencesHook use Google Cloud Batch hooks instead``
+  * ``Remove BigQueryHook.create_empty_table method use BigQueryHook.create_table instead``
+  * ``Remove DataflowHook.start_sql_job method use DataflowHook.launch_beam_yaml_job instead``
+
+* Links
+
+  * ``Remove LifeSciencesLink as support of the Life Sciences API will be discontinued on July 8, 2025``
+
+
 16.1.0
 ......
 
