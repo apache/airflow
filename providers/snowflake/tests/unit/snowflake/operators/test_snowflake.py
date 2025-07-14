@@ -35,8 +35,10 @@ from airflow.providers.snowflake.operators.snowflake import (
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -178,10 +180,16 @@ def create_context(task, dag=None):
     logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     if AIRFLOW_V_3_0_PLUS:
         from airflow.models.dag_version import DagVersion
+        from airflow.models.dagbundle import DagBundleModel
         from airflow.models.serialized_dag import SerializedDagModel
 
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        bundle_name = "testing"
+        with create_session() as session:
+            orm_dag_bundle = DagBundleModel(name=bundle_name)
+            session.add(orm_dag_bundle)
+            session.commit()
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         task_instance = TaskInstance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
         dag_run = DagRun(
@@ -217,6 +225,18 @@ def create_context(task, dag=None):
 
 @pytest.mark.db_test
 class TestSnowflakeSqlApiOperator:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_dag_bundles()
+
+        yield
+
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_dag_bundles()
+
     @pytest.fixture
     def mock_execute_query(self):
         with mock.patch(

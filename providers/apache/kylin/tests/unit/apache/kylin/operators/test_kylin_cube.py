@@ -172,11 +172,18 @@ class TestKylinCubeOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.utils.session import create_session
 
-            SerializedDagModel.write_dag(dag=self.dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(dag=self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(operator.dag_id)
             ti = TaskInstance(operator, run_id="kylin_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
