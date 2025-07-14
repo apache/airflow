@@ -57,6 +57,12 @@ except ImportError:
     from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef]
     from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef]
 
+try:
+    from airflow.models.xcom import XCOM_RETURN_KEY
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
+
 
 if TYPE_CHECKING:
     from airflow.models import Connection

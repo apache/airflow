@@ -31,7 +31,8 @@ def mock_context(task) -> Context:
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
     from airflow.utils.state import TaskInstanceState
-    from airflow.utils.xcom import XCOM_RETURN_KEY
+
+    from tests_common.test_utils.compat import XCOM_RETURN_KEY
 
     values: dict[str, Any] = {}
 

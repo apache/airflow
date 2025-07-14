@@ -52,7 +52,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-    from airflow.utils.xcom import XCOM_RETURN_KEY
+    from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
