@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -590,7 +591,11 @@ class OpenLineageListener:
                 self._terminate_with_wait(process)
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
-            setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
+            if sys.platform == "darwin":
+                self.log.debug("Mac OS detected, skipping setproctitle")
+            else:
+                setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
+
             if not AIRFLOW_V_3_0_PLUS:
                 configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())

@@ -38,7 +38,6 @@ from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
@@ -222,7 +221,13 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         if celery_task_id:
             args.external_executor_id = celery_task_id
 
-        setproctitle(f"airflow task supervisor: {command_to_exec}")
+        if sys.platform == "darwin":
+            log.debug("Mac OS detected, skipping setproctitle")
+        else:
+            from setproctitle import setproctitle
+
+            setproctitle(f"airflow task supervisor: {command_to_exec}")
+
         log.debug("calling func '%s' with args %s", args.func.__name__, args)
         args.func(args)
         ret = 0

@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import sys
 from datetime import datetime
 from http import HTTPStatus
 from multiprocessing import Process
@@ -176,15 +177,19 @@ class EdgeWorker:
         def _run_job_via_supervisor(
             workload: ExecuteTask,
         ) -> int:
-            from setproctitle import setproctitle
-
             from airflow.sdk.execution_time.supervisor import supervise
 
             # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
             signal.signal(signal.SIGINT, signal.SIG_IGN)
 
             logger.info("Worker starting up pid=%d", os.getpid())
-            setproctitle(f"airflow edge worker: {workload.ti.key}")
+
+            if sys.platform == "darwin":
+                logger.debug("Mac OS detected, skipping setproctitle")
+            else:
+                from setproctitle import setproctitle
+
+                setproctitle(f"airflow edge worker: {workload.ti.key}")
 
             try:
                 api_url = conf.get("edge", "api_url")
