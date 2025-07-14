@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-14T08:11:10.028934
+# This constraints file was automatically generated on 2025-07-14T19:46:25.845421
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -142,7 +142,7 @@ celery==5.5.3
 certifi==2025.7.14
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.37.2
+cfn-lint==1.38.0
 chardet==5.2.0
 charset-normalizer==3.4.2
 checksumdir==1.2.0
@@ -174,7 +174,7 @@ db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==1.0.2
+deltalake==1.1.0
 deprecation==2.1.0
 diagrams==0.24.4
 dill==0.3.1.1
@@ -525,7 +525,7 @@ python-jenkins==1.8.2
 python-keycloak==5.6.0
 python-ldap==3.4.4
 python-multipart==0.0.20
-python-on-whales==0.77.0
+python-on-whales==0.78.0
 python-slugify==8.0.4
 python-telegram-bot==22.2
 python3-saml==1.16.0
