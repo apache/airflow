@@ -38,6 +38,7 @@ except ImportError:
 # in dev/breeze/src/airflow_breeze/global_constants.py
 
 MIN_SUPPORTED_VERSION = "3.10"
+SUPPORTED_PYTHON_VERSIONS = [f"3.{i}" for i in range(10, 13)]
 
 
 def find_provider_root(path: Path) -> Path | None:
@@ -59,18 +60,13 @@ def get_simple_provider_name(provider_root: Path) -> str:
     return ".".join(relevant_parts)
 
 
-def parse_min_py_version(requires_python: str) -> str | None:
-    match = re.search(r">=\s*([0-9]+(?:\.[0-9]+)*)", requires_python)
-    if match:
-        return match.group(1)
-    return None
-
-
 def filter_pyproject_exclusions(exclusions: set[str]) -> set[str]:
     filtered = set()
     for v in exclusions:
         ver = Version(v)
-        if ver >= Version(MIN_SUPPORTED_VERSION):
+        if ver >= Version(
+            MIN_SUPPORTED_VERSION
+        ):  # If the excluded version is less than the current minimum supported one
             filtered.add(v)
     return filtered
 
@@ -84,7 +80,7 @@ def parse_pyproject_exclusions_filtered(pyproject_path: Path) -> set[str]:
         min_version_match = re.search(r">=\s*([0-9]+(?:\.[0-9]+)*)", requires_python)
         if min_version_match:
             min_version = min_version_match.group(1)
-            all_py_versions = [f"3.{i}" for i in range(10, 13)]  # Airflows current min Python version is 3.10
+            all_py_versions = SUPPORTED_PYTHON_VERSIONS
             for v in all_py_versions:
                 if Version(v) < Version(min_version):
                     exclusions.add(v)
@@ -120,7 +116,7 @@ def parse_pyproject_exclusions(pyproject_path: Path) -> set[str]:
         requires_python = data.get("project", {}).get("requires-python", "")
         spec = SpecifierSet(requires_python)
 
-        all_py_versions = [f"3.{i}" for i in range(10, 13)]  # Airflows current min Python version is 3.10
+        all_py_versions = SUPPORTED_PYTHON_VERSIONS
         excluded = {v for v in all_py_versions if Version(v) not in spec}
         return excluded
     except Exception as e:
@@ -135,13 +131,13 @@ def parse_provider_yaml_exclusions(provider_yaml_path: Path) -> set[str]:
         raw_versions = data.get("excluded-python-versions", [])
         versions = set()
         for v in raw_versions:
-            if isinstance(v, float):
+            version_str = f"{v:.2f}" if isinstance(v, float) else str(v)
+            if version_str in SUPPORTED_PYTHON_VERSIONS:
+                versions.add(version_str)
+            elif Version(version_str) < Version(MIN_SUPPORTED_VERSION):
                 print(
-                    f"warning: Float value {v} found in {provider_yaml_path}. Did you mean '{v:.2f}' as a string?"
+                    f"Warning: {provider_yaml_path} excludes {version_str} which is below minimum supported version {MIN_SUPPORTED_VERSION}"
                 )
-                versions.add(f"{v:.2f}")
-            else:
-                versions.add(str(v))
         return versions
     except Exception as e:
         print(f"Failed to parse {provider_yaml_path}: {e}")
@@ -199,12 +195,7 @@ def parse_global_exclusions(global_constants_path: Path) -> dict[str, set[str]]:
 def check_consistency(provider_root: Path, global_exclusions: dict[str, set[str]]) -> bool:
     pyproject_path = provider_root / "pyproject.toml"
     provider_yaml_path = provider_root / "provider.yaml"
-    provider_name = parse_provider_name(pyproject_path)
     simple_name = get_simple_provider_name(provider_root)
-
-    if not provider_name:
-        print(f"Could not parse provider name in {pyproject_path}")
-        return False
 
     pyproject_exclusions = parse_pyproject_exclusions_filtered(pyproject_path)
     provider_yaml_exclusions = parse_provider_yaml_exclusions(provider_yaml_path)
@@ -221,7 +212,7 @@ def check_consistency(provider_root: Path, global_exclusions: dict[str, set[str]
 
     all_exclusions = pyproject_exclusions | provider_yaml_exclusions
     for py_ver in all_exclusions:
-        if provider_name not in global_exclusions.get(py_ver, set()):
+        if simple_name not in global_exclusions.get(py_ver, set()):
             failure_messages.append(
                 f"\nProvider missing from exclusion matrix for Python {py_ver} in dev/breeze/src/airflow_breeze/global_constants.py"
             )
