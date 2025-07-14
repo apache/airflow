@@ -456,6 +456,7 @@ def task_clear(args) -> None:
 
     SchedulerDAG.clear_dags(
         dags,
+        run_id=args.dag_run_id,
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
