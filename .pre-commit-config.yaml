@@ -239,6 +239,12 @@ repos:
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
         additional_dependencies: ['libcst>=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
+      - id: check-provider-exclusions-python-version
+        name: Check Provider Python Version Exclusions
+        entry: ./scripts/ci/pre_commit/check_exclusion_of_provider_python_version.py
+        language: python
+        files: ^(providers/.*/(pyproject.toml|provider.yaml)|dev/breeze/src/airflow_breeze/global_constants.py)$
+        additional_dependencies: ['pyyaml>=6.0.2', 'tomli>=2.0.1', "packaging>=25"]
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
     hooks:
