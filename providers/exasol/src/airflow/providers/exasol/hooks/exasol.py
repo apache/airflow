@@ -59,8 +59,7 @@ class ExasolHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self) -> ExaConnection:
-        conn_id = self.get_conn_id()
-        conn = self.get_connection(conn_id)
+        conn = self.get_connection(self.get_conn_id())
         conn_args = {
             "dsn": f"{conn.host}:{conn.port}",
             "user": conn.login,
