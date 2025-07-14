@@ -26,7 +26,7 @@ import sys
 import warnings
 from collections.abc import Callable
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import pluggy
 from packaging.version import Version
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
     from airflow.api_fastapi.common.types import UIAlert
-    from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
