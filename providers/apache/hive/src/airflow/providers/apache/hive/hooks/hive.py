@@ -1032,7 +1032,6 @@ class HiveServer2Hook(DbApiHook):
     def _get_pandas_df(
         self,
         sql,
-        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
@@ -1051,7 +1050,6 @@ class HiveServer2Hook(DbApiHook):
     def _get_polars_df(
         self,
         sql,
-        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
