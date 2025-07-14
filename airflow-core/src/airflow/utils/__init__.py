@@ -20,24 +20,6 @@ from __future__ import annotations
 
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
-
-def _deprecate_this_module(message: str, **shims: tuple[str, str]):
-    import warnings
-
-    from airflow.exceptions import RemovedInAirflow4Warning
-
-    warnings.warn(message, RemovedInAirflow4Warning, stacklevel=3)
-
-    def __getattr__(name: str):
-        try:
-            impa, attr = shims[name]
-        except KeyError:
-            raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
-        return getattr(__import__(impa), attr)
-
-    return __getattr__
-
-
 __deprecated_classes = {
     "setup_teardown": {
         "BaseSetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.BaseSetupTeardownContext",
