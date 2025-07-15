@@ -23,7 +23,7 @@ from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import PropertyMock, patch
-from urllib.parse import quote_plus
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 import polars as pl
@@ -130,9 +130,12 @@ def test_sqlachemy_url_property(mock_get_conn):
     )
     url = hook.sqlalchemy_url.render_as_string(hide_password=False)
     assert url.startswith(f"databricks://token:{TOKEN}@{HOST}:{PORT}")
-    assert f"http_path={quote_plus(HTTP_PATH)}" in url
-    assert f"catalog={CATALOG}" in url
-    assert f"schema={SCHEMA}" in url
+    expected_query = {
+        "http_path": [HTTP_PATH],
+        "catalog": [CATALOG],
+        "schema": [SCHEMA],
+    }
+    assert parse_qs(urlparse(url).query) == expected_query
 
 
 def test_get_uri(mock_get_conn):
@@ -142,9 +145,12 @@ def test_get_uri(mock_get_conn):
     )
     uri = hook.get_uri()
     assert uri.startswith(f"databricks://token:{TOKEN}@{HOST}:{PORT}")
-    assert f"http_path={quote_plus(HTTP_PATH)}" in uri
-    assert f"catalog={CATALOG}" in uri
-    assert f"schema={SCHEMA}" in uri
+    expected_query = {
+        "http_path": [HTTP_PATH],
+        "catalog": [CATALOG],
+        "schema": [SCHEMA],
+    }
+    assert parse_qs(urlparse(uri).query) == expected_query
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
