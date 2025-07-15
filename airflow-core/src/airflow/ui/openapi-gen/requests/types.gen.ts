@@ -2928,6 +2928,28 @@ export type GetMappedTiHitlDetailData = {
 
 export type GetMappedTiHitlDetailResponse = HITLDetail;
 
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    hitlDetailBodySearch?: string | null;
+    hitlDetailResponseReceived?: boolean | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    hitlDetailSubjectSearch?: string | null;
+    hitlDetailUserId?: Array<(string)>;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    state?: Array<(string)>;
+};
+
 export type GetHitlDetailsResponse = HITLDetailCollection;
 
 export type GetHealthResponse = HealthInfoResponse;
@@ -5990,6 +6012,7 @@ export type $OpenApiTs = {
     };
     '/api/v2/hitl-details/': {
         get: {
+            req: GetHitlDetailsData;
             res: {
                 /**
                  * Successful Response
@@ -6003,6 +6026,10 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

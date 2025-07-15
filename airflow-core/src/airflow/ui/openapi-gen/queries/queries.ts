@@ -1206,10 +1206,32 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetail = <TData = Common.Hum
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagRunId
+* @param data.state
+* @param data.hitlDetailResponseReceived
+* @param data.hitlDetailUserId
+* @param data.hitlDetailSubjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.hitlDetailBodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails() as TData, ...options });
+export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }: {
+  dagIdPattern?: string;
+  dagRunId?: string[];
+  hitlDetailBodySearch?: string;
+  hitlDetailResponseReceived?: boolean;
+  hitlDetailSubjectSearch?: string;
+  hitlDetailUserId?: string[];
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  state?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
