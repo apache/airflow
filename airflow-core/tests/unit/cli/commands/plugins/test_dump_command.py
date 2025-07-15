@@ -51,7 +51,7 @@ class TestPlugin(AirflowPlugin):
     global_operator_extra_links = [AirflowNewLink()]
 
 
-class TestPluginsCommand:
+class TestDumpCommand:
     @classmethod
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
