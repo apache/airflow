@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,35 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
 
-from pydantic import BaseModel
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-from airflow.version_compat import AIRFLOW_V_3_1_PLUS
+    from airflow import __version__
 
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.definitions.state import DagRunState
-else:
-    from airflow.utils.state import DagRunState  # type: ignore[no-redef]
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class CalendarTimeRangeResponse(BaseModel):
-    """Represents a summary of DAG runs for a specific calendar time range."""
-
-    date: datetime
-    state: Literal[
-        DagRunState.QUEUED,
-        DagRunState.RUNNING,
-        DagRunState.SUCCESS,
-        DagRunState.FAILED,
-        "planned",
-    ]
-    count: int
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 
-class CalendarTimeRangeCollectionResponse(BaseModel):
-    """Response model for calendar time range results."""
-
-    total_entries: int
-    dag_runs: list[CalendarTimeRangeResponse]
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_1_PLUS",
+]
