@@ -19,10 +19,11 @@
 import { useParams } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import { sanitizeIframeUrl } from "src/utils/sanitizeUrl";
 
 export const Iframe = ({
   externalView,
-  sandbox = "allow-same-origin allow-forms",
+  sandbox = "allow-forms",
 }: {
   readonly externalView: ExternalViewResponse;
   readonly sandbox?: string;
@@ -48,10 +49,13 @@ export const Iframe = ({
     }
   }
 
+  // Sanitize the URL for safe use in iframe
+  const sanitizedSrc = sanitizeIframeUrl(src);
+
   return (
     <iframe
       sandbox={sandbox}
-      src={src}
+      src={sanitizedSrc}
       style={{
         border: "none",
         display: "block",

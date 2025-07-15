@@ -67,7 +67,7 @@ export const PluginView = () => {
         m={-2} // Compensate for parent padding
         minHeight={0}
       >
-        <Iframe externalView={externalView} sandbox="allow-scripts allow-same-origin allow-forms" />
+        <Iframe externalView={externalView} sandbox="allow-scripts allow-forms" />
       </Box>
     );
   }
