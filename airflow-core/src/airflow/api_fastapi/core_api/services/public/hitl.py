@@ -100,7 +100,7 @@ def service_update_hitl_detail(
     :param task_id: Task ID
     :param try_number: Try number for the task
     :param update_hitl_detail_payload: Payload containing update data
-    :param user: User performing the update
+    :param user: User performing the update (None for shared link actions)
     :param session: Database session
     :param map_index: Map index for mapped tasks
     """

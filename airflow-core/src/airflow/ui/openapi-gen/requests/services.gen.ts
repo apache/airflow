@@ -3487,7 +3487,7 @@ export class HumanInTheLoopService {
     
     /**
      * Get Hitl Details
-     * Get all Human-in-the-loop details.
+     * Get Human-in-the-loop details.
      * @returns HITLDetailCollection Successful Response
      * @throws ApiError
      */

@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import base64
-import datetime
 import json
 from datetime import timedelta
 from typing import Any
@@ -404,35 +403,6 @@ class TestHITLSharedLinkManager:
 
         assert link_data["link_type"] == "action"
         assert link_data["action"] == "approve"
-
-    @patch("airflow.utils.hitl_shared_links.conf")
-    def test_custom_expiration_time(self, mock_conf: Any) -> None:
-        """Test generating a link with custom expiration time."""
-        mock_conf.getboolean.return_value = True
-        mock_conf.get.side_effect = lambda section, key, fallback=None: {
-            ("api", "secret_key"): self.test_secret_key,
-            ("api", "hitl_shared_link_expiration_hours"): 24,
-            ("api", "base_url"): "http://localhost:8080",
-        }.get((section, key), fallback)
-        mock_conf.getint.side_effect = lambda section, key, fallback=None: {
-            ("api", "hitl_shared_link_expiration_hours"): 24,
-        }.get((section, key), fallback)
-
-        manager = HITLSharedLinkManager()
-        link_data = manager.generate_link(
-            dag_id=self.test_dag_id,
-            dag_run_id=self.test_dag_run_id,
-            task_id=self.test_task_id,
-            link_type="action",
-            action="approve",
-            expires_in_hours=48,
-            try_number=1,
-        )
-
-        expected_expires_at = timezone.utcnow() + timedelta(hours=48)
-        actual_expires_at = datetime.datetime.fromisoformat(link_data["expires_at"])
-        time_diff = abs((expected_expires_at - actual_expires_at).total_seconds())
-        assert time_diff < 60
 
     @patch("airflow.utils.hitl_shared_links.conf")
     def test_custom_base_url(self, mock_conf: Any) -> None:

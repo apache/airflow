@@ -84,7 +84,6 @@ class HITLSharedLinkManager:
         map_index: int | None = None,
         link_type: str = "action",
         action: str | None = None,
-        expires_in_hours: int | None = None,
         base_url: str | None = None,
     ) -> HITLSharedLinkResponse:
         """
@@ -97,7 +96,6 @@ class HITLSharedLinkManager:
         :param map_index: Map index for mapped tasks
         :param link_type: Type of link ('action' or 'redirect')
         :param action: Action to perform (for action links)
-        :param expires_in_hours: Custom expiration time in hours
         :param base_url: Base URL for the link
         """
         if not self.is_enabled():
@@ -106,8 +104,7 @@ class HITLSharedLinkManager:
         if link_type == "action" and not action:
             raise ValueError("Action is required for action-type links")
 
-        expiration_hours = expires_in_hours or self.default_expiration_hours
-        expires_at = timezone.utcnow() + timedelta(hours=expiration_hours)
+        expires_at = timezone.utcnow() + timedelta(hours=self.default_expiration_hours)
 
         payload_data = HITLSharedLinkPayload(
             dag_id=dag_id,
