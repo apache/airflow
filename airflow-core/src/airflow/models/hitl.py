@@ -73,3 +73,7 @@ class HITLDetail(Base):
     @hybrid_property
     def response_received(self) -> bool:
         return self.response_at is not None
+
+    @response_received.expression  # type: ignore[no-redef]
+    def response_received(cls):
+        return cls.response_at.is_not(None)

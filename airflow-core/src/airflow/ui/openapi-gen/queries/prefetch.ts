@@ -1206,10 +1206,32 @@ export const prefetchUseHumanInTheLoopServiceGetMappedTiHitlDetail = (queryClien
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagRunId
+* @param data.state
+* @param data.hitlDetailResponseReceived
+* @param data.hitlDetailUserId
+* @param data.hitlDetailSubjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.hitlDetailBodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(), queryFn: () => HumanInTheLoopService.getHitlDetails() });
+export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: QueryClient, { dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }: {
+  dagIdPattern?: string;
+  dagRunId?: string[];
+  hitlDetailBodySearch?: string;
+  hitlDetailResponseReceived?: boolean;
+  hitlDetailSubjectSearch?: string;
+  hitlDetailUserId?: string[];
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  state?: string[];
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }), queryFn: () => HumanInTheLoopService.getHitlDetails({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
