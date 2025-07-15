@@ -46,5 +46,8 @@ __deprecated_classes = {
     "xcom": {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
+    "trigger_rule": {
+        "TriggerRule": "airflow.sdk.definitions.trigger_rule.TriggerRule",
+    },
 }
 add_deprecated_classes(__deprecated_classes, __name__)
