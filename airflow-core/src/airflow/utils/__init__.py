@@ -42,6 +42,9 @@ __deprecated_classes = {
         "remove_task_decorator": "airflow.sdk.definitions._internal.decorators.remove_task_decorator",
         "fixup_decorator_warning_stack": "airflow.sdk.definitions._internal.decorators.fixup_decorator_warning_stack",
     },
+    "trigger_rule": {
+        "TriggerRule": "airflow.sdk.definitions.trigger_rule.TriggerRule",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
