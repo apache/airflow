@@ -63,6 +63,12 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
 
+try:
+    from airflow.sdk.definitions.weight_rule import WeightRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.weight_rule import WeightRule  # type: ignore[no-redef]
+
 
 if TYPE_CHECKING:
     from airflow.models import Connection
