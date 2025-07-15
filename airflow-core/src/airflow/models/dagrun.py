@@ -1219,8 +1219,8 @@ class DagRun(Base, LoggingMixin):
                 )
 
             if (deadline := dag.deadline) and isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                # The dagrun has succeeded, so the deadline is no longer needed.
-                Deadline.remove_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
+                # The dagrun has succeeded.  If there wre any Deadlines for it which were not breached, they are no longer needed.
+                Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:

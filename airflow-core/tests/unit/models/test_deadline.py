@@ -118,7 +118,7 @@ class TestDeadline:
         ],
     )
     @mock.patch("sqlalchemy.orm.Session")
-    def test_resolve_deadlines(self, mock_session, conditions):
+    def test_prune_deadlines(self, mock_session, conditions):
         """Test deadline resolution with various conditions."""
         expected_result = 1 if conditions else 0
         # Set up the query chain to return a list of (Deadline, DagRun) pairs
@@ -129,7 +129,7 @@ class TestDeadline:
         mock_query.filter.return_value = mock_query
         mock_query.all.return_value = [(mock_deadline, mock_dagrun)] if conditions else []
 
-        result = Deadline.remove_deadlines(conditions=conditions, session=mock_session)
+        result = Deadline.prune_deadlines(conditions=conditions, session=mock_session)
 
         assert result == expected_result
         if conditions:
@@ -138,16 +138,6 @@ class TestDeadline:
             mock_session.delete.assert_called_once_with(mock_deadline)
         else:
             mock_session.query.assert_not_called()
-
-    @mock.patch("sqlalchemy.orm.Session")
-    def test_resolve_deadlines_invalid_column(self, mock_session):
-        """Test that using an invalid column raises an error."""
-        invalid_column = DagRun.bundle_version  # A column that exists but not on the Deadline table.
-        error_msg = f"Invalid column '{invalid_column}' specified in conditions while resolving deadlines. Rolling back changes."
-        mock_session.query.side_effect = SQLAlchemyError("Invalid column")
-
-        with pytest.raises(SQLAlchemyError, match=error_msg):
-            Deadline.remove_deadlines(conditions={invalid_column: "value"}, session=mock_session)
 
     def test_orm(self):
         deadline_orm = Deadline(

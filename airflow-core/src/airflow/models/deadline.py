@@ -100,13 +100,13 @@ class Deadline(Base):
 
     @classmethod
     @provide_session
-    def remove_deadlines(cls, *, session: Session, conditions: dict[Column, Any]) -> int:
+    def prune_deadlines(cls, *, session: Session, conditions: dict[Column, Any]) -> int:
         """
         Remove deadlines from the table which match the provided conditions and return the number removed.
 
         NOTE: This should only be used to remove deadlines which are associated with
-            successful dagruns. If the deadline was missed, move it to the `missed_deadlines`
-            table after executing the callback.
+            successful DagRuns. If the deadline was missed, it will be handled by the
+            scheduler.
         TODO:  Create the missed_deadlines table (Ramit)
 
         :param conditions: Dictionary of conditions to evaluate against.
@@ -124,12 +124,9 @@ class Deadline(Base):
             deadline_dagrun_pairs = (
                 session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
             )
-        except SQLAlchemyError as e:
-            invalid_column = next(iter(conditions.keys()))  # Get the first key that caused the error.
-            message = f"Invalid column '{invalid_column}' specified in conditions while resolving deadlines. Rolling back changes."
-            logger.exception(message)
-            session.rollback()
-            raise SQLAlchemyError(message) from e
+        except AttributeError as e:
+            logger.exception("Error resolving deadlines: %s", e)
+            raise
 
         if not deadline_dagrun_pairs:
             return 0
