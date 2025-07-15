@@ -34,6 +34,12 @@ __deprecated_classes = {
         "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
         "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
     },
+    "weight_rule": {
+        "WeightRule": "airflow.sdk.definitions.weight_rule.WeightRule",
+        "db_safe_priority": "airflow.sdk.definitions.weight_rule.db_safe_priority",
+        "DB_SAFE_MINIMUM": "airflow.sdk.definitions.weight_rule.DB_SAFE_MINIMUM",
+        "DB_SAFE_MAXIMUM": "airflow.sdk.definitions.weight_rule.DB_SAFE_MAXIMUM",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
