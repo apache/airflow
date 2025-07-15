@@ -46,5 +46,11 @@ __deprecated_classes = {
     "xcom": {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
+    "weight_rule": {
+        "WeightRule": "airflow.sdk.definitions.weight_rule.WeightRule",
+        "db_safe_priority": "airflow.sdk.definitions.weight_rule.db_safe_priority",
+        "DB_SAFE_MINIMUM": "airflow.sdk.definitions.weight_rule.DB_SAFE_MINIMUM",
+        "DB_SAFE_MAXIMUM": "airflow.sdk.definitions.weight_rule.DB_SAFE_MAXIMUM",
+    },
 }
 add_deprecated_classes(__deprecated_classes, __name__)
