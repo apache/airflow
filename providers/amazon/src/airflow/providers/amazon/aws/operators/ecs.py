@@ -26,8 +26,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ecs import (
@@ -688,7 +687,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             logger=self.log,
         )
 
-    @AwsBaseHook.retry(should_retry_eni)
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
             return
@@ -701,11 +699,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         for task in response["tasks"]:
             if task.get("stopCode", "") == "TaskFailedToStart":
-                # Reset task arn here otherwise the retry run will not start
-                # a new task but keep polling the old dead one
-                # I'm not resetting it for other exceptions here because
-                # EcsTaskFailToStart is the only exception that's being retried at the moment
-                self.arn = None
                 raise EcsTaskFailToStart(f"The task failed to start due to: {task.get('stoppedReason', '')}")
 
             # This is a `stoppedReason` that indicates a task has not
