@@ -20,7 +20,7 @@ import contextlib
 import copy
 import json
 import logging
-from collections.abc import ItemsView, Iterable, MutableMapping, ValuesView
+from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
@@ -145,15 +145,8 @@ class ParamsDict(MutableMapping[str, Any]):
     __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
-    def __init__(self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False):
-        params_dict: dict[str, Param] = {}
-        dict_obj = dict_obj or {}
-        for k, v in dict_obj.items():
-            if not isinstance(v, Param):
-                params_dict[k] = Param(v)
-            else:
-                params_dict[k] = v
-        self.__dict = params_dict
+    def __init__(self, dict_obj: Mapping[str, Any] | None = None, suppress_exception: bool = False):
+        self.__dict = {k: v if isinstance(v, Param) else Param(v) for k, v in (dict_obj or {}).items()}
         self.suppress_exception = suppress_exception
 
     def __bool__(self) -> bool:

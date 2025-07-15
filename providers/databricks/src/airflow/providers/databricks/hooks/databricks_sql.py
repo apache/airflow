@@ -30,7 +30,7 @@ from typing import (
     overload,
 )
 
-from databricks import sql  # type: ignore[attr-defined]
+from databricks import sql
 from databricks.sql.types import Row
 from sqlalchemy.engine import URL
 
@@ -38,6 +38,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
+from airflow.providers.databricks.hooks.databricks import LIST_SQL_ENDPOINTS_ENDPOINT
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
@@ -46,9 +47,6 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection as AirflowConnection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-
-
-LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 T = TypeVar("T")
@@ -205,7 +203,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """
         return self.sqlalchemy_url.render_as_string(hide_password=False)
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -290,7 +288,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
                     # TODO: adjust this to make testing easier
                     try:
-                        self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                        self._run_command(cur, sql_statement, parameters)
                     except Exception as e:
                         if t is None or t.is_alive():
                             raise DatabricksSqlExecutionError(

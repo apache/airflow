@@ -109,7 +109,7 @@ class OpenLineageListener:
             self,
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
-            session: Session,  # type: ignore[valid-type]
+            session: Session,
         ) -> None:
             from airflow.providers.openlineage.utils.utils import is_ti_rescheduled_already
 
@@ -261,7 +261,7 @@ class OpenLineageListener:
             self,
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
-            session: Session,  # type: ignore[valid-type]
+            session: Session,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance success")
             task = task_instance.task
@@ -391,7 +391,7 @@ class OpenLineageListener:
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
             error: None | str | BaseException,
-            session: Session,  # type: ignore[valid-type]
+            session: Session,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance failure")
             task = task_instance.task
