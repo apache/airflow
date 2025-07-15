@@ -77,8 +77,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       responses:
         '200':
@@ -154,8 +157,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       responses:
         '200':
@@ -266,8 +272,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: timestamp
+          type: array
+          items:
+            type: string
+          default:
+          - timestamp
           title: Order By
       - name: asset_id
         in: query
@@ -886,8 +895,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       responses:
         '200':
@@ -1418,8 +1430,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: connection_id_pattern
         in: query
@@ -2072,8 +2087,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: run_id_pattern
         in: query
@@ -2718,8 +2736,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          default:
+          - dag_id
           title: Order By
       responses:
         '200':
@@ -2895,8 +2916,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          default:
+          - dag_id
           title: Order By
       - name: is_favorite
         in: query
@@ -3465,8 +3489,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: dag_id
         in: query
@@ -3734,8 +3761,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       responses:
         '200':
@@ -3837,8 +3867,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: job_state
         in: query
@@ -4179,8 +4212,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: pool_name_pattern
         in: query
@@ -5128,8 +5164,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: map_index
+          type: array
+          items:
+            type: string
+          default:
+          - map_index
           title: Order By
       responses:
         '200':
@@ -5803,8 +5842,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: map_index
+          type: array
+          items:
+            type: string
+          default:
+          - map_index
           title: Order By
       responses:
         '200':
@@ -6641,8 +6683,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: variable_key_pattern
         in: query
@@ -7035,8 +7080,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: name
+          type: array
+          items:
+            type: string
+          default:
+          - name
           title: Order By
       - name: tag_name_pattern
         in: query
@@ -7190,8 +7238,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       responses:
         '200':
