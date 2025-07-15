@@ -7,61 +7,61 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
-  "asset_few": "واقعة",
-  "asset_many": "واقعات",
-  "asset_one": "واقعة",
-  "asset_other": "واقعات",
-  "asset_two": "واقعتان",
-  "asset_zero": "لا توجد واقعات",
-  "assetEvent_few": "واقعة اصل",
-  "assetEvent_many": "واقعات اصل",
-  "assetEvent_one": "واقعة اصل",
-  "assetEvent_other": "واقعات اصل",
-  "assetEvent_two": "واقعتان اصل",
-  "assetEvent_zero": "لا توجد واقعات اصل",
-  "backfill_few": "إعادة ملء",
+  "asset_few": "أصول",
+  "asset_many": "أصول",
+  "asset_one": "أصل",
+  "asset_other": "أصول",
+  "asset_two": "أصلان",
+  "asset_zero": "لا يوجد أي أصل",
+  "assetEvent_few": "وقائعات أصول",
+  "assetEvent_many": "وقائعات أصول",
+  "assetEvent_one": "واقعة أصل",
+  "assetEvent_other": "وقائعات أصول",
+  "assetEvent_two": "واقعتا أصل",
+  "assetEvent_zero": "لا يوجد أي واقعة أصل",
+  "backfill_few": "إعادات ملء",
   "backfill_many": "إعادات ملء",
   "backfill_one": "إعادة ملء",
   "backfill_other": "إعادات ملء",
-  "backfill_two": "إعادتان ملء",
-  "backfill_zero": "لا توجد إعادات ملء",
+  "backfill_two": "إعادتا ملء",
+  "backfill_zero": "لا يوجد أي إعادة ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
     "xcoms": "(XComs) إكس كوم"
   },
   "collapseDetailsPanel": "طي لوحة التفاصيل",
-  "createdAssetEvent_few": "تم إنشاء واقعات اصل",
-  "createdAssetEvent_many": "تم إنشاء واقعات اصل",
-  "createdAssetEvent_one": "تم إنشاء واقعة اصل",
-  "createdAssetEvent_other": "تم إنشاء واقعات اصل",
-  "createdAssetEvent_two": "تم إنشاء واقعتان اصل",
-  "createdAssetEvent_zero": "لم يتم إنشاء واقعات اصل",
-  "dag_few": "Dag",
+  "createdAssetEvent_few": "تم إنشاء واقعات أصل",
+  "createdAssetEvent_many": "تم إنشاء واقعات أصل",
+  "createdAssetEvent_one": "تم إنشاء واقعة أصل",
+  "createdAssetEvent_other": "تم إنشاء واقعات أصل",
+  "createdAssetEvent_two": "تم إنشاء واقعتا أصل",
+  "createdAssetEvent_zero": "لم يتم إنشاء أي واقعة أصل",
+  "dag_few": "Dags",
   "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
-  "dag_two": "اثنان Dag",
-  "dag_zero": "لا توجد Dags",
+  "dag_two": "2 Dags",
+  "dag_zero": "لا يوجد أي Dag",
   "dagDetails": {
     "catchup": "إلحاق",
     "concurrency": "تزامن",
-    "dagRunTimeout": "مهلة تشغيل Dag",
+    "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
     "description": "وصف",
-    "documentation": "توثيق Dag",
+    "documentation": "توثيق الDag",
     "fileLocation": "موقع الملف",
     "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
     "lastExpired": "انتهت صلاحيته آخر مرة في",
     "lastParsed": "تم تحليله آخر مرة في",
-    "latestDagVersion": "أحدث إصدار لDag",
-    "latestRun": "أحدث تشغيل",
+    "latestDagVersion": "آخر إصدار لDag",
+    "latestRun": "آخر تشغيل",
     "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
     "maxActiveTasks": "الحد الأقصى للمهام النشطة",
-    "maxConsecutiveFailedDagRuns": "الحد الأقصى للتشغيلات الفاشلة المتتالية لDag",
+    "maxConsecutiveFailedDagRuns": "الحد الأقصى للتشغيلات الفاشلة المتتالية للDag",
     "nextRun": "التشغيل التالي",
-    "owner": "مالك",
-    "params": "متغيرات",
-    "schedule": "توقيت",
+    "owner": "المالك",
+    "params": "معاملات",
+    "schedule": "جدولة",
     "tags": "وسوم"
   },
   "dagId": "معرف Dag",
@@ -74,20 +74,20 @@
     "queuedAt": "في الطابور في",
     "runAfter": "تشغيل بعد",
     "runType": "نوع التشغيل",
-    "sourceAssetEvent": "واقعة الاصل المصدر",
+    "sourceAssetEvent": "واقعة أصل مصدر",
     "triggeredBy": "تم إطلاقه بواسطة",
-    "triggeringUser": "المستخدم المحفز"
+    "triggeringUser": "المستخدم صاحب الاطلاق"
   },
-  "dagRun_few": "مثيل تشغيل لDag",
+  "dagRun_few": "مثيلات تشغيل لDag",
   "dagRun_many": "مثيلات تشغيل لDag",
   "dagRun_one": "مثيل تشغيل لDag",
-  "dagRun_other": "مثيل تشغيلات لDag",
-  "dagRun_two": "مثيلان تشغيل لDag",
-  "dagRun_zero": "لا توجد مثيلات تشغيل لDag",
-  "dagWarnings": "تحذيرات Dag",
+  "dagRun_other": "مثيلات تشغيل لDag",
+  "dagRun_two": "مثيلا تشغيل لDag",
+  "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
+  "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
-  "direction": "اتجاه",
+  "direction": "الاتجاه",
   "docs": {
     "documentation": "توثيق",
     "githubRepo": "مستودع GitHub",
@@ -106,7 +106,7 @@
     "collapse": "طي",
     "expand": "توسيع",
     "hotkey": "e",
-    "tooltip": "اضغط {{hotkey}} للتبديل"
+    "tooltip": "اضغط {{hotkey}} للتوسيع"
   },
   "expression": {
     "all": "الكل",
@@ -133,7 +133,7 @@
     "dags": "Dags",
     "docs": "وثائق",
     "home": "الصفحة الرئيسية",
-    "legacyFabViews": "مشاهدات قديمة",
+    "legacyFabViews": "عروض قديمة",
     "plugins": "إضافات",
     "security": "الأمان"
   },
@@ -142,18 +142,18 @@
     "add": "إضافة",
     "dagRun": "تشغيل Dag",
     "label": "وسم",
-    "placeholder": "نصر نائب",
+    "placeholder": "أضف ملاحظة...",
     "taskInstance": "مثيل المهمة"
   },
   "pools": {
     "deferred": "مؤجل",
     "open": "مفتوح",
-    "pools_few": "مجمع",
+    "pools_few": "مجمعات",
     "pools_many": "مجمعات",
     "pools_one": "مجمع",
     "pools_other": "مجمعات",
     "pools_two": "مجمعان",
-    "pools_zero": "لا توجد مجمعات",
+    "pools_zero": "لا يوجد أي مجمع",
     "queued": "في الانتظار",
     "running": "قيد التشغيل",
     "scheduled": "مجدول"
@@ -187,14 +187,14 @@
     "hotkey": "s",
     "show": "إظهار المصدر"
   },
-  "sourceAssetEvent_few": "واقعة اصل المصدر",
-  "sourceAssetEvent_many": "واقعات اصل المصدر",
-  "sourceAssetEvent_one": "واقعة اصل المصدر",
-  "sourceAssetEvent_other": "واقعات اصل المصدر",
-  "sourceAssetEvent_two": "واقعتان اصل المصدر",
-  "sourceAssetEvent_zero": "لا توجد واقعات اصل المصدر",
+  "sourceAssetEvent_few": "واقعات أصل مصدر",
+  "sourceAssetEvent_many": "واقعات أصل مصدر",
+  "sourceAssetEvent_one": "واقعة أصل مصدر",
+  "sourceAssetEvent_other": "واقعات أصل مصدر",
+  "sourceAssetEvent_two": "واقعتا أصل مصدر",
+  "sourceAssetEvent_zero": "لا يوجد أي واقعة أصل مصدر",
   "startDate": "تاريخ البدء",
-  "state": "حالة",
+  "state": "الحالة",
   "states": {
     "deferred": "مؤجل",
     "failed": "فشِل",
@@ -223,9 +223,9 @@
     "filterReset_one": "مسح الفلتر",
     "filterReset_other": "مسح الفلاتر",
     "filterReset_two": "مسح الفلترين",
-    "filterReset_zero": "لا توجد فلاتر لمسحها",
+    "filterReset_zero": "لا يوجد أي فلتر لمسحه",
     "from": "من",
-    "maxActiveRuns": "الحد الأقصى لتشغيل النشطة",
+    "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
     "noTagsFound": "لم يتم العثور على وسوم",
     "tagMode": {
       "all": "الكل",
@@ -235,20 +235,20 @@
     "to": "إلى"
   },
   "task": {
-    "documentation": "توثيق المهمة",
+    "documentation": "وثائق المهمة",
     "lastInstance": "آخر مثيل",
-    "operator": "مشغل",
-    "triggerRule": "قاعدة التشغيل"
+    "operator": "المشغل",
+    "triggerRule": "احكام التشغيل"
   },
-  "task_few": "مهمة",
+  "task_few": "مهام",
   "task_many": "مهام",
   "task_one": "مهمة",
   "task_other": "مهام",
   "task_two": "مهمتان",
-  "task_zero": "لا توجد مهام",
+  "task_zero": "لا يوجد أي مهمة",
   "taskId": "معرف المهمة",
   "taskInstance": {
-    "dagVersion": "إصدار Dag",
+    "dagVersion": "إصدار الDag",
     "executor": "منفذ",
     "executorConfig": "تكوين المنفذ",
     "hostname": "اسم المضيف",
@@ -258,7 +258,7 @@
     "poolSlots": "حصص مجموعة الموارد",
     "priorityWeight": "وزن الأولوية",
     "queue": "طابور",
-    "queuedWhen": "في الطابور",
+    "queuedWhen": "في الطابور في",
     "scheduledWhen": "مجدول في",
     "triggerer": {
       "assigned": "مُطلِق مُخصص",
@@ -268,14 +268,14 @@
       "latestHeartbeat": "آخر نبضة للمُطلِق",
       "title": "معلومات المُطلِق"
     },
-    "unixname": "اسم المستخدم يونكس"
+    "unixname": "اسم الUnix"
   },
-  "taskInstance_few": "مثيل المهمة",
+  "taskInstance_few": "مثيلات المهمة",
   "taskInstance_many": "مثيلات المهمة",
   "taskInstance_one": "مثيل المهمة",
   "taskInstance_other": "مثيلات المهمة",
-  "taskInstance_two": "مثيلان المهمة",
-  "taskInstance_zero": "لا توجد مثيلات المهمة",
+  "taskInstance_two": "مثيلا المهمة",
+  "taskInstance_zero": "لا يوجد أي مثيل للمهمة",
   "timeRange": {
     "last12Hours": "آخر 12 ساعة",
     "last24Hours": "آخر 24 ساعة",
@@ -296,45 +296,45 @@
   },
   "toaster": {
     "bulkDelete": {
-      "error": "فشل طلب الحذف المجمع ل{{resourceName}}",
+      "error": "فشل طلب حذف الرُزمة ل{{resourceName}}",
       "success": {
         "description": "تم حذف {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب الحذف المجمع ل{{resourceName}}"
       }
     },
     "create": {
-      "error": "فشل طلب إنشاء {{resourceName}}",
+      "error": "فشل طلب الإنشاء {{resourceName}}",
       "success": {
         "description": "تم إنشاء {{resourceName}} بنجاح.",
-        "title": "تم إرسال طلب إنشاء {{resourceName}}"
+        "title": "تم إرسال طلب الإنشاء {{resourceName}}"
       }
     },
     "delete": {
       "error": "فشل طلب حذف {{resourceName}}",
       "success": {
         "description": "تم حذف {{resourceName}} بنجاح.",
-        "title": "تم إرسال طلب حذف {{resourceName}}"
+        "title": "تم إرسال طلب الحذف {{resourceName}}"
       }
     },
     "import": {
       "error": "فشل طلب استيراد {{resourceName}}",
       "success": {
         "description": "تم استيراد {{count}} {{resourceName}} بنجاح.",
-        "title": "تم إرسال طلب استيراد {{resourceName}}"
+        "title": "تم إرسال طلب الاستيراد {{resourceName}}"
       }
     },
     "update": {
       "error": "فشل طلب تحديث {{resourceName}}",
       "success": {
         "description": "تم تحديث {{resourceName}} بنجاح.",
-        "title": "تم إرسال طلب تحديث {{resourceName}}"
+        "title": "تم إرسال طلب التحديث {{resourceName}}"
       }
     }
   },
-  "total": "الإجمالي {{state}}",
+  "total": "إجمالي {{state}}",
   "triggered": "مُشغل",
   "tryNumber": "محاولة رقم",
-  "user": "مستخدم",
+  "user": "المستخدم",
   "wrap": {
     "hotkey": "w",
     "tooltip": "اضغط {{hotkey}} لتبديل الالتفاف",
