@@ -154,10 +154,11 @@ def service_get_hitl_detail(
         map_index=map_index,
     )
     if task_instance is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-        )
+        error_msg = f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`"
+        if map_index is not None:
+            error_msg += f", map_index: `{map_index}`"
+        error_msg += " was not found"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_msg)
 
     ti_id_str = str(task_instance.id)
     hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
