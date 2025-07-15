@@ -136,9 +136,17 @@ def is_disabled() -> bool:
     if _is_true(os.getenv("OPENLINEAGE_DISABLED", "")):  # Check legacy variable
         return True
 
-    # Check if both 'transport' and 'config_path' are not present and also
-    # if legacy 'OPENLINEAGE_URL' environment variables is not set
-    return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
+    if transport():  # Check if transport is present
+        return False
+    if config_path(True):  # Check if config file is present
+        return False
+    if os.getenv("OPENLINEAGE_URL"):  # Check if url simple env var is present
+        return False
+    # Check if any transport configuration env var is present
+    if any(k.startswith("OPENLINEAGE__TRANSPORT") and v for k, v in os.environ.items()):
+        return False
+
+    return True  # No transport configuration is present, we can disable OpenLineage
 
 
 @cache
