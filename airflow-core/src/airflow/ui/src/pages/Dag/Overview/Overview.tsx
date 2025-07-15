@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { lazy, useState, Suspense } from "react";
+import { lazy, useState, Suspense, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -73,6 +73,25 @@ export const Overview = () => {
     timestampLte: endDate,
   });
 
+  // Memoize reversed gridRuns to avoid recalculating on every render
+  const reversedGridRuns = useMemo(() => gridRuns?.slice().reverse() ?? [], [gridRuns]);
+
+  // Memoize failedTasks events for TrendCountButton
+  const failedTaskEvents = useMemo(
+    () => (failedTasks?.task_instances ?? []).map((ti: any) => ({
+      timestamp: ti.start_date ?? ti.logical_date,
+    })),
+    [failedTasks]
+  );
+
+  // Memoize failedRuns events for TrendCountButton
+  const failedRunEvents = useMemo(
+    () => (failedRuns?.dag_runs ?? []).map((dr: any) => ({
+      timestamp: dr.run_after,
+    })),
+    [failedRuns]
+  );
+
   return (
     <Box m={4} spaceY={4}>
       <Box my={2}>
@@ -89,9 +108,7 @@ export const Overview = () => {
           colorPalette={(failedTasks?.total_entries ?? 0) === 0 ? "green" : "failed"}
           count={failedTasks?.total_entries ?? 0}
           endDate={endDate}
-          events={(failedTasks?.task_instances ?? []).map((ti) => ({
-            timestamp: ti.start_date ?? ti.logical_date,
-          }))}
+          events={failedTaskEvents}
           isLoading={isLoading}
           label={translate("overview.buttons.failedTask", { count: failedTasks?.total_entries ?? 0 })}
           route={{
@@ -104,9 +121,7 @@ export const Overview = () => {
           colorPalette={(failedRuns?.total_entries ?? 0) === 0 ? "green" : "failed"}
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
-          events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.run_after,
-          }))}
+          events={failedRunEvents}
           isLoading={isLoadingFailedRuns}
           label={translate("overview.buttons.failedRun", { count: failedRuns?.total_entries ?? 0 })}
           route={{
@@ -121,7 +136,7 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={gridRuns?.slice().reverse()} kind="Dag Run" />
+            <DurationChart entries={reversedGridRuns} kind="Dag Run" />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (
