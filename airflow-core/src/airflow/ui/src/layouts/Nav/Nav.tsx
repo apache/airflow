@@ -26,9 +26,10 @@ import {
   useVersionServiceGetVersion,
   usePluginServiceGetPlugins,
 } from "openapi/queries";
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
+import type { NavItem } from "src/utils/types";
 
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
@@ -37,9 +38,6 @@ import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
 import { SecurityButton } from "./SecurityButton";
 import { UserSettingsButton } from "./UserSettingsButton";
-
-// Union type for navigation items that can be either external views or react apps
-type NavItem = ExternalViewResponse | ReactAppResponse;
 
 // Define existing button categories to filter out
 const existingCategories = ["user", "docs", "admin", "browse"];

@@ -22,12 +22,10 @@ import { LuPlug } from "react-icons/lu";
 import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import type { NavItem } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
-
-// Union type for navigation items that can be either external views or react apps
-type NavItem = ExternalViewResponse | ReactAppResponse;
 
 type Props = { readonly topLevel?: boolean } & NavItem;
 

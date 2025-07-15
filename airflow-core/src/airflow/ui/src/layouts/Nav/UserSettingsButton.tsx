@@ -22,9 +22,9 @@ import { FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
+import type { NavItem } from "src/utils/types";
 
 import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
@@ -32,9 +32,6 @@ import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
-
-// Union type for navigation items that can be either external views or react apps
-type NavItem = ExternalViewResponse | ReactAppResponse;
 
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItem> }) => {
   const { t: translate } = useTranslation();

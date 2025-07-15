@@ -21,14 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import type { NavItem } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
-
-// Union type for navigation items that can be either external views or react apps
-type NavItem = ExternalViewResponse | ReactAppResponse;
 
 export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItem> }) => {
   const { t: translate } = useTranslation("common");

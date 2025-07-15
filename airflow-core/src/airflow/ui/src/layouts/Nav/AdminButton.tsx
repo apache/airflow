@@ -20,14 +20,12 @@ import { useTranslation } from "react-i18next";
 import { FiSettings } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { MenuItem, ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
+import type { MenuItem } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import type { NavItem } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
-
-// Union type for navigation items that can be either external views or react apps
-type NavItem = ExternalViewResponse | ReactAppResponse;
 
 const links = [
   {
