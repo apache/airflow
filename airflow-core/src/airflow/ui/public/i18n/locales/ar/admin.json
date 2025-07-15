@@ -24,20 +24,20 @@
     "connection_one": "موَّصل",
     "connection_other": "موَّصلات",
     "connection_two": "موَّصلان",
-    "connection_zero": "لا توجد موَّصلات",
+    "connection_zero": "لا يوجد أي موصل",
     "delete": {
-      "deleteConnection_few": "حذف {{count}} موَّصل",
-      "deleteConnection_many": "حذف {{count}} موَّصلات",
+      "deleteConnection_few": "حذف {{count}} موَّصلات",
+      "deleteConnection_many": "حذف {{count}} موَّصل",
       "deleteConnection_one": "حذف موَّصل واحد",
-      "deleteConnection_other": "حذف {{count}} موَّصلات",
-      "deleteConnection_two": "حذف موَّصلان",
-      "deleteConnection_zero": "لا توجد موصلات للحذف",
-      "firstConfirmMessage_few": ":أنت على وشك حذف الموَّصلات التالية",
-      "firstConfirmMessage_many": ":أنت على وشك حذف الموَّصلات التالية",
-      "firstConfirmMessage_one": ":أنت على وشك حذف الموَّصل التالي",
-      "firstConfirmMessage_other": ":أنت على وشك حذف الموَّصلات التالية",
-      "firstConfirmMessage_two": ":أنت على وشك حذف الموَّصلان التاليان",
-      "firstConfirmMessage_zero": "لا توجد موصلات للحذف",
+      "deleteConnection_other": "حذف {{count}} موَّصل",
+      "deleteConnection_two": "حذف موَّصلين",
+      "deleteConnection_zero": "لا يوجد أي موَّصل للحذف",
+      "firstConfirmMessage_few": "أنت على وشك حذف الموَّصلات التالية:",
+      "firstConfirmMessage_many": "أنت على وشك حذف الموَّصلات التالية:",
+      "firstConfirmMessage_one": "أنت على وشك حذف الموَّصل التالي:",
+      "firstConfirmMessage_other": "أنت على وشك حذف الموَّصلات التالية:",
+      "firstConfirmMessage_two": "أنت على وشك حذف الموَّصلين التاليين:",
+      "firstConfirmMessage_zero": "لا يوجد أي موصل للحذف",
       "title": "حذف الموَّصل"
     },
     "edit": "تعديل الموَّصل",
@@ -52,7 +52,7 @@
       "standardFields": "حقول قياسية"
     },
     "nothingFound": {
-        "description": "الاتصالات المعرّفة عبر متغيرات البيئة أو مدراء الأسرار غير مدرجة هنا.",
+        "description": "الموصلات المعرّفة عبر متغيرات البيئة أو مدراء الأسرار غير مدرجة هنا.",
         "documentationLink": "تعلم المزيد في وثائق Airflow.",
         "learnMore": "يتم حل هذه المشاكل في وقت التشغيل وهي غير مرئية في واجهة المستخدم",
         "title": "لا توجد موَّصلات متاحة"
@@ -95,7 +95,7 @@
     "importError_one": "خطأ في استيراد المكوّن الإضافي",
     "importError_other": "أخطاء في استيراد المكوّن الإضافي",
     "importError_two": "خطأان في استيراد المكوّن الإضافي",
-    "importError_zero": "لا توجد أخطاء في استيراد المكوّن الإضافي",
+    "importError_zero": "لا يوجد أي خطأ في استيراد المكوّن الإضافي",
     "searchPlaceholder": "البحث عن الملفات"
   },
   "pools": {
@@ -115,12 +115,12 @@
       "slots": "حصص"
     },
     "noPoolsFound": "لا توجد مجموعات موارد متاحة",
-    "pool_few": "مجموعة",
-    "pool_many": "مجموعات",
+    "pool_few": "مجموعات",
+    "pool_many": "مجموعة",
     "pool_one": "مجموعة",
-    "pool_other": "مجموعات",
+    "pool_other": "مجموعة",
     "pool_two": "مجموعتان",
-    "pool_zero": "لا توجد مجموعات",
+    "pool_zero": "لا يوجد أي مجموعة",
     "searchPlaceholder": "البحث عن مجموعات",
     "sort": {
       "asc": "الاسم (A-Z)",
@@ -140,18 +140,18 @@
       "isEncrypted": "مُشفر"
     },
     "delete": {
-      "deleteVariable_few": "حذف {{count}} متغير",
-      "deleteVariable_many": "حذف {{count}} متغيرات",
+      "deleteVariable_few": "حذف {{count}} متغيرات",
+      "deleteVariable_many": "حذف {{count}} متغير",
       "deleteVariable_one": "حذف متغير واحد",
-      "deleteVariable_other": "حذف {{count}} متغيرات",
-      "deleteVariable_two": "حذف متغيران",
-      "deleteVariable_zero": "لا توجد متغيرات للحذف",
-      "firstConfirmMessage_few": ":أنت على وشك حذف المتغيرات التالية",
-      "firstConfirmMessage_many": ":أنت على وشك حذف المتغيرات التالية",
-      "firstConfirmMessage_one": ":أنت على وشك حذف المتغير التالي",
-      "firstConfirmMessage_other": ":أنت على وشك حذف المتغيرات التالية",
-      "firstConfirmMessage_two": ":أنت على وشك حذف المتغيران التاليان",
-      "firstConfirmMessage_zero": "لا توجد متغيرات للحذف",
+      "deleteVariable_other": "حذف {{count}} متغير",
+      "deleteVariable_two": "حذف متغيرين",
+      "deleteVariable_zero": "لا يوجد أي متغير للحذف",
+      "firstConfirmMessage_few": "أنت على وشك حذف المتغيرات التالية:",
+      "firstConfirmMessage_many": "أنت على وشك حذف المتغيرات التالية:",
+      "firstConfirmMessage_one": "أنت على وشك حذف المتغير التالي:",
+      "firstConfirmMessage_other": "أنت على وشك حذف المتغيرات التالية:",
+      "firstConfirmMessage_two": "أنت على وشك حذف المتغيرين التاليين:",
+      "firstConfirmMessage_zero": "لا يوجد أي متغير للحذف",
       "title": "حذف المتغير",
       "tooltip": "حذف المتغيرات المحددة"
     },
@@ -188,11 +188,11 @@
     },
     "noRowsMessage": "لا توجد متغيرات",
     "searchPlaceholder": "البحث عن متغيرات",
-    "variable_few": "متغير",
+    "variable_few": "متغيرات",
     "variable_many": "متغيرات",
     "variable_one": "متغير",
     "variable_other": "متغيرات",
     "variable_two": "متغيران",
-    "variable_zero": "لا توجد متغيرات"
+    "variable_zero": "لا يوجد أي متغير"
   }
 }
