@@ -21,6 +21,7 @@ import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -55,6 +56,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     """Minimal interface for a task instance available during the execution."""
 
     id: uuid.UUID
+    dag_version_id: uuid.UUID
     task: BaseOperator
     task_id: str
     dag_id: str
@@ -70,9 +72,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
         self,
         task_ids: str | list[str] | None = None,
         dag_id: str | None = None,
-        key: str = "return_value",
-        # TODO: `include_prior_dates` isn't yet supported in the SDK
-        # include_prior_dates: bool = False,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,

@@ -28,6 +28,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetReferenceAssetEventDagRun,
     AssetResponse,
 )
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -541,12 +542,12 @@ class TestTriggeringAssetEventsAccessor:
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
-            XComResult(key="return_value", value="__example_xcom_value__"),
+            XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
         mock_supervisor_comms.send.assert_called_once_with(
             msg=GetXCom(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="d1",
                 run_id="r1",
                 task_id="t2",
@@ -776,12 +777,12 @@ class TestInletEventAccessor:
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
-            XComResult(key="return_value", value="__example_xcom_value__"),
+            XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
         mock_supervisor_comms.send.assert_called_once_with(
             msg=GetXCom(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="__dag__",
                 run_id="__run__",
                 task_id="__task__",

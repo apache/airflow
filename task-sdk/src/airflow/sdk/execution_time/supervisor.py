@@ -68,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
@@ -142,6 +143,10 @@ MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
 SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout")
+
+# Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+# like listeners after task is complete.
+TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -667,7 +672,7 @@ class WatchedSubprocess:
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
-        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+        escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
         if force and signal_to_send in escalation_path:
             # Start from `signal_to_send` and escalate to the end of the escalation path
@@ -823,10 +828,6 @@ class ActivitySubprocess(WatchedSubprocess):
     # does not hang around forever.
     failed_heartbeats: int = attrs.field(default=0, init=False)
 
-    # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
-    # like listeners after task is complete.
-    # TODO: This should come from airflow.cfg: [core] task_success_overtime
-    TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
@@ -976,9 +977,14 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         if (
             self._task_end_time_monotonic
-            and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
+            and (time.monotonic() - self._task_end_time_monotonic) > TASK_OVERTIME_THRESHOLD
         ):
-            log.warning("Workload success overtime reached; terminating process", ti_id=self.id)
+            log.warning(
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
+                ti_id=self.id,
+            )
             self.kill(signal.SIGTERM, force=True)
 
     def _send_heartbeat_if_needed(self):
@@ -1235,6 +1241,17 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
+        elif isinstance(msg, CreateHITLDetailPayload):
+            resp = self.client.hitl.add_response(
+                ti_id=msg.ti_id,
+                options=msg.options,
+                subject=msg.subject,
+                body=msg.body,
+                defaults=msg.defaults,
+                params=msg.params,
+                multiple=msg.multiple,
+            )
+            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1407,7 +1424,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
     def send_msg(

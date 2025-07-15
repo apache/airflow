@@ -17,6 +17,14 @@
 
 from __future__ import annotations
 
-from airflow.sdk import ObjectStoragePath
+from cadwyn import VersionChange, schema
 
-__all__ = ["ObjectStoragePath"]
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+
+
+class AddDagVersionIdField(VersionChange):
+    """Add the `dag_version_id` field to the TaskInstance model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("dag_version_id").didnt_exist,)

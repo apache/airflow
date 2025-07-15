@@ -25,12 +25,18 @@
   "logs": {
     "allLevels": "כל רמות הרישום",
     "allSources": "כל המקורות",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
     "fullscreen": {
       "button": "מסך מלא",
       "tooltip": "לחץ {{hotkey}} למסך מלא"
     },
+    "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
-    "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})"
+    "settings": "הגדרות רישום",
+    "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
+    "warning": "WARNING"
   },
   "overview": {
     "buttons": {

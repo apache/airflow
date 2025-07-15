@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 CONTAINER_LIFECYCLE_PARAMETERS = {
@@ -37,7 +38,8 @@ class TestContainerLifecycleHooks:
     """Tests container lifecycle hooks."""
 
     # Test container lifecycle hooks default setting
-    def test_check_default_setting(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_check_default_setting(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         docs = render_chart(
             name=lifecycle_hook_params["release_name"],
@@ -74,7 +76,8 @@ class TestContainerLifecycleHooks:
         assert jmespath.search("spec.template.spec.containers[0].lifecycle.postStart", docs[-1]) is None
 
     # Test Global container lifecycle hooks for the main services
-    def test_global_setting(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_global_setting(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         docs = render_chart(
             name=lifecycle_hook_params["release_name"],
@@ -98,7 +101,8 @@ class TestContainerLifecycleHooks:
             )
 
     # Test Global container lifecycle hooks for the main services
-    def test_global_setting_external(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_global_setting_external(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
         docs = render_chart(
@@ -119,7 +123,8 @@ class TestContainerLifecycleHooks:
             )
 
     # <local>.containerLifecycleWebhooks > containerLifecycleWebhooks
-    def test_check_main_container_setting(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_check_main_container_setting(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
         docs = render_chart(
@@ -164,7 +169,8 @@ class TestContainerLifecycleHooks:
             )
 
     # Test container lifecycle hooks for metrics-explorer main container
-    def test_metrics_explorer_container_setting(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_metrics_explorer_container_setting(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
         docs = render_chart(
@@ -183,7 +189,8 @@ class TestContainerLifecycleHooks:
         )
 
     # Test container lifecycle hooks for worker-kerberos main container
-    def test_worker_kerberos_container_setting(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_worker_kerberos_container_setting(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
         docs = render_chart(
@@ -204,7 +211,8 @@ class TestContainerLifecycleHooks:
         )
 
     # Test container lifecycle hooks for log-groomer-sidecar main container
-    def test_log_groomer_sidecar_container_setting(self, hook_type="preStop"):
+    @pytest.mark.parametrize("hook_type", ["preStop"])
+    def test_log_groomer_sidecar_container_setting(self, hook_type):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
         docs = render_chart(
@@ -223,6 +231,3 @@ class TestContainerLifecycleHooks:
             assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
                 f"spec.template.spec.containers[1].lifecycle.{hook_type}", doc
             )
-
-
-# ruff: noqa: PT028
