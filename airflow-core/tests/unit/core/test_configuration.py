@@ -1144,7 +1144,7 @@ sql_alchemy_conn=sqlite://test
         "old, new",
         [
             (
-                ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
+                ("core", "sql_alchemy_conn", "postgres+psycopg://localhost/postgres"),
                 ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
             ),
         ],

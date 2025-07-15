@@ -248,7 +248,7 @@ def get_autodoc_mock_imports() -> list[str]:
         "pandas_gbq",
         "paramiko",
         "pinotdb",
-        "psycopg2",
+        "psycopg",
         "pydruid",
         "pyhive",
         "pyhive",

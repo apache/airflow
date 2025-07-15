@@ -22,10 +22,9 @@ from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
-import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
-from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
+from psycopg.connection import Connection as pgConnection
+from psycopg.rows import dict_row, namedtuple_row
+from psycopg.types.json import Json
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
@@ -33,7 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 if TYPE_CHECKING:
-    from psycopg2.extensions import connection
+    from psycopg.rows import RowFactory
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -43,7 +42,7 @@ if TYPE_CHECKING:
     except ImportError:
         from airflow.models.connection import Connection  # type: ignore[assignment]
 
-CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
 
 
 class PostgresHook(DbApiHook):
@@ -52,35 +51,30 @@ class PostgresHook(DbApiHook):
 
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
-    Also you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
-    psycopg2.extras for more details.
-
+    Also, you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
+    psycopg.rows for more details.
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
-
     Note: For AWS IAM authentication, use iam in the extra connection parameters
     and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
-
     For Redshift, also use redshift in the extra connection parameters and
     set it to true. The cluster-identifier is extracted from the beginning of
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
-
     For Redshift Serverless, use redshift-serverless in the extra connection parameters and
     set it to true. The workgroup-name is extracted from the beginning of
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift-serverless":true, "workgroup-name": "my_serverless_workgroup"}``
-
     :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
     :param options: Optional. Specifies command-line options to send to the server
         at connection start. For example, setting this to ``-c search_path=myschema``
         sets the session's value of the ``search_path`` to ``myschema``.
     :param enable_log_db_messages: Optional. If enabled logs database messages sent to the client
-        during the session. To avoid a memory leak psycopg2 only saves the last 50 messages.
+        during the session. To avoid a memory leak psycopg only saves the last 50 messages.
         For details, see: `PostgreSQL logging configuration parameters
         <https://www.postgresql.org/docs/current/runtime-config-logging.html>`__
     """
@@ -91,6 +85,7 @@ class PostgresHook(DbApiHook):
     hook_name = "Postgres"
     supports_autocommit = True
     supports_executemany = True
+    DEFAULT_CLIENT_MIN_MESSAGES = "warning"
     ignored_extra_options = {
         "iam",
         "redshift",
@@ -107,7 +102,7 @@ class PostgresHook(DbApiHook):
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.conn: connection = None
+        self.conn: pgConnection = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
@@ -119,7 +114,7 @@ class PostgresHook(DbApiHook):
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
         return URL.create(
-            drivername="postgresql",
+            drivername="postgresql+psycopg",
             username=conn.login,
             password=conn.password,
             host=conn.host,
@@ -136,19 +131,18 @@ class PostgresHook(DbApiHook):
     def dialect(self) -> Dialect:
         return PostgresDialect(self)
 
-    def _get_cursor(self, raw_cursor: str) -> CursorType:
-        _cursor = raw_cursor.lower()
-        cursor_types = {
-            "dictcursor": psycopg2.extras.DictCursor,
-            "realdictcursor": psycopg2.extras.RealDictCursor,
-            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
-        }
-        if _cursor in cursor_types:
-            return cursor_types[_cursor]
-        valid_cursors = ", ".join(cursor_types.keys())
+    def _get_row_factory(self, cursor_name: str) -> RowFactory[Any] | None:
+        _cursor = cursor_name.lower()
+        if _cursor == "dictcursor":
+            return dict_row
+        if _cursor == "namedtuplecursor":
+            return namedtuple_row
+        if _cursor == "realdictcursor":
+            raise AirflowException("realdictcursor is not supported with psycopg3. Use dictcursor instead.")
+        valid_cursors = "dictcursor, namedtuplecursor"
         raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
-    def get_conn(self) -> connection:
+    def get_conn(self) -> pgConnection:
         """Establish a connection to a postgres database."""
         conn = deepcopy(self.connection)
 
@@ -163,10 +157,6 @@ class PostgresHook(DbApiHook):
             "dbname": self.database or conn.schema,
             "port": conn.port,
         }
-        raw_cursor = conn.extra_dejson.get("cursor", False)
-        if raw_cursor:
-            conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
-
         if self.options:
             conn_args["options"] = self.options
 
@@ -174,15 +164,23 @@ class PostgresHook(DbApiHook):
             if arg_name not in self.ignored_extra_options:
                 conn_args[arg_name] = arg_val
 
-        self.conn = psycopg2.connect(**conn_args)
+        if self.enable_log_db_messages:
+            # Set minimum client message level to INFO, so we can log all messages.
+            conn_args["client_encoding"] = "utf-8"
+            conn_args.setdefault("options", "")
+            conn_args["options"] += f" -c client_min_messages={self.DEFAULT_CLIENT_MIN_MESSAGES}"
+
+        self.conn = pgConnection.connect(**conn_args)
+        raw_cursor = conn.extra_dejson.get("cursor")
+        if raw_cursor:
+            self.conn.row_factory = self._get_row_factory(raw_cursor)
         return self.conn
 
     def copy_expert(self, sql: str, filename: str) -> None:
         """
-        Execute SQL using psycopg2's ``copy_expert`` method.
+        Execute SQL using psycopg's ``copy_expert`` method.
 
         Necessary to execute COPY command without access to a superuser.
-
         Note: if this method is called with a "COPY FROM" statement and
         the specified input file does not exist, it creates an empty
         file and no data is loaded, but the operation succeeds.
@@ -194,9 +192,10 @@ class PostgresHook(DbApiHook):
             with open(filename, "w"):
                 pass
 
-        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            cur.copy_expert(sql, file)
-            file.truncate(file.tell())
+        with open(filename, "r+") as file, closing(self.get_conn()) as conn, conn.cursor() as cur:
+            with cur.copy(sql) as copy:
+                while data := file.read(cur.pgconn.copy_block_size):
+                    copy.write(data)
             conn.commit()
 
     def get_uri(self) -> str:
@@ -216,24 +215,21 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
+    def _serialize_cell(cell: object, conn: pgConnection | None = None) -> Any:
         """
         Serialize a cell.
 
-        In order to pass a Python object to the database as query argument you can use the
-         Json (class psycopg2.extras.Json) adapter.
-
+        In order to pass a Python object to the database as a query argument, you can use the
+        Json (class psycopg.types.json.Json) adapter.
         Reading from the database, json and jsonb values will be automatically converted to Python objects.
-
-        See https://www.psycopg.org/docs/extras.html#json-adaptation for
+        See https://www.psycopg.org/psycopg3/docs/basic/adaptation.html#json-adaptation for
         more information.
-
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
         """
-        if isinstance(cell, (dict, list)):
-            cell = Json(cell)
+        if conn and isinstance(cell, (dict, list)):
+            return Json(cell, dumper=conn.adapters.dumper)
         return cell
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
@@ -365,5 +361,5 @@ class PostgresHook(DbApiHook):
         :param conn: Connection object
         """
         if self.enable_log_db_messages:
-            for output in conn.notices:
-                self.log.info(output)
+            for notice in conn.notices:
+                self.log.info(notice.message)

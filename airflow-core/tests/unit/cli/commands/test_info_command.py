@@ -55,20 +55,20 @@ class TestPiiAnonymizer:
         "before, after",
         [
             (
-                "postgresql+psycopg2://postgres:airflow@postgres/airflow",
-                "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow",
+                "postgresql+psycopg://postgres:airflow@postgres/airflow",
+                "postgresql+psycopg://p...s:PASSWORD@postgres/airflow",
             ),
             (
-                "postgresql+psycopg2://postgres@postgres/airflow",
-                "postgresql+psycopg2://p...s@postgres/airflow",
+                "postgresql+psycopg://postgres@postgres/airflow",
+                "postgresql+psycopg://p...s@postgres/airflow",
             ),
             (
-                "postgresql+psycopg2://:airflow@postgres/airflow",
-                "postgresql+psycopg2://:PASSWORD@postgres/airflow",
+                "postgresql+psycopg://:airflow@postgres/airflow",
+                "postgresql+psycopg://:PASSWORD@postgres/airflow",
             ),
             (
-                "postgresql+psycopg2://postgres/airflow",
-                "postgresql+psycopg2://postgres/airflow",
+                "postgresql+psycopg://postgres/airflow",
+                "postgresql+psycopg://postgres/airflow",
             ),
         ],
     )
@@ -98,7 +98,7 @@ class TestAirflowInfo:
             ("core", "dags_folder"): "TEST_DAGS_FOLDER",
             ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
             ("logging", "base_log_folder"): "TEST_LOG_FOLDER",
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+            ("database", "sql_alchemy_conn"): "postgresql+psycopg://postgres:airflow@postgres/airflow",
             ("logging", "remote_logging"): "True",
             ("logging", "remote_base_log_folder"): "s3://logs-name",
         }
@@ -147,7 +147,7 @@ class TestAirflowInfo:
     @pytest.mark.db_test
     @conf_vars(
         {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+            ("database", "sql_alchemy_conn"): "postgresql+psycopg://postgres:airflow@postgres/airflow",
         }
     )
     def test_show_info(self):
@@ -156,12 +156,12 @@ class TestAirflowInfo:
 
         output = stdout.getvalue()
         assert airflow_version in output
-        assert "postgresql+psycopg2://postgres:airflow@postgres/airflow" in output
+        assert "postgresql+psycopg://postgres:airflow@postgres/airflow" in output
 
     @pytest.mark.db_test
     @conf_vars(
         {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+            ("database", "sql_alchemy_conn"): "postgresql+psycopg://postgres:airflow@postgres/airflow",
         }
     )
     def test_show_info_anonymize(self):
@@ -170,7 +170,7 @@ class TestAirflowInfo:
 
         output = stdout.getvalue()
         assert airflow_version in output
-        assert "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow" in output
+        assert "postgresql+psycopg://p...s:PASSWORD@postgres/airflow" in output
 
 
 @pytest.fixture
@@ -181,7 +181,7 @@ def setup_parser():
 class TestInfoCommandMockHttpx:
     @conf_vars(
         {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+            ("database", "sql_alchemy_conn"): "postgresql+psycopg://postgres:airflow@postgres/airflow",
         }
     )
     def test_show_info_anonymize_fileio(self, setup_parser, cleanup_providers_manager):
