@@ -32,12 +32,14 @@ try:
 except ImportError:
     import tomli as tomllib
 
-# The purpose of this script, is to check whether the exclusion of certain providers for
-# specific python versions is constant across all 3 files in which it needs to be set.
-# This is the providers pyproject.toml and provider.yaml and the PROVIDERS_COMPATIBILITY_TESTS_MATRIX
-# in dev/breeze/src/airflow_breeze/global_constants.py
+"""
+The purpose of this script, is to check whether the exclusion of certain providers for
+specific python versions is constant across all 3 files in which it needs to be set.
+This is the providers pyproject.toml and provider.yaml and the PROVIDERS_COMPATIBILITY_TESTS_MATRIX
+in dev/breeze/src/airflow_breeze/global_constants.py.
+"""
 
-MIN_SUPPORTED_VERSION = "3.10"
+MIN_SUPPORTED_PYTHON_VERSION = "3.10"
 SUPPORTED_PYTHON_VERSIONS = [f"3.{i}" for i in range(10, 13)]
 
 
@@ -65,102 +67,71 @@ def filter_pyproject_exclusions(exclusions: set[str]) -> set[str]:
     for v in exclusions:
         ver = Version(v)
         if ver >= Version(
-            MIN_SUPPORTED_VERSION
+            MIN_SUPPORTED_PYTHON_VERSION
         ):  # If the excluded version is less than the current minimum supported one
             filtered.add(v)
     return filtered
 
 
 def parse_pyproject_exclusions_filtered(pyproject_path: Path) -> set[str]:
-    try:
-        with pyproject_path.open("rb") as f:
-            data = tomllib.load(f)
-        requires_python = data.get("project", {}).get("requires-python", "")
-        exclusions = set(re.findall(r"!=([0-9.]+)", requires_python))
-        min_version_match = re.search(r">=\s*([0-9]+(?:\.[0-9]+)*)", requires_python)
-        if min_version_match:
-            min_version = min_version_match.group(1)
-            all_py_versions = SUPPORTED_PYTHON_VERSIONS
-            for v in all_py_versions:
-                if Version(v) < Version(min_version):
-                    exclusions.add(v)
-        return filter_pyproject_exclusions(exclusions)
-    except Exception as e:
-        print(f"Failed to parse {pyproject_path}: {e}")
-        return set()
+    with pyproject_path.open("rb") as f:
+        data = tomllib.load(f)
+    requires_python = data.get("project", {}).get("requires-python", "")
+    exclusions = set(re.findall(r"!=([0-9.]+)", requires_python))
+    min_version_match = re.search(r">=\s*([0-9]+(?:\.[0-9]+)*)", requires_python)
+    if min_version_match:
+        min_version = min_version_match.group(1)
+        all_py_versions = SUPPORTED_PYTHON_VERSIONS
+        for v in all_py_versions:
+            if Version(v) < Version(min_version):
+                exclusions.add(v)
+    return filter_pyproject_exclusions(exclusions)
 
 
 def check_classifiers_vs_pyproject_exclusions(
     pyproject_path: Path, pyproject_exclusions: set[str]
 ) -> list[str]:
-    try:
-        with pyproject_path.open("rb") as f:
-            data = tomllib.load(f)
-        classifiers = data.get("project", {}).get("classifiers", [])
-        classifier_versions = {
-            entry.strip().split("::")[2].strip()
-            for entry in classifiers
-            if entry.strip().startswith("Programming Language :: Python ::")
-            and entry.strip().count("::") == 2
-        }
-        return sorted(pyproject_exclusions & classifier_versions)
-    except Exception as e:
-        print(f"Failed to check classifiers in {pyproject_path}: {e}")
-        return []
+    with pyproject_path.open("rb") as f:
+        data = tomllib.load(f)
+    classifiers = data.get("project", {}).get("classifiers", [])
+    classifier_versions = {
+        entry.strip().split("::")[2].strip()
+        for entry in classifiers
+        if entry.strip().startswith("Programming Language :: Python ::") and entry.strip().count("::") == 2
+    }
+    return sorted(pyproject_exclusions & classifier_versions)
 
 
 def parse_pyproject_exclusions(pyproject_path: Path) -> set[str]:
-    try:
-        with pyproject_path.open("rb") as f:
-            data = tomllib.load(f)
-        requires_python = data.get("project", {}).get("requires-python", "")
-        spec = SpecifierSet(requires_python)
+    with pyproject_path.open("rb") as f:
+        data = tomllib.load(f)
+    requires_python = data.get("project", {}).get("requires-python", "")
+    spec = SpecifierSet(requires_python)
 
-        all_py_versions = SUPPORTED_PYTHON_VERSIONS
-        excluded = {v for v in all_py_versions if Version(v) not in spec}
-        return excluded
-    except Exception as e:
-        print(f"Failed to parse {pyproject_path}: {e}")
-        return set()
+    all_py_versions = SUPPORTED_PYTHON_VERSIONS
+    excluded = {v for v in all_py_versions if Version(v) not in spec}
+    return excluded
 
 
 def parse_provider_yaml_exclusions(provider_yaml_path: Path) -> set[str]:
-    try:
-        with open(provider_yaml_path) as f:
-            data = yaml.safe_load(f)
-        raw_versions = data.get("excluded-python-versions", [])
-        versions = set()
-        for v in raw_versions:
-            version_str = f"{v:.2f}" if isinstance(v, float) else str(v)
-            if version_str in SUPPORTED_PYTHON_VERSIONS:
-                versions.add(version_str)
-            elif Version(version_str) < Version(MIN_SUPPORTED_VERSION):
-                print(
-                    f"Warning: {provider_yaml_path} excludes {version_str} which is below minimum supported version {MIN_SUPPORTED_VERSION}"
-                )
-        return versions
-    except Exception as e:
-        print(f"Failed to parse {provider_yaml_path}: {e}")
-        return set()
-
-
-def parse_provider_name(pyproject_path: Path) -> str | None:
-    try:
-        with pyproject_path.open("rb") as f:
-            data = tomllib.load(f)
-        return data.get("project", {}).get("name")
-    except Exception as e:
-        print(f"Failed to parse provider name in {pyproject_path}: {e}")
-        return None
+    with open(provider_yaml_path) as f:
+        data = yaml.safe_load(f)
+    raw_versions = data.get("excluded-python-versions", [])
+    versions = set()
+    for v in raw_versions:
+        version_str = f"{v:.2f}" if isinstance(v, float) else str(v)
+        if version_str in SUPPORTED_PYTHON_VERSIONS:
+            versions.add(version_str)
+        elif Version(version_str) < Version(MIN_SUPPORTED_PYTHON_VERSION):
+            print(
+                f"\nWarning: {provider_yaml_path} excludes {version_str} which is below minimum supported version {MIN_SUPPORTED_PYTHON_VERSION}"
+            )
+    return versions
 
 
 def parse_global_exclusions(global_constants_path: Path) -> dict[str, set[str]]:
-    try:
-        with open(global_constants_path) as f:
-            tree = ast.parse(f.read())
-    except Exception as e:
-        print(f"Failed to parse {global_constants_path}: {e}")
-        return {}
+    with open(global_constants_path) as f:
+        tree = ast.parse(f.read())
     for node in tree.body:
         if isinstance(node, ast.Assign):
             targets = node.targets
@@ -177,18 +148,14 @@ def parse_global_exclusions(global_constants_path: Path) -> dict[str, set[str]]:
 
         for target in targets:
             if getattr(target, "id", None) == "PROVIDERS_COMPATIBILITY_TESTS_MATRIX":
-                try:
-                    matrix = ast.literal_eval(value)
-                    version_map: dict[str, set[str]] = {}
-                    for entry in matrix:
-                        py_ver = entry.get("python-version")
-                        removed = entry.get("remove-providers", "")
-                        removed_set = set(p.strip() for p in removed.split())
-                        version_map.setdefault(py_ver, set()).update(removed_set)
-                    return version_map
-                except Exception as e:
-                    print("Failed to evaluate PROVIDERS_COMPATIBILITY_TESTS_MATRIX:", e)
-                    return {}
+                matrix = ast.literal_eval(value)
+                version_map: dict[str, set[str]] = {}
+                for entry in matrix:
+                    py_ver = entry.get("python-version")
+                    removed = entry.get("remove-providers", "")
+                    removed_set = set(p.strip() for p in removed.split())
+                    version_map.setdefault(py_ver, set()).update(removed_set)
+                return version_map
     return {}
 
 
@@ -196,7 +163,6 @@ def check_consistency(provider_root: Path, global_exclusions: dict[str, set[str]
     pyproject_path = provider_root / "pyproject.toml"
     provider_yaml_path = provider_root / "provider.yaml"
     simple_name = get_simple_provider_name(provider_root)
-
     pyproject_exclusions = parse_pyproject_exclusions_filtered(pyproject_path)
     provider_yaml_exclusions = parse_provider_yaml_exclusions(provider_yaml_path)
     classifier_conflicts = check_classifiers_vs_pyproject_exclusions(pyproject_path, pyproject_exclusions)
@@ -261,9 +227,6 @@ def main():
     if failed:
         sys.exit(1)
     else:
-        print(
-            "Python version exclusions are consistent across pyproject.toml, provider.yaml and global constants."
-        )
         sys.exit(0)
 
 
