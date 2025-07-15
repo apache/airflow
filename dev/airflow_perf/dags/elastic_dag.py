@@ -47,7 +47,7 @@ def parse_time_delta(time_str: str):
         raise ValueError(msg)
 
     time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
-    return timedelta(**time_params)  # type: ignore
+    return timedelta(**time_params)
 
 
 def parse_schedule_interval(time_str: str):

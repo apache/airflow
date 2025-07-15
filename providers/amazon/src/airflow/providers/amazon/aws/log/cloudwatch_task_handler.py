@@ -169,7 +169,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
         ]
         try:
-            logs = [self.get_cloudwatch_logs(relative_path, ti)]  # type: ignore[arg-value]
+            logs = [self.get_cloudwatch_logs(relative_path, ti)]
         except Exception as e:
             logs = None
             messages.append(str(e))

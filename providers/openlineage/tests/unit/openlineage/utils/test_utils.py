@@ -63,12 +63,12 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, task
 else:
-    from airflow.decorators import task  # type: ignore[no-redef]
+    from airflow.decorators import task
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -1374,7 +1374,7 @@ class TestDagInfoAirflow3:
             ],
             "restrict_to_events": False,
         }
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_0_3_PLUS:
             timetable.update(
                 {
                     "_summary": "My Team's Baseball Games",
