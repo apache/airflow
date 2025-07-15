@@ -98,7 +98,7 @@ Exposing customized functionality to the Airflow's core:
   provider provides. See :doc:`apache-airflow:administration-and-deployment/logging-monitoring/logging-tasks`
   for description of the logging handlers.
 
-* ``notifications`` - this field should contain the list of all the notification class names that the
+* ``notifications`` - this field should contain the list of all the notification classes that the
   provider provides. See :doc:`apache-airflow:howto/notifications` for description of the notifications.
 
 * ``operators`` - this field should contain the list of all the operator class names that the
