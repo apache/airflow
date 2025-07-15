@@ -45,6 +45,9 @@ __deprecated_classes = {
     "timeout": {
         "timeout": "airflow.sdk.execution_time.timeout.timeout",
     },
+    "trigger_rule": {
+        "TriggerRule": "airflow.sdk.definitions.trigger_rule.TriggerRule",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
