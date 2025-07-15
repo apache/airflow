@@ -21,7 +21,7 @@ dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.10, !=3.13"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -38,7 +38,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -139,13 +138,15 @@ codegen = [
     "datamodel-code-generator[http]==0.28.2",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.11.13",
+    "ruff==0.12.3",
     "rich>=12.4.4",
 ]
 dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
+    "pandas>=2.1.2; python_version <\"3.13\"",
+    "pandas>=2.2.3; python_version >=\"3.13\""
 ]
 docs = [
     "apache-airflow-devel-common[docs]",
@@ -169,14 +170,14 @@ enum-field-as-literal='one' # When a single enum member, make it output a `Liter
 input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='AwareDatetime'
-target-python-version='3.9'
+target-python-version='3.10'
 use-annotated=true
 use-default=true
 use-double-quotes=true
 use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
-use-union-operator=true # 3.9+annotations, not `Union[]`
+use-union-operator=true # annotations, not `Union[]`
 custom-formatters = ['datamodel_code_formatter']
 
 url = 'http://0.0.0.0:8080/execution/openapi.json'

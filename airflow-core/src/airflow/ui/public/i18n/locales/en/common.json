@@ -55,7 +55,8 @@
     "runAfter": "Run After",
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
-    "triggeredBy": "Triggered By"
+    "triggeredBy": "Triggered By",
+    "triggeringUser": "Triggering User Name"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
@@ -76,6 +77,12 @@
     "home": "Home",
     "notFound": "Page Not Found",
     "title": "Error"
+  },
+  "expand":{
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "hotkey": "e",
+    "tooltip": "Press {{hotkey}} to toggle expand"
   },
   "expression": {
     "all": "All",
@@ -102,6 +109,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Home",
+    "legacyFabViews": "Legacy Views",
     "plugins": "Plugins",
     "security": "Security"
   },
@@ -146,6 +154,11 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "source": {
+    "hide": "Hide Source",
+    "hotkey": "s",
+    "show": "Show Source"
+  },
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",
@@ -225,6 +238,11 @@
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
+  "timestamp": {
+    "hide": "Hide Timestamps",
+    "hotkey": "t",
+    "show": "Show Timestamps"
+  },
   "timezone": "Timezone",
   "timezoneModal": {
     "current-timezone": "Current time in",
@@ -269,10 +287,12 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"

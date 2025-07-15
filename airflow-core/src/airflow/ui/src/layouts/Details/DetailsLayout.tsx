@@ -28,7 +28,6 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
-import type { DAGResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -36,6 +35,7 @@ import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
+import { Tooltip } from "src/components/ui/Tooltip";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -45,7 +45,6 @@ import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
 type Props = {
-  readonly dag?: DAGResponse;
   readonly error?: unknown;
   readonly isLoading?: boolean;
   readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
@@ -82,21 +81,23 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
         {isRightPanelCollapsed ? (
-          <IconButton
-            aria-label={translate("common:showDetailsPanel")}
-            bg="bg.surface"
-            borderRadius="full"
-            boxShadow="md"
-            cursor="pointer"
-            onClick={() => setIsRightPanelCollapsed(false)}
-            position="absolute"
-            right={0}
-            size="sm"
-            top="50%"
-            zIndex={10}
-          >
-            <FaChevronLeft />
-          </IconButton>
+          <Tooltip content={translate("common:showDetailsPanel")}>
+            <IconButton
+              aria-label={translate("common:showDetailsPanel")}
+              bg="bg.surface"
+              borderRadius="full"
+              boxShadow="md"
+              cursor="pointer"
+              onClick={() => setIsRightPanelCollapsed(false)}
+              position="absolute"
+              right={0}
+              size="sm"
+              top="50%"
+              zIndex={10}
+            >
+              <FaChevronLeft />
+            </IconButton>
+          </Tooltip>
         ) : undefined}
         <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
@@ -132,18 +133,20 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 position="relative"
                 w={0.5}
               >
-                <IconButton
-                  aria-label={translate("common:collapseDetailsPanel")}
-                  bg="bg.surface"
-                  borderRadius="full"
-                  boxShadow="md"
-                  cursor="pointer"
-                  onClick={() => setIsRightPanelCollapsed(true)}
-                  size="xs"
-                  zIndex={2}
-                >
-                  <FaChevronRight />
-                </IconButton>
+                <Tooltip content={translate("common:collapseDetailsPanel")}>
+                  <IconButton
+                    aria-label={translate("common:collapseDetailsPanel")}
+                    bg="bg.surface"
+                    borderRadius="full"
+                    boxShadow="md"
+                    cursor="pointer"
+                    onClick={() => setIsRightPanelCollapsed(true)}
+                    size="xs"
+                    zIndex={2}
+                  >
+                    <FaChevronRight />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </PanelResizeHandle>
           )}
@@ -175,7 +178,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 ) : undefined}
                 <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                 <NavTabs tabs={tabs} />
-                <Box h="100%" overflow="auto" px={2}>
+                <Box flexGrow={1} overflow="auto" px={2}>
                   <Outlet />
                 </Box>
               </Box>

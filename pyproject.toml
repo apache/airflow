@@ -22,7 +22,7 @@ requires = [
     "hatchling==1.27.0",
     "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
@@ -34,7 +34,7 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = "~=3.9,<3.13"
+requires-python = ">=3.10,!=3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -50,7 +50,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -529,7 +528,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.13",
+    "uv>=0.7.20",
 ]
 
 
@@ -557,11 +556,11 @@ bypass-selection = true
 # Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ['py310', 'py311', 'py312']
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -651,6 +650,7 @@ ignore = [
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
+    "UP038",
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -689,7 +689,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
-# __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+#
 "airflow-core/tests/unit/__init__.py" = ["I002"]
 "airflow-core/tests/system/__init__.py" = ["I002"]
 "airflow-core/tests/integration/__init__.py" = ["I002"]

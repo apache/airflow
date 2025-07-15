@@ -111,6 +111,15 @@ external_view_with_metadata = {
     "category": "browse",
 }
 
+react_app_with_metadata = {
+    "name": "Test React App",
+    "bundle_url": "https://example.com/test-plugin-bundle.js",
+    "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+    "url_route": "test_react_app",
+    "destination": "nav",
+    "category": "browse",
+}
+
 
 # Extend an existing class to avoid the need to implement the full interface
 class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
@@ -130,6 +139,7 @@ class AirflowTestPlugin(AirflowPlugin):
     fastapi_apps = [app_with_metadata]
     fastapi_root_middlewares = [middleware_with_metadata]
     external_views = [external_view_with_metadata]
+    react_apps = [react_app_with_metadata]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [

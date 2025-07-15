@@ -886,14 +886,13 @@ with airflow.DAG(
         assert dag_file not in dagbag.captured_warnings
 
         dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
-        assert len(dagbag.dag_ids) == 1
-        assert dag_file in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[dag_file]
-        assert len(captured_warnings) == 2
         assert dagbag.dagbag_stats[0].warning_num == 2
-
-        assert captured_warnings[0] == (f"{dag_file}:47: DeprecationWarning: Deprecated Parameter")
-        assert captured_warnings[1] == f"{dag_file}:49: UserWarning: Some Warning"
+        assert dagbag.captured_warnings == {
+            dag_file: (
+                f"{dag_file}:46: DeprecationWarning: Deprecated Parameter",
+                f"{dag_file}:48: UserWarning: Some Warning",
+            )
+        }
 
         with warnings.catch_warnings():
             # Disable capture DeprecationWarning, and it should be reflected in captured warnings
@@ -920,12 +919,13 @@ with airflow.DAG(
     def test_dabgag_captured_warnings_zip(self, warning_zipped_dag_path: str):
         in_zip_dag_file = f"{warning_zipped_dag_path}/test_dag_warnings.py"
         dagbag = DagBag(dag_folder=warning_zipped_dag_path, include_examples=False)
-        assert len(dagbag.dag_ids) == 1
-        assert warning_zipped_dag_path in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[warning_zipped_dag_path]
-        assert len(captured_warnings) == 2
-        assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
-        assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"
+        assert dagbag.dagbag_stats[0].warning_num == 2
+        assert dagbag.captured_warnings == {
+            warning_zipped_dag_path: (
+                f"{in_zip_dag_file}:46: DeprecationWarning: Deprecated Parameter",
+                f"{in_zip_dag_file}:48: UserWarning: Some Warning",
+            )
+        }
 
     @pytest.mark.parametrize(
         ("known_pools", "expected"),
@@ -1032,7 +1032,7 @@ class TestCaptureWithReraise:
         with pytest.warns(UserWarning, match="(Foo|Bar|Baz)") as ctx:
             with _capture_with_reraise() as cw:
                 self.raise_warnings()
-            assert len(cw) == 3
+        assert len(cw) == 3
         assert len(ctx.list) == 3
 
     def test_capture_warnings_with_parent_error_filter(self):

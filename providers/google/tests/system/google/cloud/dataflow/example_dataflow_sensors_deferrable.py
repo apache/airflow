@@ -21,8 +21,8 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG

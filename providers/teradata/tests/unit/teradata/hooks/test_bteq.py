@@ -240,7 +240,14 @@ def test_execute_bteq_script_at_remote_success(
     mock_ssh_hook.get_conn.return_value.__enter__.return_value = mock_ssh_client
     mock_ssh_hook_class.return_value = mock_ssh_hook
 
-    # Instantiate BteqHook with ssh_conn_id (will use mocked SSHHook)
+    # Mock exec_command to simulate 'uname || ver'
+    mock_stdin = MagicMock()
+    mock_stdout = MagicMock()
+    mock_stderr = MagicMock()
+    mock_stdout.read.return_value = b"Linux\n"
+    mock_ssh_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+    # Instantiate BteqHook
     hook = BteqHook(ssh_conn_id="ssh_conn_id", teradata_conn_id="teradata_conn")
 
     # Call method under test
@@ -342,13 +349,28 @@ def test_remote_execution_cleanup_on_exception(
     temp_dir = "/tmp"
     local_file_path = os.path.join(temp_dir, "bteq_script.txt")
     remote_working_dir = temp_dir
-
-    # Make sure the local encrypted file exists for cleanup
     encrypted_file_path = os.path.join(temp_dir, "bteq_script.enc")
+
+    # Create dummy local encrypted file
     with open(encrypted_file_path, "w") as f:
         f.write("dummy")
 
-    with pytest.raises(AirflowException):
+    # Simulate decrypt failing
+    mock_decrypt.side_effect = Exception("mocked exception")
+
+    # Patch exec_command for remote cleanup (identify_os, rm)
+    ssh_client = hook_with_ssh.ssh_hook.get_conn.return_value.__enter__.return_value
+
+    mock_stdin = MagicMock()
+    mock_stdout = MagicMock()
+    mock_stderr = MagicMock()
+
+    # For identify_os ("uname || ver")
+    mock_stdout.read.return_value = b"Linux\n"
+    ssh_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+    # Run the test
+    with pytest.raises(AirflowException, match="mocked exception"):
         hook_with_ssh._transfer_to_and_execute_bteq_on_remote(
             file_path=local_file_path,
             remote_working_dir=remote_working_dir,
@@ -360,5 +382,5 @@ def test_remote_execution_cleanup_on_exception(
             tmp_dir=temp_dir,
         )
 
-    # After exception, encrypted file should be deleted
+    # Verify local encrypted file is deleted
     assert not os.path.exists(encrypted_file_path)

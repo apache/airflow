@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "16.0.0"
+version = "16.1.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -44,13 +44,12 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.9"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -78,14 +77,12 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    "google-cloud-aiplatform[evaluation,ray]>=1.73.0;python_version < '3.12'",
-    "google-cloud-aiplatform[evaluation]>=1.73.0;python_version >= '3.12'",
-    "ray[default]>=2.42.0 ; python_version >= '3.12' and python_version < '3.13'",
-    "google-cloud-bigquery-storage>=2.31.0; python_version >= '3.12'",
+    "google-cloud-aiplatform[evaluation]>=1.73.0",
+    "ray[default]>=2.42.0 ; python_version < '3.13'",
+    "google-cloud-bigquery-storage>=2.31.0 ; python_version < '3.13'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
-    # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
-    "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
+    "google-cloud-bigquery>=3.24.0",
     "google-cloud-bigquery-datatransfer>=3.13.0",
     "google-cloud-bigtable>=2.17.0",
     "google-cloud-build>=3.31.0",
@@ -131,7 +128,7 @@ dependencies = [
     # further constrain it since older versions are buggy.
     "proto-plus>=1.19.6",
     # Used to write parquet files by BaseSqlToGCSOperator
-    "pyarrow>=14.0.1",
+    "pyarrow>=16.1.0",
     "python-slugify>=7.0.0",
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
@@ -259,8 +256,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

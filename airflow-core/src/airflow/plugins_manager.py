@@ -70,6 +70,7 @@ flask_blueprints: list[Any] | None = None
 fastapi_apps: list[Any] | None = None
 fastapi_root_middlewares: list[Any] | None = None
 external_views: list[Any] | None = None
+react_apps: list[Any] | None = None
 menu_links: list[Any] | None = None
 flask_appbuilder_views: list[Any] | None = None
 flask_appbuilder_menu_links: list[Any] | None = None
@@ -92,6 +93,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "fastapi_apps",
     "fastapi_root_middlewares",
     "external_views",
+    "react_apps",
     "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
@@ -157,6 +159,7 @@ class AirflowPlugin:
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     external_views: list[Any] = []
+    react_apps: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
@@ -372,8 +375,9 @@ def initialize_ui_plugins():
     """Collect extension points for the UI."""
     global plugins
     global external_views
+    global react_apps
 
-    if external_views is not None:
+    if external_views is not None and react_apps is not None:
         return
 
     ensure_plugins_loaded()
@@ -383,10 +387,46 @@ def initialize_ui_plugins():
 
     log.debug("Initialize UI plugin")
 
+    seen_url_route = {}
     external_views = []
+    react_apps = []
 
     for plugin in plugins:
-        external_views.extend(plugin.external_views)
+        for external_view in plugin.external_views:
+            url_route = external_view["url_route"]
+            if url_route is not None and url_route in seen_url_route:
+                log.warning(
+                    "Plugin '%s' has an external view with an URL route '%s' "
+                    "that conflicts with another plugin '%s'. The view will not be loaded.",
+                    plugin.name,
+                    url_route,
+                    seen_url_route[url_route],
+                )
+                # Mutate in place the plugin's external views to remove the conflicting view
+                # because some function still access the plugin's external views and not the
+                # global `external_views` variable. (get_plugin_info, for example)
+                plugin.external_views.remove(external_view)
+                continue
+            external_views.append(external_view)
+            seen_url_route[url_route] = plugin.name
+
+        for react_app in plugin.react_apps:
+            url_route = react_app["url_route"]
+            if url_route is not None and url_route in seen_url_route:
+                log.warning(
+                    "Plugin '%s' has a React App with an URL route '%s' "
+                    "that conflicts with another plugin '%s'. The React App will not be loaded.",
+                    plugin.name,
+                    url_route,
+                    seen_url_route[url_route],
+                )
+                # Mutate in place the plugin's React Apps to remove the conflicting app
+                # because some function still access the plugin's React Apps and not the
+                # global `react_apps` variable. (get_plugin_info, for example)
+                plugin.react_apps.remove(react_app)
+                continue
+            react_apps.append(react_app)
+            seen_url_route[url_route] = plugin.name
 
 
 def initialize_flask_plugins():

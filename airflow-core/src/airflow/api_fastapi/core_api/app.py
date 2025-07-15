@@ -30,7 +30,6 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 
@@ -176,8 +175,16 @@ def init_error_handlers(app: FastAPI) -> None:
 def init_middlewares(app: FastAPI) -> None:
     from airflow.configuration import conf
 
-    app.add_middleware(FlaskExceptionsMiddleware)
-    if conf.getboolean("core", "simple_auth_manager_all_admins"):
+    if "SimpleAuthManager" in conf.get("core", "auth_manager") and conf.getboolean(
+        "core", "simple_auth_manager_all_admins"
+    ):
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
+
+
+def init_ui_plugins(app: FastAPI) -> None:
+    """Initialize UI plugins."""
+    from airflow import plugins_manager
+
+    plugins_manager.initialize_ui_plugins()

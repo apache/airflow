@@ -20,7 +20,7 @@ formats: []
 sphinx:
     configuration: devel-common/src/docs/rtd-deprecation/conf.py
 python:
-    version: "3.9"
+    version: "3.10"
     install:
         - method: pip
           path: .
