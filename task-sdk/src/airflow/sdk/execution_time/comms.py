@@ -331,7 +331,7 @@ class AssetEventSourceDagRun:
     dag_id: str
     logical_date: AwareDatetime
     start_date: AwareDatetime
-    end_date: AwareDatetime
+    end_date: AwareDatetime | None
     state: str
     data_interval_start: AwareDatetime
     data_interval_end: AwareDatetime
@@ -668,7 +668,7 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
-    | DagRunResult,
+    | DagRunResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
     | OKResponse,
