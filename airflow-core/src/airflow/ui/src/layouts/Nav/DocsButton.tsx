@@ -20,12 +20,15 @@ import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
-import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
+
+// Union type for navigation items that can be either external views or react apps
+type NavItem = ExternalViewResponse | ReactAppResponse;
 
 const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
 
@@ -49,7 +52,7 @@ export const DocsButton = ({
   showAPI,
   version,
 }: {
-  readonly externalViews: Array<ExternalViewResponse>;
+  readonly externalViews: Array<NavItem>;
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {

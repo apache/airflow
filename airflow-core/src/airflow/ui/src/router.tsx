@@ -39,8 +39,8 @@ import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
-import { Iframe } from "src/pages/Iframe";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
+import { PluginView } from "src/pages/PluginView";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -60,13 +60,13 @@ import { XCom } from "src/pages/XCom";
 
 import { client } from "./queryClient";
 
-const iframeRoute = {
+const pluginRoute = {
   // The following iframe sandbox setting is intentionally less restrictive.
   // This is considered safe because the framed content originates from the Plugins,
   // which is part of the deployment of Airflow and trusted as per our security policy.
   // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
   // They are not user provided plugins.
-  element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+  element: <PluginView />,
   path: "plugin/:page",
 };
 
@@ -79,7 +79,7 @@ const taskInstanceRoutes = [
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
-  iframeRoute,
+  pluginRoute,
 ];
 
 export const routerConfig = [
@@ -153,7 +153,7 @@ export const routerConfig = [
         element: <Connections />,
         path: "connections",
       },
-      iframeRoute,
+      pluginRoute,
       {
         children: [
           { element: <Overview />, index: true },
@@ -163,7 +163,7 @@ export const routerConfig = [
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagDetails />, path: "details" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Dag />,
         path: "dags/:dagId",
@@ -175,7 +175,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Run />,
         path: "dags/:dagId/runs/:runId",
@@ -199,7 +199,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/group/:groupId",
@@ -214,7 +214,7 @@ export const routerConfig = [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
           { element: <Events />, path: "events" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",

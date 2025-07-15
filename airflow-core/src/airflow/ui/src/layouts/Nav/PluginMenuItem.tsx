@@ -22,13 +22,20 @@ import { LuPlug } from "react-icons/lu";
 import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 
 import { NavButton } from "./NavButton";
 
-type Props = { readonly topLevel?: boolean } & ExternalViewResponse;
+// Union type for navigation items that can be either external views or react apps
+type NavItem = ExternalViewResponse | ReactAppResponse;
 
-export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: urlRoute }: Props) => {
+type Props = { readonly topLevel?: boolean } & NavItem;
+
+export const PluginMenuItem = ({ icon, name, topLevel = false, url_route: urlRoute, ...rest }: Props) => {
+  // Determine if this is an external view or react app based on the presence of href
+  const isExternalView = "href" in rest;
+  const href = isExternalView ? (rest as ExternalViewResponse).href : undefined;
+
   const pluginIcon =
     typeof icon === "string" ? (
       <Image height="1.25rem" mr={topLevel ? 0 : 2} src={icon} width="1.25rem" />
