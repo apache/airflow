@@ -1205,7 +1205,7 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetailSuspense = <TData = Co
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Details
-* Get all Human-in-the-loop details.
+* Get Human-in-the-loop details.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */

@@ -923,10 +923,6 @@ export type HITLDetail = {
      * Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.
      */
     action?: string | null;
-    /**
-     * Optional custom expiration time in hours
-     */
-    expires_in_hours?: number | null;
     ti_id: string;
     task_instance: TaskInstanceResponse;
     options: Array<(string)>;
@@ -954,7 +950,7 @@ export type HITLDetail = {
 export type HITLDetailCollection = {
     hitl_details: Array<HITLDetail>;
     total_entries: number;
-    response_content?: Array<(string)> | null;
+    chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
     };
@@ -1501,10 +1497,6 @@ export type UpdateHITLDetailPayload = {
      * Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.
      */
     action?: string | null;
-    /**
-     * Optional custom expiration time in hours
-     */
-    expires_in_hours?: number | null;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;

@@ -3378,18 +3378,6 @@ export const $HITLDetail = {
             title: 'Action',
             description: "Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links."
         },
-        expires_in_hours: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Expires In Hours',
-            description: 'Optional custom expiration time in hours'
-        },
         ti_id: {
             type: 'string',
             title: 'Ti Id'
@@ -3532,7 +3520,7 @@ export const $HITLDetailCollection = {
             type: 'integer',
             title: 'Total Entries'
         },
-        response_content: {
+        chosen_options: {
             anyOf: [
                 {
                     items: {
@@ -3544,7 +3532,7 @@ export const $HITLDetailCollection = {
                     type: 'null'
                 }
             ],
-            title: 'Response Content'
+            title: 'Chosen Options'
         },
         params_input: {
             additionalProperties: true,
@@ -5945,18 +5933,6 @@ export const $UpdateHITLDetailPayload = {
             ],
             title: 'Action',
             description: "Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links."
-        },
-        expires_in_hours: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Expires In Hours',
-            description: 'Optional custom expiration time in hours'
         },
         chosen_options: {
             items: {

@@ -173,7 +173,7 @@ def get_hitl_details(
     readable_ti_filter: ReadableTIFilterDep,
     session: SessionDep,
 ) -> HITLDetailCollection:
-    """Get all Human-in-the-loop details."""
+    """Get Human-in-the-loop details."""
     query = select(HITLDetailModel).join(TI, HITLDetailModel.ti_id == TI.id)
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
@@ -226,7 +226,6 @@ def _create_hitl_share_link_common(
             map_index=map_index,
             link_type=update_hitl_detail_payload.link_type,
             action=update_hitl_detail_payload.action,
-            expires_in_hours=update_hitl_detail_payload.expires_in_hours,
             base_url=base_url,
         )
 

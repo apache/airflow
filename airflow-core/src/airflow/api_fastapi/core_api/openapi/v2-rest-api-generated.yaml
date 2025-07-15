@@ -7503,7 +7503,7 @@ paths:
       tags:
       - HumanInTheLoop
       summary: Get Hitl Details
-      description: Get all Human-in-the-loop details.
+      description: Get Human-in-the-loop details.
       operationId: get_hitl_details
       responses:
         '200':
@@ -10620,12 +10620,6 @@ components:
           title: Action
           description: Optional action to perform when link is accessed (e.g., 'approve',
             'reject'). Required for action links.
-        expires_in_hours:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Expires In Hours
-          description: Optional custom expiration time in hours
         ti_id:
           type: string
           title: Ti Id
@@ -10711,13 +10705,13 @@ components:
         total_entries:
           type: integer
           title: Total Entries
-        response_content:
+        chosen_options:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Response Content
+          title: Chosen Options
         params_input:
           additionalProperties: true
           type: object
@@ -12322,12 +12316,6 @@ components:
           title: Action
           description: Optional action to perform when link is accessed (e.g., 'approve',
             'reject'). Required for action links.
-        expires_in_hours:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Expires In Hours
-          description: Optional custom expiration time in hours
         chosen_options:
           items:
             type: string

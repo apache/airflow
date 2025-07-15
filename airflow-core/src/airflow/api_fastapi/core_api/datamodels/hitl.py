@@ -38,7 +38,6 @@ class HITLSharedLinkFields(BaseModel):
         default=None,
         description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
     )
-    expires_in_hours: int | None = Field(default=None, description="Optional custom expiration time in hours")
 
 
 class HITLSharedLinkPayload(HITLSharedLinkFields, BaseModel):
@@ -113,5 +112,5 @@ class HITLDetailCollection(BaseModel):
     total_entries: int
 
     # Shared link action request fields
-    response_content: list[str] | None = None
+    chosen_options: list[str] | None = None
     params_input: Mapping = Field(default_factory=dict)

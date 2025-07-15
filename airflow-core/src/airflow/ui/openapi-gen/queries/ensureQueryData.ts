@@ -1205,7 +1205,7 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 }) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
 /**
 * Get Hitl Details
-* Get all Human-in-the-loop details.
+* Get Human-in-the-loop details.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */

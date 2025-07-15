@@ -595,9 +595,6 @@ class HITLDetail(BaseModel):
             title="Action",
         ),
     ] = None
-    expires_in_hours: Annotated[
-        int | None, Field(description="Optional custom expiration time in hours", title="Expires In Hours")
-    ] = None
     ti_id: Annotated[str, Field(title="Ti Id")]
     options: Annotated[list[str], Field(title="Options")]
     subject: Annotated[str, Field(title="Subject")]
@@ -621,7 +618,7 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
     total_entries: Annotated[int, Field(title="Total Entries")]
-    response_content: Annotated[list[str] | None, Field(title="Response Content")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -985,9 +982,6 @@ class UpdateHITLDetailPayload(BaseModel):
             description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for action links.",
             title="Action",
         ),
-    ] = None
-    expires_in_hours: Annotated[
-        int | None, Field(description="Optional custom expiration time in hours", title="Expires In Hours")
     ] = None
     chosen_options: Annotated[list[str], Field(title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
