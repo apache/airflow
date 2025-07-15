@@ -84,7 +84,7 @@ def expected_ti_not_found_error_msg(sample_ti: TaskInstance) -> str:
     return (
         f"The Task Instance with dag_id: `{sample_ti.dag_id}`,"
         f" run_id: `{sample_ti.run_id}`, task_id: `{sample_ti.task.task_id}`"
-        " and map_index: `None` was not found"
+        " was not found"
     )
 
 
@@ -95,8 +95,8 @@ def expected_mapped_ti_not_found_error_msg(sample_ti: TaskInstance) -> str:
 
     return (
         f"The Task Instance with dag_id: `{sample_ti.dag_id}`,"
-        f" run_id: `{sample_ti.run_id}`, task_id: `{sample_ti.task.task_id}`"
-        " and map_index: `-1` was not found"
+        f" run_id: `{sample_ti.run_id}`, task_id: `{sample_ti.task.task_id}`, map_index:"
+        " `-1` was not found"
     )
 
 
@@ -163,25 +163,25 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "expires_at": None,
         "link_type": "action",
         "link_url": None,
-        "expires_in_hours": None,
     }
 
 
 class TestUpdateHITLDetailEndpoint:
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        sample_hitl_detail: HITLDetail,
     ) -> None:
         response = test_client.patch(
             f"/hitl-details/{sample_ti_url_identifier}",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}, "try_number": 0},
         )
 
         assert response.status_code == 200
-        assert response.json() == {
+        expected = {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
             "user_id": "test",
@@ -192,6 +192,7 @@ class TestUpdateHITLDetailEndpoint:
             "action": None,
             "link_type": "action",
         }
+        assert response.json() == expected
 
     def test_should_respond_404(
         self,
@@ -204,16 +205,16 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {"detail": expected_ti_not_found_error_msg}
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_409(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         sample_ti: TaskInstance,
+        sample_hitl_detail: HITLDetail,
     ) -> None:
         response = test_client.patch(
             f"/hitl-details/{sample_ti_url_identifier}",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}, "try_number": 0},
         )
 
         expected_response = {
@@ -232,7 +233,7 @@ class TestUpdateHITLDetailEndpoint:
 
         response = test_client.patch(
             f"/hitl-details/{sample_ti_url_identifier}",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}, "try_number": 0},
         )
         assert response.status_code == 409
         assert response.json() == {
@@ -262,19 +263,20 @@ class TestUpdateHITLDetailEndpoint:
 
 class TestUpdateMappedTIHITLDetail:
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        sample_hitl_detail: HITLDetail,
     ) -> None:
         response = test_client.patch(
             f"/hitl-details/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}, "try_number": 0},
         )
 
         assert response.status_code == 200
-        assert response.json() == {
+        expected = {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
             "user_id": "test",
@@ -285,6 +287,7 @@ class TestUpdateMappedTIHITLDetail:
             "action": None,
             "link_type": "action",
         }
+        assert response.json() == expected
 
     def test_should_respond_404(
         self,
@@ -297,16 +300,16 @@ class TestUpdateMappedTIHITLDetail:
         assert response.json() == {"detail": expected_mapped_ti_not_found_error_msg}
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_409(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         sample_ti: TaskInstance,
+        sample_hitl_detail: HITLDetail,
     ) -> None:
         response = test_client.patch(
             f"/hitl-details/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}, "try_number": 0},
         )
 
         expected_response = {
@@ -325,7 +328,7 @@ class TestUpdateMappedTIHITLDetail:
 
         response = test_client.patch(
             f"/hitl-details/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}, "try_number": 0},
         )
         assert response.status_code == 409
         assert response.json() == {
@@ -363,7 +366,10 @@ class TestGetHITLDetailEndpoint:
     ) -> None:
         response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
         assert response.status_code == 200
-        assert response.json() == expected_sample_hitl_detail_dict
+        expected: dict[str, Any] = expected_sample_hitl_detail_dict
+        if "expires_in_hours" in expected:
+            expected.pop("expires_in_hours")
+        assert response.json() == expected
 
     def test_should_respond_404(
         self,
@@ -402,7 +408,10 @@ class TestGetMappedTIHITLDetail:
     ) -> None:
         response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
         assert response.status_code == 200
-        assert response.json() == expected_sample_hitl_detail_dict
+        expected: dict[str, Any] = expected_sample_hitl_detail_dict
+        if "expires_in_hours" in expected:
+            expected.pop("expires_in_hours")
+        assert response.json() == expected
 
     def test_should_respond_404(
         self,
@@ -440,22 +449,28 @@ class TestGetHITLDetailsEndpoint:
     ) -> None:
         response = test_client.get("/hitl-details/")
         assert response.status_code == 200
-        assert response.json() == {
+        expected: dict[str, Any] = {
+            "chosen_options": None,
             "hitl_details": [expected_sample_hitl_detail_dict],
-            "total_entries": 1,
-            "response_content": None,
             "params_input": {},
+            "total_entries": 1,
         }
+        if "response_content" in expected:
+            expected.pop("response_content")
+        assert response.json() == expected
 
     def test_should_respond_200_without_response(self, test_client: TestClient) -> None:
         response = test_client.get("/hitl-details/")
         assert response.status_code == 200
-        assert response.json() == {
+        expected: dict[str, Any] = {
+            "chosen_options": None,
             "hitl_details": [],
-            "total_entries": 0,
-            "response_content": None,
             "params_input": {},
+            "total_entries": 0,
         }
+        if "response_content" in expected:
+            expected.pop("response_content")
+        assert response.json() == expected
 
     def test_should_respond_401(self, unauthenticated_test_client: TestClient) -> None:
         response = unauthenticated_test_client.get("/hitl-details/")
