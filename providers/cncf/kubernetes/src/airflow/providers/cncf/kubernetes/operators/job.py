@@ -21,6 +21,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import time
 import os
 from collections.abc import Sequence
 from functools import cached_property
@@ -155,7 +156,11 @@ class KubernetesJobOperator(KubernetesPodOperator):
         pod = None
         with timeout(seconds=self.pod_creation_timeout, error_message="Exceeded pod_creation_timeout."):
             while pod is None:
-                pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+                try:
+                    pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+                except ApiException:
+                    log.exception("Error getting pod - retrying")
+                    time.sleep(1)
                 if pod:
                     return pod
         return pod_request_obj
