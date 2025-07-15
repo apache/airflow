@@ -42,6 +42,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-standard/sensors/datetime.rst",
                     "/docs/apache-airflow-providers-standard/sensors/file.rst",
                     "/docs/apache-airflow-providers-standard/sensors/external_task_sensor.rst",
+                    "/docs/apache-airflow-providers-standard/utils/hitl_shared_links.rst",
                 ],
             }
         ],

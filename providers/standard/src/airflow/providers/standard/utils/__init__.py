@@ -14,3 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from airflow.providers.standard.utils.hitl_shared_links import (
+    HITLSharedLinkManager,
+    HITLSharedLinkResponse,
+    hitl_shared_link_manager,
+)
+
+__all__ = [
+    "HITLSharedLinkManager",
+    "HITLSharedLinkResponse",
+    "hitl_shared_link_manager",
+]

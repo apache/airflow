@@ -41,8 +41,8 @@ from airflow.api_fastapi.core_api.services.public.hitl import (
 )
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.standard.utils.hitl_shared_links import hitl_shared_link_manager
 from airflow.utils import timezone
-from airflow.utils.hitl_shared_links import hitl_shared_link_manager
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
 
