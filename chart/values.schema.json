@@ -3711,6 +3711,21 @@
                     ],
                     "default": null
                 },
+                "labels": {
+                    "description": "Labels to add to the DagProcessor.",
+                    "type": "object",
+                    "propertyNames": {
+                        "type": "string",
+                        "pattern": "^([A-Za-z0-9]([-A-Za-z0-9]*[A-Za-z0-9])?)(/[A-Za-z0-9]([-A-Za-z0-9]*[A-Za-z0-9])?)?$",
+                        "description": "Valid Kubernetes label key (with optional DNS prefix)."
+                    },
+                    "additionalProperties": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$",
+                        "description": "Valid Kubernetes label value."
+                    },
+                    "default": {}
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
                     "type": "object",

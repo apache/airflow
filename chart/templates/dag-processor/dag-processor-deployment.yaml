@@ -49,6 +49,9 @@ metadata:
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
+    {{- with .Values.dagProcessor.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- if .Values.dagProcessor.annotations }}
   annotations: {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
   {{- end }}
@@ -72,6 +75,9 @@ spec:
         component: dag-processor
         release: {{ .Release.Name }}
         {{- with .Values.labels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.dagProcessor.labels }}
           {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
