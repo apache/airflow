@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import datetime
 import logging
+import textwrap
 import time
 
 import boto3
-from botocore.exceptions import ClientError
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -39,7 +39,7 @@ DAG_ID = "example_ssm"
 ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
-USER_DATA = """
+USER_DATA = textwrap.dedent("""\
     #!/bin/bash
     set -e
 
@@ -49,24 +49,26 @@ USER_DATA = """
     elif command -v dnf &> /dev/null; then
         PACKAGE_MANAGER="dnf"
     else
+        echo "No suitable package manager found"
         exit 1
     fi
 
     # Install SSM agent if it's not installed
     if ! command -v amazon-ssm-agent &> /dev/null; then
-        if [[ "$PACKAGE_MANAGER" == "yum" || "$PACKAGE_MANAGER" == "dnf" ]]; then
-            $PACKAGE_MANAGER install -y amazon-ssm-agent
-        else
-            exit 1
-        fi
+        echo "Installing SSM agent..."
+        $PACKAGE_MANAGER install -y amazon-ssm-agent
+    else
+        echo "SSM agent already installed"
     fi
 
-    # Enable and start the SSM agent
+    echo "Enabling and starting SSM agent..."
     systemctl enable amazon-ssm-agent
     systemctl start amazon-ssm-agent
 
-    shutdown -h +8
-"""
+    shutdown -h +15
+
+    echo "=== Finished user-data script ==="
+""")
 
 log = logging.getLogger(__name__)
 
@@ -74,18 +76,14 @@ log = logging.getLogger(__name__)
 @task
 def create_instance_profile(role_name: str, instance_profile_name: str):
     client = boto3.client("iam")
+    client.create_instance_profile(InstanceProfileName=instance_profile_name)
+    client.add_role_to_instance_profile(InstanceProfileName=instance_profile_name, RoleName=role_name)
 
-    try:
-        client.create_instance_profile(InstanceProfileName=instance_profile_name)
-    except ClientError as e:
-        if e.response["Error"]["Code"] != "EntityAlreadyExists":
-            raise
 
-    instance_profile = client.get_instance_profile(InstanceProfileName=instance_profile_name)
-
-    attached_roles = [role["RoleName"] for role in instance_profile["InstanceProfile"]["Roles"]]
-    if role_name not in attached_roles:
-        client.add_role_to_instance_profile(InstanceProfileName=instance_profile_name, RoleName=role_name)
+@task
+def await_instance_profile_exists(instance_profile_name):
+    client = boto3.client("iam")
+    client.get_waiter("instance_profile_exists").wait(InstanceProfileName=instance_profile_name)
 
 
 @task
@@ -129,10 +127,14 @@ def wait_until_ssm_ready(instance_id: str, max_attempts: int = 10, delay_seconds
     ssm = boto3.client("ssm")
 
     for _ in range(max_attempts):
-        response = ssm.describe_instance_information()
-        instance_ids = [instance["InstanceId"] for instance in response.get("InstanceInformationList", [])]
+        response = ssm.describe_instance_information(
+            Filters=[{"Key": "InstanceIds", "Values": [instance_id]}]
+        )
 
-        if instance_id in instance_ids:
+        if (
+            response.get("InstanceInformationList")
+            and response["InstanceInformationList"][0]["PingStatus"] == "Online"
+        ):
             return
 
         time.sleep(delay_seconds)
@@ -214,6 +216,7 @@ with DAG(
         image_id,
         role_name,
         create_instance_profile(role_name, instance_profile_name),
+        await_instance_profile_exists(instance_profile_name),
         create_instance,
         instance_id,
         run_command_kwargs,
