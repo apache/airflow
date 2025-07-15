@@ -23,7 +23,7 @@ from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import PropertyMock, patch
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import quote_plus
 
 import pandas as pd
 import polars as pl
@@ -129,13 +129,11 @@ def test_sqlachemy_url_property(mock_get_conn):
         databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
     )
     url = hook.sqlalchemy_url.render_as_string(hide_password=False)
-    assert url.startswith(f"databricks://token:{TOKEN}@{HOST}:{PORT}")
-    expected_query = {
-        "http_path": [HTTP_PATH],
-        "catalog": [CATALOG],
-        "schema": [SCHEMA],
-    }
-    assert parse_qs(urlparse(url).query) == expected_query
+    expected_url = (
+        f"databricks://token:{TOKEN}@{HOST}:{PORT}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+    assert url == expected_url
 
 
 def test_get_uri(mock_get_conn):
@@ -144,13 +142,11 @@ def test_get_uri(mock_get_conn):
         databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
     )
     uri = hook.get_uri()
-    assert uri.startswith(f"databricks://token:{TOKEN}@{HOST}:{PORT}")
-    expected_query = {
-        "http_path": [HTTP_PATH],
-        "catalog": [CATALOG],
-        "schema": [SCHEMA],
-    }
-    assert parse_qs(urlparse(uri).query) == expected_query
+    expected_uri = (
+        f"databricks://token:{TOKEN}@{HOST}:{PORT}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+    assert uri == expected_uri
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
