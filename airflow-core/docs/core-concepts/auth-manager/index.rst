@@ -63,7 +63,7 @@ users does not need the same user management as an environment used by thousand 
 This is why the whole user management (user authentication and user authorization) is packaged in one component
 called auth manager. So that it is easy to plug-and-play an auth manager that suits your specific needs.
 
-By default, Airflow comes with the :doc:`apache-airflow-providers-fab:auth-manager/index`.
+By default, Airflow comes with the :doc:`simple/index`.
 
 .. note::
     Switching to a different auth manager is a heavy operation and should be considered as such. It will
@@ -123,10 +123,11 @@ Let's go over the different parameters used by most of these methods.
   * ``POST``: Can the user create a resource?
   * ``PUT``: Can the user modify the resource?
   * ``DELETE``: Can the user delete the resource?
-  * ``MENU``: Can the user see the resource in the menu?
+  * ``MENU``: Can the user see the resource in the menu? Note: this method is only applicable to a subset of auth manager Authorization methods.
 
 * ``details``: Optional details about the resource being accessed.
 * ``user``: The user trying to access the resource.
+
 
 These authorization methods are:
 
@@ -145,6 +146,9 @@ These authorization methods are:
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
 
+It should be noted that the API ``methods`` listed above may only have relevance for a specific subset of the auth manager's authorization methods.
+For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` API method is relevant in the context of ``is_authorized_configuration``.
+
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The auth manager is responsible for creating the JWT token needed to interact with Airflow public API.
@@ -152,10 +156,9 @@ To achieve this, the auth manager **must** provide an endpoint to create this JW
 available at ``POST /auth/token``.
 Please double check the auth manager documentation to find the accurate token generation endpoint.
 
-The auth manager is also responsible of passing the JWT token to Airflow UI. The protocol to exchange the JWT
+The auth manager is also responsible for passing the JWT token to Airflow UI. The protocol to exchange the JWT
 token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
-cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it and
-delete the cookie.
+cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it, and delete it.
 
 .. code-block:: python
 
@@ -163,7 +166,7 @@ delete the cookie.
 
     response = RedirectResponse(url="/")
 
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 
@@ -178,6 +181,8 @@ The following methods aren't required to override to have a functional Airflow a
 
 * ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it will call ``is_authorized_dag`` for every single item.
 * ``get_authorized_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
+  * Note: The ``get_authorized_dag_ids`` may be of particular interest if you rely on per-DAG access controls derived from one or more fields on a given DAG (e.g. DAG tags).
+  * This method requires an active session with the Airflow metadata database. As such, it is recommended you refer to the :doc:`apache-airflow:database-erd-ref`.
 
 CLI
 ^^^
@@ -228,6 +233,14 @@ Other optional methods
 * ``get_db_manager``: If your auth manager requires one or several database managers (see :class:`~airflow.utils.db_manager.BaseDBManager`),
   their class paths need to be returned as part of this method. By doing so, they will be automatically added to the
   config ``[database] external_db_managers``.
+
+
+Additional Caveats
+^^^^^^^^^^^^^^^^^^
+
+* Your auth manager should not reference anything from the ``airflow.security.permissions`` module, as that module is in the process of being deprecated.
+  * Instead, your code should use the definitions in ``airflow.api_fastapi.auth.managers.models.resource_details``.
+* The DAG ``access_control`` attribute of a DAG is only compatible with the FAB auth manager. Custom auth manager implementations leverage ``get_authorized_dag_ids`` for DAG instance attribute-based access controls in more customizable ways (e.g. authorization based on DAG tags, DAG bundles, etc.).
 
 Next Steps
 ----------
