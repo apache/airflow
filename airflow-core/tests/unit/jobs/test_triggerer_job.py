@@ -435,6 +435,62 @@ class TestTriggerRunner:
         trigger_instance.cancel()
         await runner.cleanup_finished_triggers()
 
+    @patch("airflow.jobs.triggerer_job_runner.import_string")
+    @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.clear_sys_modules_from_zip_info")
+    def test_import_classpath_maybe_zip_with_path(self, clear_modules_mock, import_mock):
+        trigger_runner = TriggerRunner()
+        classpath = "/path/to/zipfile.zip:path.to.MyTriggerClass"
+
+        cls = trigger_runner.import_classpath_maybe_zip(classpath)
+
+        assert cls is not None
+        clear_modules_mock.assert_called_once_with("/path/to/zipfile.zip")
+        import_mock.assert_called_once_with("path.to.MyTriggerClass")
+
+    @patch("airflow.jobs.triggerer_job_runner.import_string")
+    @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.clear_sys_modules_from_zip_info")
+    def test_import_classpath_maybe_zip_without_path(self, clear_modules_mock, import_mock):
+        trigger_runner = TriggerRunner()
+        classpath = "{SuccessTrigger.__module__}.{SuccessTrigger.__name__}"
+
+        cls = trigger_runner.import_classpath_maybe_zip(classpath)
+
+        assert cls is not None
+        clear_modules_mock.assert_not_called()
+        import_mock.assert_not_called()
+
+    @patch("airflow.jobs.triggerer_job_runner.os")
+    @patch("airflow.jobs.triggerer_job_runner.sys")
+    @patch("airflow.jobs.triggerer_job_runner.zipfile.ZipFile")
+    def test_clear_sys_modules_from_zip_info(self, zipfile_mock, sys_mock, os_mock):
+        trigger_runner = TriggerRunner()
+        zip_file = "/path/to/zipfile.zip"
+
+        zip_info_list = [
+            MagicMock(
+                filename="path/to/file1.py"
+            ),
+            MagicMock(
+                filename="longer/path/to/file2.py"
+            ),
+        ]
+        zipfile_mock.return_value.__enter__.return_value.infolist.return_value = zip_info_list
+
+        os_mock.path.dirname.side_effect = lambda path: path
+
+        trigger_runner.clear_sys_modules_from_zip_info(zip_file)
+
+        sys_mock.modules.pop.assert_has_calls(
+            [
+                call("path.to", None),
+                call("path.to.file1", None),
+                call("longer.path.to", None),
+                call("longer.path.to.file2", None),
+            ]
+        )
+
+
+
 
 @pytest.mark.asyncio
 async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
