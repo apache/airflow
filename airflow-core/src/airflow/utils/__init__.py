@@ -46,5 +46,9 @@ __deprecated_classes = {
     "xcom": {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
+    "decorators": {
+        "remove_task_decorator": "airflow.sdk.bases.decorator.remove_task_decorator",
+        "fixup_decorator_warning_stack": "airflow.sdk.bases.decorator.fixup_decorator_warning_stack",
+    },
 }
 add_deprecated_classes(__deprecated_classes, __name__)

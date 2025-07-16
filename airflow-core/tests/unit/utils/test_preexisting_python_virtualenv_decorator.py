@@ -21,7 +21,7 @@ from textwrap import dedent
 
 import pytest
 
-from airflow.utils.decorators import remove_task_decorator
+from airflow.sdk.bases.decorator import remove_task_decorator
 
 
 class TestExternalPythonDecorator:
