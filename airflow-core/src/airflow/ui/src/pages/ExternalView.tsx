@@ -64,7 +64,11 @@ export const ExternalView = () => {
         m={-2} // Compensate for parent padding
         minHeight={0}
       >
-        {/* We are assuming plugin manager is trusted, this allows for views hosted by Airflow like legacy fab plugins */}
+        {/* The following iframe sandbox setting is intentionally less restrictive.
+          This is considered safe because the framed content originates from the Plugins,
+          which is part of the deployment of Airflow and trusted as per our security policy.
+          https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+          They are not user provided plugins. */}
         <Iframe externalView={externalView} sandbox="allow-scripts allow-same-origin allow-forms" />
       </Box>
     );
