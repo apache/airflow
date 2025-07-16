@@ -46,5 +46,8 @@ __deprecated_classes = {
     "xcom": {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
+    "dag_edges": {
+        "dag_edges": "airflow.sdk.definitions.edges.dag_edges",
+    },
 }
 add_deprecated_classes(__deprecated_classes, __name__)

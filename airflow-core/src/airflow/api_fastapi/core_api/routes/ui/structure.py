@@ -32,7 +32,7 @@ from airflow.api_fastapi.core_api.services.ui.structure import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils.dag_edges import dag_edges
+from airflow.sdk.definitions.edges import dag_edges
 from airflow.utils.task_group import task_group_to_dict
 
 structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
