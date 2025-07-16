@@ -225,6 +225,10 @@ class JdbcHook(DbApiHook):
         with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             return conn.jconn.getAutoCommit()
 
+        # This is reachable when the driver does not support autocommit then exceptions raised above are
+        # custom suppressed for jaydebeapi so we return False when control yields here.
+        return False  # type: ignore[unreachable]
+
     def get_uri(self) -> str:
         """Get the connection URI for the JDBC connection."""
         conn = self.connection
