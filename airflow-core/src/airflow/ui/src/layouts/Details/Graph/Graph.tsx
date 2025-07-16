@@ -73,7 +73,7 @@ export const Graph = () => {
     "gray.800",
   ]);
 
-  const { openGroupIds, setAllGroupIds } = useOpenGroups();
+  const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
@@ -95,10 +95,10 @@ export const Graph = () => {
   );
 
   useEffect(() => {
-    if (observedGroupIds.length) {
+    if (observedGroupIds !== allGroupIds) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [observedGroupIds, setAllGroupIds]);
+  }, [allGroupIds, observedGroupIds, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
     enabled: dependencies === "all",
