@@ -63,7 +63,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -1378,6 +1377,8 @@ if TYPE_CHECKING:
 
 
 def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+    from airflow.sdk.bases.decorator import fixup_decorator_warning_stack
+
     # TODO: Task-SDK: remove __DAG_class
     # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
     # return SchedulerDag objects
