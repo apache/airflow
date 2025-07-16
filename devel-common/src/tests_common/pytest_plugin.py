@@ -1012,9 +1012,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.session.flush()
 
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
-            from airflow.utils import timezone
             from airflow.utils.state import DagRunState
             from airflow.utils.types import DagRunType
+
+            timezone = _import_timezone()
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -1177,7 +1178,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         ):
             from airflow import settings
             from airflow.models.dag import DAG
-            from airflow.utils import timezone
+
+            timezone = _import_timezone()
 
             if session is None:
                 self._own_session = True
@@ -1445,14 +1447,11 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
+        timezone = _import_timezone()
         if run_after is None:
-            from airflow.utils import timezone
-
             run_after = timezone.utcnow()
         if logical_date is NOTSET:
             # For now: default to having a logical date if None is not explicitly passed.
-            from airflow.utils import timezone
-
             logical_date = timezone.utcnow()
         with dag_maker(dag_id, **kwargs):
             op_kwargs = {}
@@ -1609,7 +1608,8 @@ def get_test_dag():
         if dagbag.import_errors:
             session = settings.Session()
             from airflow.models.errors import ParseImportError
-            from airflow.utils import timezone
+
+            timezone = _import_timezone()
 
             # Add the new import errors
             for _filename, stacktrace in dagbag.import_errors.items():
@@ -2100,7 +2100,8 @@ def mocked_parse(spy_agency):
     def set_dag(what: StartupDetails, dag_id: str, task: TaskSDKBaseOperator) -> RuntimeTaskInstance:
         from airflow.sdk.definitions.dag import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
-        from airflow.utils import timezone
+
+        timezone = _import_timezone()
 
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
@@ -2215,7 +2216,8 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
     from airflow.timetables.base import TimeRestriction
-    from airflow.utils import timezone
+
+    timezone = _import_timezone()
 
     def _create_task_instance(
         task: BaseOperator,
@@ -2345,7 +2347,8 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
     from airflow.sdk.execution_time.task_runner import run
     from airflow.sdk.execution_time.xcom import XCom
-    from airflow.utils import timezone
+
+    timezone = _import_timezone()
 
     # Set up spies once at fixture level
     if hasattr(XCom.set, "spy"):
@@ -2564,3 +2567,14 @@ def create_connection_without_db(monkeypatch):
         monkeypatch.setenv(env_var_name, connection.as_json())
 
     return _create_conn
+
+
+def _import_timezone():
+    try:
+        from airflow.sdk._shared.timezones import timezone
+    except ModuleNotFoundError:
+        try:
+            from airflow._shared.timezones import timezone
+        except ModuleNotFoundError:
+            from airflow.utils import timezone
+    return timezone
