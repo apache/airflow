@@ -917,6 +917,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             self.run_as_task(f)
 
     def test_string_args(self):
+        if "Branch" in self.__class__.__name__:
+            pytest.skip("Test does not work for branching operators")
+
         def f():
             global virtualenv_string_args
             print(virtualenv_string_args)
@@ -934,6 +937,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
     def test_return_none(self):
+        if "Branch" in self.__class__.__name__:
+            pytest.skip("Test does not work for branching operators")
+
         def f():
             return None
 
@@ -953,6 +959,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
+        if "Branch" in self.__class__.__name__:
+            pytest.skip("Test does not work for branching operators")
+
         def f(_):
             return None
 
@@ -1059,6 +1068,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         ],
     )
     def test_on_skip_exit_code(self, kwargs, actual_exit_code, expected_state):
+        if "Branch" in self.__class__.__name__:
+            pytest.skip("Test does not work for branching operators")
+
         def f(exit_code):
             if exit_code != 0:
                 raise SystemExit(exit_code)
