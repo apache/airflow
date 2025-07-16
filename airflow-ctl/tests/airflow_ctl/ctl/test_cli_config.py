@@ -117,7 +117,7 @@ def test_args_create():
 
 
 """
-    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    help="Output format. Allowed values: json, yaml, plain, table (default: json)",
     metavar="(table, json, yaml, plain)",
     choices=("table", "json", "yaml", "plain"),
     default="json",
@@ -130,7 +130,7 @@ def test_args_list():
         (
             "--output",
             {
-                "help": "Output format. Allowed values: json, yaml, plain, table (default: table)",
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
                 "default": "json",
                 "type": str,
                 "dest": None,
@@ -154,7 +154,7 @@ def test_args_get():
         (
             "--output",
             {
-                "help": "Output format. Allowed values: json, yaml, plain, table (default: table)",
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
                 "default": "json",
                 "type": str,
                 "dest": None,
