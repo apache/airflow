@@ -185,9 +185,10 @@ class TestSqlToS3Operator:
             s3_key="s3_key",
             task_id="task_id",
             sql_conn_id="mysql_conn_id",
+            file_format=params["file_format"],
         )
         dirty_df = pd.DataFrame({"strings": ["a", "b", None], "ints": [1, 2, None]})
-        op._fix_dtypes(df=dirty_df, file_format=params["file_format"])
+        op._fix_dtypes(df=dirty_df, file_format=op.file_format)
         assert dirty_df["strings"].values[2] == params["null_string_result"]
         assert dirty_df["ints"].dtype.kind == "i"
 
