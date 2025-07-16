@@ -65,7 +65,31 @@ def get_dag_run(
             },
         )
 
-    return DagRunResponse.model_validate(dag_run)
+    # Calculate duration for the response
+    duration = None
+    if dag_run.end_date and dag_run.start_date:
+        duration = (dag_run.end_date - dag_run.start_date).total_seconds()
+
+    # Create response with calculated duration
+    response_data = {
+        "dag_id": dag_run.dag_id,
+        "run_id": dag_run.run_id,
+        "logical_date": dag_run.logical_date,
+        "data_interval_start": dag_run.data_interval_start,
+        "data_interval_end": dag_run.data_interval_end,
+        "run_after": dag_run.run_after,
+        "start_date": dag_run.start_date,
+        "end_date": dag_run.end_date,
+        "clear_number": dag_run.clear_number,
+        "run_type": dag_run.run_type,
+        "conf": dag_run.conf,
+        "state": dag_run.state,
+        "queued_at": dag_run.queued_at,
+        "last_scheduling_decision": dag_run.last_scheduling_decision,
+        "duration": duration,
+    }
+
+    return DagRunResponse.model_validate(response_data)
 
 
 @router.post(

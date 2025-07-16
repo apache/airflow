@@ -63,7 +63,6 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunResponse
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     GetHITLDetailResponsePayload,
     UpdateHITLDetailPayload,
@@ -75,6 +74,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
+    DagRunResponse,
     DagRunStateResponse,
     HITLDetailRequest,
     InactiveAssetsResponse,
@@ -428,7 +428,8 @@ class AssetEventDagRunReferenceResult(AssetEventDagRunReference):
 
             # Check for required fields and provide defaults for optional datetime fields
             if (
-                dag_run_response.start_date is None
+                dag_run_response.logical_date is None
+                or dag_run_response.start_date is None
                 or dag_run_response.data_interval_start is None
                 or dag_run_response.data_interval_end is None
             ):

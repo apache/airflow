@@ -31,7 +31,6 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunResponse
 from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
@@ -40,6 +39,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
     CreateHITLDetailPayload,
+    DagRunResponse,
     DagRunStateResponse,
     DagRunType,
     HITLDetailResponse,
