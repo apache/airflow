@@ -555,21 +555,6 @@ class SerializedDagModel(Base):
             raise ValueError("invalid or missing serialized DAG data")
         return SerializedDAG.from_dict(data)
 
-    @property
-    def lazy_dag(self) -> LazyDeserializedDAG:
-        """
-        Return lazy-load-optimized form of the dag.
-
-        :meta private:
-        """
-        if isinstance(self.data, dict):
-            data = self.data
-        elif isinstance(self.data, str):
-            data = json.loads(self.data)
-        else:
-            raise ValueError("invalid or missing serialized DAG data")
-        return LazyDeserializedDAG(data=data)
-
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
