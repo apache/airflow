@@ -284,8 +284,6 @@ class SortParam(BaseParam[list[str]]):
                 default=[default] if default is not None else [self.get_primary_key_string()]
             ),
         ) -> SortParam:
-            print(order_by)
-            print(self.to_replace)
             return self.set_value(order_by)
 
         return inner
