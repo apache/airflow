@@ -43,6 +43,7 @@ import { ToggleGroups } from "./ToggleGroups";
 type Props = {
   readonly dagView: string;
   readonly limit: number;
+  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -71,7 +72,7 @@ const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) => {
+export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "" } = useParams();
   const { fitView } = useReactFlow();
@@ -102,10 +103,20 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
     }
   };
 
-  const handleFocus = () => {
-    setTimeout(() => {
-      void fitView();
-    }, 1);
+  const handleFocus = (view: string) => {
+    if (panelGroupRef.current) {
+      const panelGroup = panelGroupRef.current;
+
+      if (typeof panelGroup.setLayout === "function") {
+        const newLayout = view === "graph" ? [70, 30] : [30, 70];
+
+        panelGroup.setLayout(newLayout);
+        // Used setTimeout to ensure DOM has been updated
+        setTimeout(() => {
+          void fitView();
+        }, 1);
+      }
+    }
   };
 
   return (
@@ -117,7 +128,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
           onClick={() => {
             setDagView("grid");
             if (dagView === "grid") {
-              handleFocus();
+              handleFocus("grid");
             }
           }}
           title={translate("dag:panel.buttons.showGrid")}
@@ -131,7 +142,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
           onClick={() => {
             setDagView("graph");
             if (dagView === "graph") {
-              handleFocus();
+              handleFocus("graph");
             }
           }}
           title={translate("dag:panel.buttons.showGraph")}
@@ -140,7 +151,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
           <MdOutlineAccountTree />
         </IconButton>
       </ButtonGroup>
-      <Flex gap={1}>
+      <Flex gap={1} mr={3}>
         <ToggleGroups />
         {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
