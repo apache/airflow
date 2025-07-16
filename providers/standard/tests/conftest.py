@@ -15,5 +15,3 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
-pytest_plugins = "tests_common.pytest_plugin"

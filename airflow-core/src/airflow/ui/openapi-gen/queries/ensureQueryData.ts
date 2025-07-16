@@ -1211,6 +1211,69 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 */
 export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(), queryFn: () => HumanInTheLoopService.getHitlDetails() });
 /**
+* Get Hitl Share Link
+* Get HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetHitlShareLinkData = (queryClient: QueryClient, { dagId, dagRunId, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  payload: string;
+  signature: string;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlShareLinkKeyFn({ dagId, dagRunId, payload, signature, taskId }), queryFn: () => HumanInTheLoopService.getHitlShareLink({ dagId, dagRunId, payload, signature, taskId }) });
+/**
+* Get Mapped Ti Hitl Share Link
+* Get mapped HITL details via shared link (for redirect links).
+*
+* This endpoint allows external users to access mapped HITL task details through a secure
+* shared link. The link must be a redirect-type link, which provides read-only access
+* to the mapped HITL task information for UI rendering or decision-making purposes.
+*
+* :param dag_id: The DAG identifier (from URL path)
+* :param dag_run_id: The DAG run identifier (from URL path)
+* :param task_id: The task identifier (from URL path)
+* :param map_index: The map index for the mapped task instance (from URL path)
+* :param payload: Base64-encoded payload containing link metadata and expiration
+* :param signature: HMAC signature for payload verification
+* :param session: Database session for data retrieval
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.payload
+* @param data.signature
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const ensureUseHumanInTheLoopServiceGetMappedTiHitlShareLinkData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, payload, signature, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  payload: string;
+  signature: string;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlShareLinkKeyFn({ dagId, dagRunId, mapIndex, payload, signature, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlShareLink({ dagId, dagRunId, mapIndex, payload, signature, taskId }) });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError
