@@ -36,6 +36,8 @@ from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1
+INVALID_DAG_ID = "invalid_dag_id"
+INVALID_RUN_ID = 2
 
 TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
@@ -102,6 +104,40 @@ class TestDeadline:
         assert result.deadline_time == deadline_orm.deadline_time
         assert result.callback == deadline_orm.callback
         assert result.callback_kwargs == deadline_orm.callback_kwargs
+
+    @pytest.mark.parametrize(
+        "conditions",
+        [
+            pytest.param({}, id="empty_conditions"),
+            pytest.param({Deadline.dagrun_id: INVALID_RUN_ID}, id="no_matches"),
+            pytest.param({Deadline.dagrun_id: RUN_ID}, id="single_condition"),
+            pytest.param({Deadline.dagrun_id: RUN_ID, Deadline.dag_id: DAG_ID}, id="multiple_conditions"),
+            pytest.param(
+                {Deadline.dagrun_id: RUN_ID, Deadline.dag_id: INVALID_DAG_ID}, id="mixed_conditions"
+            ),
+        ],
+    )
+    @mock.patch("sqlalchemy.orm.Session")
+    def test_prune_deadlines(self, mock_session, conditions):
+        """Test deadline resolution with various conditions."""
+        expected_result = 1 if conditions else 0
+        # Set up the query chain to return a list of (Deadline, DagRun) pairs
+        mock_dagrun = mock.Mock(spec=DagRun, end_date=datetime.now())
+        mock_deadline = mock.Mock(spec=Deadline, deadline_time=mock_dagrun.end_date + timedelta(days=365))
+        mock_query = mock_session.query.return_value
+        mock_query.join.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.all.return_value = [(mock_deadline, mock_dagrun)] if conditions else []
+
+        result = Deadline.prune_deadlines(conditions=conditions, session=mock_session)
+
+        assert result == expected_result
+        if conditions:
+            mock_session.query.assert_called_once_with(Deadline, DagRun)
+            mock_session.query.return_value.filter.assert_called_once()  # Assert that the conditions are applied.
+            mock_session.delete.assert_called_once_with(mock_deadline)
+        else:
+            mock_session.query.assert_not_called()
 
     def test_orm(self):
         deadline_orm = Deadline(
