@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Flex, useDisclosure, IconButton } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
@@ -44,9 +44,6 @@ import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
-const DEFAULT_GRAPH_SIZES = [70, 30] as const;
-const DEFAULT_GRID_SIZES = [20, 80] as const;
-
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
@@ -58,6 +55,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { dagId = "" } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+  const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
   const { fitView, getZoom } = useReactFlow();
@@ -66,19 +64,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const { i18n } = useTranslation();
   const direction = i18n.dir();
-
-  const storageKey = `panel-${dagId}-${dagView}`;
-  let initialSizes: readonly [number, number] =
-    dagView === "graph" ? DEFAULT_GRAPH_SIZES : DEFAULT_GRID_SIZES;
-  const savedSizes = sessionStorage.getItem(storageKey);
-
-  if (savedSizes !== null) {
-    const parsed: unknown = JSON.parse(savedSizes);
-
-    if (Array.isArray(parsed) && parsed.length === 2) {
-      initialSizes = parsed as [number, number];
-    }
-  }
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -113,16 +98,21 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           </Tooltip>
         ) : undefined}
         <PanelGroup
+          autoSaveId={`${dagId}-${dagView}-${direction}`}
           dir={direction}
           direction="horizontal"
           key={`${dagId}-${dagView}-${direction}`}
-          onLayout={(sizes) => {
-            sessionStorage.setItem(storageKey, JSON.stringify(sizes));
-          }}
+          ref={panelGroupRef}
         >
-          <Panel defaultSize={initialSizes[0]} id="main-panel" minSize={6} order={1}>
+          <Panel defaultSize={dagView === "graph" ? 70 : 20} id="main-panel" minSize={6} order={1}>
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
-              <PanelButtons dagView={dagView} limit={limit} setDagView={setDagView} setLimit={setLimit} />
+              <PanelButtons
+                dagView={dagView}
+                limit={limit}
+                panelGroupRef={panelGroupRef}
+                setDagView={setDagView}
+                setLimit={setLimit}
+              />
               {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
             </Box>
           </Panel>
@@ -164,7 +154,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   </Tooltip>
                 </Box>
               </PanelResizeHandle>
-              <Panel defaultSize={initialSizes[1]} id="details-panel" minSize={20} order={2}>
+              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
                 <Box display="flex" flexDirection="column" h="100%">
                   {children}
                   {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
