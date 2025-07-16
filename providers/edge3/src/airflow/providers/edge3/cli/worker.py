@@ -188,8 +188,8 @@ class EdgeWorker:
 
             try:
                 api_url = conf.get("edge", "api_url")
-                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback=...)
-                if execution_api_server_url is ...:
+                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
+                if not execution_api_server_url:
                     parsed = urlparse(api_url)
                     execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
 
