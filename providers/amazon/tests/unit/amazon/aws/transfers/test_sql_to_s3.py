@@ -30,8 +30,9 @@ from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
 class TestSqlToS3Operator:
+    @pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_csv(self, mock_s3_hook):
+    def test_execute_csv(self, mock_s3_hook, dtype_backend):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -49,6 +50,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
+            read_pd_kwargs={"dtype_backend": dtype_backend},
             pd_kwargs={"index": False, "header": False},
             dag=None,
         )
@@ -56,15 +58,18 @@ class TestSqlToS3Operator:
         op.execute(None)
 
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
-        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        get_df_mock.assert_called_once_with(
+            sql=query, parameters=None, df_type="pandas", dtype_backend=dtype_backend
+        )
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
         assert isinstance(file_obj, io.BytesIO)
         mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
             file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
         )
 
+    @pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_parquet(self, mock_s3_hook):
+    def test_execute_parquet(self, mock_s3_hook, dtype_backend):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -82,6 +87,7 @@ class TestSqlToS3Operator:
             sql_conn_id="mysql_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
+            read_pd_kwargs={"dtype_backend": dtype_backend},
             file_format="parquet",
             replace=True,
             dag=None,
@@ -91,6 +97,7 @@ class TestSqlToS3Operator:
 
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
         get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
         assert isinstance(file_obj, io.BytesIO)
         mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
