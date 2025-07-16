@@ -121,7 +121,6 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
           minH={0}
           onMouseEnter={onBadgeMouseEnter}
           onMouseLeave={onBadgeMouseLeave}
-          opacity={instance.state === "success" ? 0.6 : 1}
           p={0}
           position="relative"
           variant="solid"
