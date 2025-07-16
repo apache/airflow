@@ -29,7 +29,7 @@ import {
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
-import type { NavItem } from "src/utils/types";
+import type { NavItemResponse } from "src/utils/types";
 
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
@@ -44,19 +44,19 @@ const existingCategories = ["user", "docs", "admin", "browse"];
 
 // Function to categorize navigation items in a single pass
 const categorizeNavItems = (
-  items: Array<NavItem>,
+  items: Array<NavItemResponse>,
 ): {
-  adminItems: Array<NavItem>;
-  browseItems: Array<NavItem>;
-  docsItems: Array<NavItem>;
-  topNavItems: Array<NavItem>;
-  userItems: Array<NavItem>;
+  adminItems: Array<NavItemResponse>;
+  browseItems: Array<NavItemResponse>;
+  docsItems: Array<NavItemResponse>;
+  topNavItems: Array<NavItemResponse>;
+  userItems: Array<NavItemResponse>;
 } => {
-  const adminItems: Array<NavItem> = [];
-  const browseItems: Array<NavItem> = [];
-  const docsItems: Array<NavItem> = [];
-  const topNavItems: Array<NavItem> = [];
-  const userItems: Array<NavItem> = [];
+  const adminItems: Array<NavItemResponse> = [];
+  const browseItems: Array<NavItemResponse> = [];
+  const docsItems: Array<NavItemResponse> = [];
+  const topNavItems: Array<NavItemResponse> = [];
+  const userItems: Array<NavItemResponse> = [];
 
   items.forEach((item) => {
     const category = item.category?.toLowerCase();
@@ -94,7 +94,7 @@ export const Nav = () => {
   const { t: translate } = useTranslation("common");
 
   // Get both external views and react apps with nav destination
-  const navItems: Array<NavItem> =
+  const navItems: Array<NavItemResponse> =
     pluginData?.plugins
       .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
       .filter((item) => item.destination === "nav") ?? [];

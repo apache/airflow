@@ -22,20 +22,20 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { Menu } from "src/components/ui";
-import type { NavItem } from "src/utils/types";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 
-export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItem> }) => {
+export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResponse> }) => {
   const { t: translate } = useTranslation("common");
 
   if (navItems.length === 0) {
     return undefined;
   }
 
-  const categories: Record<string, Array<NavItem>> = {};
-  const buttons: Array<NavItem> = [];
+  const categories: Record<string, Array<NavItemResponse>> = {};
+  const buttons: Array<NavItemResponse> = [];
 
   navItems.forEach((navItem) => {
     if (navItem.category !== null && navItem.category !== undefined) {

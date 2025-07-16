@@ -22,7 +22,7 @@ import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
-import type { NavItem } from "src/utils/types";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
@@ -49,7 +49,7 @@ export const DocsButton = ({
   showAPI,
   version,
 }: {
-  readonly externalViews: Array<NavItem>;
+  readonly externalViews: Array<NavItemResponse>;
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {

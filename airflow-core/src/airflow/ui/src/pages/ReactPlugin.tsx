@@ -21,18 +21,15 @@ import { lazy, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
 import type { ReactAppResponse } from "openapi/requests/types.gen";
-import { sanitizeBundleUrl } from "src/utils/sanitizeUrl";
 
 import { ErrorPage } from "./Error";
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
-  // Sanitize the bundle URL for safe dynamic import
-  const sanitizedBundleUrl = sanitizeBundleUrl(reactApp.bundle_url);
-
   const Plugin = lazy(() =>
-    import(/* @vite-ignore */ sanitizedBundleUrl).catch((error: unknown) => {
+    // We are assuming the plugin manager is trusted and the bundle_url is safe
+    import(/* @vite-ignore */ reactApp.bundle_url).catch((error: unknown) => {
       console.error("Component Failed Loading:", error);
 
       return {

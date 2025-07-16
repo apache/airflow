@@ -19,7 +19,6 @@
 import { useParams } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
-import { sanitizeIframeUrl } from "src/utils/sanitizeUrl";
 
 export const Iframe = ({
   externalView,
@@ -49,13 +48,10 @@ export const Iframe = ({
     }
   }
 
-  // Sanitize the URL for safe use in iframe
-  const sanitizedSrc = sanitizeIframeUrl(src);
-
   return (
     <iframe
       sandbox={sandbox}
-      src={sanitizedSrc}
+      src={new URL(src).toString()}
       style={{
         border: "none",
         display: "block",

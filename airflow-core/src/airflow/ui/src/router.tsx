@@ -38,9 +38,9 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
-import { PluginView } from "src/pages/PluginView";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -66,7 +66,7 @@ const pluginRoute = {
   // which is part of the deployment of Airflow and trusted as per our security policy.
   // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
   // They are not user provided plugins.
-  element: <PluginView />,
+  element: <ExternalView />,
   path: "plugin/:page",
 };
 

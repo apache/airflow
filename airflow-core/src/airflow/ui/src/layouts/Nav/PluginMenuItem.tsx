@@ -23,11 +23,11 @@ import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
-import type { NavItem } from "src/utils/types";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 
-type Props = { readonly topLevel?: boolean } & NavItem;
+type Props = { readonly topLevel?: boolean } & NavItemResponse;
 
 export const PluginMenuItem = ({ icon, name, topLevel = false, url_route: urlRoute, ...rest }: Props) => {
   // Determine if this is an external view or react app based on the presence of href

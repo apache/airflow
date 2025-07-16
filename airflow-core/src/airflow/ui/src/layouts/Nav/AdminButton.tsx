@@ -22,7 +22,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { MenuItem } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
-import type { NavItem } from "src/utils/types";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
@@ -59,7 +59,7 @@ export const AdminButton = ({
   externalViews,
 }: {
   readonly authorizedMenuItems: Array<MenuItem>;
-  readonly externalViews: Array<NavItem>;
+  readonly externalViews: Array<NavItemResponse>;
 }) => {
   const { t: translate } = useTranslation("common");
   const menuItems = links

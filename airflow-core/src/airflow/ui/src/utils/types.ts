@@ -19,4 +19,4 @@
 import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 
 // Union type for navigation items that can be either external views or react apps
-export type NavItem = ExternalViewResponse | ReactAppResponse;
+export type NavItemResponse = ExternalViewResponse | ReactAppResponse;

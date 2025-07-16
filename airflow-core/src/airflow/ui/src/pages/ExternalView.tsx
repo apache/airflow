@@ -27,12 +27,11 @@ import { ErrorPage } from "./Error";
 import { Iframe } from "./Iframe";
 import { ReactPlugin } from "./ReactPlugin";
 
-export const PluginView = () => {
+export const ExternalView = () => {
   const { t: translate } = useTranslation();
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
 
-  // Check for external_views first
   const externalView =
     page === "legacy-fab-views"
       ? {
@@ -45,7 +44,6 @@ export const PluginView = () => {
           .flatMap((plugin) => plugin.external_views)
           .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
 
-  // Check for react_apps if no external view found
   const reactApp = pluginData?.plugins
     .flatMap((plugin) => plugin.react_apps)
     .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
@@ -58,7 +56,6 @@ export const PluginView = () => {
     );
   }
 
-  // If external view is found, render Iframe component
   if (externalView) {
     return (
       <Box
@@ -67,12 +64,12 @@ export const PluginView = () => {
         m={-2} // Compensate for parent padding
         minHeight={0}
       >
-        <Iframe externalView={externalView} sandbox="allow-scripts allow-forms" />
+        {/* We are assuming plugin manager is trusted, this allows for views hosted by Airflow like legacy fab plugins */}
+        <Iframe externalView={externalView} sandbox="allow-scripts allow-same-origin allow-forms" />
       </Box>
     );
   }
 
-  // If react app is found, render ReactPlugin component
   if (reactApp) {
     return (
       <Box
@@ -86,6 +83,5 @@ export const PluginView = () => {
     );
   }
 
-  // If neither is found, render error page
   return <ErrorPage />;
 };
