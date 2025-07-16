@@ -395,7 +395,7 @@ class TestAwsLambdaExecutor:
         mock_executor.running_tasks.clear()
         mock_executor.running_tasks[ser_airflow_key] = airflow_key
         mock_executor.sqs_client.receive_message.side_effect = [
-            {},  # First request from the results queue will be empt
+            {},  # First request from the results queue will be empty
             {
                 # Second request from the DLQ will have a message
                 "Messages": [
@@ -510,6 +510,87 @@ class TestAwsLambdaExecutor:
         fail_mock.assert_called_once()
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
+    def test_sync_running_fail_bad_json(self, mock_executor, mock_airflow_key):
+        airflow_key = mock_airflow_key()
+        ser_airflow_key = json.dumps(airflow_key._asdict())
+
+        mock_executor.running_tasks.clear()
+        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.sqs_client.receive_message.side_effect = [
+            {
+                "Messages": [
+                    {
+                        "ReceiptHandle": "receipt_handle",
+                        "Body": "Banana",  # Body not json format
+                    }
+                ]
+            },
+            {},  # Second request from the DLQ will be empty
+        ]
+
+        mock_executor.sync_running_tasks()
+        # Assert that the message is deleted if the message is not formatted as json
+        assert mock_executor.sqs_client.receive_message.call_count == 2
+        assert mock_executor.sqs_client.delete_message.call_count == 1
+
+    def test_sync_running_fail_bad_format(self, mock_executor, mock_airflow_key):
+        airflow_key = mock_airflow_key()
+        ser_airflow_key = json.dumps(airflow_key._asdict())
+
+        mock_executor.running_tasks.clear()
+        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.sqs_client.receive_message.side_effect = [
+            {
+                "Messages": [
+                    {
+                        "ReceiptHandle": "receipt_handle",
+                        "Body": json.dumps(
+                            {
+                                "foo": "bar",  # Missing expected keys like "task_key"
+                                "return_code": 1,  # Non-zero return code, task failed
+                            }
+                        ),
+                    }
+                ]
+            },
+            {},  # Second request from the DLQ will be empty
+        ]
+
+        mock_executor.sync_running_tasks()
+        # Assert that the message is deleted if the message does not contain the expected keys
+        assert mock_executor.sqs_client.receive_message.call_count == 2
+        assert mock_executor.sqs_client.delete_message.call_count == 1
+
+    def test_sync_running_fail_bad_format_dlq(self, mock_executor, mock_airflow_key):
+        airflow_key = mock_airflow_key()
+        ser_airflow_key = json.dumps(airflow_key._asdict())
+
+        mock_executor.running_tasks.clear()
+        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        # Failure message
+        mock_executor.sqs_client.receive_message.side_effect = [
+            {},  # First request from the results queue will be empty
+            {
+                # Second request from the DLQ will have a message
+                "Messages": [
+                    {
+                        "ReceiptHandle": "receipt_handle",
+                        "Body": json.dumps(
+                            {
+                                "foo": "bar",  # Missing expected keys like "task_key"
+                                "return_code": 1,
+                            }
+                        ),
+                    }
+                ]
+            },
+        ]
+
+        mock_executor.sync_running_tasks()
+        # Assert that the message is deleted if the message does not contain the expected keys
+        assert mock_executor.sqs_client.receive_message.call_count == 2
+        assert mock_executor.sqs_client.delete_message.call_count == 1
+
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     def test_sync_running_short_circuit(self, success_mock, fail_mock, mock_executor, mock_airflow_key):
@@ -605,10 +686,12 @@ class TestAwsLambdaExecutor:
         mock_executor.running_tasks[ser_airflow_key] = airflow_key
 
         # Receive the known task and unknown task
+        known_task_receipt = "receipt_handle_known"
+        unknown_task_receipt = "receipt_handle_unknown"
         mock_executor.sqs_client.receive_message.return_value = {
             "Messages": [
                 {
-                    "ReceiptHandle": "receipt_handle",
+                    "ReceiptHandle": known_task_receipt,
                     "Body": json.dumps(
                         {
                             "task_key": ser_airflow_key,
@@ -617,7 +700,7 @@ class TestAwsLambdaExecutor:
                     ),
                 },
                 {
-                    "ReceiptHandle": "receipt_handle",
+                    "ReceiptHandle": unknown_task_receipt,
                     "Body": json.dumps(
                         {
                             "task_key": ser_airflow_key_2,
@@ -635,8 +718,20 @@ class TestAwsLambdaExecutor:
         assert len(mock_executor.running_tasks) == 0
         success_mock.assert_called_once()
         fail_mock.assert_not_called()
-        # Both messages from the queue should be deleted, both known and unknown
-        assert mock_executor.sqs_client.delete_message.call_count == 2
+        # Only the known message from the queue should be deleted, the other should be marked as visible again
+        assert mock_executor.sqs_client.delete_message.call_count == 1
+        assert mock_executor.sqs_client.change_message_visibility.call_count == 1
+        # The argument to delete_message should be the known task
+        assert mock_executor.sqs_client.delete_message.call_args_list[0].kwargs == {
+            "QueueUrl": DEFAULT_QUEUE_URL,
+            "ReceiptHandle": known_task_receipt,
+        }
+        # The change_message_visibility should be called with the unknown task
+        assert mock_executor.sqs_client.change_message_visibility.call_args_list[0].kwargs == {
+            "QueueUrl": DEFAULT_QUEUE_URL,
+            "ReceiptHandle": unknown_task_receipt,
+            "VisibilityTimeout": 0,
+        }
 
     def test_start_no_check_health(self, mock_executor):
         mock_executor.check_health = mock.Mock()
