@@ -27,7 +27,9 @@ type Props = {
 
 export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const openGroupsKey = `${dagId}/open-groups`;
+  const allGroupsKey = `${dagId}/all-groups`;
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
+  const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
 
   const toggleGroupId = useCallback(
     (groupId: string) => {
@@ -41,8 +43,8 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   );
 
   const value = useMemo<OpenGroupsContextType>(
-    () => ({ openGroupIds, setOpenGroupIds, toggleGroupId }),
-    [openGroupIds, setOpenGroupIds, toggleGroupId],
+    () => ({ allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId }),
+    [allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId],
   );
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
