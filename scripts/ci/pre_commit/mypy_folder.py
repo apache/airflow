@@ -54,6 +54,7 @@ if len(sys.argv) < 2:
 mypy_folders = sys.argv[1:]
 
 show_unused_warnings = os.environ.get("SHOW_UNUSED_MYPY_WARNINGS", "false")
+show_unreachable_warnings = os.environ.get("SHOW_UNREACHABLE_MYPY_WARNINGS", "false")
 
 for mypy_folder in mypy_folders:
     if mypy_folder not in ALLOWED_FOLDERS:
@@ -127,14 +128,21 @@ else:
 
 print(f"Running mypy with {FILE_ARGUMENT}")
 
+mypy_cmd_parts = [f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"]
+
 if show_unused_warnings == "true":
     console.print(
         "[info]Running mypy with --warn-unused-ignores to display unused ignores, unset environment variable: SHOW_UNUSED_MYPY_WARNINGS to runoff this behaviour"
     )
+    mypy_cmd_parts.append("--warn-unused-ignores")
 
-    mypy_cmd = f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)} --warn-unused-ignores"
-else:
-    mypy_cmd = f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"
+if show_unreachable_warnings == "true":
+    console.print(
+        "[info]Running mypy with --warn-unreachable to display unreachable code, unset environment variable: SHOW_UNREACHABLE_MYPY_WARNINGS to runoff this behaviour"
+    )
+    mypy_cmd_parts.append("--warn-unreachable")
+
+mypy_cmd = " ".join(mypy_cmd_parts)
 
 cmd = ["bash", "-c", mypy_cmd]
 
