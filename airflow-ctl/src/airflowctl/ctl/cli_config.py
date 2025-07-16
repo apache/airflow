@@ -37,7 +37,7 @@ import rich
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
-from airflowctl.ctl.simple_table import AirflowConsole
+from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -177,7 +177,7 @@ ARG_OUTPUT = Arg(
         "--output",
         "-o",
     ),
-    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    help="Output format. Allowed values: json, yaml, plain, table (default: json)",
     metavar="(table, json, yaml, plain)",
     choices=("table", "json", "yaml", "plain"),
     default="json",
