@@ -538,6 +538,19 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { dag
   tagsMatchMode?: "any" | "all";
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
+* Get Latest Run Ui
+* Get latest run.
+*
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+* @param data The data for the request.
+* @param data.dagId
+* @returns DAGRunLightResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagServiceGetLatestRunUiData = (queryClient: QueryClient, { dagId }: {
+  dagId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetLatestRunUiKeyFn({ dagId }), queryFn: () => DagService.getLatestRunUi({ dagId }) });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId
