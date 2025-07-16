@@ -953,6 +953,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         super().__setattr__(key, value)
         if self.__from_mapped or self._lock_for_execution:
             return  # Skip any custom behavior for validation and during execute.
+        if key == "executor_config":
+            self.validate_executor_config(value)
         if key in self.__init_kwargs:
             self.__init_kwargs[key] = value
         if self.__instantiated and key in self.template_fields:
@@ -1086,6 +1088,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.executor = executor
         self.executor_config = executor_config or {}
+        self.validate_executor_config(self.executor_config)
         self.run_as_user = run_as_user
         # TODO:
         # self.retries = parse_retries(retries)
@@ -1199,6 +1202,27 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
+
+    def validate_executor_config(self, executor_config: dict | None) -> None:
+        """
+        Validate the executor_config to ensure it only contains 'pod_override' or 'pod_template_file' keys.
+
+        :param executor_config: The executor_config dictionary to validate.
+        :raises AirflowException: If executor_config contains keys other than 'pod_override' or 'pod_template_file'.
+        """
+        if not executor_config or not isinstance(executor_config, dict):
+            return
+
+        valid_keys = {"pod_override", "pod_template_file"}
+        invalid_keys = set(executor_config.keys()) - valid_keys
+        if invalid_keys:
+            error_msg = (
+                f"Invalid executor_config keys for task '{self.task_id}'"
+                f"{' in DAG ' + self.dag.dag_id if self.has_dag() else ''}: {sorted(invalid_keys)}. "
+                f"Only 'pod_override' and 'pod_template_file' are allowed."
+            )
+            self.log.error(error_msg)
+            raise AirflowException(error_msg)
 
     # /Composing Operators ---------------------------------------------
 
