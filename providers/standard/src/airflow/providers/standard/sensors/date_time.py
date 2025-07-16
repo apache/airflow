@@ -99,6 +99,12 @@ class DateTimeSensor(BaseSensorOperator):
 
     @property
     def _moment(self) -> datetime.datetime:
+        if isinstance(self.target_time, datetime.datetime):
+            # Note following is reachable code if Jinja is used for redering template fields and
+            # render_template_as_native_obj=True is used.
+            # In this case, the target_time is already a datetime object.
+            return self.target_time  # type:ignore[unreachable]
+
         return timezone.parse(self.target_time)
 
 
