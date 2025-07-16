@@ -24,7 +24,12 @@ from unittest import mock
 import pytest
 
 from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
-from airflow.sdk.bases.decorator import remove_task_decorator
+
+try:
+    from airflow.sdk.bases.decorator import remove_task_decorator
+except ImportError:
+    # Fallback for Airflow < 3.1
+    from airflow.utils.decorators import remove_task_decorator  # type: ignore[no-redef]
 
 from tests_common.test_utils.config import conf_vars
 
