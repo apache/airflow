@@ -120,7 +120,7 @@ class TestGCSToBigQueryOperator:
         result = operator.execute(context=MagicMock())
 
         assert result == "1"
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -305,7 +305,7 @@ class TestGCSToBigQueryOperator:
         )
 
         operator.execute(context=MagicMock())
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -406,7 +406,7 @@ class TestGCSToBigQueryOperator:
         )
 
         operator.execute(context=MagicMock())
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -508,7 +508,7 @@ class TestGCSToBigQueryOperator:
 
         operator.execute(context=MagicMock())
 
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -612,7 +612,7 @@ class TestGCSToBigQueryOperator:
 
         operator.execute(context=MagicMock())
 
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -717,7 +717,7 @@ class TestGCSToBigQueryOperator:
 
         operator.execute(context=MagicMock())
 
-        bq_hook.return_value.create_empty_table.assert_called_once_with(
+        bq_hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -821,7 +821,7 @@ class TestGCSToBigQueryOperator:
 
         operator.execute(context=MagicMock())
 
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -1023,7 +1023,7 @@ class TestGCSToBigQueryOperator:
         result = operator.execute(context=MagicMock())
 
         assert result == "1"
-        bq_hook.return_value.create_empty_table.assert_called_once_with(
+        bq_hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -1207,7 +1207,7 @@ class TestGCSToBigQueryOperator:
         )
 
         operator.execute(context=MagicMock())
-        hook.return_value.create_empty_table.assert_called_once_with(
+        hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
@@ -1588,7 +1588,7 @@ class TestGCSToBigQueryOperator:
 
             operator.execute(context=MagicMock())
 
-            hook.return_value.create_empty_table.assert_called_once_with(
+            hook.return_value.create_table.assert_called_once_with(
                 exists_ok=True,
                 location=None,
                 project_id=JOB_PROJECT_ID,
