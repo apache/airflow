@@ -17,84 +17,78 @@
  under the License.
  -->
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
-
-- [{{PROJECT_NAME}}](#project_name)
-  - [Getting Started](#getting-started)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
 # {{PROJECT_NAME}}
 
-This project was bootstrapped with the Airflow UI configuration.
+This is a React plugin template for Apache Airflow that builds as a library component.
 
-## Getting Started
+## Development
 
-### Prerequisites
-
-- Node.js (v18 or higher)
-- pnpm
-
-### Installation
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start development server
-pnpm dev
-```
+This template is configured to build your React component as a library that can be consumed by other applications.
 
 ### Available Scripts
 
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm lint` - Run linter
-- `pnpm lint:fix` - Fix linting issues
-- `pnpm format` - Format code with prettier
+- `pnpm dev` - Start development server with hot reload
+- `pnpm build` - Build the library for production
+- `pnpm build:types` - Generate TypeScript declaration files only
+- `pnpm build:lib` - Build the JavaScript library only
 - `pnpm test` - Run tests
-- `pnpm coverage` - Run tests with coverage
+- `pnpm lint` - Check code quality
+- `pnpm format` - Format code
 
-### Tech Stack
+### Library Output
 
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool
-- **Chakra UI** - Component library
-- **React Query** - Data fetching
-- **React Router** - Routing
-- **Vitest** - Testing framework
-- **ESLint** - Code linting
-- **Prettier** - Code formatting
+When you run `pnpm build`, the template generates:
 
-### Project Structure
+- `dist/main.js` - ES module JavaScript library
+- `dist/main.d.ts` - TypeScript declaration file
+- Source maps for debugging
 
-```
-src/
-├── components/     # Reusable UI components
-├── pages/         # Page components
-├── hooks/         # Custom React hooks
-├── context/       # React context providers
-├── utils/         # Utility functions
-├── constants/     # Constants and configuration
-└── assets/        # Static assets
+### Usage as a Library
+
+After building, other applications can import your component:
+
+```typescript
+import { PluginComponent } from 'your-plugin-name';
+
+// Use in your React app
+<PluginComponent />
 ```
 
-### Development
+### Development Mode
 
-The project uses the same configuration as Airflow's core UI:
+For development and testing, use `pnpm dev` which will:
 
-- **ESLint** for code quality
-- **Prettier** for consistent formatting
-- **TypeScript** for type safety
-- **Chakra UI** for consistent design system
-- **React Query** for efficient data fetching
+- Start a development server on port 5173
+- Load the component using `src/dev.tsx` entry point
+- Enable hot module replacement
+
+### Library Configuration
+
+The template is configured with:
+
+- **Vite** for fast building and development
+- **TypeScript** with declaration file generation
+- **CSS injection** - styles are automatically injected into the JavaScript bundle
+- **External dependencies** - React and other common libraries are marked as external to reduce bundle size
 
 ### Customization
 
-- Modify `src/theme.ts` to customize the Chakra UI theme
-- Add new routes in `src/router.tsx`
-- Add new pages in `src/pages/`
-- Add reusable components in `src/components/`
+1. **Component Props**: Update the `PluginComponentProps` interface in `src/main.tsx`
+2. **External Dependencies**: Modify the `external` array in `vite.config.ts`
+3. **Build Output**: Adjust library configuration in `vite.config.ts`
+
+### Package Configuration
+
+The `package.json` is configured with:
+
+- `main` and `module` pointing to the built library
+- `types` pointing to generated declaration files
+- `exports` for modern import/export support
+- `files` array specifying what gets published
+
+This ensures your plugin can be consumed as both a CommonJS and ES module with full TypeScript support.
+
+### Deployment to Airflow Plugins
+
+Once the development is complete, you can build the library using `pnpm build` and then host the content of the `dist` folder. You can do that on your own infrastructure or within airflow
+by adding static file serving to your api server via registering a plugin `fastapi_apps`. You can take a look at the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/plugins.html) for more information on how to do that.

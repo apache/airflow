@@ -19,8 +19,7 @@
 
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { FC } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { ColorModeProvider } from "src/context/colorMode";
@@ -29,8 +28,15 @@ import { router } from "src/router";
 import { client } from "./queryClient";
 import { system } from "./theme";
 
-createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <StrictMode>
+export interface PluginComponentProps {
+  // Add any props your plugin component needs
+}
+
+/**
+ * Main plugin component
+ */
+export const PluginComponent: FC<PluginComponentProps> = (props) => {
+  return (
     <ChakraProvider value={system}>
       <ColorModeProvider>
         <QueryClientProvider client={client}>
@@ -38,5 +44,7 @@ createRoot(document.querySelector("#root") as HTMLDivElement).render(
         </QueryClientProvider>
       </ColorModeProvider>
     </ChakraProvider>
-  </StrictMode>,
-);
+  );
+};
+
+export default PluginComponent;

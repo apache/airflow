@@ -17,26 +17,14 @@
  * under the License.
  */
 
-import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 
-import { useColorMode } from "src/context/colorMode";
+import { PluginComponent } from "./main";
 
-export const HomePage = () => {
-  const { toggleColorMode } = useColorMode();
-
-  return (
-    <Box p={8} bg="bg.subtle" flexGrow={1} height="100%">
-      <VStack gap={8} align="center" justify="center" flexGrow={1} height="100%">
-        <Heading size="2xl" textAlign="center" color="fg">
-          Welcome to Your New React App!
-        </Heading>
-        <Text fontSize="lg" color="fg.muted">
-          This project was bootstrapped with the Airflow UI configuration.
-        </Text>
-        <Button onClick={toggleColorMode} colorPalette="blue">
-          Toggle Theme
-        </Button>
-      </VStack>
-    </Box>
-  );
-};
+// Development entry point for testing the component
+createRoot(document.querySelector("#root") as HTMLDivElement).render(
+  <StrictMode>
+    <PluginComponent />
+  </StrictMode>,
+);
