@@ -149,30 +149,6 @@ class BaseOperations:
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
-    def return_all_entries(
-        self,
-        *,
-        path: str,
-        total_entries: int,
-        data_model: type[BaseModel],
-        entry_list: list,
-        offset: int = 50,  # Initial pass added; default limit is set to 50
-        limit: int = 50,
-        params: dict | None = None,
-        **kwargs,
-    ) -> list | ServerResponseError:
-        shared_params = {**(params or {}), **kwargs}
-        try:
-            while offset < total_entries:
-                loop_params = {**shared_params, "offset": offset}
-                self.response = self.client.get(path, params=loop_params)
-                entry = data_model.model_validate_json(self.response.content)
-                offset = offset + limit
-                entry_list.append(entry)
-            return entry_list
-        except ServerResponseError as e:
-            raise e
-
     def execute_list(
         self,
         *,
@@ -186,21 +162,15 @@ class BaseOperations:
         entry_list = []
         shared_params = {**(params or {}), **kwargs}
         try:
-            print("ringsss")
-            print(offset)
             self.response = self.client.get(path, params=shared_params)
             first_pass = data_model.model_validate_json(self.response.content)
             entry_list.append(first_pass)
             total_entries = first_pass.total_entries  # type: ignore[attr-defined]
             if total_entries < limit:
                 return entry_list
-            print("off loop ")
             offset = offset + limit
             print(offset)
             while offset < total_entries:
-                print(offset)
-                print("whileee")
-
                 loop_params = {**shared_params, "offset": offset}
                 self.response = self.client.get(path, params=loop_params)
                 entry = data_model.model_validate_json(self.response.content)
@@ -251,7 +221,7 @@ class AssetsOperations(BaseOperations):
 
     def list(self) -> list | ServerResponseError:
         """List all assets from the API server."""
-        return super().execute_list(path="assets", data_model=AssetCollectionResponse, offset=1, limit=5)
+        return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
