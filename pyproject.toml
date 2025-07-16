@@ -22,7 +22,7 @@ requires = [
     "hatchling==1.27.0",
     "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
@@ -528,7 +528,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.19",
+    "uv>=0.7.21",
 ]
 
 
@@ -689,7 +689,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
-# __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+#
 "airflow-core/tests/unit/__init__.py" = ["I002"]
 "airflow-core/tests/system/__init__.py" = ["I002"]
 "airflow-core/tests/integration/__init__.py" = ["I002"]

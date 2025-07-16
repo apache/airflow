@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,10 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.mappedoperator import MappedOperator
+from airflow.utils.serve_logs.core import serve_logs
+from airflow.utils.serve_logs.log_server import create_app
 
-Operator = BaseOperator | MappedOperator
-
-
-__all__ = ["Operator"]
+__all__ = ["serve_logs", "create_app"]

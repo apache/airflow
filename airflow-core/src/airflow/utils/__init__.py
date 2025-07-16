@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
 
 def _deprecate_this_module(message: str, **shims: tuple[str, str]):
     import warnings
@@ -34,3 +36,15 @@ def _deprecate_this_module(message: str, **shims: tuple[str, str]):
         return getattr(__import__(impa), attr)
 
     return __getattr__
+
+
+__deprecated_classes = {
+    "setup_teardown": {
+        "BaseSetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.BaseSetupTeardownContext",
+        "SetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.SetupTeardownContext",
+    },
+    "xcom": {
+        "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)

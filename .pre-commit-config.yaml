@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.17.0
+  node: 22.17.1
   golang: 1.24.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
@@ -213,7 +213,7 @@ repos:
           ^scripts/ci/pre_commit/update_installers_and_pre_commit\.py$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0']
+        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0',"packaging>=25"]
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/pre_commit/update_chart_dependencies.py
@@ -427,7 +427,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.12.1']
+        additional_dependencies: ['ruff==0.12.3']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -437,7 +437,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.12.1']
+        additional_dependencies: ['ruff==0.12.3']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -1590,13 +1590,13 @@ repos:
         name: Check imports in providers
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.1']
+        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.3']
         files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
       - id: provider-version-compat
         name: Check for correct version_compat imports in providers
         entry: ./scripts/ci/pre_commit/check_provider_version_compat.py
-        language: system
+        language: python
         types: [python]
         files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true

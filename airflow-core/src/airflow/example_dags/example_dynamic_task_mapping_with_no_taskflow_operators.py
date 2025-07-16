@@ -21,8 +21,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, BaseOperator
 
 
 class AddOneOperator(BaseOperator):
