@@ -19,6 +19,7 @@ from __future__ import annotations
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -132,7 +133,11 @@ def _get_hitl_detail(
         )
 
     ti_id_str = str(task_instance.id)
-    hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
+    hitl_detail_model = session.scalar(
+        select(HITLDetailModel)
+        .where(HITLDetailModel.ti_id == ti_id_str)
+        .options(joinedload(HITLDetailModel.task_instance))
+    )
     if not hitl_detail_model:
         log.error("Human-in-the-loop detail not found")
         raise HTTPException(

@@ -9891,9 +9891,8 @@ components:
       description: Serializer for Plugin FastAPI root middleware responses.
     HITLDetail:
       properties:
-        ti_id:
-          type: string
-          title: Ti Id
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
         options:
           items:
             type: string
@@ -9950,7 +9949,7 @@ components:
           default: false
       type: object
       required:
-      - ti_id
+      - task_instance
       - options
       - subject
       title: HITLDetail

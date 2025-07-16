@@ -23,6 +23,7 @@ from typing import Any
 from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
 from airflow.sdk import Param
 
 
@@ -45,7 +46,7 @@ class HITLDetailResponse(BaseModel):
 class HITLDetail(BaseModel):
     """Schema for Human-in-the-loop detail."""
 
-    ti_id: str
+    task_instance: TaskInstanceResponse
 
     # User Request Detail
     options: list[str]
