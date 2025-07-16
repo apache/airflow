@@ -23,7 +23,7 @@ from datetime import timedelta
 
 import time_machine
 
-from airflow.utils import timezone
+from airflow import timezone
 from airflow.utils.log.file_processor_handler import FileProcessorHandler
 
 

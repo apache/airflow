@@ -24,6 +24,7 @@ from pydantic import NonNegativeInt
 from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
+from airflow import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -56,7 +57,6 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
 )
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")

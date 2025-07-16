@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import settings
+from airflow import settings, timezone
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 

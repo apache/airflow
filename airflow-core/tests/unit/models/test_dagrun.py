@@ -30,7 +30,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from airflow import settings
+from airflow import settings, timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -47,7 +47,6 @@ from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils import timezone
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict

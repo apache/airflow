@@ -43,6 +43,7 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.sdk import timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -114,7 +115,6 @@ from airflow.sdk.execution_time.supervisor import (
     set_supervisor_comms,
     supervise,
 )
-from airflow.utils import timezone, timezone as tz
 
 if TYPE_CHECKING:
     import kgb
@@ -180,7 +180,7 @@ class TestWatchedSubprocess:
 
         line = lineno() - 2  # Line the error should be on
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         proc = ActivitySubprocess.start(
@@ -403,7 +403,7 @@ class TestWatchedSubprocess:
     def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
@@ -447,7 +447,7 @@ class TestWatchedSubprocess:
         This includes ensuring the task starts and executes successfully, and that the task is deferred (via
         the API client) with the expected parameters.
         """
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
         ti = TaskInstance(
             id=uuid7(),
@@ -674,7 +674,7 @@ class TestWatchedSubprocess:
             process=mock_process,
         )
 
-        time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
+        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
         time_machine.move_to(time_now, tick=False)
 
         # Simulate sending heartbeats and ensure the process gets killed after max retries

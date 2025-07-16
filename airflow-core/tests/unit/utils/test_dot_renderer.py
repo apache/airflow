@@ -22,10 +22,11 @@ from unittest import mock
 
 import pytest
 
+from airflow import timezone
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.utils import dot_renderer, timezone
+from airflow.utils import dot_renderer
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 

@@ -37,7 +37,7 @@ from pytest import param
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
 
-from airflow import settings
+from airflow import settings, timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -74,7 +74,6 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
-from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState

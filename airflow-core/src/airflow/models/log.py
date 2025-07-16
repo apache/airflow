@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Column, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
+from airflow import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:

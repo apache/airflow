@@ -25,6 +25,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -38,7 +39,6 @@ from airflow.models.backfill import (
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

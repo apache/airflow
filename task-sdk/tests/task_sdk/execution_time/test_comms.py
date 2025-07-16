@@ -24,9 +24,9 @@ from socket import socketpair
 import msgspec
 import pytest
 
+from airflow.sdk import timezone
 from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails, _ResponseFrame
 from airflow.sdk.execution_time.task_runner import CommsDecoder
-from airflow.utils import timezone
 
 
 class TestCommsDecoder:

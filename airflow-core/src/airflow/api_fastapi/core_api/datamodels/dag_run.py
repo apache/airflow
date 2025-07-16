@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 
 from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
 
+from airflow import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

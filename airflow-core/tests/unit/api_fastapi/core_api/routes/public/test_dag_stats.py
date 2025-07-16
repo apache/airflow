@@ -20,9 +20,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from airflow import timezone
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 

@@ -118,6 +118,9 @@ namespace-packages = ["src/airflow"]
 # Generated file, be less strict
 "src/airflow/sdk/*/_generated.py" = ["D"]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"airflow.utils.timezone".msg = "Use airflow.sdk.timezone"
+
 [tool.coverage.run]
 branch = true
 relative_files = true

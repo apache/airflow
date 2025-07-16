@@ -24,9 +24,9 @@ import pytest
 import time_machine
 from fastapi.testclient import TestClient
 
+from airflow import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.utils import timezone
 from airflow.utils.serve_logs import create_app
 
 from tests_common.test_utils.config import conf_vars

@@ -39,7 +39,7 @@ from sqlalchemy import (
 )
 from tabulate import tabulate
 
-from airflow import settings
+from airflow import settings, timezone
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowClusterPolicyError,
@@ -52,7 +52,6 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (

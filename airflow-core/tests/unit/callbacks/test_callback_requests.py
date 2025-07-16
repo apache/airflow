@@ -21,6 +21,7 @@ from datetime import datetime
 
 import pytest
 
+from airflow import timezone
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     TaskCallbackRequest,
@@ -28,7 +29,6 @@ from airflow.callbacks.callback_requests import (
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test

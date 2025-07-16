@@ -28,6 +28,7 @@ from pendulum import DateTime
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session
 
+from airflow import timezone
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeCollectionResponse,
@@ -38,7 +39,6 @@ from airflow.models.dagrun import DagRun
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import timezone
 
 log = structlog.get_logger(logger_name=__name__)
 

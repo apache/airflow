@@ -24,6 +24,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from airflow import timezone
 from airflow.models import DagBag
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -31,7 +32,6 @@ from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOpe
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import Metadata, task
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
-from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
