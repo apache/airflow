@@ -77,6 +77,7 @@ class SmtpNotifier(BaseNotifier):
         mime_charset: str = "utf-8",
         custom_headers: dict[str, Any] | None = None,
         smtp_conn_id: str = SmtpHook.default_conn_name,
+        auth_type: str = "basic",
         *,
         template: str | None = None,
     ):
@@ -92,6 +93,7 @@ class SmtpNotifier(BaseNotifier):
         self.custom_headers = custom_headers
         self.subject = subject
         self.html_content = html_content
+        self.auth_type = auth_type
         if self.html_content is None and template is not None:
             self.html_content = self._read_template(template)
 
@@ -102,7 +104,7 @@ class SmtpNotifier(BaseNotifier):
     @cached_property
     def hook(self) -> SmtpHook:
         """Smtp Events Hook."""
-        return SmtpHook(smtp_conn_id=self.smtp_conn_id)
+        return SmtpHook(smtp_conn_id=self.smtp_conn_id, auth_type=self.auth_type)
 
     def notify(self, context):
         """Send a email via smtp server."""
