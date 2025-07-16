@@ -240,7 +240,20 @@ Additional Caveats
 
 * Your auth manager should not reference anything from the ``airflow.security.permissions`` module, as that module is in the process of being deprecated.
   * Instead, your code should use the definitions in ``airflow.api_fastapi.auth.managers.models.resource_details``.
-* The DAG ``access_control`` attribute of a DAG is only compatible with the FAB auth manager. Custom auth manager implementations leverage ``get_authorized_dag_ids`` for DAG instance attribute-based access controls in more customizable ways (e.g. authorization based on DAG tags, DAG bundles, etc.).
+* The ``access_control`` attribute of a DAG instance is only compatible with the FAB auth manager. Custom auth manager implementations should leverage ``get_authorized_dag_ids`` for DAG instance attribute-based access controls in more customizable ways (e.g. authorization based on DAG tags, DAG bundles, etc.).
+
+DAG and DAG Sub-Component Authorization
+---------------------------------------
+
+Given the hierarchical structure of DAGs and their composite resources, the auth manager's ``is_authorized_dag`` method should also handle the authorization logic for DAG runs, tasks, and task instances.
+The ``access_entity`` parameter passed to ``is_authorized_dag`` indicates which (if any) DAG sub-component the user is attempting to access. This leads to a few important points:
+
+* If the ``access_entity`` parameter is ``None``, then the user is attempting to interact directly with the DAG, not any of its sub-components.
+* When the ``access_entity`` parameter is not ``None``, it means the user is attempting to access some sub-component of the DAG. This is noteworthy, as in some cases the ``method`` parameter may be valid
+  for the DAG's sub-entity, but not a valid action directly on the DAG itself. For example, the ``POST`` method is valid for DAG runs, but **not** for DAGs.
+* One potential way to model the example request mentioned above -- where the ``method`` only has meaning for the DAG sub-component -- is to authorize the user if **both** statements are true:
+  * The user has ``PUT`` ("edit") permissions for the given DAG.
+  * The user has ``POST`` ("create") permissions for DAG runs.
 
 Next Steps
 ----------
