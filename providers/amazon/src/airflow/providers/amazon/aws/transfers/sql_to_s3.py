@@ -161,7 +161,7 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
-            if df[col].dtype.name == "object" and file_format == "parquet":
+            if df[col].dtype.name == "object" and file_format == FILE_FORMAT.PARQUET:
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
                 df[col] = df[col].astype(str)
