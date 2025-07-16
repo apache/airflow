@@ -21,80 +21,43 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 
-// Define existing button categories to filter out
-const existingCategories = ["user", "docs", "admin", "browse"];
-
-export const PluginMenus = () => {
+export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResponse> }) => {
   const { t: translate } = useTranslation("common");
-  const { data } = usePluginServiceGetPlugins();
 
-  let menuPlugins =
-    data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
-    [];
-
-  // Filter out plugins with categories that match existing buttons
-  menuPlugins = menuPlugins.filter((view) => {
-    const category = view.category?.toLowerCase();
-
-    return category === undefined || !existingCategories.includes(category);
-  });
-
-  const hasLegacyViews =
-    (
-      data?.plugins
-        .flatMap((plugin) => plugin.appbuilder_views)
-        // Only include legacy views that have a visible link in the menu. No menu items views
-        // are accessible via direct URLs.
-        .filter((view) => view.name !== undefined && view.name !== null) ?? []
-    ).length >= 1;
-
-  if (hasLegacyViews) {
-    menuPlugins = [
-      ...menuPlugins,
-      {
-        destination: "nav",
-        href: "/pluginsv2",
-        name: translate("nav.legacyFabViews"),
-        url_route: "legacy-fab-views",
-      },
-    ];
-  }
-
-  if (data === undefined || menuPlugins.length === 0) {
+  if (navItems.length === 0) {
     return undefined;
   }
 
-  const categories: Record<string, Array<ExternalViewResponse>> = {};
-  const buttons: Array<ExternalViewResponse> = [];
+  const categories: Record<string, Array<NavItemResponse>> = {};
+  const buttons: Array<NavItemResponse> = [];
 
-  menuPlugins.forEach((externalView) => {
-    if (externalView.category !== null && externalView.category !== undefined) {
-      categories[externalView.category] = [...(categories[externalView.category] ?? []), externalView];
+  navItems.forEach((navItem) => {
+    if (navItem.category !== null && navItem.category !== undefined) {
+      categories[navItem.category] = [...(categories[navItem.category] ?? []), navItem];
     } else {
-      buttons.push(externalView);
+      buttons.push(navItem);
     }
   });
 
-  if (!buttons.length && !Object.keys(categories).length && menuPlugins.length === 0) {
+  if (!buttons.length && !Object.keys(categories).length && navItems.length === 0) {
     return undefined;
   }
 
   // Show plugins in menu if there are more than 2
-  return menuPlugins.length > 2 ? (
+  return navItems.length > 2 ? (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
         <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
       </Menu.Trigger>
       <Menu.Content>
-        {buttons.map((externalView) => (
-          <PluginMenuItem key={externalView.name} {...externalView} />
+        {buttons.map((navItem) => (
+          <PluginMenuItem key={navItem.name} {...navItem} />
         ))}
         {Object.entries(categories).map(([key, menuButtons]) => (
           <Menu.Root key={key} positioning={{ placement: "right" }}>
@@ -103,8 +66,8 @@ export const PluginMenus = () => {
               <FiChevronRight />
             </Menu.TriggerItem>
             <Menu.Content>
-              {menuButtons.map((externalView) => (
-                <PluginMenuItem {...externalView} key={externalView.name} />
+              {menuButtons.map((navItem) => (
+                <PluginMenuItem {...navItem} key={navItem.name} />
               ))}
             </Menu.Content>
           </Menu.Root>
@@ -112,6 +75,6 @@ export const PluginMenus = () => {
       </Menu.Content>
     </Menu.Root>
   ) : (
-    menuPlugins.map((plugin) => <PluginMenuItem {...plugin} key={plugin.name} topLevel={true} />)
+    navItems.map((navItem) => <PluginMenuItem {...navItem} key={navItem.name} topLevel={true} />)
   );
 };

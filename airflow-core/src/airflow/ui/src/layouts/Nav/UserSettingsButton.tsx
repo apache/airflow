@@ -22,9 +22,9 @@ import { FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
+import type { NavItemResponse } from "src/utils/types";
 
 import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
@@ -33,11 +33,7 @@ import { PluginMenuItem } from "./PluginMenuItem";
 import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
 
-export const UserSettingsButton = ({
-  externalViews,
-}: {
-  readonly externalViews: Array<ExternalViewResponse>;
-}) => {
+export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
   const { t: translate } = useTranslation();
   const { colorMode, toggleColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();

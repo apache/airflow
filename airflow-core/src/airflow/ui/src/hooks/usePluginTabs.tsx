@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 
 type TabPlugin = {
@@ -36,9 +36,11 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
   // Get external views with the specified destination and ensure they have url_route
   const externalViews =
     pluginData?.plugins
-      .flatMap((plugin) => plugin.external_views)
-      .filter((view: ExternalViewResponse) => view.destination === destination && Boolean(view.url_route)) ??
-    [];
+      .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
+      .filter(
+        (view: ExternalViewResponse | ReactAppResponse) =>
+          view.destination === destination && Boolean(view.url_route),
+      ) ?? [];
 
   return externalViews.map((view) => {
     // Choose icon based on theme - prefer dark mode icon if available and in dark mode

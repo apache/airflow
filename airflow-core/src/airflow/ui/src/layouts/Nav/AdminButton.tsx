@@ -20,8 +20,9 @@ import { useTranslation } from "react-i18next";
 import { FiSettings } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { MenuItem, ExternalViewResponse } from "openapi/requests/types.gen";
+import type { MenuItem } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
@@ -58,7 +59,7 @@ export const AdminButton = ({
   externalViews,
 }: {
   readonly authorizedMenuItems: Array<MenuItem>;
-  readonly externalViews: Array<ExternalViewResponse>;
+  readonly externalViews: Array<NavItemResponse>;
 }) => {
   const { t: translate } = useTranslation("common");
   const menuItems = links
