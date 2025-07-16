@@ -132,7 +132,7 @@ def get_dag_structure(
         order_by = SortParam(
             allowed_attrs=ordering,
             model=DagRun,
-        ).set_value(ordering[0])
+        ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -237,7 +237,7 @@ def get_grid_runs(
         order_by = SortParam(
             allowed_attrs=ordering,
             model=DagRun,
-        ).set_value(ordering[0])
+        ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -305,7 +305,7 @@ def get_grid_ti_summaries(
             )
         ),
         filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value("task_id"),
+        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value(["task_id"]),
         limit=None,
         return_total_entries=False,
     )
