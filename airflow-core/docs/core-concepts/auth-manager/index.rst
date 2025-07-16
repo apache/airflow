@@ -182,7 +182,7 @@ The following methods aren't required to override to have a functional Airflow a
 * ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it will call ``is_authorized_dag`` for every single item.
 * ``get_authorized_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
   * Note: The ``get_authorized_dag_ids`` may be of particular interest if you rely on per-DAG access controls derived from one or more fields on a given DAG (e.g. DAG tags).
-  * This method requires an active session with the Airflow metadata database. As such, it is recommended you refer to the :doc:`apache-airflow:database-erd-ref`.
+  * This method requires an active session with the Airflow metadata database. As such, it is recommended you refer to the :doc:`../../database-erd-ref`.
 
 CLI
 ^^^
