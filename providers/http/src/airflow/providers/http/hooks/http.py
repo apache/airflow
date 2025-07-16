@@ -159,6 +159,9 @@ class HttpHook(BaseHook):
     def auth_type(self, v):
         self._auth_type = v
 
+    def get_conn_name(self) -> str:
+        return getattr(self, self.default_conn_name)
+
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(
@@ -172,7 +175,7 @@ class HttpHook(BaseHook):
         :return: A configured requests.Session object.
         """
         session = Session()
-        connection = self.get_connection(self.http_conn_id)
+        connection = self.get_connection(self.get_conn_name())
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)  # type: ignore[arg-type]
 
@@ -418,6 +421,7 @@ class HttpAsyncHook(BaseHook):
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
+        super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
