@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from uuid6 import uuid7
 
+from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (
@@ -26,7 +27,6 @@ from airflow.sdk.execution_time.hitl import (
     get_hitl_detail_content_detail,
     update_htil_detail_response,
 )
-from airflow.utils import timezone
 
 TI_ID = uuid7()
 

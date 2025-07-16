@@ -85,6 +85,9 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "src/airflow/sdk/__init__.py"
 
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
@@ -117,6 +120,9 @@ namespace-packages = ["src/airflow"]
 
 # Generated file, be less strict
 "src/airflow/sdk/*/_generated.py" = ["D"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"airflow.utils.timezone".msg = "Use airflow.sdk.timezone"
 
 [tool.coverage.run]
 branch = true

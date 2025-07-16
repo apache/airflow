@@ -34,6 +34,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -76,7 +77,6 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState

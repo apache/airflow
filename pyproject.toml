@@ -809,14 +809,21 @@ ban-relative-imports = "all"
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas", "polars"]
 
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+
+# Add this once providers are sorted
+# "airflow.utils.timezone".msg = "Use airflow.timezone"
+
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
 "locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
@@ -1247,7 +1254,8 @@ dev = [
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
-    "apache-airflow-ctl"
+    "apache-airflow-ctl",
+    "apache-airflow-shared-timezones",
 ]
 
 # To build docs:
@@ -1293,6 +1301,7 @@ apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1407,6 +1416,7 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
+    "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

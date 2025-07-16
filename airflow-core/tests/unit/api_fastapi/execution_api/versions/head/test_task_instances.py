@@ -26,6 +26,7 @@ import uuid6
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -34,7 +35,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, task, task_group
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.db import (

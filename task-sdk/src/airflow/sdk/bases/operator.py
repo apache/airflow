@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
+from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -65,7 +66,6 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     validate_and_load_priority_weight_strategy,
 )
-from airflow.utils import timezone
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import db_safe_priority
 

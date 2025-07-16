@@ -36,8 +36,8 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferralTimeout,
 )
+from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
