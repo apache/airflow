@@ -92,7 +92,7 @@ class LivyHook(HttpHook):
     ) -> None:
         super().__init__()
         self.method = "POST"
-        self.http_conn_id = livy_conn_id
+        self.livy_conn_id = livy_conn_id
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
         self.endpoint_prefix = sanitize_endpoint_prefix(endpoint_prefix)
