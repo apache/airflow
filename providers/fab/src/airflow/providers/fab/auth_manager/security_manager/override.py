@@ -1551,7 +1551,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ---------------
     """
 
-    def get_resource(self, name: str) -> Resource:
+    def get_resource(self, name: str) -> Resource | None:
         """
         Return a resource record by name, if it exists.
 
@@ -1559,7 +1559,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
 
-    def create_resource(self, name) -> Resource:
+    def create_resource(self, name) -> Resource | None:
         """
         Create a resource with the given name.
 
@@ -1628,6 +1628,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if perm:
             return perm
         resource = self.create_resource(resource_name)
+        if resource is None:
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, f"Resource creation failed {resource_name}")
+            return None
         action = self.create_action(action_name)
         perm = self.permission_model()
         perm.resource_id, perm.action_id = resource.id, action.id

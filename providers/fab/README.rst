@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``2.2.1``
+Release: ``2.3.0``
 
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.3.0/>`_.
 
 Installation
 ------------
@@ -45,27 +45,27 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-fab``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12
 
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ==========================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ==========================================
 ``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.2.1``
-``blinker``                                 ``>=1.6.2``
-``flask``                                   ``>=2.2.1,<2.3``
-``flask-appbuilder``                        ``==4.6.3``
-``flask-login``                             ``>=0.6.2``
-``flask-session``                           ``>=0.4.0,<0.6``
-``flask-wtf``                               ``>=1.1.0``
-``connexion[flask]``                        ``>=2.14.2,<3.0``
-``jmespath``                                ``>=0.7.0``
-``werkzeug``                                ``>=2.2,<4``
-``wtforms``                                 ``>=3.0,<4``
-==========================================  ==================
+``blinker``                                 ``>=1.6.2; python_version < "3.13"``
+``flask``                                   ``>=2.2.1,<2.3; python_version < "3.13"``
+``flask-appbuilder``                        ``==4.6.3; python_version < "3.13"``
+``flask-login``                             ``>=0.6.2; python_version < "3.13"``
+``flask-session``                           ``>=0.4.0,<0.6; python_version < "3.13"``
+``flask-wtf``                               ``>=1.1.0; python_version < "3.13"``
+``connexion[flask]``                        ``>=2.14.2,<3.0; python_version < "3.13"``
+``jmespath``                                ``>=0.7.0; python_version < "3.13"``
+``werkzeug``                                ``>=2.2,<4; python_version < "3.13"``
+``wtforms``                                 ``>=3.0,<4; python_version < "3.13"``
+==========================================  ==========================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -87,4 +87,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.3.0/changelog.html>`_.

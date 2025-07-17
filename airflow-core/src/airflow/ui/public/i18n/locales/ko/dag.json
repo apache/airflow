@@ -25,12 +25,18 @@
   "logs": {
     "allLevels": "모든 로그 레벨",
     "allSources": "모든 소스",
+    "critical": "크리티컬",
+    "debug": "디버그",
+    "error": "오류",
     "fullscreen": {
       "button": "전체 화면",
       "tooltip": "전체 화면을 보려면 {{hotkey}}를 누르세요."
     },
+    "info": "정보",
     "noTryNumber": "시도 횟수 없음",
-    "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})"
+    "settings": "로그 설정",
+    "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
+    "warning": "경고"
   },
   "overview": {
     "buttons": {

@@ -808,9 +808,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("pyproject.toml",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.10', '3.11', '3.12']",
+                    "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                    "python-versions": "['3.10', '3.11', '3.12']",
+                    "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "ci-image-build": "true",
                     "prod-image-build": "true",
@@ -1040,7 +1040,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "testable-core-integrations": "['kerberos']",
+                    "testable-core-integrations": "['kerberos', 'redis']",
                     "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
@@ -1149,6 +1149,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {"run-go-sdk-tests": "true"},
             id="Run go tests for go-sdk",
         ),
+        (
+            pytest.param(
+                ("devel-common/pyproject.toml",),
+                {
+                    "needs-mypy": "true",
+                    "mypy-checks": ALL_MYPY_CHECKS,
+                },
+                id="All mypy checks should run when devel-common/pyproject.toml changes",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
@@ -1224,10 +1234,11 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            # In case dict is empty we have no exclusions.
-            # if you need to exclude version use syntax
-            # {DEFAULT_PYTHON_MAJOR_MINOR_VERSION: ["provider_name_package"]}
-            "excluded-providers-as-string": json.dumps({}),
+            "excluded-providers-as-string": json.dumps(
+                {
+                    "3.13": ["apache.beam", "apache.kafka", "fab", "yandex", "ydb"],
+                }
+            ),
         },
         str(stderr),
     )
@@ -1330,11 +1341,11 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-versions": "true",
-                    "all-python-versions": "['3.10', '3.11', '3.12']",
+                    "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "mysql-versions": "['8.0', '8.4']",
                     "postgres-versions": "['13', '14', '15', '16', '17']",
-                    "python-versions": "['3.10', '3.11', '3.12']",
+                    "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "kubernetes-versions": ALL_KUBERNETES_VERSIONS_AS_LIST,
                     "kubernetes-versions-list-as-string": ALL_KUBERNETES_VERSIONS_AS_STRING,
@@ -1709,7 +1720,7 @@ def test_expected_output_pull_request_v2_7(
             "main",
             {
                 "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.10', '3.11', '3.12']",
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -1730,7 +1741,7 @@ def test_expected_output_pull_request_v2_7(
             (),
             "v2-3-stable",
             {
-                "all-python-versions": "['3.10', '3.11', '3.12']",
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -1753,7 +1764,7 @@ def test_expected_output_pull_request_v2_7(
             "main",
             {
                 "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.10', '3.11', '3.12']",
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -2037,7 +2048,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     )
     assert_outputs_are_printed(
         {
-            "all-python-versions": "['3.10', '3.11', '3.12']",
+            "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
             "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
             "ci-image-build": "true",
             "prod-image-build": "true",

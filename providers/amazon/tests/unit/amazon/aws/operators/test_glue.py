@@ -155,6 +155,11 @@ class TestGlueJobOperator:
 
         assert defer.value.trigger.job_name == JOB_NAME
         assert defer.value.trigger.run_id == JOB_RUN_ID
+        assert defer.value.trigger.region_name == "us-west-2"
+        assert not defer.value.trigger.verbose
+        assert defer.value.trigger.waiter_delay == 60
+        assert defer.value.trigger.attempts == 75
+        assert defer.value.trigger.aws_conn_id == "aws_default"
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")

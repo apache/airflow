@@ -50,9 +50,9 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
-def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
+def start_cdxgen_servers(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
     """
-    Start cdxgen server that is used to perform cdxgen scans of applications in child process
+    Start cdxgen servers that is used to perform cdxgen scans of applications in child process
     :param run_in_parallel: run parallel servers
     :param parallelism: parallelism to use
     :param application_root_path: path where the application to scan is located
@@ -71,8 +71,13 @@ def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, para
         for i in range(parallelism):
             fork_cdxgen_server(application_root_path, port=8080 + i)
     time.sleep(1)
-    get_console().print("[info]Waiting for cdxgen server to start")
+    get_console().print("[info]Waiting for cdxgen server(s) to start")
     time.sleep(3)
+    if os.environ.get("CI", "false") == "true":
+        # In CI we wait longer for the server to start
+        get_console().print("[info]Waiting longer for cdxgen server(s) to start in CI")
+        time.sleep(5)
+        print("::endgroup::")
 
 
 def fork_cdxgen_server(application_root_path, port=9090):
@@ -213,7 +218,7 @@ def get_requirements_for_provider(
             f"Provider requirements already existed, skipped generation for {provider_id} version "
             f"{provider_version} python {python_version}",
         )
-    provider_folder_path.mkdir(exist_ok=True)
+    provider_folder_path.mkdir(exist_ok=True, parents=True)
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
@@ -325,7 +330,7 @@ constraints-{airflow_version}/constraints-{python_version}.txt
 @dataclass
 class SbomApplicationJob:
     python_version: str | None
-    target_paths: list[Path]
+    target_path: Path
 
     @abstractmethod
     def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
@@ -371,15 +376,22 @@ class SbomCoreJob(SbomApplicationJob):
     def download_dependency_files(self, output: Output | None, github_token: str | None) -> bool:
         source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
-        lock_file_relative_path = "airflow/www/yarn.lock"
+        version_number = int(self.airflow_version.split(".")[0])
+        lock_file_relative_path = (
+            "airflow-core/src/airflow/ui/package.json" if version_number >= 3 else "airflow/www/yarn.lock"
+        )
+        source_dir_with_file = (
+            (source_dir / "package.json") if version_number >= 3 else (source_dir / "yarn.lock")
+        )
         if self.include_npm:
             download_file_from_github(
                 reference=self.airflow_version,
                 path=lock_file_relative_path,
-                output_file=source_dir / "yarn.lock",
+                output_file=source_dir_with_file,
+                github_token=github_token,
             )
         else:
-            (source_dir / "yarn.lock").unlink(missing_ok=True)
+            source_dir_with_file.unlink(missing_ok=True)
         if self.include_python:
             if not download_constraints_file(
                 constraints_reference=f"constraints-{self.airflow_version}",
@@ -442,8 +454,7 @@ class SbomCoreJob(SbomApplicationJob):
                     response.status_code,
                     f"SBOM Generate {self.airflow_version}:python{self.python_version}",
                 )
-            for target_path in self.target_paths:
-                target_path.write_bytes(response.content)
+            self.target_path.write_bytes(response.content)
             suffix = ""
             if self.python_version:
                 suffix += f":python{self.python_version}"
@@ -497,8 +508,7 @@ class SbomProviderJob(SbomApplicationJob):
                     response.status_code,
                     f"SBOM Generate {self.provider_id}:{self.provider_version}:{self.python_version}",
                 )
-            for target_path in self.target_paths:
-                target_path.write_bytes(response.content)
+            self.target_path.write_bytes(response.content)
             get_console(output=output).print(
                 f"[success]Generated SBOM for {self.provider_id}:{self.provider_version}:"
                 f"{self.python_version}"

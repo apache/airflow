@@ -27,12 +27,8 @@ import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.druid.version_compat import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -231,6 +227,7 @@ class DruidDbApiHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             context=self.context,
+            ssl_verify_cert=conn.extra_dejson.get("ssl_verify_cert", True),
         )
         self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn

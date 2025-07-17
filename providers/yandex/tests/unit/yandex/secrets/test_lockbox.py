@@ -20,14 +20,15 @@ import json
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+yandexcloud = pytest.importorskip("yandexcloud")
+
 import yandex.cloud.lockbox.v1.payload_pb2 as payload_pb
 import yandex.cloud.lockbox.v1.secret_pb2 as secret_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2 as secret_service_pb
 
 from airflow.providers.yandex.secrets.lockbox import LockboxSecretBackend
 from airflow.providers.yandex.utils.defaults import default_conn_name
-
-yandexcloud = pytest.importorskip("yandexcloud")
 
 
 class TestLockboxSecretBackend:

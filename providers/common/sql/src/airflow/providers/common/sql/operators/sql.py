@@ -27,13 +27,8 @@ from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models import SkipMixin
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseOperator
+from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -1252,7 +1247,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
-        self.skip_all_except(context["ti"], follow_branch)  # type: ignore[arg-type]
+        self.skip_all_except(context["ti"], follow_branch)
 
 
 def _initialize_partition_clause(clause: str | None) -> str | None:

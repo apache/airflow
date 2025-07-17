@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 import aiohttp
@@ -34,11 +34,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
+from airflow.providers.http.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -239,7 +235,7 @@ class HttpHook(BaseHook):
         session.stream = self.merged_extra.get("stream", False)
         session.verify = self.merged_extra.get("verify", self.merged_extra.get("verify_ssl", True))
         session.cert = self.merged_extra.get("cert", None)
-        session.max_redirects = self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.max_redirects = cast("int", self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT))
         session.trust_env = self.merged_extra.get("trust_env", True)
 
         try:
@@ -383,7 +379,7 @@ class HttpHook(BaseHook):
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
-        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
+        return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""

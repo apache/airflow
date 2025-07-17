@@ -29,7 +29,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.utils.log.file_task_handler import LogMetadata
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -184,7 +185,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
 
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
@@ -294,8 +295,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[EsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
+    ) -> tuple[EsLogMsgType, LogMetadata]:
         """
         Endpoint for streaming log.
 
@@ -306,7 +307,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
-            metadata = {"offset": 0}
+            # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+            metadata = {"offset": 0}  # type: ignore[assignment]
+        metadata = cast("LogMetadata", metadata)
         if "offset" not in metadata:
             metadata["offset"] = 0
 
@@ -346,7 +349,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "Otherwise, the logs for this task instance may have been removed."
                 )
                 if AIRFLOW_V_3_0_PLUS:
-                    return missing_log_message, metadata
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
@@ -375,11 +380,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         sources=[host for host in logs_by_host.keys()],
                     ),  # type: ignore[call-arg]
                     StructuredLogMessage(event="::endgroup::"),
-                ]  # type: ignore[misc]
+                ]
 
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
-                ]  # type: ignore[misc]
+                ]
             else:
                 message = [
                     (host, concat_logs(hits))  # type: ignore[misc]
@@ -421,7 +426,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
@@ -508,7 +513,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+        if self.handler.stream is None or self.handler.stream.closed:
             self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,

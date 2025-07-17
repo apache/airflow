@@ -33,10 +33,7 @@ from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.weaviate.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -71,11 +68,20 @@ REQUESTS_EXCEPTIONS_TYPES = (
 
 
 def check_http_error_is_retryable(exc: BaseException):
+    try:
+        import httpx
+
+        if isinstance(exc, httpx.ConnectError):
+            return True
+    except ImportError:
+        pass
     return (
         isinstance(exc, requests.exceptions.RequestException)
         and exc.response
         and exc.response.status_code
         and exc.response.status_code in HTTP_RETRY_STATUS_CODE
+        or isinstance(exc, weaviate.UnexpectedStatusCodeException)
+        and exc.status_code in HTTP_RETRY_STATUS_CODE
     )
 
 

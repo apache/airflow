@@ -429,7 +429,6 @@ class GCSToBigQueryOperator(BaseOperator):
                                 table = job_configuration[job_type][table_prop]
                                 persist_kwargs = {
                                     "context": context,
-                                    "task_instance": self,
                                     "table_id": table,
                                 }
                                 if not isinstance(table, str):
@@ -581,7 +580,7 @@ class GCSToBigQueryOperator(BaseOperator):
         table_obj_api_repr = table.to_api_repr()
 
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
-        self.hook.create_empty_table(
+        self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
             location=self.location,

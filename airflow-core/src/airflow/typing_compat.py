@@ -29,17 +29,8 @@ __all__ = [
 
 import sys
 
-# Literal from typing module has various issues in different Python versions, see:
-# - https://typing-extensions.readthedocs.io/en/latest/#Literal
-# - bpo-45679: https://github.com/python/cpython/pull/29334
-# - bpo-42345: https://github.com/python/cpython/pull/23294
-# - bpo-42345: https://github.com/python/cpython/pull/23383
-if sys.version_info >= (3, 10, 1) or (3, 9, 8) <= sys.version_info < (3, 10):
-    from typing import Literal
-else:
-    from typing import Literal  # type: ignore[assignment]
-
-from typing import ParamSpec, TypeAlias, TypeGuard
+# Keeping this for backwards-compat with old providers
+from typing import Literal, ParamSpec, TypeAlias, TypeGuard
 
 if sys.version_info >= (3, 11):
     from typing import Self

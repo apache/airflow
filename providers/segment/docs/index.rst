@@ -61,7 +61,7 @@ apache-airflow-providers-segment package
 `Segment <https://segment.com/>`__
 
 
-Release: 3.8.0
+Release: 3.8.1
 
 Provider package
 ----------------
@@ -81,9 +81,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-====================  ==================
-PIP package           Version required
-====================  ==================
-``apache-airflow``    ``>=2.10.0``
-``analytics-python``  ``>=1.2.9``
-====================  ==================
+============================  ==================
+PIP package                   Version required
+============================  ==================
+``apache-airflow``            ``>=2.10.0``
+``segment-analytics-python``  ``>=2.3.0``
+============================  ==================

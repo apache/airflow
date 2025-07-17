@@ -16,36 +16,50 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link, Image } from "@chakra-ui/react";
+import { Link, Image, Menu } from "@chakra-ui/react";
+import { FiExternalLink } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 
-type Props = { readonly topLevel?: boolean } & ExternalViewResponse;
+type Props = { readonly topLevel?: boolean } & NavItemResponse;
 
-export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: urlRoute }: Props) => {
-  // External Link
-  if (urlRoute === undefined || urlRoute === null) {
-    return topLevel ? (
+export const PluginMenuItem = ({ icon, name, topLevel = false, url_route: urlRoute, ...rest }: Props) => {
+  // Determine if this is an external view or react app based on the presence of href
+  const isExternalView = "href" in rest;
+  const href = isExternalView ? (rest as ExternalViewResponse).href : undefined;
+
+  const pluginIcon =
+    typeof icon === "string" ? (
+      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={icon} width="1.25rem" />
+    ) : urlRoute === "legacy-fab-views" ? (
+      <RiArchiveStackLine size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
+    ) : (
+      <LuPlug size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
+    );
+
+  const isExternal = urlRoute === undefined || urlRoute === null;
+
+  if (topLevel) {
+    return (
       <NavButton
-        icon={
-          typeof icon === "string" ? (
-            <Image height="1.75rem" src={icon} width="1.75rem" />
-          ) : (
-            <LuPlug size="1.75rem" />
-          )
-        }
-        isExternal={true}
+        icon={pluginIcon}
+        isExternal={isExternal}
         key={name}
         title={name}
-        to={href}
+        to={isExternal ? href : `plugin/${urlRoute}`}
       />
-    ) : (
-      <Box alignItems="center" display="flex" width="100%">
+    );
+  }
+
+  return (
+    <Menu.Item asChild value={name}>
+      {isExternal ? (
         <Link
           aria-label={name}
           fontSize="sm"
@@ -55,44 +69,16 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
           target="_blank"
           width="100%"
         >
+          {pluginIcon}
           {name}
+          <FiExternalLink />
         </Link>
-      </Box>
-    );
-  }
-
-  // Embedded External Link via iframes
-  if (topLevel) {
-    return (
-      <NavButton
-        icon={
-          typeof icon === "string" ? (
-            <Image height="1.75rem" src={icon} width="1.75rem" />
-          ) : (
-            <LuPlug size="1.75rem" />
-          )
-        }
-        key={name}
-        title={name}
-        to={`plugin/${urlRoute}`}
-      />
-    );
-  }
-
-  return (
-    <Box width="100%">
-      <RouterLink style={{ outline: "none" }} to={`plugin/${urlRoute}`}>
-        <Box alignItems="center" display="flex" fontSize="sm">
-          {typeof icon === "string" ? (
-            <Image height="1.25rem" src={icon} width="1.25rem" />
-          ) : urlRoute === "legacy-fab-views" ? (
-            <RiArchiveStackLine size="1.25rem" />
-          ) : (
-            <LuPlug size="1.25rem" />
-          )}
+      ) : (
+        <RouterLink style={{ outline: "none" }} to={`plugin/${urlRoute}`}>
+          {pluginIcon}
           {name}
-        </Box>
-      </RouterLink>
-    </Box>
+        </RouterLink>
+      )}
+    </Menu.Item>
   );
 };

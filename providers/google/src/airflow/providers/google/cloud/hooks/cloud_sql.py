@@ -60,11 +60,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -1107,6 +1103,8 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection_uri
 
     def _get_instance_socket_name(self) -> str:
+        if self.project_id is None:
+            raise ValueError("The project_id should not be none")
         return self.project_id + ":" + self.location + ":" + self.instance
 
     def _get_sqlproxy_instance_specification(self) -> str:
@@ -1139,6 +1137,8 @@ class CloudSQLDatabaseHook(BaseHook):
             raise ValueError("Proxy runner can only be retrieved in case of use_proxy = True")
         if not self.sql_proxy_unique_path:
             raise ValueError("The sql_proxy_unique_path should be set")
+        if self.project_id is None:
+            raise ValueError("The project_id should not be None")
         return CloudSqlProxyRunner(
             path_prefix=self.sql_proxy_unique_path,
             instance_specification=self._get_sqlproxy_instance_specification(),
