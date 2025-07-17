@@ -118,6 +118,9 @@ services:
         source: ../../../docker-tests
         target: /opt/airflow/docker-tests
       - type: bind
+        source: ../../../task-sdk-tests
+        target: /opt/airflow/task-sdk-tests
+      - type: bind
         source: ../../../chart
         target: /opt/airflow/chart
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
