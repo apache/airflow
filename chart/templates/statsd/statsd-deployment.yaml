@@ -82,6 +82,7 @@ spec:
       schedulerName: {{ .Values.schedulerName }}
       {{- end }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.statsd.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "statsd.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always

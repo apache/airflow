@@ -22,7 +22,7 @@ Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow tes
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Running tests
 -------------
@@ -68,41 +68,35 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest  and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the `testing doc <../../../contributing-docs/testing.rst>`_ where all the test types and information on how to run them are explained.
+in the `testing doc </contributing-docs/09_testing.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
 Running unit tests with ``breeze testing`` commands
 ...................................................
 
-An option you have is that you can also run tests via built-in ``breeze testing tests`` command - which
-is a "swiss-army-knife" of unit testing with Breeze. This command has a lot of parameters and is very
-flexible thus might be a bit overwhelming.
-
-In most cases if you want to run tess you want to use dedicated ``breeze testing db-tests``
-or ``breeze testing non-db-tests`` commands that automatically run groups of tests that allow you to choose
-subset of tests to run (with ``--parallel-test-types`` flag)
+An option you have is that you can also run tests via built-in ``breeze testing *tests*`` commands - which
+is a "swiss-army-knife" of unit testing with Breeze. You can run all groups of tests with that Airflow
+supports with one of the commands below.
 
 
-Using ``breeze testing tests`` command
-......................................
+Using ``breeze testing core-tests`` command
+...........................................
 
-The ``breeze testing tests`` command is that you can easily specify sub-set of the tests -- including
-selecting specific Providers tests to run.
+The ``breeze testing core-tests`` command is that you can run for all or specify sub-set of the tests
+for Core.
 
-For example this will only run provider tests for airbyte and http providers:
+For example this will run all core tests :
 
 .. code-block:: bash
 
-   breeze testing tests --test-type "Providers[airbyte,http]"
+   breeze testing core-tests
 
-You can also exclude tests for some providers from being run when whole "Providers" test type is run.
-
-For example this will run tests for all providers except amazon and google provider tests:
+For example this will only run "Other" tests :
 
 .. code-block:: bash
 
-   breeze testing tests --test-type "Providers[-amazon,google]"
+   breeze testing core-tests --test-type "Other"
 
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
@@ -112,124 +106,181 @@ For example this will run API and WWW tests in parallel:
 
 .. code-block:: bash
 
-    breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
+    breeze testing core-tests --parallel-test-types "API WWW" --run-in-parallel
 
-There are few special types of tests that you can run:
+Here is the detailed set of options for the ``breeze testing core-tests`` command.
 
-* ``All`` - all tests are run in single pytest run.
-* ``All-Postgres`` - runs all tests that require Postgres database
-* ``All-MySQL`` - runs all tests that require MySQL database
-* ``All-Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
-  decorator)
-
-Here is the detailed set of options for the ``breeze testing tests`` command.
-
-.. image:: ./images/output_testing_tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_tests.svg
+.. image:: ./images/output_testing_core-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_core-tests.svg
   :width: 100%
-  :alt: Breeze testing tests
+  :alt: Breeze testing core-tests
 
-Using ``breeze testing db-tests`` command
-.........................................
+Using ``breeze testing providers-tests`` command
+................................................
 
-The ``breeze testing db-tests`` command is simplified version of the ``breeze testing tests`` command
-that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
-The DB-bound tests are the ones that require a database to be started and configured separately for
-each test type run and they are run in parallel containers/parallel docker compose projects to
-utilise multiple CPUs your machine has - thus allowing you to quickly run few groups of tests in parallel.
-This command is used in CI to run DB tests.
+The ``breeze testing providers-tests`` command is that you can run for all or specify sub-set of the tests
+for Providers.
 
-By default this command will run complete set of test types we have, thus allowing you to see result
-of all DB tests we have but you can choose a subset of test types to run by ``--parallel-test-types``
-flag or exclude some test types by specifying ``--excluded-parallel-test-types`` flag.
-
-Run all DB tests:
+For example this will run all provider tests tests :
 
 .. code-block:: bash
 
-   breeze testing db-tests
+   breeze testing providers-tests
 
-Only run DB tests from "API CLI WWW" test types:
-
-.. code-block:: bash
-
-   breeze testing db-tests --parallel-test-types "API CLI WWW"
-
-Run all DB tests excluding those in CLI and WWW test types:
+This will only run "amazon" and "google" provider tests :
 
 .. code-block:: bash
 
-   breeze testing db-tests --excluded-parallel-test-types "CLI WWW"
+   breeze testing providers-tests --test-type "Providers[amazon,google]"
 
-Here is the detailed set of options for the ``breeze testing db-tests`` command.
+You can also run "all but" provider tests - this will run all providers tests except amazon and google :
 
-.. image:: ./images/output_testing_db-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_db-tests.svg
+.. code-block:: bash
+
+   breeze testing providers-tests --test-type "Providers[-amazon,google]"
+
+You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
+in parallel, but you can specify the test type that you want to run with space separated list of test
+types passed to ``--parallel-test-types`` flag.
+
+For example this will run ``amazon`` and ``google`` tests in parallel:
+
+.. code-block:: bash
+
+    breeze testing providers-tests --parallel-test-types "Providers[amazon] Providers[google]" --run-in-parallel
+
+Here is the detailed set of options for the ``breeze testing providers-test`` command.
+
+.. image:: ./images/output_testing_providers-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-tests.svg
   :width: 100%
-  :alt: Breeze testing db-tests
+  :alt: Breeze testing providers-tests
 
+Using ``breeze testing task-sdk-tests`` command
+...............................................
 
-Using ``breeze testing non-db-tests`` command
-.........................................
+The ``breeze testing task-sdk-tests`` command allows you to run tests for Task SDK without
+initializing database. The Task SDK should not need database to be started so this acts as a
+good check to see if the Task SDK tests are working properly.
 
-The ``breeze testing non-db-tests`` command is simplified version of the ``breeze testing tests`` command
-that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
-The non-DB-bound tests are the ones that do not expect a database to be started and configured and we can
-utilise multiple CPUs your machine has via ``pytest-xdist`` plugin - thus allowing you to quickly
-run few groups of tests in parallel using single container rather than many of them as it is the case for
-DB-bound tests. This command is used in CI to run Non-DB tests.
-
-By default this command will run complete set of test types we have, thus allowing you to see result
-of all DB tests we have but you can choose a subset of test types to run by ``--parallel-test-types``
-flag or exclude some test types by specifying ``--excluded-parallel-test-types`` flag.
-
-Run all non-DB tests:
+Run all Task SDK tests:
 
 .. code-block:: bash
 
-   breeze testing non-db-tests
+   breeze testing task-sdk-tests
 
-Only run non-DB tests from "API CLI WWW" test types:
+Here is the detailed set of options for the ``breeze testing task-sdk-tests`` command.
 
-.. code-block:: bash
-
-   breeze testing non-db-tests --parallel-test-types "API CLI WWW"
-
-Run all non-DB tests excluding those in CLI and WWW test types:
-
-.. code-block:: bash
-
-   breeze testing non-db-tests --excluded-parallel-test-types "CLI WWW"
-
-Here is the detailed set of options for the ``breeze testing non-db-tests`` command.
-
-.. image:: ./images/output_testing_non-db-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_non-db-tests.svg
+.. image:: ./images/output_testing_task-sdk-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_task-sdk-tests.svg
   :width: 100%
-  :alt: Breeze testing non-db-tests
+  :alt: Breeze testing task-sdk-tests
 
 
-Running integration tests
-.........................
+Using ``breeze testing airflow-ctl-tests`` command
+...............................................
 
-You can also run integration tests via built-in ``breeze testing integration-tests`` command. Some of our
-tests require additional integrations to be started in docker-compose. The integration tests command will
-run the expected integration and tests that need that integration.
+The ``breeze testing airflow-ctl-tests`` command allows you to run tests for Airflow CTL without
+initializing database. Airflow CTL should not require a database to start, so this acts as a
+good check to see if the Airflow CTL tests are working properly.
+
+Run all Airflow CTL tests:
+
+.. code-block:: bash
+
+   breeze testing airflow-ctl-tests
+
+Here is the detailed set of options for the ``breeze testing airflow-ctl-tests`` command.
+
+.. image:: ./images/output_testing_airflow-ctl-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-ctl-tests.svg
+  :width: 100%
+  :alt: Breeze testing airflow-ctl-tests
+
+Running integration core tests
+...............................
+
+You can also run integration core tests via built-in ``breeze testing core-integration-tests`` command.
+Some of our core tests require additional integrations to be started in docker-compose.
+The integration tests command will run the expected integration and tests that need that integration.
 
 For example this will only run kerberos tests:
 
 .. code-block:: bash
 
-   breeze testing integration-tests --integration kerberos
+   breeze testing core-integration-tests --integration kerberos
 
+Here is the detailed set of options for the ``breeze testing core-integration-tests`` command.
 
-Here is the detailed set of options for the ``breeze testing integration-tests`` command.
-
-.. image:: ./images/output_testing_integration-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_integration_tests.svg
+.. image:: ./images/output_testing_core-integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_core-integration-tests.svg
   :width: 100%
-  :alt: Breeze testing integration-tests
+  :alt: Breeze testing core-integration-tests
 
+Running integration providers tests
+...................................
+
+You can also run integration core tests via built-in ``breeze testing providers-integration-tests`` command.
+Some of our core tests require additional integrations to be started in docker-compose.
+The integration tests command will run the expected integration and tests that need that integration.
+
+For example this will only run kerberos tests:
+
+.. code-block:: bash
+
+   breeze testing providers-integration-tests --integration kerberos
+
+Here is the detailed set of options for the ``breeze testing providers-integration-tests`` command.
+
+.. image:: ./images/output_testing_providers-integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-integration-tests.svg
+  :width: 100%
+  :alt: Breeze testing providers-integration-tests
+
+
+Running Python API client tests
+...............................
+
+To run Python API client tests, you need to have Airflow python client packaged in dist folder.
+To package the client, clone the airflow-python-client repository and run the following command:
+
+.. code-block:: bash
+
+   breeze release-management prepare-python-client --distribution-format both
+          --python-client-repo ./airflow-client-python
+
+.. code-block:: bash
+
+   breeze testing python-api-client-tests
+
+Here is the detailed set of options for the ``breeze testing python-api-client-tests`` command.
+
+.. image:: ./images/output_testing_python-api-client-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_python-api-client-tests.svg
+  :width: 100%
+  :alt: Breeze testing python-api-client-tests
+
+
+Running system tests
+....................
+
+You can also run system core tests via built-in ``breeze testing system-tests`` command.
+Some of our core system tests runs against external systems and we can run them providing that
+credentials are configured to connect to those systems. Usually you should run only one or
+set of related tests this way.
+
+For example this will only run example_external_task_child_deferrable tests:
+
+.. code-block:: bash
+
+   breeze testing system-tests airflow-core/tests/system/example_empty.py
+
+Here is the detailed set of options for the ``breeze testing system-tests`` command.
+
+.. image:: ./images/output_testing_system-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_system-tests.svg
+  :width: 100%
+  :alt: Breeze testing system-tests
 
 Running Helm unit tests
 .......................
@@ -276,7 +327,7 @@ automatically to run the tests.
 You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
-* Build airflow k8S images with ``breeze k8s build-k8s-image``
+* Build Airflow k8S images with ``breeze k8s build-k8s-image``
 * Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
@@ -288,7 +339,7 @@ You can:
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
   via ``breeze k8s dump-logs`` command
 
-This is described in detail in `Testing Kubernetes <../../../contributing-docs/testing/k8s_tests.rst>`_.
+This is described in detail in `Testing Kubernetes </contributing-docs/testing/k8s_tests.rst>`_.
 
 You can read more about KinD that we use in `The documentation <https://kind.sigs.k8s.io/>`_
 
@@ -307,7 +358,7 @@ Kubernetes environment can be set with the ``breeze k8s setup-env`` command.
 It will create appropriate virtualenv to run tests and download the right set of tools to run
 the tests: ``kind``, ``kubectl`` and ``helm`` in the right versions. You can re-run the command
 when you want to make sure the expected versions of the tools are installed properly in the
-virtualenv. The Virtualenv is available in ``.build/.k8s-env/bin`` subdirectory of your Airflow
+virtualenv. The Virtualenv is available in ``kubernetes-tests/.venv/bin`` subdirectory of your Airflow
 installation.
 
 .. image:: ./images/output_k8s_setup-env.svg
@@ -347,7 +398,7 @@ Building Airflow K8s images
 ...........................
 
 Before deploying Airflow Helm Chart, you need to make sure the appropriate Airflow image is build (it has
-embedded test dags, pod templates and webserver is configured to refresh immediately. This can
+embedded test dags, pod templates and api-server is configured to refresh immediately. This can
 be done via ``breeze k8s build-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
@@ -361,7 +412,7 @@ All parameters of the command are here:
 Uploading Airflow K8s images
 ............................
 
-The K8S airflow images need to be uploaded to the KinD cluster. This can be done via
+The K8S Airflow images need to be uploaded to the KinD cluster. This can be done via
 ``breeze k8s upload-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
@@ -391,7 +442,7 @@ Deploying Airflow to the Cluster
 
 Airflow can be deployed to the Cluster with ``breeze k8s deploy-airflow``. This step will automatically
 (unless disabled by switches) will rebuild the image to be deployed. It also uses the latest version
-of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing airflow deployment
+of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing Airflow deployment
 and pass extra arguments to ``helm install`` or ``helm upgrade`` commands that are used to
 deploy airflow. By passing ``--run-in-parallel`` the deployment can be run
 for all clusters in parallel.
@@ -406,7 +457,7 @@ All parameters of the command are here:
 Checking status of the K8S cluster
 ..................................
 
-You can delete kubernetes cluster and airflow deployed in the current cluster
+You can delete kubernetes cluster and Airflow deployed in the current cluster
 via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
@@ -421,19 +472,19 @@ Running k8s tests
 .................
 
 You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
-in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
+in ``kubernetes-tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
 
 Run all tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests
 
 Run selected tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests test_kubernetes_executor.py
 
@@ -449,7 +500,7 @@ shell command directly. In case the shell parameters are the same as the paramet
 can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
 you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests -- --help
 
@@ -458,7 +509,7 @@ with the specifications of tests you want to run. For example the command below 
 ``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
 output during test execution.
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests -- test_kubernetes_executor.py -s
 
@@ -466,18 +517,18 @@ Running k8s complete tests
 ..........................
 
 You can run ``breeze k8s run-complete-tests`` command to combine all previous steps in one command. That
-command will create cluster, deploy airflow and run tests and finally delete cluster. It is used in CI
+command will create cluster, deploy Airflow and run tests and finally delete cluster. It is used in CI
 to run the whole chains in parallel.
 
 Run all tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests
 
 Run selected tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests test_kubernetes_executor.py
 
@@ -493,7 +544,7 @@ shell command directly. In case the shell parameters are the same as the paramet
 can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
 you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests -- --help
 
@@ -502,7 +553,7 @@ with the specifications of tests you want to run. For example the command below 
 ``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
 output during test execution.
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests -- test_kubernetes_executor.py -s
 
@@ -517,20 +568,20 @@ cluster pre-configured. This is done via ``breeze k8s shell`` command.
 Once you are in the shell, the prompt will indicate which cluster you are interacting with as well
 as executor you use, similar to:
 
-.. code-block::bash
+.. code-block:: bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
 
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
 installed and you can interactively run all k8s tests with pytest command (of course the cluster need to
-be created and airflow deployed to it before running the tests):
+be created and Airflow deployed to it before running the tests):
 
-.. code-block::bash
+.. code-block:: bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
-    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
+    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
     rootdir: /home/jarek/code/airflow, configfile: pytest.ini
     plugins: anyio-3.6.1
@@ -540,14 +591,14 @@ be created and airflow deployed to it before running the tests):
     test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
-    .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
-      /home/jarek/code/airflow/.build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+    kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
 
         self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
     -- Docs: https://docs.pytest.org/en/stable/warnings.html
     ============================================ 2 passed, 1 warning in 38.62s ============================================
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
 
 
 All parameters of the command are here:
@@ -562,7 +613,7 @@ shell command directly. In case the shell parameters are the same as the paramet
 can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
 you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s shell -- --help
 
@@ -585,7 +636,7 @@ You can also specify any ``k9s`` flags and commands as extra parameters - they w
 can pass them after ``--``. For example this is the way how you can see all available parameters of the
 ``k9s`` you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s k9s -- --help
 

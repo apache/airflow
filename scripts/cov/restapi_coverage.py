@@ -23,21 +23,10 @@ from cov_runner import run_tests
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
-source_files = ["airflow/api_experimental", "airflow/api_connexion", "airflow/api_internal"]
+source_files = ["airflow-core/tests/unit/api_fastapi"]
 
-restapi_files = ["tests/api_experimental", "tests/api_connexion", "tests/api_internal"]
-
-files_not_fully_covered = [
-    "airflow/api_connexion/endpoints/forward_to_fab_endpoint.py",
-    "airflow/api_connexion/endpoints/task_instance_endpoint.py",
-    "airflow/api_connexion/exceptions.py",
-    "airflow/api_connexion/schemas/common_schema.py",
-    "airflow/api_connexion/security.py",
-    "airflow/api_connexion/types.py",
-    "airflow/api_internal/endpoints/rpc_api_endpoint.py",
-    "airflow/api_internal/internal_api_call.py",
-]
+files_not_fully_covered: list[str] = []
 
 if __name__ == "__main__":
-    args = ["-qq"] + restapi_files
+    args = ["-qq"] + source_files
     run_tests(args, source_files, files_not_fully_covered)

@@ -18,6 +18,13 @@
 ---
 name: 'Setup Breeze'
 description: 'Sets up Python and Breeze'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    default: "3.10"
+  use-uv:
+    description: 'Whether to use uv tool'
+    required: true
 outputs:
   host-python-version:
     description: Python version used in host
@@ -28,25 +35,19 @@ runs:
     - name: "Setup python"
       uses: actions/setup-python@v5
       with:
-        python-version: 3.8
-        cache: 'pip'
-        cache-dependency-path: ./dev/breeze/setup*
-    - name: Cache breeze
-      uses: actions/cache@v4
-      with:
-        path: ~/.local/pipx
-        # README has the latest breeze's hash and python location is used to distinguish between
-        # different minor versions of python
-        key: "breeze-3.8-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
-        restore-keys: breeze-3.8-${{ env.pythonLocation }}
+        python-version: ${{ inputs.python-version }}
+    # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
+    # so low overhead, that just running upload cache/restore cache is slower than installing it from scratch
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: "${{ inputs.python-version }}"
     - name: "Free space"
       shell: bash
       run: breeze ci free-space
       env:
-        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
+        AIRFLOW_ROOT_PATH: "${{ github.workspace }}"
     - name: "Get Python version"
       shell: bash
       run: >
@@ -57,4 +58,4 @@ runs:
       shell: bash
       run: breeze setup config --no-cheatsheet --no-asciiart
       env:
-        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
+        AIRFLOW_ROOT_PATH: "${{ github.workspace }}"

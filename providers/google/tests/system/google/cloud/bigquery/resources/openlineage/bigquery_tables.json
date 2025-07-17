@@ -1,0 +1,257 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.create_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.create_table"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_table",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.create_materialized_view"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.create_materialized_view"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_materialized_view",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "sum_salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.create_view"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.create_view"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_view",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.update_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.update_table"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_table",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    },
+                    "documentation": {
+                        "description": "Updated Table"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.upsert_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.upsert_table"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_table_id"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.update_table_schema"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.update_table_schema"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_table",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "description": "Name of employee",
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "description": "Monthly salary in USD",
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    },
+                    "documentation": {
+                        "description": "Updated Table"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.update_table_schema_json"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.update_table_schema_json"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_tables.delete_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_tables.delete_table"
+        },
+        "inputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_table",
+                "facets": {
+                    "lifecycleStateChange": {
+                        "lifecycleStateChange": "DROP",
+                        "previousIdentifier": {
+                            "namespace": "bigquery",
+                            "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test_table"
+                        }
+                    }
+                }
+            }
+        ],
+        "outputs": []
+    }
+]

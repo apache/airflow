@@ -54,11 +54,19 @@ github:
     projects: true
     # Enable wiki for documentation
     wiki: false
+    # Enable discussions
+    discussions: true
 
   enabled_merge_buttons:
     squash: true
     merge: false
     rebase: false
+
+  pull_requests:
+    # allow auto-merge
+    allow_auto_merge: false
+    # auto-delete head branches after being merged
+    del_branch_on_merge: true
 
   protected_branches:
     main:
@@ -66,55 +74,99 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+      required_signatures: false
     v1-10-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+      required_signatures: false
     v2-0-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-1-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-2-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-3-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-4-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-5-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-6-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-7-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-8-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
+    v2-9-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-10-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-11-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v3-0-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    providers-fab/v1-5:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_conversation_resolution: true
+      required_signatures: false
   collaborators:
-    - Lee-W
-    - RNHTTR
+    # Max 10 collaborators allowed
+    # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
+    # Procedure for adding new member is listed in
+    # https://github.com/apache/airflow/blob/main/ISSUE_TRIAGE_PROCESS.rst#L97
     - aritra24
-    - dirrao
-    - mhenc
+    - omkar-foss
     - nathadfield
     - sunank200
-    - vatsrahul1001
     - cmarteepants
+    - karenbraganz
+    - gyli
+    - jroachgolf84
 
 notifications:
   jobs: jobs@airflow.apache.org
+  commits: commits@airflow.apache.org
+  issues: commits@airflow.apache.org
+  pullrequests: commits@airflow.apache.org
+  discussions: commits@airflow.apache.org

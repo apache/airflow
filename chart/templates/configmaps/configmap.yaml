@@ -38,9 +38,20 @@ metadata:
   {{- end }}
 {{- $Global := . }}
 data:
+  {{- $config := deepCopy .Values.config | merge (dict "core" dict) }}
+  {{/*- Set a default for core.execution_api_server_url pointing to the api-server service if it's not set -*/}}
+  {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
+    {{- $basePath := "" -}}
+    {{- if not (hasKey $config.core "execution_api_server_url") -}}
+      {{-  if (and $config.api $config.api.base_url) -}}
+        {{- with urlParse $config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
+      {{- end -}}
+      {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d%s/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath)  -}}
+    {{- end -}}
+  {{- end -}}
   # These are system-specified config overrides.
   airflow.cfg: |-
-    {{- range $section, $settings := .Values.config }}
+    {{- range $section, $settings := $config }}
     [{{ $section }}]
     {{- range $key, $val := $settings }}
     {{ $key }} = {{ tpl ($val | toString) $Global }}
@@ -57,7 +68,7 @@ data:
     {{- .Values.dags.gitSync.knownHosts | nindent 4 }}
   {{- end }}
 
-{{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+{{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
 {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
   pod_template_file.yaml: |-
     {{- if .Values.podTemplate }}

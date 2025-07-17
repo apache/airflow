@@ -27,8 +27,8 @@
   - [Skipping pre-commits (Static checks)](#skipping-pre-commits-static-checks)
   - [Suspended providers](#suspended-providers)
   - [Selective check outputs](#selective-check-outputs)
-  - [Committer vs. non-committer PRs](#committer-vs-non-committer-prs)
-  - [PR labels](#pr-labels)
+  - [Committer vs. Non-committer PRs](#committer-vs-non-committer-prs)
+  - [Changing behaviours of the CI runs by setting labels](#changing-behaviours-of-the-ci-runs-by-setting-labels)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -51,14 +51,15 @@ We have the following Groups of files for CI that determine which tests are run:
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
-* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm_tests` folder.
-* `Setup files` - change in the setup files indicates that we should run  `upgrade to newer dependencies` -
-  pyproject.toml and  generated dependencies files in `generated` folder. The dependency files and part of
-  the pyproject.toml are automatically generated from the provider.yaml files in provider by
-  the `update-providers-dependencies` pre-commit. The provider.yaml is a single source of truth for each
-  provider.
+* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm-tests` folder.
+* `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
+  build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
+  The dependencies are automatically generated from the `provider.yaml` files in provider by
+  the `hatch_build.py` build hook. The provider.yaml is a single source of truth for each
+  provider and `hatch_build.py` for all regular dependencies.
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
   and airflow documentation)
+* `UI files` - those are files for the new full React UI (useful to determine if UI tests should run)
 * `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
@@ -67,12 +68,10 @@ We have the following Groups of files for CI that determine which tests are run:
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
   an image and run any image-based static checks
-* `All Airflow Python files` - files that are checked by `mypy-core` static checks
+* `All Airflow Python files` - files that are checked by `mypy-airflow` static checks
 * `All Providers Python files` - files that are checked by `mypy-providers` static checks
 * `All Dev Python files` - files that are checked by `mypy-dev` static checks
-* `All Docs Python files` - files that are checked by `mypy-docs` static checks
 * `All Provider Yaml files` - all provider yaml files
-
 
 We have a number of `TEST_TYPES` that can be selectively disabled/enabled based on the
 content of the incoming PR. Usually they are limited to a sub-folder of the "tests" folder but there
@@ -107,14 +106,15 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
-  (`API`, `CLI`, `WWW`, `Providers`, `Operators` etc.). The `Always` test type is added always if any unit
+  (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
 * If there are no files left in sources after matching the test types and Kubernetes files,
   then apparently some Core/Other files have been changed. This automatically adds all test
   types to execute. This is done because changes in core might impact all the other test types.
 * if `CI Image building` is disabled, only basic pre-commits are enabled - no 'image-depending` pre-commits
   are enabled.
-* If there are some setup files changed, `upgrade to newer dependencies` is enabled.
+* If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
+  the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
   several criteria: if any of the airflow core, charts, docker-stack, providers files or docs have changed,
   then corresponding packages are build (including cross-dependent providers). If any of the core files
@@ -140,9 +140,9 @@ when some files are not changed. Those are the rules implemented:
 * If "full tests" mode is detected, no more pre-commits are skipped - we run all of them
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
-  * if no `All Airflow Python files` changed - `mypy-core` check is skipped
-  * if no `All Docs Python files` changed - `mypy-docs` check is skipped
+  * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
+  * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
@@ -161,68 +161,81 @@ providers.
 The selective check outputs available are described below. In case of `list-as-string` values,
 empty string means `everything`, where lack of the output means `nothing` and list elements are
 separated by spaces. This is to accommodate for the wau how outputs of this kind can be easily used by
-Github Actions to pass the list of parameters to a command to execute
+GitHub Actions to pass the list of parameters to a command to execute
 
 
-| Output                             | Meaning of the output                                                                                | Example value                              | List as string |
-|------------------------------------|------------------------------------------------------------------------------------------------------|--------------------------------------------|----------------|
-| affected-providers-list-as-string  | List of providers affected when they are selectively affected.                                       | airbyte http                               | *              |
-| all-python-versions                | List of all python versions there are available in the form of JSON array                            | ['3.8', '3.9', '3.10']                     |                |
-| all-python-versions-list-as-string | List of all python versions there are available in the form of space separated string                | 3.8 3.9 3.10                               | *              |
-| basic-checks-only                  | Whether to run all static checks ("false") or only basic set of static checks ("true")               | false                                      |                |
-| cache-directive                    | Which cache should be used for images ("registry", "local" , "disabled")                             | registry                                   |                |
-| chicken-egg-providers              | List of providers that should be considered as "chicken-egg" - expecting development Airflow version |                                            |                |
-| ci-image-build                     | Whether CI image build is needed                                                                     | true                                       |                |
-| debug-resources                    | Whether resources usage should be printed during parallel job execution ("true"/ "false")            | false                                      |                |
-| default-branch                     | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)        | main                                       |                |
-| default-constraints-branch         | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)   | constraints-main                           |                |
-| default-helm-version               | Which Helm version to use as default                                                                 | v3.9.4                                     |                |
-| default-kind-version               | Which Kind version to use as default                                                                 | v0.16.0                                    |                |
-| default-kubernetes-version         | Which Kubernetes version to use as default                                                           | v1.25.2                                    |                |
-| default-mysql-version              | Which MySQL version to use as default                                                                | 5.7                                        |                |
-| default-postgres-version           | Which Postgres version to use as default                                                             | 10                                         |                |
-| default-python-version             | Which Python version to use as default                                                               | 3.8                                        |                |
-| docs-build                         | Whether to build documentation ("true"/"false")                                                      | true                                       |                |
-| docs-list-as-string                | What filter to apply to docs building - based on which documentation packages should be built        | apache-airflow helm-chart google           |                |
-| full-tests-needed                  | Whether this build runs complete set of tests or only subset (for faster PR builds) [1]              | false                                      |                |
-| helm-version                       | Which Helm version to use for tests                                                                  | v3.9.4                                     |                |
-| is-airflow-runner                  | Whether runner used is an airflow or infrastructure runner (true if airflow/false if infrastructure) | false                                      |                |
-| is-amd-runner                      | Whether runner used is an AMD one                                                                    | true                                       |                |
-| is-arm-runner                      | Whether runner used is an ARM one                                                                    | false                                      |                |
-| is-committer-build                 | Whether the build is triggered by a committer                                                        | false                                      |                |
-| is-k8s-runner                      | Whether the build runs on our k8s infrastructure                                                     | false                                      |                |
-| is-self-hosted-runner              | Whether the runner is self-hosted                                                                    | false                                      |                |
-| is-vm-runner                       | Whether the runner uses VM to run                                                                    | true                                       |                |
-| kind-version                       | Which Kind version to use for tests                                                                  | v0.16.0                                    |                |
-| kubernetes-combos-list-as-string   | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.8-v1.25.2 3.9-v1.26.4                    | *              |
-| kubernetes-versions                | All Kubernetes versions to use for tests as JSON array                                               | ['v1.25.2']                                |                |
-| kubernetes-versions-list-as-string | All Kubernetes versions to use for tests as space-separated string                                   | v1.25.2                                    | *              |
-| mypy-folders                       | List of folders to be considered for mypy                                                            | []                                         |                |
-| mysql-exclude                      | Which versions of MySQL to exclude for tests as JSON array                                           | []                                         |                |
-| mysql-versions                     | Which versions of MySQL to use for tests as JSON array                                               | ['5.7']                                    |                |
-| needs-api-codegen                  | Whether "api-codegen" are needed to run ("true"/"false")                                             | true                                       |                |
-| needs-api-tests                    | Whether "api-tests" are needed to run ("true"/"false")                                               | true                                       |                |
-| needs-helm-tests                   | Whether Helm tests are needed to run ("true"/"false")                                                | true                                       |                |
-| needs-javascript-scans             | Whether javascript CodeQL scans should be run ("true"/"false")                                       | true                                       |                |
-| needs-mypy                         | Whether mypy check is supposed to run in this build                                                  | true                                       |                |
-| needs-python-scans                 | Whether Python CodeQL scans should be run ("true"/"false")                                           | true                                       |                |
-| parallel-test-types-list-as-string | Which test types should be run for unit tests                                                        | API Always Providers Providers\[-google\]  | *              |
-| postgres-exclude                   | Which versions of Postgres to exclude for tests as JSON array                                        | []                                         |                |
-| postgres-versions                  | Which versions of Postgres to use for tests as JSON array                                            | ['10']                                     |                |
-| prod-image-build                   | Whether PROD image build is needed                                                                   | true                                       |                |
-| prod-image-build                   | Whether PROD image build is needed                                                                   | true                                       |                |
-| providers-compatibility-checks     | List of dicts: (python_version, airflow_version, removed_providers) for compatibility checks         | []                                         |                |
-| python-versions                    | List of python versions to use for that build                                                        | ['3.8']                                    | *              |
-| python-versions-list-as-string     | Which versions of MySQL to use for tests as space-separated string                                   | 3.8                                        | *              |
-| run-amazon-tests                   | Whether Amazon tests should be run ("true"/"false")                                                  | true                                       |                |
-| run-kubernetes-tests               | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                       |                |
-| run-tests                          | Whether unit tests should be run ("true"/"false")                                                    | true                                       |                |
-| run-www-tests                      | Whether WWW tests should be run ("true"/"false")                                                     | true                                       |                |
-| runs-on                            | List of labels assigned for runners for that build (used to select runners)                          | ["ubuntu-22.04"]                           |                |
-| skip-pre-commits                   | Which pre-commits should be skipped during the static-checks run                                     | check-provider-yaml-valid,flynt,identity   |                |
-| skip-provider-tests                | When provider tests should be skipped (on non-main branch or when no provider changes detected)      | true                                       |                |
-| sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                          | []                                         |                |
-| upgrade-to-newer-dependencies      | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)       | false                                      |                |
+| Output                                                  | Meaning of the output                                                                                  | Example value                            | List |
+|---------------------------------------------------------|--------------------------------------------------------------------------------------------------------|------------------------------------------|------|
+| all-python-versions                                     | List of all python versions there are available in the form of JSON array                              | \['3.10', '3.11'\]                       |      |
+| all-python-versions-list-as-string                      | List of all python versions there are available in the form of space separated string                  | 3.10 3.11                                | *    |
+| all-versions                                            | If set to true, then all python, k8s, DB versions are used for tests.                                  | false                                    |      |
+| basic-checks-only                                       | Whether to run all static checks ("false") or only basic set of static checks ("true")                 | false                                    |      |
+| ci-image-build                                          | Whether CI image build is needed                                                                       | true                                     |      |
+| core-test-types-list-as-strings-in-json                 | Which test types should be run for unit tests for core                                                 | API Always Providers                     | *    |
+| debug-resources                                         | Whether resources usage should be printed during parallel job execution ("true"/ "false")              | false                                    |      |
+| default-branch                                          | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)          | main                                     |      |
+| default-constraints-branch                              | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)     | constraints-main                         |      |
+| default-helm-version                                    | Which Helm version to use as default                                                                   | v3.9.4                                   |      |
+| default-kind-version                                    | Which Kind version to use as default                                                                   | v0.16.0                                  |      |
+| default-kubernetes-version                              | Which Kubernetes version to use as default                                                             | v1.25.2                                  |      |
+| default-mysql-version                                   | Which MySQL version to use as default                                                                  | 5.7                                      |      |
+| default-postgres-version                                | Which Postgres version to use as default                                                               | 10                                       |      |
+| default-python-version                                  | Which Python version to use as default                                                                 | 3.10                                     |      |
+| disable-airflow-repo-cache                              | Disables cache of the repo main cache in CI - aiflow will be installed without main installation cache | true                                     |      |
+| docker-cache                                            | Which cache should be used for images ("registry", "local" , "disabled")                               | registry                                 |      |
+| docs-build                                              | Whether to build documentation ("true"/"false")                                                        | true                                     |      |
+| docs-list-as-string                                     | What filter to apply to docs building - based on which documentation packages should be built          | apache-airflow helm-chart google         | *    |
+| excluded-providers-as-string   c                        | List of providers that should be excluded from the build as space-separated string                     | amazon google                            | *    |
+| force-pip                                               | Whether pip should be forced in the image build instead of uv ("true"/"false")                         | false                                    |      |
+| full-tests-needed                                       | Whether this build runs complete set of tests or only subset (for faster PR builds) \[1\]              | false                                    |      |
+| generated-dependencies-changed                          | Whether generated dependencies have changed ("true"/"false")                                           | false                                    |      |
+| has-migrations                                          | Whether the PR has migrations ("true"/"false")                                                         | false                                    |      |
+| hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                 | false                                    |      |
+| helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                            | \["airflow_aux", "airflow_core"\]        | *    |
+| helm-version                                            | Which Helm version to use for tests                                                                    | v3.15.3                                  |      |
+| include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                               | false                                    |      |
+| individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                      | Providers[\amazon\] Providers\[google\]  | *    |
+| is-committer-build                                      | Whether the build is triggered by a committer                                                          | false                                    |      |
+| is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                             | false                                    |      |
+| kind-version                                            | Which Kind version to use for tests                                                                    | v0.24.0                                  |      |
+| kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string   | 3.10-v1.25.2 3.11-v1.28.13               | *    |
+| kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                 | \['v1.25.2'\]                            |      |
+| kubernetes-versions-list-as-string                      | All Kubernetes versions to use for tests as space-separated string                                     | v1.25.2                                  | *    |
+| latest-versions-only                                    | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones.              | false                                    |      |
+| mypy-checks                                             | List of folders to be considered for mypy checks                                                       | \["airflow_aux", "airflow_core"\]        |      |
+| mysql-exclude                                           | Which versions of MySQL to exclude for tests as JSON array                                             | []                                       |      |
+| mysql-versions                                          | Which versions of MySQL to use for tests as JSON array                                                 | \['8.0'\]                                |      |
+| needs-api-codegen                                       | Whether "api-codegen" are needed to run ("true"/"false")                                               | true                                     |      |
+| needs-api-tests                                         | Whether "api-tests" are needed to run ("true"/"false")                                                 | true                                     |      |
+| needs-helm-tests                                        | Whether Helm tests are needed to run ("true"/"false")                                                  | true                                     |      |
+| needs-javascript-scans                                  | Whether javascript CodeQL scans should be run ("true"/"false")                                         | true                                     |      |
+| needs-mypy                                              | Whether mypy check is supposed to run in this build                                                    | true                                     |      |
+| needs-python-scans                                      | Whether Python CodeQL scans should be run ("true"/"false")                                             | true                                     |      |
+| only-new-ui-files                                       | Whether only new UI files are present in the PR ("true"/"false")                                       | false                                    |      |
+| postgres-exclude                                        | Which versions of Postgres to exclude for tests as JSON array                                          | []                                       |      |
+| postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                              | \['12'\]                                 |      |
+| prod-image-build                                        | Whether PROD image build is needed                                                                     | true                                     |      |
+| providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)          | \[{}\]                                   |      |
+| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                            | Providers Providers\[-google\]           | *    |
+| pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                 | false                                    |      |
+| python-versions                                         | List of python versions to use for that build                                                          | \['3.10'\]                               |      |
+| python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                     | 3.10                                     | *    |
+| run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                    | true                                     |      |
+| run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                | true                                     |      |
+| run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                    | true                                     |      |
+| run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                  | true                                     |      |
+| run-tests                                               | Whether unit tests should be run ("true"/"false")                                                      | true                                     |      |
+| run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                        | true                                     |      |
+| run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                | true                                     |      |
+| amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                              | \["ubuntu-22.04"\]                       |      |
+| arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                              | \["ubuntu-22.04-arm"\]                   |      |
+| selected-providers-list-as-string                       | List of providers affected when they are selectively affected.                                         | airbyte http                             | *    |
+| skip-pre-commits                                        | Which pre-commits should be skipped during the static-checks run                                       | flynt,identity                           |      |
+| skip-providers-tests                                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)        | true                                     |      |
+| sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                       |      |
+| testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                 | \['celery', 'kerberos'\]                 |      |
+| testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                 | \['mongo', 'kafka'\]                     |      |
+| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)         | false                                    |      |
 
 
 [1] Note for deciding if `full tests needed` mode is enabled and provider.yaml files.
@@ -242,42 +255,70 @@ That's why we do not base our `full tests needed` decision on changes in depende
 from the `provider.yaml` files, but on `generated/provider_dependencies.json` and `pyproject.toml` files being
 modified. This can be overridden by setting `full tests needed` label in the PR.
 
-## Committer vs. non-committer PRs
+## Committer vs. Non-committer PRs
 
 There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
-Main reason is security - we do not want to run untrusted code on our infrastructure for self-hosted runners,
-but also we do not want to run unverified code during the `Build imaage` workflow, because that workflow has
-access to GITHUB_TOKEN that has access to write to the Github Registry of ours (which is used to cache
-images between runs). Also those images are build on self-hosted runners and we have to make sure that
-those runners are not used to (fore example) mine cryptocurrencies on behalf of the person who opened the
-pull request from their newly opened fork of airflow.
+The main reason is security; we do not want to run untrusted code on our infrastructure for self-hosted runners.
 
-This is why the `Build Images` workflow checks if the actor of the PR (GITHUB_ACTOR) is one of the committers,
-and if not, then workflows and scripts used to run image building are coming  only from the ``target`` branch
-of the repository, where such scripts were reviewed and approved by the committers before being merged.
-
-This is controlled by `Selective checks <04_selective_checks.md>`__ that set appropriate output in
-the build-info job of the workflow (see`is-committer-build` to `true`) if the actor is in the committer's
-list and can be overridden by `non committer build` label in the PR.
-
-Also, for most of the jobs, committer builds by default use "Self-hosted" runners, while non-committer
-builds use "Public" runners. For committers, this can be overridden by setting the
+Currently there is no difference because we are not using `self-hosted` runners (until we implement `Action
+Runner Controller` but most of the jobs, committer builds will use "Self-hosted" runners by default,
+while non-committer builds will use "Public" runners. For committers, this can be overridden by setting the
 `use public runners` label in the PR.
 
+## Changing behaviours of the CI runs by setting labels
 
-## PR labels
+Also, currently for most of the jobs, committer builds by default use "Self-hosted" runners, while
+non-committer builds use "Public" runners. For committers, this can be overridden by setting the
+`use public runners` label in the PR. In the future when we might also switch committers to public runners.
+Committers will be able to use `use self-hosted runners` label in the PR to force using self-hosted runners.
+The `use public runners` label will still be available for committers and they will be able to set it for
+builds that also have `canary` label set to also switch the `canary` builds to public runners.
 
-As mentioned below, you can influence the outputs of selected checks by setting labels to the PR. Here is
-am overview of possible labels and their meaning:
+If you are testing CI workflow changes and want to test it for more complete matrix combinations generated by
+the jobs - you can set `all versions` label in the PR. This will run the PRs with the same combinations
+of versions as the `canary` main build. Using `all versions` is automatically set when build dependencies
+change in `pyproject.toml` or when dependencies change for providers in `generated/provider_dependencies.json`
+or when `hatch_build.py` changes.
 
-| Label                         | Affected outputs              | Meaning                                                                                               |
-|-------------------------------|-------------------------------|-------------------------------------------------------------------------------------------------------|
-| full tests needed             | full-tests-needed             | Run complete set of tests, including all Python all DB versions, and all test types.                  |
-| debug ci resources            | debug-ci-resources            | If set, then debugging resources is enabled during parallel tests and you can see them in the output. |
-| use public runners            | runs-on                       | Force using public runners even for Committer runs.                                                   |
-| non committer build           | is-committer-build            | If set then even for non-committer builds, the scripts used for images are used from target branch.   |
-| upgrade to newer dependencies | upgrade-to-newer-dependencies | If set then dependencies in the CI image build are upgraded to the newer ones.                        |
+If you are running an `apache` PR, you can also set `canary` label for such PR and in this case, all the
+`canary` properties of build will be used: `self-hosted` runners, `full tests needed` mode, `all versions`
+as well as all canary-specific jobs will run there. You can modify this behaviour of the `canary` run by
+applying `use public runners`, and `default versions only` labels to the PR as well which will still run
+a `canary` equivalent build but with public runners an default Python/K8S versions only - respectively.
 
+If you are testing CI workflow changes and change `pyproject.toml` or `generated/provider_dependencies.json`
+and you want to limit the number of matrix combinations generated by
+the jobs - you can set `default versions only` label in the PR. This will limit the number of versions
+used in the matrix to the default ones (default Python version and default Kubernetes version).
+
+If you are testing CI workflow changes and want to limit the number of matrix combinations generated by
+the jobs - you can also set `latest versions only` label in the PR. This will limit the number of versions
+used in the matrix to the latest ones (latest Python version and latest Kubernetes version).
+
+You can also disable cache if you want to make sure your tests will run with image that does not have
+left-over package installed from the past cached image - by setting `disable image cache` label in the PR.
+
+By default, all outputs of successful parallel tests are not shown. You can enable them by setting
+`include success outputs` label in the PR. This makes the logs of mostly successful tests a lot longer
+and more difficult to sift through, but it might be useful in case you want to compare successful and
+unsuccessful runs of the tests.
+
+This table summarizes the labels you can use on PRs to control the selective checks and the CI runs:
+
+| Label                            | Affected outputs                 | Meaning                                                                                   |
+|----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
+| all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
+| allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
+| debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
+| default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
+| disable image cache              | docker-cache                     | If set, the image cache is disables when building the image.                              |
+| force pip                        | force-pip                        | If set, the image build uses pip instead of uv.                                           |
+| full tests needed                | full-tests-needed                | If set, complete set of tests are run                                                     |
+| include success outputs          | include-success-outputs          | If set, outputs of successful parallel tests are shown not only failed outputs.           |
+| latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |
+| non committer build              | is-committer-build               | If set, the scripts used for images are used from target branch for committers.           |
+| upgrade to newer dependencies    | upgrade-to-newer-dependencies    | If set to true (default false) then dependencies in the CI image build are upgraded.      |
 
 -----
 

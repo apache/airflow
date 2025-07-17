@@ -21,7 +21,11 @@
 ## Airflow Dag Processor Deployment
 #################################
 {{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
-{{- if .Values.dagProcessor.enabled }}
+{{- $enabled := .Values.dagProcessor.enabled }}
+{{- if eq $enabled nil}}
+  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- end }}
+{{- if $enabled }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -144,7 +148,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraInitContainers }}
-          {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: dag-processor
@@ -206,10 +210,19 @@ spec:
           {{- if .Values.dagProcessor.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
+          {{- if .Values.dagProcessor.logGroomerSidecar.env }}
+              {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: logs
@@ -225,7 +238,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
-          {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -244,7 +257,7 @@ spec:
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
         {{- end }}
-        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret }}
+        {{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- if .Values.volumes }}

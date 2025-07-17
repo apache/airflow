@@ -23,12 +23,14 @@ import shutil
 import sys
 import tempfile
 from copy import deepcopy
+from itertools import chain
 from pathlib import Path
 from shlex import quote
 
 import click
 
 from airflow_breeze.commands.common_options import (
+    option_answer,
     option_debug_resources,
     option_dry_run,
     option_include_success_outputs,
@@ -37,10 +39,16 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_uv,
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
-from airflow_breeze.global_constants import ALLOWED_EXECUTORS, ALLOWED_KUBERNETES_VERSIONS
+from airflow_breeze.global_constants import (
+    ALLOWED_EXECUTORS,
+    ALLOWED_KUBERNETES_VERSIONS,
+    CELERY_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -49,20 +57,22 @@ from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDe
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
+    KUBERNETES_TEST_PATH,
     SCRIPTS_CI_KUBERNETES_PATH,
     KubernetesPythonVersion,
-    create_virtualenv,
     get_config_folder,
     get_k8s_env,
     get_kind_cluster_config_path,
     get_kind_cluster_name,
     get_kubeconfig_file,
     get_kubectl_cluster_name,
+    get_kubernetes_port_numbers,
     get_kubernetes_python_combos,
     make_sure_kubernetes_tools_are_installed,
     print_cluster_urls,
     run_command_with_k8s_env,
     set_random_cluster_ports,
+    sync_virtualenv,
 )
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
@@ -73,15 +83,13 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
 
-PARALLEL_PYTEST_ARGS = [
-    "--verbosity=0",
+KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
     "--durations=100",
     "--maxfail=50",
     "--color=yes",
     # timeouts in seconds for individual tests
-    "--timeouts-order",
-    "moi",
+    "--timeouts-order=moi",
     "--setup-timeout=300",
     "--execution-timeout=300",
     "--teardown-timeout=300",
@@ -97,12 +105,24 @@ PARALLEL_PYTEST_ARGS = [
     "-rfEX",
 ]
 
+PARALLEL_KUBERNETES_PYTEST_ARGS = [
+    *KUBERNETES_PYTEST_ARGS,
+    "--verbosity=0",
+]
+
 
 @click.group(cls=BreezeGroup, name="k8s", help="Tools that developers use to run Kubernetes tests")
 def kubernetes_group():
     pass
 
 
+option_copy_local_sources = click.option(
+    "--copy-local-sources/--no-copy-local-sources",
+    help="Copy local sources to the image.",
+    default=True,
+    show_default=True,
+    envvar="COPY_LOCAL_SOURCES",
+)
 option_executor = click.option(
     "--executor",
     help="Executor to use for a kubernetes cluster.",
@@ -122,14 +142,6 @@ option_force_venv_setup = click.option(
     help="Force recreation of the virtualenv.",
     is_flag=True,
     envvar="FORCE_VENV_SETUP",
-)
-option_image_tag = click.option(
-    "-t",
-    "--image-tag",
-    help="Image tag used to build K8S image from.",
-    default="latest",
-    show_default=True,
-    envvar="IMAGE_TAG",
 )
 option_kubernetes_version = click.option(
     "--kubernetes-version",
@@ -165,6 +177,13 @@ option_upgrade = click.option(
     is_flag=True,
     envvar="UPGRADE",
 )
+option_use_docker = click.option(
+    "--use-docker",
+    help="Use Docker to start k8s executor (otherwise k9s from PATH is used and only"
+    " run with docker if not found on PATH).",
+    is_flag=True,
+    envvar="USE_DOCKER",
+)
 option_use_standard_naming = click.option(
     "--use-standard-naming",
     help="Use standard naming.",
@@ -173,14 +192,14 @@ option_use_standard_naming = click.option(
 )
 option_wait_time_in_seconds = click.option(
     "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
+    help="Wait for Airflow api-server for specified number of seconds.",
     type=click.IntRange(0),
     default=120,
     envvar="WAIT_TIME_IN_SECONDS",
 )
 option_wait_time_in_seconds_0_default = click.option(
     "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
+    help="Wait for Airflow api-server for specified number of seconds.",
     type=click.IntRange(0),
     default=0,
     envvar="WAIT_TIME_IN_SECONDS",
@@ -199,14 +218,14 @@ K8S_CLUSTER_CREATE_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|.*Conn
 K8S_UPLOAD_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
 K8S_CONFIGURE_CLUSTER_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
 K8S_DEPLOY_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
-K8S_TEST_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|^kubernetes_tests/.*"
-PREVIOUS_LINE_K8S_TEST_REGEXP = r"^kubernetes_tests/.*"
+K8S_TEST_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|^kubernetes-tests/.*"
+PREVIOUS_LINE_K8S_TEST_REGEXP = r"^kubernetes-tests/.*"
 
 COMPLETE_TEST_REGEXP = (
     r"\s*#(\d*) |"
     r".*airflow-python-[0-9.]+-v[0-9.].*|"
     r".*Connecting to localhost.*|"
-    r"^kubernetes_tests/.*|"
+    r"^kubernetes-tests/.*|"
     r".*Error during running tests.*|"
     r".*Successfully run tests.*"
 )
@@ -217,7 +236,7 @@ COMPLETE_TEST_REGEXP = (
 @option_verbose
 @option_dry_run
 def setup_env(force_venv_setup: bool):
-    result = create_virtualenv(force_venv_setup=force_venv_setup)
+    result = sync_virtualenv(force_venv_setup=force_venv_setup)
     if result.returncode != 0:
         sys.exit(1)
     make_sure_kubernetes_tools_are_installed()
@@ -261,6 +280,8 @@ def _create_cluster(
         )
         if result.returncode == 0:
             print_cluster_urls(python=python, kubernetes_version=kubernetes_version, output=output)
+            kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+            (KUBERNETES_TEST_PATH / ".env").write_text(f"KUBECONFIG={quote(kubeconfig_file.as_posix())}\n")
             get_console(output=output).print(f"[success]KinD cluster {cluster_name} created!\n")
             get_console(output=output).print(
                 "\n[warning]NEXT STEP:[/][info] You might now configure your cluster by:\n"
@@ -270,12 +291,11 @@ def _create_cluster(
         num_tries -= 1
         if num_tries == 0:
             return result.returncode, f"K8S cluster {cluster_name}."
-        else:
-            get_console(output=output).print(
-                f"[warning]Failed to create KinD cluster {cluster_name}. "
-                f"Retrying! There are {num_tries} tries left.\n"
-            )
-            _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
+        get_console(output=output).print(
+            f"[warning]Failed to create KinD cluster {cluster_name}. "
+            f"Retrying! There are {num_tries} tries left.\n"
+        )
+        _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
 
 
 @kubernetes_group.command(
@@ -307,7 +327,7 @@ def create_cluster(
     kubernetes_versions: str,
     python_versions: str,
 ):
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -420,7 +440,7 @@ def _delete_all_clusters():
 @option_verbose
 @option_dry_run
 def delete_cluster(python: str, kubernetes_version: str, all: bool):
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -437,8 +457,7 @@ def _get_python_kubernetes_version_from_name(cluster_name: str) -> tuple[str | N
         python = cluster_match.group(1)
         kubernetes_version = cluster_match.group(2)
         return python, kubernetes_version
-    else:
-        return None, None
+    return None, None
 
 
 LIST_CONSOLE_WIDTH = 120
@@ -504,7 +523,7 @@ def _status(python: str, kubernetes_version: str, wait_time_in_seconds: int) -> 
 @option_verbose
 @option_dry_run
 def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all: bool):
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -541,46 +560,53 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
 
 
 def check_if_base_image_exists(params: BuildProdParams) -> bool:
-    return check_if_image_exists(image=params.airflow_image_name_with_tag)
+    return check_if_image_exists(image=params.airflow_image_name)
 
 
 def _rebuild_k8s_image(
     python: str,
-    image_tag: str,
     rebuild_base_image: bool,
+    copy_local_sources: bool,
+    use_uv: bool,
     output: Output | None,
 ) -> tuple[int, str]:
-    params = BuildProdParams(python=python, image_tag=image_tag)
+    params = BuildProdParams(python=python, use_uv=use_uv)
     if rebuild_base_image:
-        run_build_production_image(prod_image_params=params, output=output)
+        run_build_production_image(
+            prod_image_params=params,
+            param_description=f"Python: {params.python}, Platform: {params.platform}",
+            output=output,
+        )
     else:
         if not check_if_base_image_exists(params):
             get_console(output=output).print(
-                f"[error]The base PROD image {params.airflow_image_name_with_tag} does not exist locally.\n"
+                f"[error]The base PROD image {params.airflow_image_name} does not exist locally.\n"
             )
-            if image_tag == "latest":
-                get_console(output=output).print(
-                    "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
-                )
-                get_console(output=output).print(f"breeze prod-image build --python {python}\n")
-            else:
-                get_console(output=output).print("[warning]Please pull the image:\n")
-                get_console(output=output).print(
-                    f"breeze prod-image pull --python {python} --image-tag {image_tag}\n"
-                )
+            get_console(output=output).print(
+                "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
+            )
+            get_console(output=output).print(f"breeze prod-image build --python {python}\n")
             sys.exit(1)
     get_console(output=output).print(
         f"[info]Building the K8S image for Python {python} using "
-        f"airflow base image: {params.airflow_image_name_with_tag}\n"
+        f"airflow base image: {params.airflow_image_name}\n"
     )
+    if copy_local_sources:
+        extra_copy_command = "COPY --chown=airflow:0 . /opt/airflow/"
+    else:
+        extra_copy_command = ""
     docker_image_for_kubernetes_tests = f"""
-FROM {params.airflow_image_name_with_tag}
+FROM {params.airflow_image_name}
 
-COPY airflow/example_dags/ /opt/airflow/dags/
+USER airflow
 
-COPY airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+{extra_copy_command}
 
-ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
+COPY --chown=airflow:0 airflow-core/src/airflow/example_dags/ /opt/airflow/dags/
+
+COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+
+ENV GUNICORN_CMD_ARGS='--preload'
 """
     image = f"{params.airflow_image_kubernetes}:latest"
     docker_build_result = run_command(
@@ -620,29 +646,32 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
     name="build-k8s-image",
     help="Build k8s-ready airflow image (optionally all images in parallel).",
 )
+@option_answer
+@option_copy_local_sources
+@option_debug_resources
+@option_dry_run
+@option_include_success_outputs
+@option_parallelism
 @option_python
-@option_image_tag
+@option_python_versions
 @option_rebuild_base_image
 @option_run_in_parallel
-@option_parallelism
 @option_skip_cleanup
-@option_debug_resources
-@option_include_success_outputs
-@option_python_versions
+@option_use_uv
 @option_verbose
-@option_dry_run
 def build_k8s_image(
-    python: str,
-    image_tag: str,
-    rebuild_base_image: bool,
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
+    copy_local_sources: bool,
     debug_resources: bool,
     include_success_outputs: bool,
+    parallelism: int,
+    python: str,
     python_versions: str,
+    rebuild_base_image: bool,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
+    use_uv: bool,
 ):
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -660,8 +689,9 @@ def build_k8s_image(
                         _rebuild_k8s_image,
                         kwds={
                             "python": _python,
-                            "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
+                            "copy local sources": copy_local_sources,
+                            "use_uv": use_uv,
                             "output": outputs[index],
                         },
                     )
@@ -677,8 +707,9 @@ def build_k8s_image(
     else:
         return_code, _ = _rebuild_k8s_image(
             python=python,
-            image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
+            copy_local_sources=copy_local_sources,
+            use_uv=use_uv,
             output=None,
         )
         if return_code == 0:
@@ -713,7 +744,7 @@ def upload_k8s_image(
     python_versions: str,
     kubernetes_versions: str,
 ):
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -759,6 +790,12 @@ def upload_k8s_image(
         if return_code == 0:
             get_console().print("\n[warning]NEXT STEP:[/][info] You might now deploy airflow by:\n")
             get_console().print("\nbreeze k8s deploy-airflow\n")
+            get_console().print(
+                "\n[warning]Note:[/]\nIf you want to run tests with [info]--executor KubernetesExecutor[/], you should deploy airflow with [info]--multi-namespace-mode --executor KubernetesExecutor[/] flag.\n"
+            )
+            get_console().print(
+                "\nbreeze k8s deploy-airflow --multi-namespace-mode --executor KubernetesExecutor\n"
+            )
         sys.exit(return_code)
 
 
@@ -892,7 +929,7 @@ def configure_cluster(
     python_versions: str,
     kubernetes_versions: str,
 ):
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -936,8 +973,15 @@ def configure_cluster(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now build your k8s image by:\n")
-            get_console().print("\nbreeze k8s build-k8s-image\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now build your k8s image "
+                "with all latest dependencies:\n"
+            )
+            get_console().print("\n breeze k8s build-k8s-image --rebuild-base-image\n")
+            get_console().print(
+                "\n[info]Later you can build image without --rebuild-base-image until "
+                "airflow dependencies change (to speed up rebuilds).\n"
+            )
         sys.exit(return_code)
 
 
@@ -952,6 +996,7 @@ def _deploy_helm_chart(
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
     get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:
@@ -960,7 +1005,6 @@ def _deploy_helm_chart(
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
         params = BuildProdParams(python=python)
-        airflow_kubernetes_image_name = params.airflow_image_kubernetes
         helm_command = [
             "helm",
             "upgrade" if upgrade else "install",
@@ -973,23 +1017,29 @@ def _deploy_helm_chart(
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
             "--set",
-            f"defaultAirflowRepository={airflow_kubernetes_image_name}",
+            f"defaultAirflowRepository={params.airflow_image_kubernetes}",
             "--set",
             "defaultAirflowTag=latest",
             "-v",
             "1",
             "--set",
-            f"images.airflow.repository={airflow_kubernetes_image_name}",
+            f"images.airflow.repository={params.airflow_image_kubernetes}",
             "--set",
             "images.airflow.tag=latest",
             "-v",
             "1",
             "--set",
-            "config.api.auth_backends=airflow.api.auth.backend.basic_auth",
-            "--set",
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
+            "--set",
+            f"airflowVersion={params.airflow_semver_version}",
+            "--set",
+            "config.api_auth.jwt_secret=foo",
+            "--set",
+            "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            "--set",
+            f"config.api.base_url=http://localhost:{api_server_port}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
@@ -1206,11 +1256,12 @@ def deploy_airflow(
 )
 @option_python
 @option_kubernetes_version
+@option_use_docker
 @option_verbose
 @option_dry_run
 @click.argument("k9s_args", nargs=-1, type=click.UNPROCESSED)
-def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
-    result = create_virtualenv(force_venv_setup=False)
+def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[str, ...]):
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -1223,29 +1274,59 @@ def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
     if not k9s_editor:
         env["K9S_EDITOR"] = env["EDITOR"]
     kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
-    result = run_command(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "-it",
-            "--network",
-            "host",
-            "-e",
-            "EDITOR",
-            "-e",
-            "K9S_EDITOR",
-            "-v",
-            f"{kubeconfig_file}:/root/.kube/config",
-            "quay.io/derailed/k9s",
-            "--namespace",
-            HELM_AIRFLOW_NAMESPACE,
-            *k9s_args,
-        ],
-        env=env,
-        check=False,
-    )
-    if result.returncode != 0:
+    found_k9s = shutil.which("k9s")
+    if not use_docker and found_k9s:
+        get_console().print(
+            "[info]Running k9s tool found in PATH at $(found_k9s). Use --use-docker to run using docker."
+        )
+        result = run_command(
+            [
+                "k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        sys.exit(result.returncode)
+    else:
+        get_console().print("[info]Running k9s tool using docker.")
+        result = run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-it",
+                "--network",
+                "host",
+                "-e",
+                "EDITOR",
+                "-e",
+                "K9S_EDITOR",
+                "-v",
+                f"{kubeconfig_file}:/root/.kube/config",
+                "derailed/k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        if result.returncode != 0:
+            get_console().print(
+                "\n[warning]If you see `exec /bin/k9s: exec format error` it might be because"
+                " of known kind bug (https://github.com/kubernetes-sigs/kind/issues/3510).\n"
+            )
+            get_console().print(
+                "\n[info]In such case you might want to pull latest `kindest` images. "
+                "For example if you run kubernetes version v1.26.14 you might need to run:\n"
+                "[special]* run `breeze k8s delete-cluster` (note k8s version printed after "
+                "Python version)\n"
+                "* run `docker pull kindest/node:v1.26.14`\n"
+                "* restart docker engine\n\n"
+            )
         sys.exit(result.returncode)
 
 
@@ -1312,7 +1393,7 @@ def shell(
     force_venv_setup: bool,
     shell_args: tuple[str, ...],
 ):
-    result = create_virtualenv(force_venv_setup=force_venv_setup)
+    result = sync_virtualenv(force_venv_setup=force_venv_setup)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
@@ -1325,16 +1406,16 @@ def shell(
     elif shell_binary.endswith("bash"):
         extra_args.extend(["--norc", "--noprofile"])
     result = run_command(
-        [shell_binary, *extra_args, *shell_args], env=env, check=False, cwd="kubernetes_tests"
+        [shell_binary, *extra_args, *shell_args], env=env, check=False, cwd="kubernetes-tests"
     )
     if result.returncode != 0:
         sys.exit(result.returncode)
 
 
 def _get_parallel_test_args(
-    kubernetes_versions: str, python_versions: str, test_args: tuple[str, ...]
+    kubernetes_versions: str, python_versions: str, test_args: list[str]
 ) -> tuple[list[str], list[KubernetesPythonVersion], list[str], list[str]]:
-    pytest_args = deepcopy(PARALLEL_PYTEST_ARGS)
+    pytest_args = deepcopy(PARALLEL_KUBERNETES_PYTEST_ARGS)
     pytest_args.extend(test_args)
     python_version_array: list[str] = python_versions.split(" ")
     kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
@@ -1344,12 +1425,37 @@ def _get_parallel_test_args(
     return combo_titles, combos, pytest_args, short_combo_titles
 
 
+def _is_deployed_with_same_executor(python: str, kubernetes_version: str, executor: str) -> bool:
+    """Check if the current cluster is deployed with the same executor that the current tests are using.
+
+    This is especially useful when running tests with executors like KubernetesExecutor, CeleryExecutor, etc.
+    It verifies by checking the label of the airflow-scheduler deployment.
+    """
+    result = run_command_with_k8s_env(
+        [
+            "kubectl",
+            "get",
+            "deployment",
+            "-n",
+            "airflow",
+            "airflow-scheduler",
+            "-o",
+            "jsonpath='{.metadata.labels.executor}'",
+        ],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        capture_output=True,
+        check=False,
+    )
+    return executor == result.stdout.decode().strip().replace("'", "")
+
+
 def _run_tests(
     python: str,
     kubernetes_version: str,
     output: Output | None,
     executor: str,
-    test_args: tuple[str, ...],
+    test_args: list[str],
 ) -> tuple[int, str]:
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
@@ -1360,15 +1466,27 @@ def _run_tests(
         extra_shell_args.append("--no-rcs")
     elif shell_binary.endswith("bash"):
         extra_shell_args.extend(["--norc", "--noprofile"])
-    the_tests: list[str] = []
-    command_to_run = " ".join([quote(arg) for arg in ["pytest", *the_tests, *test_args]])
+    if (
+        executor == KUBERNETES_EXECUTOR or executor == CELERY_EXECUTOR
+    ) and not _is_deployed_with_same_executor(python, kubernetes_version, executor):
+        get_console(output=output).print(
+            f"[warning]{executor} not deployed. Please deploy airflow with {executor} first."
+        )
+        get_console(output=output).print(
+            f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
+        )
+        return 1, f"Tests {kubectl_cluster_name}"
+    pytest_cmd = ["uv", "run", "pytest"]
+    the_tests: list[str] = ["tests"]
+    ordered_unique_args = dict.fromkeys(chain(pytest_cmd, the_tests, test_args))
+    command_to_run = " ".join(quote(arg) for arg in ordered_unique_args)
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(
         [shell_binary, *extra_shell_args, "-c", command_to_run],
         output=output,
         env=env,
         check=False,
-        cwd="kubernetes_tests",
+        cwd=KUBERNETES_TEST_PATH.as_posix(),
     )
     return result.returncode, f"Tests {kubectl_cluster_name}"
 
@@ -1408,13 +1526,13 @@ def kubernetes_tests_command(
     kubernetes_versions: str,
     test_args: tuple[str, ...],
 ):
-    result = create_virtualenv(force_venv_setup=force_venv_setup)
+    result = sync_virtualenv(force_venv_setup=force_venv_setup)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
     if run_in_parallel:
         combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
-            kubernetes_versions, python_versions, test_args
+            kubernetes_versions, python_versions, list(test_args)
         )
         with ci_group(f"Running tests for: {short_combo_titles}"):
             with run_with_pool(
@@ -1453,7 +1571,7 @@ def kubernetes_tests_command(
             kubernetes_version=kubernetes_version,
             executor=executor,
             output=None,
-            test_args=test_args,
+            test_args=list(test_args),
         )
         sys.exit(result)
 
@@ -1461,24 +1579,27 @@ def kubernetes_tests_command(
 def _run_complete_tests(
     python: str,
     kubernetes_version: str,
+    include_success_outputs: bool,
     executor: str,
-    image_tag: str,
     rebuild_base_image: bool,
+    copy_local_sources: bool,
+    use_uv: bool,
     upgrade: bool,
     wait_time_in_seconds: int,
     force_recreate_cluster: bool,
     use_standard_naming: bool,
     num_tries: int,
     extra_options: tuple[str, ...] | None,
-    test_args: tuple[str, ...],
+    test_args: list[str],
     output: Output | None,
 ) -> tuple[int, str]:
     get_console(output=output).print(f"\n[info]Rebuilding k8s image for Python {python}\n")
     returncode, message = _rebuild_k8s_image(
         python=python,
         output=output,
-        image_tag=image_tag,
+        use_uv=use_uv,
         rebuild_base_image=rebuild_base_image,
+        copy_local_sources=copy_local_sources,
     )
     if returncode != 0:
         return returncode, message
@@ -1536,12 +1657,14 @@ def _run_complete_tests(
         get_console(output=output).print(
             f"\n[info]Running tests Python {python}, Kubernetes {kubernetes_version}\n"
         )
+        pytest_args = deepcopy(KUBERNETES_PYTEST_ARGS)
+        pytest_args.extend(test_args)
         returncode, message = _run_tests(
             python=python,
             kubernetes_version=kubernetes_version,
             output=output,
             executor=executor,
-            test_args=test_args,
+            test_args=pytest_args,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1561,7 +1684,7 @@ def _run_complete_tests(
                 extra_options=extra_options,
                 multi_namespace_mode=True,
             )
-            if returncode != 0:
+            if returncode != 0 or include_success_outputs:
                 _logs(python=python, kubernetes_version=kubernetes_version)
         return returncode, message
     finally:
@@ -1591,54 +1714,69 @@ def _run_complete_tests(
         ignore_unknown_options=True,
     ),
 )
-@option_python
-@option_kubernetes_version
-@option_executor
-@option_image_tag
-@option_rebuild_base_image
-@option_upgrade
-@option_wait_time_in_seconds
-@option_force_venv_setup
-@option_force_recreate_cluster
-@option_run_in_parallel
-@option_parallelism_cluster
-@option_skip_cleanup
 @option_debug_resources
-@option_include_success_outputs
-@option_use_standard_naming
-@option_python_versions
-@option_kubernetes_versions
-@option_verbose
 @option_dry_run
+@option_copy_local_sources
+@option_executor
+@option_force_recreate_cluster
+@option_force_venv_setup
+@option_include_success_outputs
+@option_kubernetes_version
+@option_kubernetes_versions
+@option_parallelism_cluster
+@option_python
+@option_python_versions
+@option_rebuild_base_image
+@option_run_in_parallel
+@option_skip_cleanup
+@option_upgrade
+@option_use_standard_naming
+@option_use_uv
+@option_verbose
+@option_wait_time_in_seconds
 @click.argument("test_args", nargs=-1, type=click.Path())
 def run_complete_tests(
-    python: str,
-    kubernetes_version: str,
+    copy_local_sources: bool,
+    debug_resources: bool,
     executor: str,
-    image_tag: str,
-    rebuild_base_image: bool,
-    upgrade: bool,
-    wait_time_in_seconds: int,
     force_recreate_cluster: bool,
     force_venv_setup: bool,
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
-    debug_resources: bool,
     include_success_outputs: bool,
-    use_standard_naming: bool,
-    python_versions: str,
+    kubernetes_version: str,
     kubernetes_versions: str,
+    parallelism: int,
+    python: str,
+    python_versions: str,
+    rebuild_base_image: bool,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
     test_args: tuple[str, ...],
+    upgrade: bool,
+    use_standard_naming: bool,
+    use_uv: bool,
+    wait_time_in_seconds: int,
 ):
-    result = create_virtualenv(force_venv_setup=force_venv_setup)
+    result = sync_virtualenv(force_venv_setup=force_venv_setup)
     if result.returncode != 0:
         sys.exit(1)
     make_sure_kubernetes_tools_are_installed()
     if run_in_parallel:
         combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
-            kubernetes_versions, python_versions, test_args
+            kubernetes_versions, python_versions, list(test_args)
         )
+        get_console().print(f"[info]Running complete tests for: {short_combo_titles}")
+        get_console().print(f"[info]Parallelism: {parallelism}")
+        get_console().print(f"[info]Extra test args: {executor}")
+        get_console().print(f"[info]Executor: {executor}")
+        get_console().print(f"[info]Use standard naming: {use_standard_naming}")
+        get_console().print(f"[info]Upgrade: {upgrade}")
+        get_console().print(f"[info]Use uv: {use_uv}")
+        get_console().print(f"[info]Rebuild base image: {rebuild_base_image}")
+        get_console().print(f"[info]Force recreate cluster: {force_recreate_cluster}")
+        get_console().print(f"[info]Include success outputs: {include_success_outputs}")
+        get_console().print(f"[info]Debug resources: {debug_resources}")
+        get_console().print(f"[info]Skip cleanup: {skip_cleanup}")
+        get_console().print(f"[info]Wait time in seconds: {wait_time_in_seconds}")
         with ci_group(f"Running complete tests for: {short_combo_titles}"):
             with run_with_pool(
                 parallelism=parallelism,
@@ -1657,8 +1795,9 @@ def run_complete_tests(
                             "python": combo.python_version,
                             "kubernetes_version": combo.kubernetes_version,
                             "executor": executor,
-                            "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
+                            "copy_local_sources": copy_local_sources,
+                            "use_uv": use_uv,
                             "upgrade": upgrade,
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "force_recreate_cluster": force_recreate_cluster,
@@ -1679,19 +1818,23 @@ def run_complete_tests(
             skip_cleanup=skip_cleanup,
         )
     else:
+        pytest_args = deepcopy(KUBERNETES_PYTEST_ARGS)
+        pytest_args.extend(test_args)
         result, _ = _run_complete_tests(
             python=python,
             kubernetes_version=kubernetes_version,
+            include_success_outputs=include_success_outputs,
             executor=executor,
-            image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
+            copy_local_sources=copy_local_sources,
+            use_uv=use_uv,
             upgrade=upgrade,
             wait_time_in_seconds=wait_time_in_seconds,
             force_recreate_cluster=force_recreate_cluster,
             use_standard_naming=use_standard_naming,
             num_tries=1,
             extra_options=None,
-            test_args=test_args,
+            test_args=pytest_args,
             output=None,
         )
         if result != 0:

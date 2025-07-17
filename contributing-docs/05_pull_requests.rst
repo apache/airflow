@@ -22,7 +22,7 @@ Pull Requests
 This document describes how you can create Pull Requests and describes coding standards we use when
 implementing them.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pull Request guidelines
 -----------------------
@@ -32,7 +32,7 @@ these guidelines:
 
 -   Include tests, either as doctests, unit tests, or both, to your pull request.
 
-    The airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
+    The Airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
@@ -48,8 +48,7 @@ these guidelines:
 -   Maintainers will not merge a PR that regresses linting or does not pass CI tests (unless you have good
     justification that it a transient error or something that is being fixed in other PR).
 
--   Maintainers will not merge PRs that have unresolved conversation. Note! This is experimental - to be
-    assessed at the end of January 2024 if we want to continue it.
+-   Maintainers will not merge PRs that have unresolved conversation.
 
 -   We prefer that you ``rebase`` your PR (and do it quite often) rather than merge. It leads to
     easier reviews and cleaner changes where you know exactly what changes you've done. You can learn more
@@ -88,35 +87,33 @@ these guidelines:
     to the changed code (for example for ``airflow/cli/cli_parser.py`` changes you have tests in
     ``tests/cli/test_cli_parser.py``). However there are a number of cases where the tests that should run
     are placed elsewhere - you can either run tests for the whole ``TEST_TYPE`` that is relevant (see
-    ``breeze testing tests --help`` output for available test types) or you can run all tests, or eventually
+    ``breeze testing core-tests --help`` or ``breeze testing providers-tests --help`` output for
+    available test types for each of the testing commands) or you can run all tests, or eventually
     you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.8 currently). In rare cases
+    if it works for the oldest supported version (Python 3.10 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
 
--   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
+-   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`__.
     This makes the lives of those who come after you (and your future self) a lot easier.
 
-Experimental Requirement to resolve all conversations
------------------------------------------------------
+Requirement to resolve all conversations
+----------------------------------------
 
-In December 2023 we enabled - experimentally - the requirement to resolve all the open conversations in a
+We have decided to enable the requirement to resolve all the open conversations in a
 PR in order to make it merge-able. You will see in the status of the PR that it needs to have all the
 conversations resolved before it can be merged.
 
-This is an experiment and we will evaluate by the end of January 2024. If it turns out to be a good idea,
-we will keep it enabled in the future.
-
-The goal of this experiment is to make it easier to see when there are some conversations that are not
+The goal is to make it easier to see when there are some conversations that are not
 resolved for everyone involved in the PR - author, reviewers and maintainers who try to figure out if
 the PR is ready to merge and - eventually - merge it. The goal is also to use conversations more as a "soft" way
 to request changes and limit the use of ``Request changes`` status to only those cases when the maintainer
-is sure that the PR should not be merged in the current state. That should lead to faster review/merge
+is sure that the PR should not be merged in the current state. This leads to faster review/merge
 cycle and less problems with stalled PRs that have ``Request changes`` status but all the issues are
-already solved (assuming that maintainers will start treating the conversations this way).
+already solved.
 
 .. _coding_style:
 
@@ -274,7 +271,7 @@ In such cases we can usually do something like this
         self.my_field = my_field
 
 The reason for doing it is that we are working on a cleaning up our code to have
-`pre-commit hook <../scripts/ci/pre_commit/pre_commit_validate_operators_init.py>`__
+`pre-commit hook <../scripts/ci/pre_commit/validate_operators_init.py>`__
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
 

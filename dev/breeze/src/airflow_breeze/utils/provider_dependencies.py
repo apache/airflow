@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import json
 
-import yaml
-
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.github import get_tag_date
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.packages import get_provider_distributions_metadata
+from airflow_breeze.utils.path_utils import PROVIDER_DEPENDENCIES_JSON_PATH
 
-DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
 
 def get_related_providers(
@@ -55,25 +55,44 @@ def get_related_providers(
     return related_providers
 
 
+START_AIRFLOW_VERSION_FROM = "0.0.0"
+
+
 def generate_providers_metadata_for_package(
-    provider_id: str, constraints: dict[str, dict[str, str]]
+    provider_id: str,
+    constraints: dict[str, dict[str, str]],
+    all_airflow_releases: list[str],
+    airflow_release_dates: dict[str, str],
 ) -> dict[str, dict[str, str]]:
-    provider_yaml_dict = yaml.safe_load(
-        (AIRFLOW_PROVIDERS_ROOT.joinpath(*provider_id.split(".")) / "provider.yaml").read_text()
-    )
+    get_console().print(f"[info]Generating metadata for {provider_id}")
+    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     provider_metadata: dict[str, dict[str, str]] = {}
-    last_airflow_version = "2.0.0"
+    last_airflow_version = START_AIRFLOW_VERSION_FROM
     package_name = "apache-airflow-providers-" + provider_id.replace(".", "-")
+    provider_mentioned_in_constraints = False
     for provider_version in reversed(provider_yaml_dict["versions"]):
-        for airflow_version in constraints.keys():
-            if constraints[airflow_version].get(package_name) == provider_version:
-                last_airflow_version = airflow_version
         date_released = get_tag_date(
             tag="providers-" + provider_id.replace(".", "-") + "/" + provider_version
         )
-        if date_released:
-            provider_metadata[provider_version] = {
-                "associated_airflow_version": last_airflow_version,
-                "date_released": date_released,
-            }
+        if not date_released:
+            continue
+        for airflow_version in all_airflow_releases:
+            if constraints[airflow_version].get(package_name) == provider_version:
+                last_airflow_version = airflow_version
+                provider_mentioned_in_constraints = True
+                break
+            if (
+                airflow_release_dates[airflow_version] > date_released
+                and last_airflow_version == START_AIRFLOW_VERSION_FROM
+            ):
+                last_airflow_version = airflow_version
+        provider_metadata[provider_version] = {
+            "associated_airflow_version": last_airflow_version,
+            "date_released": date_released,
+        }
+    if not provider_mentioned_in_constraints:
+        get_console().print(
+            f"[warning]No constraints mention {provider_id} in any Airflow version. Skipping it altogether."
+        )
+        return {}
     return provider_metadata

@@ -18,8 +18,8 @@
 # {{/*
 # WARNING: Be aware that most changes to these mappings will break backwards compatibility!
 # E.g. moving to labels will break existing dashboards.
-# instead utilize `statsd.overrideMappings` in your environment, until we have version 2
-# of the helm chart.
+# instead utilize `statsd.extraMappings` or `statsd.overrideMappings` in your environment,
+# until we have version 2 of the helm chart.
 # */}}
 mappings:
   # Map dot separated stats to labels
@@ -43,6 +43,12 @@ mappings:
   - match: airflow.scheduler_heartbeat
     match_type: regex
     name: "airflow_scheduler_heartbeat"
+    labels:
+      type: counter
+
+  - match: airflow.dag_processor_heartbeat
+    match_type: regex
+    name: "airflow_dag_processor_heartbeat"
     labels:
       type: counter
 
@@ -91,3 +97,25 @@ mappings:
     name: "airflow_pool_starving_tasks"
     labels:
       pool: "$1"
+
+  - match: airflow.executor.open_slots.*
+    name: "airflow_executor_open_slots"
+    labels:
+      executor: "$1"
+
+  - match: airflow.executor.queued_tasks.*
+    name: "airflow_executor_queued_tasks"
+    labels:
+      executor: "$1"
+
+  - match: airflow.executor.running_tasks.*
+    name: "airflow_executor_running_tasks"
+    labels:
+      executor: "$1"
+
+  - match: airflow.ti.running.*.*.*
+    name: "airflow_ti_running"
+    labels:
+      queue: "$1"
+      dag_id: "$2"
+      task_id: "$3"

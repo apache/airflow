@@ -1,0 +1,104 @@
+{
+    "version": 2,
+    "waiters": {
+        "pii_entities_detection_job_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "DescribePiiEntitiesDetectionJob",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "SUBMITTED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "IN_PROGRESS",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "STOP_REQUESTED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                }
+
+            ]
+        },
+         "create_document_classifier_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "DescribeDocumentClassifier",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "SUBMITTED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "TRAINING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "DELETING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "STOP_REQUESTED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "IN_ERROR",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "TRAINED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "TRAINED_WITH_WARNING",
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}

@@ -21,36 +21,38 @@ Contributors' guide
 Contributions are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
 
-This index of linked documents aims to explain the subject of contributions if you have not contributed to
-any Open Source project, but it will also help people who have contributed to other projects learn about the
-rules of that community.
+This page aims to explain the basic concept of contributions. It contains links
+to detailed documents for the different aspects of contribution. We encourage both
+Open Source first timers as well as more experienced contributors to read and
+learn about this community's contribution guidelines as it support easy and efficient collaboration.
 
-.. contents:: :local:
-
+Getting Started
+----------------
 New Contributor
----------------
+...............
 
 If you are a new contributor, please follow the `Contributors Quick Start <03_contributors_quick_start.rst>`__
-guide to get a gentle step-by-step introduction to setting up the development environment and making your
+guide for a step-by-step introduction to setting up the development environment and making your
 first contribution.
+We also suggest you to check out `Contribution Workflow <18_contribution_workflow.rst>`__ in order to get an overview of how to
+contribute to Airflow.
 
 If you are new to the project, you might need some help in understanding how the dynamics
-of the community works and you might need to get some mentorship from other members of the
+of the community work and hence can consider getting  mentorship from other members of the
 community - mostly Airflow committers (maintainers). Mentoring new members of the community is part of
-maintainers job so do not be afraid of asking them to help you. You can do it
-via comments in your PR, asking on a devlist or via Slack. For your convenience,
-we have a dedicated ``#development-first-pr-support`` Slack channel where you can ask any questions
+maintainers job so do not be afraid to ask them to help you. You can do it
+via comments in your PR, asking on a devlist or via Slack. We also have a dedicated ``#new-contributors`` Slack channel where you can ask any questions
 about making your first Pull Request (PR) contribution to the Airflow codebase - it's a safe space
 where it is expected that people asking questions do not know a lot Airflow (yet!).
-If you need help with Airflow see the Slack channel #troubleshooting.
+If you need help with Airflow see the Slack channel ``#user-troubleshooting``.
 
 To check on how mentoring works for the projects under Apache Software Foundation's
 `Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
 
-Basic contributing tasks
-------------------------
+Contribution Basics
+....................
 
-You can learn about various roles and communication channels in the Airflow project,
+To learn about various roles and communication channels in the Airflow project:
 
 * `Roles in Airflow Project <01_roles_in_airflow_project.rst>`__ describes
   the roles in the Airflow project and how they relate to each other.
@@ -58,18 +60,16 @@ You can learn about various roles and communication channels in the Airflow proj
 * `How to communicate <02_how_to_communicate.rst>`__
   describes how to communicate with the community and how to get help.
 
-You can learn how to setup your environment for development and how to develop and test code:
+* `How to contribute <04_how_to_contribute.rst>`__ describes the various ways of how you can contribute to Airflow.
+
+To learn how to setup your environment for development and how to develop and test code:
 
 * `Contributors quick start <03_contributors_quick_start.rst>`__ describes
-  how to set up your development environment and make your first contribution. There are also more
-  detailed documents describing how to set up your development environment for specific IDE/environment:
+  how to set up your development environment and make your first contribution.
 
-* `How to contribute <04_how_to_contribute.rst>`__ describes various ways how you can contribute to Airflow.
+* `Pull requests <05_pull_requests.rst>`__ describes how you can create pull requests. It also includes the pull request guidelines and the coding standards.
 
-* `Pull requests <05_pull_requests.rst>`__ describes how you can create pull requests and you can learn
-  there what are the pull request guidelines and coding standards.
-
-* `Development environment <06_development_environments.rst>`__ describes the developments environment
+* `Development environment <06_development_environments.rst>`__ describes the development environment
   used in Airflow.
 
   * `Local virtualenv <07_local_virtualenv.rst>`__ describes the setup and details of the local virtualenv
@@ -81,38 +81,43 @@ You can learn how to setup your environment for development and how to develop a
 
 * `Testing <09_testing.rst>`__ describes what kind of tests we have and how to run them.
 
-* `Building documentation <../docs/README.rst>`__ describes how to build the documentation locally.
-
 * `Working with Git <10_working_with_git.rst>`__ describes the Git branches used in Airflow,
   how to sync your fork and how to rebase your PR.
 
-Developing providers
---------------------
+* `Building documentation <11_documentation_building.rst>`__ describes how to build the documentation.
 
-You can learn how Airflow repository is a monorepo split into airflow and provider packages,
+
+Advanced Topics
+----------------
+Developing Providers
+.....................
+
+You can learn how Airflow repository is a monorepo split into Airflow and providers,
 and how to contribute to the providers:
 
-* `Provider packages <11_provider_packages.rst>`__ describes the provider packages and how they
+* `Provider distributions <12_provider_distributions.rst>`__ describes the providers and how they
   are used in Airflow.
 
 
-Deep dive into specific topics
-------------------------------
+Airflow Deep Dive
+..................
 
-Once you can also dive deeper into specific areas that are important for contributing to Airflow:
+You can also dive deeper into more specific areas that are important for contributing to Airflow:
 
-* `Airflow dependencies and extras <12_airflow_dependencies_and_extras.rst>`__ describes
+* `Airflow dependencies and extras <13_airflow_dependencies_and_extras.rst>`__ describes
   the dependencies - both required and optional (extras) used in Airflow.
 
-* `Metadata database updates <13_metadata_database_updates.rst>`__ describes
+* `Metadata database updates <14_metadata_database_updates.rst>`__ describes
   how to make changes in the metadata database.
 
-* `Node environment setup <14_node_environment_setup.rst>`__ describes how to set up
+* `Node environment setup <15_node_environment_setup.rst>`__ describes how to set up
   the node environment for Airflow UI.
 
-* `Architecture diagram <15_architecture_diagrams.rst>`__ describes how to create and
+* `Adding API endpoints <16_adding_api_endpoints.rst>`__ describes how to add API endpoints
+  to the Airflow REST API.
+
+* `Architecture diagram <17_architecture_diagrams.rst>`__ describes how to create and
   update the architecture diagrams embedded in Airflow documentation.
 
-Finally there is an overview of the overall contribution workflow that you should follow
-
-* `Contribution workflow <16_contribution_workflow.rst>`__ describes the workflow of contributing to Airflow.
+* `Execution API versioning <19_execution_api_versioning.rst>`__ describes how to
+  version the Task Execution API and how to add new versions of the API.

@@ -21,7 +21,7 @@ Advanced Breeze topics
 This document describes advanced topics related to Breeze. It is intended for people who already
 know how to use Breeze and want to learn more about it and understand how it works under the hood.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Debugging/developing Breeze
 ---------------------------
@@ -29,17 +29,10 @@ Debugging/developing Breeze
 Breeze can be quite easily debugged with PyCharm/VSCode or any other IDE - but it might be less discoverable
 if you never tested modules and if you do not know how to bypass version check of breeze.
 
-For testing, you can create your own virtual environment, or use the one that ``pipx`` created for you if you
-already installed breeze following the recommended ``pipx install -e ./dev/breeze`` command.
+For testing, you can create your own virtual environment, or use the one that ``uv`` or ``pipx`` created
+for you if you already installed breeze following the recommended installation.
 
-For local virtualenv, you can use ``pyenv`` or any other virtualenv wrapper. For example with ``pyenv``,
-you can use ``pyenv virtualenv 3.8.6 airflow-breeze`` to create virtualenv called ``airflow-breeze``
-with Python 3.8.6. Then you can use ``pyenv activate airflow-breeze`` to activate it and install breeze
-in editable mode with ``pip install -e ./dev/breeze``.
-
-For ``pipx`` virtualenv, you can use the virtualenv that ``pipx`` created for you. You can find the name
-where ``pipx`` keeps their venvs via ``pipx list`` command. Usually it is
-``${HOME}/.local/pipx/venvs/apache-airflow-breeze`` where ``$HOME`` is your home directory.
+Or you can change your directory to
 
 The venv can be used for running breeze tests and for debugging breeze. While running tests should
 be usually "out-of-the-box" for most IDEs, once you configure ``./dev/breeze`` project to use the venv,
@@ -56,13 +49,12 @@ make sure to follow these steps:
   this will bypass the check we run in Breeze to see if there are new requirements to install for it
 
 See example configuration for PyCharm which has run/debug configuration for
-``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.8``
+``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.10``
 
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/pycharm_debug_breeze.png" width="640"
-             alt="Airflow Breeze - PyCharm debugger configuration">
+        <img src="images/pycharm_debug_breeze.png" width="640" alt="Airflow Breeze - PyCharm debugger configuration">
     </div>
 
 Then you can setup breakpoints and debug breeze as any other Python script or test.
@@ -124,8 +116,8 @@ After you run Breeze for the first time, you will have empty directory ``files``
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
-By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
-the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_ROOT_PATH>/files/dags`` and this is
+the directory used by Airflow scheduler and api-server to scan dags for. You can use it to test your dags
 from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
 
 The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
@@ -140,7 +132,7 @@ There are couple of things you might want to do when adding/changing dependencie
 Breeze. You can add dependencies temporarily (which will last until you exit Breeze shell), or you might
 want to add them permanently (which require you to rebuild the image). Also there are different things
 you need to do when you are adding system level (debian) level, Python (pip) dependencies or Node (yarn)
-dependencies for the webserver.
+dependencies for the api-server.
 
 Python dependencies
 ...................
@@ -227,11 +219,11 @@ are conflicting with the new specification, you might want to build the image wi
     breeze ci-image build --upgrade-to-newer-dependencies
 
 
-Node (yarn) dependencies
+Node (pnpm) dependencies
 ........................
 
-If you need to change "node" dependencies in ``airflow/www``, you need to compile them in the
-host with ``breeze compile-www-assets`` command. No need to rebuild the image.
+If you need to change "node" dependencies in ``airflow/ui``, you need to compile them in the
+host with ``breeze compile-ui-assets`` command. No need to rebuild the image.
 
 
 Recording command output

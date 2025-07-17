@@ -22,6 +22,10 @@ CI_IMAGE_TOOLS_COMMANDS: dict[str, str | list[str]] = {
         "build",
         "pull",
         "verify",
+        "save",
+        "load",
+        "export-mount-cache",
+        "import-mount-cache",
     ],
 }
 CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -32,10 +36,8 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--upgrade-to-newer-dependencies",
                 "--upgrade-on-failure",
-                "--image-tag",
-                "--tag-as-latest",
                 "--docker-cache",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--build-progress",
                 "--docker-host",
             ],
@@ -57,8 +59,11 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--additional-pip-install-flags",
                 "--commit-sha",
                 "--debian-version",
+                "--disable-airflow-repo-cache",
                 "--install-mysql-client-type",
                 "--python-image",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -82,13 +87,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Backtracking options",
-            "options": [
-                "--build-timeout-minutes",
-                "--eager-upgrade-additional-requirements",
-            ],
-        },
-        {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
                 "--builder",
@@ -109,11 +107,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Pull image flags",
             "options": [
-                "--image-tag",
                 "--python",
                 "--verify",
                 "--wait-for-image",
-                "--tag-as-latest",
             ],
         },
         {
@@ -141,7 +137,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-name",
                 "--python",
-                "--image-tag",
                 "--pull",
             ],
         },
@@ -161,6 +156,52 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--github-repository",
                 "--github-token",
+            ],
+        },
+    ],
+    "breeze ci-image save": [
+        {
+            "name": "Save image flags",
+            "options": [
+                "--python",
+                "--platform",
+                "--github-repository",
+                "--image-file",
+                "--image-file-dir",
+            ],
+        },
+    ],
+    "breeze ci-image load": [
+        {
+            "name": "Load image flags",
+            "options": [
+                "--python",
+                "--platform",
+                "--image-file",
+                "--image-file-dir",
+                "--github-repository",
+                "--github-token",
+                "--from-pr",
+                "--from-run",
+                "--skip-image-file-deletion",
+            ],
+        },
+    ],
+    "breeze ci-image export-mount-cache": [
+        {
+            "name": "Export flags",
+            "options": [
+                "--cache-file",
+                "--builder",
+            ],
+        },
+    ],
+    "breeze ci-image import-mount-cache": [
+        {
+            "name": "Import flags",
+            "options": [
+                "--cache-file",
+                "--builder",
             ],
         },
     ],

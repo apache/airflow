@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   trino:
     image: ghcr.io/apache/airflow-trino:359-2021.07.04

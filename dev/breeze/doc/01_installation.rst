@@ -21,7 +21,7 @@ Installation
 
 This document describes prerequisites for running Breeze and installation process.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Docker Desktop
 --------------
@@ -52,8 +52,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/disk_space_osx.png" width="640"
-             alt="Disk space MacOS">
+        <img src="images/disk_space_osx.png" width="640" alt="Disk space MacOS">
     </div>
 
 
@@ -64,29 +63,22 @@ Here is an example configuration with more than 200GB disk space for Docker:
 
 **Docker errors that may come while running breeze**
 
-- If docker not running in python virtual environment
-- **Solution**
-- 1. Create the docker group if it does not exist
-- ``sudo groupadd docker``
-- 2. Add your user to the docker group.
-- ``sudo usermod -aG docker $USER``
-- 3. Log in to the new docker group
-- ``newgrp docker``
-- 4. Check if docker can be run without root
-- ``docker run hello-world``
-- 5. In some cases you might make sure that "Allow the default Docker socket to
-  be used" in "Advanced" tab of "Docker Desktop" settings is checked
+- If docker not running in python virtual environment:
 
+    1. Create the docker group if it does not exist: ``sudo groupadd docker``
+    2. Add your user to the docker group: ``sudo usermod -aG docker $USER``
+    3. Log in to the new docker group: ``newgrp docker``
+    4. Check if docker can be run without root: ``docker run hello-world``
+    5. In some cases you might make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked-out
 
-.. raw:: html
+    .. raw:: html
 
-   <div align="center">
-        <img src="../../../images/docker_socket.png" width="640"
-             alt="Docker socket used">
-    </div>
+        <div align="center">
+            <img src="images/docker_socket.png" width="640" alt="Docker socket used">
+        </div>
 
 Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide <../../../contributing-docs/03_contributors_quick_start.rst>`__
+`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
 
 Docker Compose
 --------------
@@ -114,8 +106,7 @@ Docker in WSL 2
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/docker_wsl_integration.png" width="640"
-             alt="Airflow Breeze - Docker WSL2 integration">
+        <img src="images/docker_wsl_integration.png" width="640" alt="Airflow Breeze - Docker WSL2 integration">
     </div>
 
 - **WSL 2 Filesystem Performance** :
@@ -154,13 +145,39 @@ Docker in WSL 2
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
     you can run ``code .`` in the root directory of you Airflow repo to launch VS Code.
 
-The pipx tool
---------------
+The uv tool
+-----------
 
-We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
+We are recommending to use the ``uv`` tool to manage your virtual environments and generally as a swiss-knife
+of your Python environment (it supports installing various versions of Python, creating virtual environments,
+installing packages, managing workspaces and running development tools.).
+
+Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/uv/getting-started/installation/>`_.
+We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
+easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
+that make it easier to work with Python.
+
+The ``gh`` cli needed for release managers
+------------------------------------------
+
+The ``gh`` GitHub CLI is a command line tool that allows you to interact with GitHub repositories, issues, pull
+requests, and more. It is useful for release managers to automate tasks such as creating releases,
+managing issues, and starting workflows (for example during documentation building). Release
+managers should have ``gh`` installed (see `gh installation guide <https://github.com/cli/cli>`_) and they
+should follow configuration steps to authorize ``gh`` in their local airflow repository (basically
+running ``gh auth login`` command and following the instructions).
+
+
+Alternative: pipx tool
+----------------------
+
+However, we do not want to be entirely dependent on ``uv`` as it is a software governed by a VC-backed vendor,
+so we always want to provide open-source governed alternatives for our tools. If you can't or do not want to
+use ``uv``, we got you covered. Another too you can use to manage development tools (and ``breeze`` development
+environment is Python-Software-Foundation managed ``pipx``. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
-Note that ``pipx`` >= 1.4.1 is used.
+Note that ``pipx`` >= 1.4.1 should be used.
 
 Install pipx
 
@@ -175,7 +192,7 @@ environments. This can be done automatically by the following command (follow in
 
     pipx ensurepath
 
-In Mac
+In case ``pipx`` is not in your PATH, you can run it with Python module:
 
 .. code-block:: bash
 
@@ -237,27 +254,31 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 
 Installation
 ============
+First, clone the Airflow repository, but make sure not to clone it into your home directory. Cloning it into your home directory will cause the following error:
+``Your Airflow sources are checked out in /Users/username/airflow, which is also your AIRFLOW_HOME where Airflow writes logs and database files. This setup is problematic because Airflow might overwrite or clean up your source code and .git repository.``
 
-Set your working directory to root of (this) cloned repository.
-Run this command to install Breeze (make sure to use ``-e`` flag):
+.. code-block:: bash
+
+    git clone https://github.com/apache/airflow.git
+
+Set your working directory to the root of this cloned repository.
+
+.. code-block:: bash
+
+    cd  airflow
+
+Run this command to install Breeze (make sure to use ``-e`` flag) - you can choose ``uv`` (recommended) or
+``pipx``:
+
+
+.. code-block:: bash
+
+    uv tool install -e ./dev/breeze
+
 
 .. code-block:: bash
 
     pipx install -e ./dev/breeze
-
-.. warning::
-
-  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
-  with ``packaging`` version 23.2:
-  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-  to avoid having to create a new src/ directory.
-
-  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command.
-
-  .. code-block::bash
-
-     pip install "packaging<23.2"
-     pipx install -e ./dev/breeze --force
 
 
 .. note:: Note for Windows users
@@ -265,6 +286,12 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
     The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
     If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
     of Airflow either as absolute or relative path. For example:
+
+    .. code-block:: bash
+
+        uv tool install -e dev\breeze
+
+    or
 
     .. code-block:: bash
 
@@ -305,8 +332,14 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
-    case you should force-reinstall Breeze with ``pipx``:
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.10. In this
+    case you should force-reinstall Breeze with ``uv`` (or ``pipx``):
+
+        .. code-block:: bash
+
+            uv tool install --force -e ./dev/breeze
+
+        or
 
         .. code-block:: bash
 
@@ -320,16 +353,33 @@ that Breeze works on
 
         .. code-block:: bash
 
-            pipx install --force -e dev\breeze
+            uv tool install --force -e dev\breeze
 
-    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
-
-        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
-        We can use a specific version by providing python executable in ``--python``  argument. For example:
+        or
 
         .. code-block:: bash
 
-            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+            pipx install --force -e dev\breeze
+
+
+    .. note:: creating virtual env for ``apache-airflow-breeze`` with a specific python version
+
+        The ``uv tool install`` or  ``pipx install`` use default system python version to create virtual
+        env for breeze. You can use a specific version by providing python version in ``uv`` or
+        python executable in ``pipx`` in ``--python``.
+
+        If you have breeze installed already with another Python version you can reinstall breeze with reinstall
+        command
+
+        .. code-block:: bash
+
+            uv tool install  --python 3.10.16 ./dev/breeze --force
+
+        or
+
+        .. code-block:: bash
+
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.10.16/bin/python --force
 
 
 Running Breeze for the first time
@@ -442,19 +492,18 @@ Automating breeze installation
 ------------------------------
 
 Breeze on POSIX-compliant systems (Linux, MacOS) can be automatically installed by running the
-``scripts/tools/setup_breeze`` bash script. This includes checking and installing ``pipx``, setting up
+``scripts/tools/setup_breeze`` bash script. This includes checking and installing ``uv``, setting up
 ``breeze`` with it and setting up autocomplete.
 
 
 Uninstalling Breeze
 -------------------
 
-Since Breeze is installed with ``pipx``, with ``pipx list``, you can list the installed packages.
-Once you have the name of ``breeze`` package you can proceed to uninstall it.
+Since Breeze is installed with ``uv tool`` or ``pipx``, you need to use the appropriate tool to uninstall it.
 
 .. code-block:: bash
 
-    pipx list
+    uv tool uninstall apache-airflow-breeze
 
 This will also remove breeze from the folder: ``${HOME}.local/bin/``
 

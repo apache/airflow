@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Useful tools for running commands."""
+
 from __future__ import annotations
 
 import atexit
@@ -27,26 +28,29 @@ import signal
 import stat
 import subprocess
 import sys
-from functools import lru_cache
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, Union
+from subprocess import CalledProcessError, CompletedProcess
+from typing import Any
 
 from rich.markup import escape
 
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    WWW_ASSET_COMPILE_LOCK,
-    WWW_ASSET_HASH_FILE,
-    WWW_ASSET_OUT_DEV_MODE_FILE,
-    WWW_ASSET_OUT_FILE,
-    WWW_NODE_MODULES_DIR,
-    WWW_STATIC_DIST_DIR,
+    AIRFLOW_ROOT_PATH,
+    UI_ASSET_COMPILE_LOCK,
+    UI_ASSET_HASH_PATH,
+    UI_ASSET_OUT_DEV_MODE_FILE,
+    UI_ASSET_OUT_FILE,
+    UI_DIST_PATH,
+    UI_NODE_MODULES_PATH,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
-RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
+# RunCommandResult = type[subprocess.CompletedProcess] | type[subprocess.CalledProcessError]
+RunCommandResult = CompletedProcess[Any] | CalledProcessError
 
 OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
@@ -59,15 +63,16 @@ def run_command(
     no_output_dump_on_exception: bool = False,
     env: Mapping[str, str] | None = None,
     cwd: Path | str | None = None,
-    input: str | None = None,
+    input: str | bytes | None = None,
     output: Output | None = None,
     output_outside_the_group: bool = False,
     verbose_override: bool | None = None,
     dry_run_override: bool | None = None,
+    quiet: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     """
-    Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
+    Runs command passed as list of strings with some extra functionality over Popen (kwargs from Popen can
     be used in this command even if not explicitly specified).
 
     It prints diagnostics when requested, also allows to "dry_run" the commands rather than actually
@@ -83,12 +88,13 @@ def run_command(
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
-    :param input: input string to pass to stdin of the process
+    :param input: input string to pass to stdin of the process (bytes if text=False, str, otherwise)
     :param output: redirects stderr/stdout to Output if set to Output class.
     :param output_outside_the_group: if this is set to True, then output of the command will be done
         outside the "CI folded group" in CI - so that it is immediately visible without unfolding.
     :param verbose_override: override verbose parameter with the one specified if not None.
     :param dry_run_override: override dry_run parameter with the one specified if not None.
+    :param quiet: if True, suppresses all output (including the command itself) and runs it in
     :param kwargs: kwargs passed to POpen
     """
 
@@ -134,7 +140,10 @@ def run_command(
             kwargs["stderr"] = subprocess.STDOUT
     command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
-    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
+    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override) or quiet:
+        if quiet and not kwargs.get("capture_output"):
+            kwargs["stdout"] = subprocess.DEVNULL
+            kwargs["stderr"] = subprocess.DEVNULL
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     with ci_group(title=f"Running command: {title}", message_type=None):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
@@ -205,39 +214,63 @@ def assert_pre_commit_installed():
     import yaml
     from packaging.version import Version
 
-    pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
+    pre_commit_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
     get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
-    command_result = run_command(
-        [python_executable, "-m", "pre_commit", "--version"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if command_result.returncode == 0:
-        if command_result.stdout:
-            pre_commit_version = command_result.stdout.split(" ")[-1].strip()
-            if Version(pre_commit_version) >= Version(min_pre_commit_version):
-                get_console().print(
-                    f"\n[success]Package pre_commit is installed. "
-                    f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
-                )
+    need_to_reinstall_precommit = False
+    try:
+        command_result = run_command(
+            ["pre-commit", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if command_result.returncode == 0:
+            if command_result.stdout:
+                pre_commit_version = command_result.stdout.split(" ")[1].strip()
+                if Version(pre_commit_version) >= Version(min_pre_commit_version):
+                    get_console().print(
+                        f"\n[success]Package pre_commit is installed. "
+                        f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
+                    )
+                else:
+                    get_console().print(
+                        f"\n[error]Package name pre_commit version is wrong. It should be "
+                        f"at least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                    )
+                    sys.exit(1)
+                if "pre-commit-uv" not in command_result.stdout:
+                    get_console().print(
+                        "\n[warning]You can significantly improve speed of installing your pre-commit envs "
+                        "by installing `pre-commit-uv` with it.[/]\n"
+                    )
+                    get_console().print(
+                        "\n[warning]With uv you can install it with:[/]\n\n"
+                        "        uv tool install pre-commit --with pre-commit-uv --force-reinstall\n"
+                    )
+                    get_console().print(
+                        "\n[warning]With pipx you can install it with:[/]\n\n"
+                        "        pipx inject pre-commit pre-commit-uv # optionally if you want to use uv to "
+                        "install virtualenvs\n"
+                    )
             else:
                 get_console().print(
-                    f"\n[error]Package name pre_commit version is wrong. It should be"
-                    f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                    "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
                 )
-                sys.exit(1)
         else:
-            get_console().print(
-                "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
-            )
-    else:
-        get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
-        get_console().print(command_result.stderr)
-        get_console().print("\nMake sure to run:\n      breeze setup self-upgrade\n\n")
+            need_to_reinstall_precommit = True
+            get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
+            get_console().print(command_result.stderr)
+    except FileNotFoundError as e:
+        need_to_reinstall_precommit = True
+        get_console().print(f"\n[error]Error checking for pre-commit-installation: [/]\n{e}\n")
+    if need_to_reinstall_precommit:
+        get_console().print("[info]Make sure to install pre-commit. For example by running:\n")
+        get_console().print("   uv tool install pre-commit --with pre-commit-uv\n")
+        get_console().print("Or if you prefer pipx:\n")
+        get_console().print("   pipx install pre-commit")
         sys.exit(1)
 
 
@@ -267,8 +300,7 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n")
     get_console().print(
-        f"\n[info]Please run at the earliest "
-        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
+        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 
@@ -301,18 +333,18 @@ def change_directory_permission(directory_to_fix: Path):
         os.chmod(directory_to_fix, new)
 
 
-@working_directory(AIRFLOW_SOURCES_ROOT)
+@working_directory(AIRFLOW_ROOT_PATH)
 def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
     if get_verbose():
         get_console().print("[info]Fixing group permissions[/]")
-    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
+    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, check=False, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
-        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
+        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, check=False, text=True
     )
     if directories_to_fix_result.returncode == 0:
         directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
@@ -355,14 +387,13 @@ def check_if_buildx_plugin_installed() -> bool:
     return False
 
 
-@lru_cache(maxsize=None)
+@clearable_cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
     if command_result.stdout:
         return command_result.stdout.strip()
-    else:
-        return "COMMIT_SHA_NOT_FOUND"
+    return "COMMIT_SHA_NOT_FOUND"
 
 
 def check_if_image_exists(image: str) -> bool:
@@ -375,7 +406,9 @@ def check_if_image_exists(image: str) -> bool:
     return cmd_result.returncode == 0
 
 
-def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunCommandResult:
+def _run_compile_internally(
+    command_to_execute: list[str], dev: bool, compile_lock: Path, asset_out: Path
+) -> RunCommandResult:
     from filelock import SoftFileLock, Timeout
 
     env = os.environ.copy()
@@ -387,31 +420,30 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
             text=True,
             env=env,
         )
-    else:
-        WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
-        WWW_ASSET_COMPILE_LOCK.unlink(missing_ok=True)
-        try:
-            with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
-                with open(WWW_ASSET_OUT_FILE, "w") as output_file:
-                    result = run_command(
-                        command_to_execute,
-                        check=False,
-                        no_output_dump_on_exception=True,
-                        text=True,
-                        env=env,
-                        stderr=subprocess.STDOUT,
-                        stdout=output_file,
-                    )
-                if result.returncode == 0:
-                    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
-                return result
-        except Timeout:
-            get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
-            get_console().print("[warning]If you are sure there is no other compilation,[/]")
-            get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
-            get_console().print(WWW_ASSET_COMPILE_LOCK)
-            get_console().print()
-            sys.exit(1)
+    compile_lock.parent.mkdir(parents=True, exist_ok=True)
+    compile_lock.unlink(missing_ok=True)
+    try:
+        with SoftFileLock(compile_lock, timeout=5):
+            with open(asset_out, "w") as output_file:
+                result = run_command(
+                    command_to_execute,
+                    check=False,
+                    no_output_dump_on_exception=True,
+                    text=True,
+                    env=env,
+                    stderr=subprocess.STDOUT,
+                    stdout=output_file,
+                )
+            if result.returncode == 0:
+                asset_out.unlink(missing_ok=True)
+            return result
+    except Timeout:
+        get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
+        get_console().print("[warning]If you are sure there is no other compilation,[/]")
+        get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
+        get_console().print(compile_lock)
+        get_console().print()
+        sys.exit(1)
 
 
 def kill_process_group(gid: int):
@@ -420,48 +452,44 @@ def kill_process_group(gid: int):
 
     :param gid: process group id
     """
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(gid, signal.SIGTERM)
-    except OSError:
-        pass
 
 
-def clean_www_assets():
-    get_console().print("[info]Cleaning www assets[/]")
-    WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
-    shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
-    shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
-    get_console().print("[success]Cleaned www assets[/]")
+def clean_ui_assets():
+    get_console().print("[info]Cleaning ui assets[/]")
+    UI_ASSET_HASH_PATH.unlink(missing_ok=True)
+    shutil.rmtree(UI_NODE_MODULES_PATH, ignore_errors=True)
+    shutil.rmtree(UI_DIST_PATH, ignore_errors=True)
+    get_console().print("[success]Cleaned ui assets[/]")
 
 
-def run_compile_www_assets(
+def run_compile_ui_assets(
     dev: bool,
     run_in_background: bool,
     force_clean: bool,
 ):
     if force_clean:
-        clean_www_assets()
+        clean_ui_assets()
     if dev:
         get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
         get_console().print(
             "\n[info]If you want to see output of the compilation command,\n"
-            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
-            "[info]However, it requires you to have local yarn installation.\n"
+            "[info]cancel it, go to airflow/ui folder and run 'pnpm dev'.\n"
+            "[info]However, it requires you to have local pnpm installation.\n"
         )
     command_to_execute = [
-        sys.executable,
-        "-m",
-        "pre_commit",
+        "pre-commit",
         "run",
         "--hook-stage",
         "manual",
-        "compile-www-assets-dev" if dev else "compile-www-assets",
+        "compile-ui-assets-dev" if dev else "compile-ui-assets",
         "--all-files",
         "--verbose",
     ]
     get_console().print(
         "[info]The output of the asset compilation is stored in: [/]"
-        f"{WWW_ASSET_OUT_DEV_MODE_FILE if dev else WWW_ASSET_OUT_FILE}\n"
+        f"{UI_ASSET_OUT_DEV_MODE_FILE if dev else UI_ASSET_OUT_FILE}\n"
     )
     if run_in_background:
         pid = os.fork()
@@ -473,7 +501,7 @@ def run_compile_www_assets(
             if os.getpid() != os.getsid(0):
                 # and create a new process group where we are the leader
                 os.setpgid(0, 0)
-            _run_compile_internally(command_to_execute, dev)
+            _run_compile_internally(command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE)
             sys.exit(0)
     else:
-        return _run_compile_internally(command_to_execute, dev)
+        return _run_compile_internally(command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE)

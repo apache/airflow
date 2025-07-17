@@ -24,32 +24,34 @@ from typing import TYPE_CHECKING, Any
 
 from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.common_options import (
+    option_all_integration,
     option_answer,
     option_backend,
     option_builder,
-    option_database_isolation,
     option_db_reset,
     option_docker_host,
     option_dry_run,
     option_forward_credentials,
     option_github_repository,
-    option_integration,
     option_max_time,
     option_mysql_version,
     option_postgres_version,
     option_project_name,
     option_python,
     option_standalone_dag_processor,
+    option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import prod_image
 from airflow_breeze.commands.testing_commands import group_for_testing
 from airflow_breeze.configure_rich_click import click
+from airflow_breeze.global_constants import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.docker_command_utils import remove_docker_networks
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.docker_command_utils import remove_docker_networks, remove_docker_volumes
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -106,19 +108,20 @@ class MainGroupWithAliases(BreezeGroup):
 @option_answer
 @option_backend
 @option_builder
-@option_database_isolation
 @option_db_reset
 @option_docker_host
 @option_dry_run
 @option_forward_credentials
 @option_github_repository
-@option_integration
+@option_all_integration
 @option_max_time
 @option_mysql_version
 @option_postgres_version
 @option_python
 @option_project_name
 @option_standalone_dag_processor
+@option_use_uv
+@option_uv_http_timeout
 @option_verbose
 @click.pass_context
 def main(ctx: click.Context, **kwargs: dict[str, Any]):
@@ -126,6 +129,7 @@ def main(ctx: click.Context, **kwargs: dict[str, Any]):
 
     check_for_rosetta_environment()
     check_for_python_emulation()
+    generate_provider_dependencies_if_needed()
 
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
@@ -269,10 +273,14 @@ def cleanup(all: bool):
                 sys.exit(0)
         else:
             get_console().print("[info]No locally downloaded images to remove[/]\n")
-    get_console().print("Removing unused networks")
-    given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
+    get_console().print("Removing networks created by breeze")
+    given_answer = user_confirm("Are you sure with the removal of docker networks created by breeze?")
     if given_answer == Answer.YES:
         remove_docker_networks()
+    get_console().print("Removing volumes created by breeze")
+    given_answer = user_confirm("Are you sure with the removal of docker volumes created by breeze?")
+    if given_answer == Answer.YES:
+        remove_docker_volumes()
     get_console().print("Pruning docker images")
     given_answer = user_confirm("Are you sure with the removal of docker images?")
     if given_answer == Answer.YES:
@@ -283,10 +291,46 @@ def cleanup(all: bool):
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print(f"Removing build cache dir {BUILD_CACHE_DIR}")
+    get_console().print(f"Removing build cache dir {BUILD_CACHE_PATH}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not get_dry_run():
-            shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
+            shutil.rmtree(BUILD_CACHE_PATH, ignore_errors=True)
+    get_console().print("Uninstalling airflow and removing configuration")
+    given_answer = user_confirm("Are you sure with the uninstall / remove?")
+    if given_answer == Answer.YES:
+        if not get_dry_run():
+            shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
+            AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
+            run_command(["uv", "pip", "uninstall", "apache-airflow"], check=False)
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)
+
+    to_be_excluded_from_deletion = (
+        # dirs
+        ".idea/",  # Pycharm config
+        ".vscode/",  # VSCode config
+        ".venv/",
+        "files/",
+        "logs/",
+        # files
+        ".bash_history",
+        ".bash_aliases",
+    )
+
+    get_console().print(
+        "Removing build file and git untracked files. This also removes files ignored in .gitignore.\n"
+        f"The following files will not be removed: `{to_be_excluded_from_deletion}`."
+    )
+    given_answer = user_confirm("Are you sure with the removal of build files?")
+    if given_answer == Answer.YES:
+        system_prune_command_to_execute = ["git", "clean", "-fdx"]
+        for excluded_object in to_be_excluded_from_deletion:
+            system_prune_command_to_execute.extend(["-e", excluded_object])
+
+        run_command(
+            system_prune_command_to_execute,
+            check=False,
+        )
     elif given_answer == Answer.QUIT:
         sys.exit(0)

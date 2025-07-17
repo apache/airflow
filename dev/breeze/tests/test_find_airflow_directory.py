@@ -20,7 +20,7 @@ import os
 from pathlib import Path
 from unittest import mock
 
-from airflow_breeze.utils.path_utils import find_airflow_sources_root_to_operate_on
+from airflow_breeze.utils.path_utils import find_airflow_root_path_to_operate_on
 
 ACTUAL_AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 ROOT_PATH = Path(Path(__file__).root)
@@ -28,7 +28,7 @@ ROOT_PATH = Path(Path(__file__).root)
 
 def test_find_airflow_root_upwards_from_cwd(capsys):
     os.chdir(Path(__file__).parent)
-    sources = find_airflow_sources_root_to_operate_on()
+    sources = find_airflow_root_path_to_operate_on()
     assert sources == ACTUAL_AIRFLOW_SOURCES
     output = str(capsys.readouterr().out)
     assert output == ""
@@ -36,7 +36,7 @@ def test_find_airflow_root_upwards_from_cwd(capsys):
 
 def test_find_airflow_root_upwards_from_file(capsys):
     os.chdir(Path(__file__).root)
-    sources = find_airflow_sources_root_to_operate_on()
+    sources = find_airflow_root_path_to_operate_on()
     assert sources == ACTUAL_AIRFLOW_SOURCES
     output = str(capsys.readouterr().out)
     assert output == ""
@@ -46,5 +46,5 @@ def test_find_airflow_root_upwards_from_file(capsys):
 @mock.patch("airflow_breeze.utils.path_utils.Path.cwd")
 def test_find_airflow_root_from_installation_dir(mock_cwd, capsys):
     mock_cwd.return_value = ROOT_PATH
-    sources = find_airflow_sources_root_to_operate_on()
+    sources = find_airflow_root_path_to_operate_on()
     assert sources == ACTUAL_AIRFLOW_SOURCES

@@ -1,0 +1,73 @@
+{
+  "version": 2,
+  "waiters": {
+    "knowledge_base_active": {
+      "delay": 5,
+      "maxAttempts": 24,
+      "operation": "getKnowledgeBase",
+      "acceptors": [
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "ACTIVE",
+          "state": "success"
+        },
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "CREATING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "DELETING",
+          "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "UPDATING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "FAILED",
+          "state": "failure"
+        }
+      ]
+    },
+    "ingestion_job_complete": {
+      "delay": 60,
+      "maxAttempts": 10,
+      "operation": "getIngestionJob",
+      "acceptors": [
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "COMPLETE",
+          "state": "success"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "STARTING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "IN_PROGRESS",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "FAILED",
+          "state": "failure"
+        }
+      ]
+    }
+  }
+}

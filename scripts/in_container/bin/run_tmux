@@ -43,6 +43,9 @@ export TMUX_SESSION="Airflow"
 # Start New Session with our name
 tmux new-session -d -s "${TMUX_SESSION}"
 
+tmux set -g pane-border-format "#{pane_index}: #{@airflow_component}"
+tmux set -g pane-border-status "top"
+
 # Enable mouse interaction with tmux. This allows selecting between the panes
 # by clicking with the mouse and also allows scrolling back through terminal
 # output with the mouse wheel.
@@ -54,39 +57,70 @@ tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
 
 tmux split-window -v
 tmux select-pane -t 1
+tmux set-option -p @airflow_component Scheduler
 tmux send-keys 'airflow scheduler' C-m
 
-tmux split-window -h
-tmux select-pane -t 2
-if [[ ${DEV_MODE=} == "true" ]]; then
-    tmux send-keys 'airflow webserver -d' C-m
+if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
+  tmux split-window -h
+  tmux select-pane -t 2
+  tmux set-option -p @airflow_component "API Server"
+
+    if [[ ${DEV_MODE=} == "true" ]]; then
+        tmux send-keys 'airflow api-server -d' C-m
+    else
+        tmux send-keys 'airflow api-server' C-m
+    fi
 else
-    tmux send-keys 'airflow webserver' C-m
+  tmux split-window -h
+  tmux select-pane -t 3
+  tmux set-option -p @airflow_component Webserver
+  if [[ ${DEV_MODE=} == "true" ]]; then
+      tmux send-keys 'airflow webserver -d' C-m
+  else
+      tmux send-keys 'airflow webserver' C-m
+  fi
 fi
 
 tmux select-pane -t 0
 tmux split-window -h
+tmux set-option -p @airflow_component Triggerer
 tmux send-keys 'airflow triggerer' C-m
 
 if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     tmux select-pane -t 0
     tmux split-window -h
+    tmux set-option -p @airflow_component "Celery Worker"
     tmux send-keys 'airflow celery worker' C-m
-fi
-if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
-    tmux select-pane -t 0
-    tmux split-window -h
-    tmux send-keys 'airflow internal-api' C-m
-fi
-if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
-    tmux select-pane -t 3
-    tmux split-window -h
-    tmux send-keys 'airflow dag-processor' C-m
 fi
 if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
     tmux select-pane -t 3
     tmux split-window -h
+    tmux set-option -p @airflow_component Flower
     tmux send-keys 'airflow celery flower' C-m
+fi
+if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge3.executors.edge_executor.EdgeExecutor" ]]; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    tmux set-option -p @airflow_component "Edge Worker"
+
+    # Ensure we are not leaking any DB connection information to Edge Worker process
+    tmux send-keys 'unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN' C-m
+    tmux send-keys 'unset AIRFLOW__CELERY__RESULT_BACKEND' C-m
+    tmux send-keys 'unset POSTGRES_HOST_PORT' C-m
+    tmux send-keys 'unset BACKEND' C-m
+    tmux send-keys 'unset POSTGRES_VERSION' C-m
+
+    # Ensure logs are smelling like Remote and are not visible to other components
+    tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
+
+    # Start Edge Worker and make a "breeze" hostname, let it pick only default queue
+    tmux send-keys 'airflow edge worker --edge-hostname breeze --queues default' C-m
+fi
+if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    tmux set-option -p @airflow_component "DAG Processor"
+    tmux send-keys 'airflow dag-processor' C-m
 fi
 
 # Attach Session, on the Main window

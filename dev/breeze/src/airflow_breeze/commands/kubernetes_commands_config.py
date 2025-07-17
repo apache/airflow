@@ -72,7 +72,8 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--rebuild-base-image",
-                "--image-tag",
+                "--copy-local-sources",
+                "--use-uv",
             ],
         },
         {
@@ -231,7 +232,8 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build image flags",
             "options": [
                 "--rebuild-base-image",
-                "--image-tag",
+                "--copy-local-sources",
+                "--use-uv",
             ],
         },
         {
@@ -255,6 +257,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "K8S k9s flags",
             "options": [
+                "--use-docker",
                 "--python",
                 "--kubernetes-version",
             ],

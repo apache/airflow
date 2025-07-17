@@ -23,13 +23,14 @@ import sys
 import textwrap
 import time
 from abc import ABCMeta, abstractmethod
+from collections.abc import Generator
 from contextlib import contextmanager
 from enum import Enum
 from multiprocessing.pool import ApplyResult, Pool
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Thread
-from typing import Any, Generator, NamedTuple
+from typing import Any, NamedTuple
 
 from rich.table import Table
 
@@ -191,8 +192,7 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
             if self.matcher_for_joined_line is not None and previous_line is not None:
                 list_to_return: list[str] = [previous_line, best_line]
                 return list_to_return
-            else:
-                self.last_good_match[output.file_name] = best_line
+            self.last_good_match[output.file_name] = best_line
         last_match = self.last_good_match.get(output.file_name)
         if last_match is None:
             return None
@@ -273,7 +273,7 @@ class ParallelMonitor(Thread):
         self,
         outputs: list[Output],
         initial_time_in_seconds: int = 2,
-        time_in_seconds: int = 10,
+        time_in_seconds: int = int(os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")),
         debug_resources: bool = False,
         progress_matcher: AbstractProgressInfoMatcher | None = None,
     ):
@@ -283,7 +283,7 @@ class ParallelMonitor(Thread):
         self.time_in_seconds = time_in_seconds
         self.debug_resources = debug_resources
         self.progress_matcher = progress_matcher
-        self.start_time = datetime.datetime.utcnow()
+        self.start_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def print_single_progress(self, output: Output):
         if self.progress_matcher:
@@ -312,7 +312,7 @@ class ParallelMonitor(Thread):
     def print_summary(self):
         import psutil
 
-        time_passed = datetime.datetime.utcnow() - self.start_time
+        time_passed = datetime.datetime.now(tz=datetime.timezone.utc) - self.start_time
         get_console().rule()
         for output in self.outputs:
             self.print_single_progress(output)
@@ -327,6 +327,11 @@ class ParallelMonitor(Thread):
                     except Exception:
                         get_console().print(f"No disk usage info for {partition.mountpoint}")
             get_console().print(get_multi_tuple_array("Disk usage", disk_stats))
+            # Print CPU percent usage
+            get_console().print("CPU usage:")
+            usage = psutil.cpu_percent(percpu=True, interval=None)
+            for i, cpu_usage in enumerate(usage):
+                get_console().print(f"CPU {i}: {cpu_usage / 100:.0%}")
 
     def run(self):
         try:
@@ -463,7 +468,7 @@ def run_with_pool(
     parallelism: int,
     all_params: list[str],
     initial_time_in_seconds: int = 2,
-    time_in_seconds: int = 10,
+    time_in_seconds: int = int(os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")),
     debug_resources: bool = False,
     progress_matcher: AbstractProgressInfoMatcher | None = None,
 ) -> Generator[tuple[Pool, list[Output]], None, None]:

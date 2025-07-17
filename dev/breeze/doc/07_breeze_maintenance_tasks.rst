@@ -21,7 +21,7 @@ Breeze maintenance tasks
 This document describes Breeze maintenance tasks, that are mostly useful when you are
 modifying Breeze itself.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Regenerating documentation SVG screenshots
 ..........................................

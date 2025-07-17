@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   pinot:
     image: apachepinot/pinot:0.8.0

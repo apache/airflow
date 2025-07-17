@@ -17,6 +17,122 @@
  under the License.
  -->
 
+# v3.0.2
+
+## Major changes:
+
+- Add `owner_links` field to DAGDetailsResponse ([#50557](https://github.com/apache/airflow/pull/50557))
+- Allow non-string valid JSON values in Variable import ([#49844](https://github.com/apache/airflow/pull/49844))
+- Add `bundle_version` to DagRun response ([#49726](https://github.com/apache/airflow/pull/49726))
+- Use `NonNegativeInt` for `backfill_id` ([#49691](https://github.com/apache/airflow/pull/49691))
+- Rename operation IDs for task instance endpoints to include map indexes ([#49608](https://github.com/apache/airflow/pull/49608))
+- Remove filtering by last dag run state in patch dags endpoint ([#51176](https://github.com/apache/airflow/pull/51176))
+- Make `dag_run` nullable in Details page ([#50719](https://github.com/apache/airflow/pull/50719))
+
+## Bug Fixes
+
+- Fix OpenAPI schema for `get_log` API ([#50547](https://github.com/apache/airflow/pull/50547))
+- Fix bulk action annotation ([#50852](https://github.com/apache/airflow/pull/50852))
+- Fix `patch_task_instance` endpoint ([#50550](https://github.com/apache/airflow/pull/50550))
+
+# v3.0.0
+
+This is the first release of the **Airflow 3.0.0** Python client. It introduces compatibility with the new [Airflow 3.0 REST API](https://airflow.apache.org/docs/apache-airflow/3.0.0/stable-rest-api-ref.html), and includes several **breaking changes** and behavior updates.
+
+Below is a list of important changes. Refer to individual endpoint documentation for full details.
+
+- API v1 (`/api/v1`) has been dropped and replaced with API v2(`/api/v2`).
+
+- **422 Validation Errors (instead of 400)**
+
+  The API now returns `422 Unprocessable Entity` for validation errors (e.g. bad payload, path params, or query params), instead of `400 Bad Request`.
+
+- **Partial response support removed (`fields` parameter)**
+
+  Endpoints like `GET /dags` no longer support the `fields` query param for partial responses. Full objects are returned by default. This feature may return in a future 3.x release.
+
+- Passing list in query parameters switched from ``form, non exploded`` to ``form, exploded`` i.e before ``?my_list=item1,item2`` now ``?my_list=item1&my_list=item2``
+
+- **`execution_date` has been removed**
+
+  The previously deprecated `execution_date` parameter and fields are now fully removed. Use `logical_date` instead.
+
+- **Datetime format updated to RFC3339-compliant**
+
+  Datetimes returned are now in [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) format (e.g. `2024-10-01T13:00:00Z`). Both `Z` and `+00:00` forms are accepted in inputs.
+  → This change comes from FastAPI & Pydantic v2 behavior.
+  [More info](https://github.com/fastapi/fastapi/discussions/7693#discussioncomment-5143311)
+
+- PATCH on ``DagRun`` and ``TaskInstance`` are more generic and allow in addition to update the resource state and the note content.
+
+  Therefore, the two legacy dedicated endpoints to update a ``DagRun`` note and ``TaskInstance`` note have been removed.
+
+  Same for the set task instance state, it is now handled by the broader PATCH on task instances.
+
+- ``assets/queuedEvent`` endpoints have moved to ``assets/queuedEvents`` for consistency.
+
+- **`dag_parsing` returns 409 for duplicates**
+
+  If a `DagPriorityParsingRequest` already exists, `POST /dag_parsing` now returns `409 Conflict` instead of `201 Created`.
+
+- **Default value change in `clearTaskInstances`**
+
+  The `reset_dag_runs` field now defaults to `true` instead of `false`.
+
+- **Pool name is no longer editable**
+
+  `PATCH /pools/{pool_name}` can no longer be used to rename a pool. Pool names are immutable via the API.
+
+- **`logical_date` is now a required nullable field**
+
+  When triggering a DAG run (`POST /dags/{dag_id}/dagRuns`), `logical_date` is now required but can explicitly be set to `null`.
+
+# v2.10.0
+
+## Major changes:
+
+   - Add dag_stats rest api endpoint ([#41017](https://github.com/apache/airflow/pull/41017))
+   - AIP-64: Add task instance history list endpoint ([#40988](https://github.com/apache/airflow/pull/40988))
+   - Change DAG Audit log tab to Event Log ([#40967](https://github.com/apache/airflow/pull/40967))
+   - AIP-64: Add REST API endpoints for TI try level details ([#40441](https://github.com/apache/airflow/pull/40441))
+   - Make XCom display as react json ([#40640](https://github.com/apache/airflow/pull/40640))
+   - Replace usages of task context logger with the log table ([#40867](https://github.com/apache/airflow/pull/40867))
+   - Fix tasks API endpoint when DAG doesn't have `start_date` ([#40878](https://github.com/apache/airflow/pull/40878))
+   - Add try_number to log table ([#40739](https://github.com/apache/airflow/pull/40739))
+   - Add executor field to the task instance API ([#40034](https://github.com/apache/airflow/pull/40034))
+   - Add task documentation to details tab in grid view. ([#39899](https://github.com/apache/airflow/pull/39899))
+   - Add max_consecutive_failed_dag_runs in API spec ([#39830](https://github.com/apache/airflow/pull/39830))
+   - Add task failed dependencies to details page. ([#38449](https://github.com/apache/airflow/pull/38449))
+   - Add dag re-parsing request endpoint ([#39138](https://github.com/apache/airflow/pull/39138))
+   - Reorder OpenAPI Spec tags alphabetically ([#38717](https://github.com/apache/airflow/pull/38717))
+
+
+# v2.9.1
+
+## Major changes:
+
+   - Add max_consecutive_failed_dag_runs in API spec ([#39830](https://github.com/apache/airflow/pull/39830))
+
+
+# v2.9.0
+
+## Major changes:
+
+   - Allow users to write dag_id and task_id in their national characters, added display name for dag / task (v2) ([#38446](https://github.com/apache/airflow/pull/38446))
+   - Add dataset_expression to grid dag details ([#38121](https://github.com/apache/airflow/pull/38121))
+   - Adding run_id column to log table ([#37731](https://github.com/apache/airflow/pull/37731))
+   - Show custom instance names for a mapped task in UI ([#36797](https://github.com/apache/airflow/pull/36797))
+   - Add excluded/included events to get_event_logs api ([#37641](https://github.com/apache/airflow/pull/37641))
+   - Filter Datasets by associated dag_ids (GET /datasets) ([#37512](https://github.com/apache/airflow/pull/37512))
+   - Add data_interval_start and data_interval_end in dagrun create API endpoint ([#36630](https://github.com/apache/airflow/pull/36630))
+   - Return the specified field when get dag/dagRun ([#36641](https://github.com/apache/airflow/pull/36641))
+
+## NEW API supported
+
+   - Add post endpoint for dataset events ([#37570](https://github.com/apache/airflow/pull/37570))
+   - Add "queuedEvent" endpoint to get/delete DatasetDagRunQueue ([#37176](https://github.com/apache/airflow/pull/37176))
+
+
 # v2.8.0
 
 ## Major changes:

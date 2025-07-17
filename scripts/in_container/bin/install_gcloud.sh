@@ -34,7 +34,7 @@ if command -v gcloud; then
     exit 1
 fi
 
-CLOUD_SDK_VERSION=322.0.0
+CLOUD_SDK_VERSION=485.0.0
 DOWNLOAD_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz"
 
 if [[ -e ${INSTALL_DIR} ]]; then

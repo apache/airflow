@@ -22,7 +22,7 @@ There are several roles within the Airflow Open-Source community.
 
 For detailed information for each role, see: `Committers and PMC members <../COMMITTERS.rst>`__.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 PMC Member
 ----------
@@ -30,7 +30,7 @@ PMC Member
 The PMC (Project Management Committee) is a group of maintainers that drives changes in the way that
 Airflow is managed as a project.
 
-Considering Apache, the role of the PMC is primarily to ensure that Airflow conforms to Apache's processes
+Considering Apache, the role of the PMC member is primarily to ensure that Airflow conforms to Apache's processes
 and guidelines.
 
 Committers/Maintainers
@@ -45,7 +45,7 @@ code is maintained.
 The term "committer" and "maintainer" is used interchangeably. The term "committer" is the official term used by the
 Apache Software Foundation, while "maintainer" is more commonly used in the Open Source community and is used
 in context of GitHub in a number of guidelines and documentation, so this document will mostly use "maintainer",
-when speaking about Github, Pull Request, Github Issues and Discussions. On the other hand, "committer" is more
+when speaking about GitHub, Pull Request, GitHub Issues and Discussions. On the other hand, "committer" is more
 often used in devlist discussions, official communications, Airflow website and every time when we formally
 refer to the role.
 
@@ -66,7 +66,7 @@ Committers are responsible for:
 Release managers
 ----------------
 
-The task of release managers is to prepare and release Airflow artifacts (airflow, providers, Helm Chart, Python client.
+The task of release managers is to prepare and release Airflow artifacts (airflow, providers, Helm Chart, Python client).
 The release managers are usually PMC members and the process of releasing is described in the `dev <dev>`__
 documentation where we keep information and tools used for releasing.
 
@@ -113,7 +113,7 @@ There are certain expectations from the members of the security team:
 
 * The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
   is solving the problem or in order to assess its applicability to be applied by 3rd parties, as soon
-  as a PR solving the issue is opened in the public airflow repository.
+  as a PR solving the issue is opened in the public Airflow repository.
 
 * In case of critical security issues, the members of the security team might iterate on a fix in a
   private repository and only open the PR in the public repository once the fix is ready to be released,

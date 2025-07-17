@@ -17,16 +17,15 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def coerce_bool_value(value: str | bool) -> bool:
     if isinstance(value, bool):
         return value
-    elif not value:  # handle "" and other false-y coerce-able values
+    if not value:  # handle "" and other false-y coerce-able values
         return False
-    else:
-        return value[0].lower() in ["t", "y"]  # handle all kinds of truth-y/yes-y/false-y/non-sy strings
+    return value[0].lower() in ["t", "y"]  # handle all kinds of truth-y/yes-y/false-y/non-sy strings
 
 
 def one_or_none_set(iterable: Iterable[bool]) -> bool:

@@ -30,14 +30,19 @@ kind: RoleBinding
 {{- end }}
 metadata:
   {{- if not .Values.multiNamespaceMode }}
-  namespace: "{{ .Release.Namespace }}"
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-scc-rolebinding
+  namespace: "{{ .Release.Namespace }}"
+  {{- else }}
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-scc-rolebinding
+  {{- end }}
   labels:
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if .Values.multiNamespaceMode }}
+    namespace: "{{ .Release.Namespace }}"
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -62,7 +67,7 @@ subjects:
     name: {{ include "statsd.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if and .Values.flower.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+  {{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
   - kind: ServiceAccount
     name: {{ include "flower.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
@@ -80,9 +85,14 @@ subjects:
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if and .Values.cleanup.enabled }}
+  {{- if .Values.cleanup.enabled }}
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+  {{- if .Values.dagProcessor.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "dagProcessor.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
 {{- end }}

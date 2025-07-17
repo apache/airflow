@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import glob
-import os
 
 import pytest
 from coverage import Coverage
@@ -25,10 +24,11 @@ from coverage.exceptions import NoSource
 
 
 def run_tests(command_list, source, files_not_fully_covered):
-    covered = sorted(
-        {path for item in source for path in glob.glob(item + "/**/*.py", recursive=True)}
-        - {path for path in files_not_fully_covered}
-    )
+    source_set = {path for item in source for path in glob.glob(item + "/**/*.py", recursive=True)}
+    not_covered = {path for path in files_not_fully_covered}
+    source_files = sorted(source_set)
+    covered = sorted(source_set - not_covered)
+
     cov = Coverage(
         config_file="pyproject.toml",
         source=source,
@@ -52,14 +52,11 @@ def run_tests(command_list, source, files_not_fully_covered):
         except NoSource:
             continue
 
-    cov.html_report()
+    cov.combine()
+    cov.html_report(morfs=source_files)
     if failed:
         print("There are some coverage errors. Please fix them")
     if len(files_not_fully_covered) > 0:
-        print("Coverage run completed. Use the link below to see the coverage report")
-    breeze = os.environ.get("BREEZE", "false")
-    port = "8080"
-    if breeze.lower() == "true":
-        port = "28080"
-    print(f"http://localhost:{port}/dev/coverage/index.html")
-    print("You need to start the webserver before you can access the above link.")
+        print("Coverage run completed. Use the following commands to see the coverage report")
+    print("cd htmlcov/; python -m http.server 5555")
+    print("Once the server is running, open this link in your browser: http://localhost:25555")

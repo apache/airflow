@@ -44,30 +44,43 @@ def change_ownership_of_files(path: Path) -> None:
         sys.exit(1)
     count_files = 0
     root_uid = pwd.getpwnam("root").pw_uid
-    print("Attempting to see if there are files that need to be changed to host user ownership")
-    for file in path.rglob("*"):
-        try:
-            if file.is_symlink() and file.lstat().st_uid == root_uid:
-                # Change ownership of symlink itself (by default stat/chown follow the symlinks)
-                os.chown(file, int(host_user_id), int(host_group_id), follow_symlinks=False)
-                count_files += 1
+    skip_folders = {".venv", "node_modules"}
+    for root, dirs, files in os.walk(path):
+        original_length = len(dirs)
+        original_dirs = dirs.copy()
+        # skip known big folders if they are not owned by root
+        dirs[:] = [d for d in dirs if d not in skip_folders or (Path(root) / d).stat().st_uid == root_uid]
+        new_length = len(dirs)
+        if new_length != original_length:
+            if os.environ.get("VERBOSE", "false") == "true":
+                print(
+                    f"{root}: Skipped {original_length - new_length} "
+                    f"folders: {set(original_dirs) - set(dirs)}"
+                )
+        for dir_name in dirs:
+            os.chown(Path(root) / dir_name, int(host_user_id), int(host_group_id), follow_symlinks=False)
+        for name in files:
+            file = Path(root) / name
+            try:
+                if file.is_symlink() and file.lstat().st_uid == root_uid:
+                    # Change ownership of symlink itself (by default stat/chown follow the symlinks)
+                    os.chown(file, int(host_user_id), int(host_group_id), follow_symlinks=False)
+                    count_files += 1
+                    if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
+                        print(f"Changed ownership of symlink {file}")
+                if file.stat().st_uid == root_uid:
+                    # And here change ownership of the file (or if it is a symlink - the file it points to)
+                    os.chown(file, int(host_user_id), int(host_group_id))
+                    count_files += 1
+                    if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
+                        print(f"Changed ownership of {file.resolve()}")
+            except FileNotFoundError:
+                # This is OK - file might have been deleted in the meantime or linked in Host from
+                # another place
                 if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
-                    print(f"Changed ownership of symlink {file}")
-            if file.stat().st_uid == root_uid:
-                # And here change ownership of the file (or if it is a symlink - the file it points to)
-                os.chown(file, int(host_user_id), int(host_group_id))
-                count_files += 1
-                if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
-                    print(f"Changed ownership of {file.resolve()}")
-        except FileNotFoundError:
-            # This is OK - file might have been deleted in the meantime or linked in Host from
-            # another place
-            if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
-                print(f"Could not change ownership of {file}")
-    if count_files:
+                    print(f"Could not change ownership of {file}")
+    if count_files and os.environ.get("VERBOSE_COMMANDS", "false") == "true":
         print(f"Changed ownership of {count_files} files back to {host_user_id}:{host_group_id}.")
-    else:
-        print("No files needed to change ownership")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,36 @@
+{
+    "version": 2,
+    "waiters": {
+        "step_function_succeeded": {
+            "operation": "DescribeExecution",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "ABORTED",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

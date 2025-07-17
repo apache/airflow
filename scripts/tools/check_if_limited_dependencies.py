@@ -27,7 +27,7 @@ from rich.console import Console
 program = f"./{__file__}" if not __file__.startswith("./") else __file__
 
 if __name__ != "__main__":
-    raise Exception(
+    raise SystemExit(
         "This file is intended to be used as an executable program. You cannot use it as a module."
         f"To execute this script, run the '{program}' command"
     )
@@ -43,7 +43,7 @@ console = Console(
 env = os.environ.copy()
 env["PYTHONPATH"] = str(DEV_BREEZE_SRC_PATH)
 try:
-    check_call(["python", DEV_BREEZE_SRC_PATH / "airflow_breeze" / "breeze.py", "--help"], env=env)
+    check_call([sys.executable, DEV_BREEZE_SRC_PATH / "airflow_breeze" / "breeze.py", "--help"], env=env)
 except CalledProcessError:
     console.print("[red]Breeze should only use limited dependencies when imported (see errors above).[/]\n")
     console.print(

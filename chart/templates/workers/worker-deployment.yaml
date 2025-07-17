@@ -23,7 +23,7 @@
 {{- $persistence := .Values.workers.persistence.enabled }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
@@ -39,7 +39,7 @@
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
-{{- $podAnnotations := mergeOverwrite .Values.airflowPodAnnotations $safeToEvict .Values.workers.podAnnotations }}
+{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
@@ -66,11 +66,17 @@ spec:
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
+  {{- if and $persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+  {{- if and $persistence .Values.workers.podManagementPolicy }}
+  podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
+  {{- end }}
   {{- if and $persistence .Values.workers.updateStrategy }}
   updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
   {{- end }}
@@ -220,7 +226,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
-          {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: worker
@@ -254,6 +260,9 @@ spec:
                 {{- end }}
           {{- end }}
           ports:
+            {{- if .Values.workers.extraPorts }}
+              {{- toYaml .Values.workers.extraPorts | nindent 12 }}
+            {{- end }}
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
@@ -316,10 +325,19 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.workers.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.workers.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
+          {{- if .Values.workers.logGroomerSidecar.env }}
+              {{- tpl (toYaml .Values.workers.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.workers.logGroomerSidecar.resources | nindent 12 }}
           volumeMounts:
@@ -379,7 +397,7 @@ spec:
             {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
         {{- if .Values.workers.extraContainers }}
-          {{- toYaml .Values.workers.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         {{- if .Values.volumes }}
@@ -410,7 +428,7 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if  .Values.dags.gitSync.sshKeySecret }}
+        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
@@ -423,7 +441,9 @@ spec:
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: logs
         {{- if .Values.workers.persistence.annotations }}
         annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}

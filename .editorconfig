@@ -37,6 +37,12 @@ indent_size = 4
 [*.js]
 indent_size = 2
 
+[*.ts]
+indent_size = 2
+
+[*.tsx]
+indent_size = 2
+
 [*.css]
 indent_size = 2
 
@@ -52,3 +58,7 @@ indent_size = 2
 
 [*.json]
 indent_size = 4
+
+[*.go]
+indent_style = tab
+max_line_length = 110

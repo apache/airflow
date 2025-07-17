@@ -1,0 +1,132 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "mysql_to_gcs.create_sql_table"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "CREATE TABLE IF NOT EXISTS testdb.test_table (col_1 INT, col_2 VARCHAR(8))"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "testdb.test_table"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "mysql_to_gcs.create_sql_table"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "CREATE TABLE IF NOT EXISTS testdb.test_table (col_1 INT, col_2 VARCHAR(8))"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "testdb.test_table"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "mysql_to_gcs.insert_sql_data"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "INSERT INTO testdb.test_table (col_1, col_2) VALUES (1, 'one'), (2, 'two')"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "testdb.test_table"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "mysql_to_gcs.insert_sql_data"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "INSERT INTO testdb.test_table (col_1, col_2) VALUES (1, 'one'), (2, 'two')"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "testdb.test_table"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "mysql_to_gcs.mysql_to_gcs"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "SELECT * FROM testdb.test_table"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "testdb.test_table"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_mysql_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "result.json"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "mysql_to_gcs.mysql_to_gcs"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "SELECT * FROM testdb.test_table"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "testdb.test_table"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_mysql_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "result.json"
+            }
+        ]
+    }
+]

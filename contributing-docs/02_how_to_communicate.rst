@@ -26,7 +26,7 @@ This means that communication plays a big role in it, and this chapter is all ab
 
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Various Communication channels
 ------------------------------
@@ -47,22 +47,23 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
-* The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
+* The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/?filter=allopenissues&orderby=updated+DESC>`_ for:
+    **IMPORTANT**
+    We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable
+    tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_
+    as stated in `Contribution Workflow Example <contribution-workflow.rst>`_
+
    * checking out old but still valuable issues that are not on GitHub yet
    * mentioning the JIRA issue number in the title of the related PR you would like to open on GitHub
 
-**IMPORTANT**
-We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable
-tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_
-as stated in `Contribution Workflow Example <contribution-workflow.rst>`_
 
 Slack details
 -------------
 
 * The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
-   * ad-hoc questions related to development and asking for review (#development channel)
-   * asking for help with first contribution PRs (#development-first-pr-support channel)
-   * troubleshooting (#troubleshooting channel)
+   * ad-hoc questions related to development and asking for review (#contributors channel)
+   * asking for help with first contribution PRs (#new-contributors channel)
+   * troubleshooting (#user-troubleshooting channel)
    * using Breeze (#airflow-breeze channel)
    * improving and maintaining documentation (#documentation channel)
    * group talks (including SIG - special interest groups) (#sig-* channels)
@@ -132,7 +133,7 @@ Here are a few rules that are important to keep in mind when you enter our commu
 
 * Do not be afraid to ask questions
 * The communication is asynchronous - do not expect immediate answers, ping others on slack
-  (#development channel) if blocked
+  (#contributors channel) if blocked
 * There is a #newbie-questions channel in slack as a safe place to ask questions
 * You can ask one of the maintainers to be a mentor for you, maintainers can guide you within the community
 * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_

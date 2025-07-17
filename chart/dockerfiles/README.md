@@ -21,7 +21,7 @@ Those are images that are needed for the Helm Chart.
 
 In each of the images you can find "build_and_push.sh" script that builds and pushes the image.
 
-You need to be a PMC with direct push access to "apache/airflow" DockerHub registry
+You need to be a PMC member with direct push access to "apache/airflow" DockerHub registry
 to be able to push to the Airflow DockerHub registry.
 
 You can set the DOCKERHUB_USER variable to push to your own DockerHub user if you want

@@ -63,7 +63,7 @@ Example command to build your CI image efficiently in your own CI
 workflow:
 
 ``` bash
-# GITHUB_REPOSITORY is set automatically in Github Actions so we need to override it with flag
+# GITHUB_REPOSITORY is set automatically in GitHub Actions so we need to override it with flag
 #
 breeze ci-image build --github-repository apache/airflow --python 3.10
 docker tag ghcr.io/apache/airflow/main/ci/python3.10 your-image-name:tag
@@ -71,4 +71,4 @@ docker tag ghcr.io/apache/airflow/main/ci/python3.10 your-image-name:tag
 
 -----
 
-Read next about [Static checks](04_static_checks.md)
+Read next about [Selective checks](04_selective_checks.md)

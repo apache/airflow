@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker KEDA Scaler
 #################################
-{{- if and .Values.workers.keda.enabled (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
+{{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -39,6 +39,7 @@ spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
     name: {{ include "airflow.fullname" . }}-worker
+    envSourceContainerName: worker
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
   minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
@@ -64,5 +65,4 @@ spec:
         {{- end }}
         query: {{ tpl .Values.workers.keda.query . | quote }}
     {{- end }}
-
 {{- end }}

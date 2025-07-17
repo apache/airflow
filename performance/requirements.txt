@@ -1,0 +1,2 @@
+apache-airflow==3.0.3
+openlineage-airflow==1.35.0

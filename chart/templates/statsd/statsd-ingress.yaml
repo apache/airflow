@@ -1,0 +1,87 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Statsd Ingress
+#################################
+{{- if and .Values.statsd.enabled .Values.ingress.statsd.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "airflow.fullname" . }}-statsd-ingress
+  labels:
+    tier: airflow
+    component: statsd-ingress
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.ingress.statsd.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and .Values.ingress.statsd.hosts (.Values.ingress.statsd.hosts | first | kindIs "string" | not) }}
+  {{- $anyTlsHosts := false -}}
+  {{- range .Values.ingress.statsd.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+  {{- $anyTlsHosts = true -}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if $anyTlsHosts }}
+  tls:
+  {{- range .Values.ingress.statsd.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+    - hosts:
+        - {{ .name | quote }}
+      secretName: {{ .tls.secretName }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.statsd.hosts | default (list .Values.ingress.statsd.host) }}
+    - http:
+        paths:
+          - backend:
+              service:
+                name: {{ $.Release.Name }}-statsd
+                port:
+                  name: statsd-scrape
+            {{- if $.Values.ingress.statsd.path }}
+            path: {{ $.Values.ingress.statsd.path }}
+            pathType: {{ $.Values.ingress.statsd.pathType }}
+            {{- end }}
+      {{- $hostname := . -}}
+      {{- if . | kindIs "string" | not }}
+      {{- $hostname = .name -}}
+      {{- end }}
+      {{- if $hostname }}
+      host: {{ tpl $hostname $ | quote }}
+      {{- end }}
+    {{- end }}
+  {{- if .Values.ingress.statsd.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.statsd.ingressClassName }}
+  {{- end }}
+{{- end }}

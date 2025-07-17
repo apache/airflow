@@ -1,0 +1,386 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_queries_async.create_table_1"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_queries_async.create_table_1"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_queries_async.insert_query_job"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_queries_async.insert_query_job",
+            "facets": {
+                "sql": {
+                    "query": "INSERT dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1 VALUES (42, 'monty python', '2030-01-01'), (42, 'fishy fish', '2030-01-01')"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "externalQuery": {
+                    "externalQueryId": "{{ result.startswith('airflow_bigquery_queries_async_insert_query_job') }}",
+                    "source": "bigquery"
+                },
+                "bigQueryJob": {
+                    "billedBytes": "{{ result is number }}",
+                    "cached": false,
+                    "properties": "{{ result is string }}"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                },
+                "outputFacets": {
+                    "outputStatistics": {
+                        "rowCount": "{{ result is number }}",
+                        "size": "{{ result is number }}"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_queries_async.select_query_job"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_queries_async.select_query_job",
+            "facets": {
+                "sql": {
+                    "query": "SELECT * FROM dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "externalQuery": {
+                    "externalQueryId": "{{ result.startswith('airflow_bigquery_queries_async_select_query_job') }}",
+                    "source": "bigquery"
+                },
+                "bigQueryJob": {
+                    "billedBytes": "{{ result is number }}",
+                    "cached": false,
+                    "properties": "{{ result is string }}"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ result.split('.')[1].startswith('_') }}",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                },
+                "outputFacets": {
+                    "outputStatistics": {
+                        "rowCount": "{{ result is number }}",
+                        "size": "{{ result is number }}"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_queries_async.execute_query_save"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_queries_async.execute_query_save",
+            "facets": {
+                "sql": {
+                    "query": "SELECT * FROM dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "externalQuery": {
+                    "externalQueryId": "{{ result.startswith('airflow_bigquery_queries_async_execute_query_save') }}",
+                    "source": "bigquery"
+                },
+                "bigQueryJob": {
+                    "billedBytes": "{{ result is number }}",
+                    "cached": false,
+                    "properties": "{{ result is string }}"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_1",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_2",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                },
+                "outputFacets": {
+                    "outputStatistics": {
+                        "rowCount": "{{ result is number }}",
+                        "size": "{{ result is number }}"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_queries_async.execute_multi_query"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_queries_async.execute_multi_query",
+            "facets": {
+                "sql": {
+                    "query": "SELECT * FROM dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_2;\nSELECT COUNT(*) FROM dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_2"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "externalQuery": {
+                    "externalQueryId": "{{ result.startswith('airflow_bigquery_queries_async_execute_multi_query') }}",
+                    "source": "bigquery"
+                },
+                "bigQueryJob": {
+                    "billedBytes": "{{ result is number }}",
+                    "cached": false,
+                    "properties": "{{ result is string }}"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.table_bigquery_queries_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_2",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ result.split('.')[1].startswith('_') }}",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "value",
+                                "type": "INTEGER"
+                            },
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "ds",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                },
+                "outputFacets": {
+                    "outputStatistics": {
+                        "rowCount": "{{ result is number }}",
+                        "size": "{{ result is number }}"
+                    }
+                }
+            }
+        ]
+    }
+]

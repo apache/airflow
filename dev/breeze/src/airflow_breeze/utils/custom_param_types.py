@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 import click
 from click import Context, Parameter, ParamType
@@ -49,7 +50,7 @@ class BetterChoice(click.Choice):
         super().__init__(*args)
         self.all_choices: Sequence[str] = self.choices
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param, ctx=None) -> str:
         choices_str = " | ".join(self.all_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":
@@ -166,7 +167,7 @@ class CacheableChoice(click.Choice):
                 write_to_cache_file(param_name, new_value, check_allowed_values=False)
         return super().convert(new_value, param, ctx)
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param, ctx=None) -> str:
         param_name = param.envvar if param.envvar else param.name.upper()
         current_value = (
             read_from_cache_file(param_name) if not generating_command_images() else param.default.value
@@ -193,7 +194,27 @@ class CacheableChoice(click.Choice):
         super().__init__(choices=choices, case_sensitive=case_sensitive)
 
 
-class MySQLBackendVersionType(CacheableChoice):
+class BackendVersionChoice(CacheableChoice):
+    """
+    This specialized type of parameter allows to override the value of parameter with the BACKEND_VERSION
+    environment variable if it is set.
+
+    It's used to pass single matrix element in the matrix of tests when we run tests in CI - so that we do
+    not have to pass different matrices for different backends (which will be used to get the workflows
+    muvh more DRY).
+    """
+
+    name = "BackendVersionChoice"
+
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
+        backend_version_env_value = os.environ.get("BACKEND_VERSION")
+        if backend_version_env_value:
+            if backend_version_env_value in self.choices:
+                value = backend_version_env_value
+        return super().convert(value, param, ctx)
+
+
+class MySQLBackendVersionChoice(BackendVersionChoice):
     def convert(self, value, param, ctx):
         if isinstance(value, CacheableDefault):
             param_name = param.envvar if param.envvar else param.name.upper()

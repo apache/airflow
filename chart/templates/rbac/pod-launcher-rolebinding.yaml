@@ -23,6 +23,7 @@
 {{- if and .Values.rbac.create .Values.allowPodLaunching }}
 {{- $schedulerLaunchExecutors := list "LocalExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- $workerLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $executors := split "," .Values.executor }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
@@ -32,13 +33,18 @@ kind: RoleBinding
 metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-pod-launcher-rolebinding
+  {{- else }}
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-rolebinding
+  {{- end }}
   labels:
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if .Values.multiNamespaceMode }}
+    namespace: "{{ .Release.Namespace }}"
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -46,19 +52,28 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   {{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-role
   {{- else }}
   kind: Role
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
-subjects:
-  {{- if has .Values.executor $schedulerLaunchExecutors }}
-  - kind: ServiceAccount
-    name: {{ include "scheduler.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if has .Values.executor $workerLaunchExecutors }}
+subjects:
+  {{- $schedulerAdded := false }}
+  {{- range $executor := $executors }}
+  {{- if and (has $executor $schedulerLaunchExecutors) (not $schedulerAdded) }}
+  {{- $schedulerAdded = true }}
   - kind: ServiceAccount
-    name: {{ include "worker.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    name: {{ include "scheduler.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+  {{- end }}
+  {{- end }}
+  {{- $workerAdded := false }}
+  {{- range $executor := $executors }}
+  {{- if and (has $executor $workerLaunchExecutors) (not $workerAdded) }}
+  {{- $workerAdded = true }}
+  - kind: ServiceAccount
+    name: {{ include "worker.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+  {{- end }}
   {{- end }}
 {{- end }}

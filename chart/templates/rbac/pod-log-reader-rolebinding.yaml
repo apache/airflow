@@ -20,7 +20,7 @@
 ################################
 ## Airflow Pod Reader Role Binding
 #################################
-{{- if and .Values.rbac.create (or .Values.webserver.allowPodLogReading .Values.triggerer.enabled) }}
+{{- if and .Values.rbac.create (or (and .Values.webserver.allowPodLogReading (semverCompare "<3.0.0" .Values.airflowVersion)) (and .Values.apiServer.allowPodLogReading (semverCompare ">=3.0.0" .Values.airflowVersion)) .Values.triggerer.enabled) }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
@@ -30,13 +30,18 @@ kind: RoleBinding
 metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
+  {{- else }}
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
+  {{- end }}
   labels:
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if .Values.multiNamespaceMode }}
+    namespace: "{{ .Release.Namespace }}"
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -44,14 +49,20 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   {{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-role
   {{- else }}
   kind: Role
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-pod-log-reader-role
+  {{- end }}
 subjects:
-  {{- if .Values.webserver.allowPodLogReading }}
+  {{- if and .Values.webserver.allowPodLogReading (semverCompare "<3.0.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "webserver.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+  {{- if and .Values.apiServer.allowPodLogReading (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+  - kind: ServiceAccount
+    name: {{ include "apiServer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if .Values.triggerer.enabled }}

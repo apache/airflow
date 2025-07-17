@@ -33,11 +33,11 @@ in_container_script_start
 PYTEST_ARGS=( "$@" )
 
 echo
-echo "Starting the tests with those pytest arguments: ${PYTEST_ARGS[*]}"
+echo "Starting system tests with those pytest arguments: --system ${PYTEST_ARGS[*]}"
 echo
 set +e
 
-pytest "${PYTEST_ARGS[@]}"
+pytest --system "${PYTEST_ARGS[@]}"
 
 RES=$?
 

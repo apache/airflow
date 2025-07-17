@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.6
+    labels:
+      breeze.description: "Integration for manual testing of multi-team Airflow."
+    entrypoint: /opt/keycloak/keycloak-entrypoint.sh
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 48080
+      KC_HOSTNAME_STRICT_BACKCHANNEL: false
+      KC_HTTP_ENABLED: true
+      KC_HOSTNAME_STRICT: true
+
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+    ports:
+      - 48080:48080
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./keycloak/keycloak-entrypoint.sh:/opt/keycloak/keycloak-entrypoint.sh
+
+  postgres:
+    volumes:
+      - ./keycloak/init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh
+    environment:
+      KC_POSTGRES_DB: keycloak
+      KC_POSTGRES_USER: keycloak
+      KC_POSTGRES_PASSWORD: keycloak
+    healthcheck:
+      test: ["CMD", "psql", "-h", "localhost", "-U", "keycloak"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow:
+    depends_on:
+      - keycloak

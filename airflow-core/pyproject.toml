@@ -1,0 +1,279 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[build-system]
+requires = [
+    "GitPython==3.1.44",
+    "gitdb==4.0.12",
+    "hatchling==1.27.0",
+    "packaging==25.0",
+    "pathspec==0.12.1",
+    "pluggy==1.6.0",
+    "smmap==5.0.2",
+    "tomli==2.2.1; python_version < '3.11'",
+    "trove-classifiers==2025.5.9.12",
+]
+build-backend = "hatchling.build"
+
+
+[project]
+name = "apache-airflow-core"
+description = "Core packages for Apache Airflow, schedule and API server"
+readme = { file = "README.md", content-type = "text/markdown" }
+license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
+requires-python = ">=3.10,!=3.13"
+authors = [
+    { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
+]
+maintainers = [
+    { name = "Apache Software Foundation", email="dev@airflow.apache.org" },
+]
+keywords = [ "airflow", "orchestration", "workflow", "dag", "pipelines", "automation", "data" ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: Apache Airflow",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+]
+
+# Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
+version = "3.1.0"
+
+dependencies = [
+    "a2wsgi>=1.10.8",
+    "aiosqlite>=0.20.0",
+    # Alembic is important to handle our migrations in predictable and performant way. It is developed
+    # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
+    # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
+    "alembic>=1.13.1, <2.0",
+    "argcomplete>=1.10",
+    "asgiref>=2.3.0",
+    "attrs>=22.1.0, !=25.2.0",
+    "cadwyn>=5.2.1",
+    "colorlog>=6.8.2",
+    "cron-descriptor>=1.2.24",
+    "croniter>=2.0.2",
+    "cryptography>=41.0.0",
+    "deprecated>=1.2.13",
+    "dill>=0.2.2",
+    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
+    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
+    "fastapi[standard]>=0.115.0,!=0.115.10",
+    "httpx>=0.25.0",
+    'importlib_metadata>=6.5;python_version<"3.12"',
+    'importlib_metadata>=7.0;python_version>="3.12"',
+    "itsdangerous>=2.0",
+    "jinja2>=3.1.5",
+    "jsonschema>=4.19.1",
+    "lazy-object-proxy>=1.2.0",
+    'libcst >=1.1.0',
+    "linkify-it-py>=2.0.0",
+    "lockfile>=0.12.2",
+    "methodtools>=0.4.7",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    # opentelemetry-proto is a transitive dependency of
+    # opentelemetry-exporter-otlp and other OpenTelemetry packages.
+    # opentelemetry-proto adds a very restrictive dependency on
+    # protobuf, causing conflicts with other packages, so to help
+    # the pip resolver we add it as a direct dependency with an upper
+    # bound, which signals to the pip resolver it is a problematic
+    # dependency and should be resolved as early as possible.
+    # This may be removed when future versions of pip are able
+    # to handle this dependency resolution automatically.
+    "opentelemetry-proto<9999",
+    "packaging>=25.0",
+    "pathspec>=0.9.0",
+    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
+    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    "pluggy>=1.5.0",
+    "psutil>=5.8.0",
+    "pydantic>=2.11.0",
+    # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
+    # See https://github.com/pygments/pygments/issues/2834
+    "pygments>=2.0.1,!=2.19.0",
+    "pyjwt>=2.10.0",
+    "python-daemon>=3.0.0",
+    "python-dateutil>=2.7.0",
+    "python-slugify>=5.0",
+    # Requests 3 if it will be released, will be heavily breaking.
+    "requests>=2.32.0,<3",
+    "rich-argparse>=1.0.0",
+    "rich>=13.6.0",
+    "setproctitle>=1.3.3",
+    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
+    # See https://sqlalche.me/e/b8d9 for details of deprecated features
+    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
+    # The issue tracking it is https://github.com/apache/airflow/issues/28723
+    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    "sqlalchemy-jsonfield>=1.0",
+    "sqlalchemy-utils>=0.41.2",
+    "svcs>=25.1.0",
+    "tabulate>=0.9.0",
+    "tenacity>=8.3.0",
+    "termcolor>=3.0.0",
+    # temporarily exclude 4.14.0 due to its broken compat with cadwyn
+    # See https://github.com/zmievsa/cadwyn/issues/283
+    "typing-extensions!=4.14.0",
+    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
+    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
+    "universal-pathlib>=0.2.2,!=0.2.4",
+    "uuid6>=2024.7.10",
+    "apache-airflow-task-sdk<1.2.0,>=1.1.0",
+    # pre-installed providers
+    "apache-airflow-providers-common-compat>=1.6.0",
+    "apache-airflow-providers-common-io>=1.5.3",
+    "apache-airflow-providers-common-sql>=1.26.0",
+    "apache-airflow-providers-smtp>=2.0.2",
+    "apache-airflow-providers-standard>=0.4.0",
+]
+
+
+[project.optional-dependencies]
+"async" = [
+    "eventlet>=0.37.0",
+    "gevent>=24.2.1",
+    "greenlet>=0.4.9",
+]
+"graphviz" = [
+    # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
+    # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
+    # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
+    "graphviz>=0.12; sys_platform != 'darwin'",
+]
+"kerberos"  = [
+    "pykerberos>=1.1.13",
+    "requests-kerberos>=0.14.0",
+    "thrift-sasl>=0.4.2",
+]
+"otel" = [
+    "opentelemetry-exporter-prometheus>=0.47b0",
+]
+"sentry" = [
+    "blinker>=1.1",
+    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
+    # See https://github.com/getsentry/sentry-python/issues/2473
+    "sentry-sdk>=1.32.0,!=1.33.0",
+]
+"statsd" = [
+    "statsd>=3.3.0",
+]
+"all" = [
+    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+]
+
+[project.scripts]
+airflow = "airflow.__main__:main"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+Documentation = "https://airflow.apache.org/docs/"
+Downloads = "https://archive.apache.org/dist/airflow/"
+Homepage = "https://airflow.apache.org/"
+"Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Source Code" = "https://github.com/apache/airflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+
+[tool.hatch.version]
+path = "src/airflow/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/airflow",
+    "NOTICE"
+]
+exclude = [
+    "src/airflow/ui/node_modules/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
+]
+
+[tool.hatch.build.targets.custom]
+path = "./hatch_build.py"
+
+artifacts = [
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version",
+    "generated/",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/airflow']
+artifacts = [
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version"
+]
+exclude = [
+    "src/airflow/ui/node_modules/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow-core[all]",
+    "apache-airflow-ctl",
+    "apache-airflow-devel-common",
+    "apache-airflow-task-sdk",
+    # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
+    # airflow-core tests
+    "apache-airflow[pandas,polars]",
+    "apache-airflow-providers-amazon",
+    "apache-airflow-providers-celery",
+    "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-fab",
+    "apache-airflow-providers-git",
+    "apache-airflow-providers-ftp",
+]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
+
+
+[tool.uv]
+required-version = ">=0.6.3"
+
+[tool.uv.sources]
+apache-airflow-core = {workspace = true}
+apache-airflow-devel-common = { workspace = true }

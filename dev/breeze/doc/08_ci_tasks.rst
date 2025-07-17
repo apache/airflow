@@ -21,7 +21,7 @@ CI tasks
 Breeze hase a number of commands that are mostly used in CI environment to perform cleanup.
 Detailed description of the CI design can be found in `CI design <ci/README.md>`_.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Those are all the commands available in the ``ci`` group:
 
@@ -113,23 +113,6 @@ These are all available flags of ``get-workflow-info`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_get-workflow-info.svg
   :width: 100%
   :alt: Breeze ci get-workflow-info
-
-Finding backtracking candidates
--------------------------------
-
-Sometimes the CI build fails because ``pip`` timeouts when trying to resolve the latest set of dependencies
-for that we have the ``find-backtracking-candidates`` command. This command will try to find the
-backtracking candidates that might cause the backtracking.
-
-The details on how to use that command are explained in
-`Figuring out backtracking dependencies <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md#figuring-out-backtracking-dependencies>`_.
-
-These are all available flags of ``find-backtracking-candidates`` command:
-
-.. image:: ./images/output_ci_find-backtracking-candidates.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_find-backtracking-candidates.svg
-  :width: 100%
-  :alt: Breeze ci find-backtracking-candidates
 
 -----
 

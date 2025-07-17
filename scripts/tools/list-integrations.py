@@ -26,15 +26,15 @@ from importlib import import_module
 from pathlib import Path
 
 import airflow
-from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
+from airflow.sdk import BaseHook
 from airflow.secrets import BaseSecretsBackend
 from airflow.sensors.base import BaseSensorOperator
 
 program = f"./{__file__}" if not __file__.startswith("./") else __file__
 
 if __name__ != "__main__":
-    raise Exception(
+    raise SystemExit(
         "This file is intended to be used as an executable program. You cannot use it as a module."
         f"To execute this script, run the '{program}' command"
     )

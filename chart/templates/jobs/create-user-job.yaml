@@ -75,6 +75,9 @@ spec:
     spec:
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
+      {{- if .Values.createUserJob.priorityClassName }}
+      priorityClassName: {{ .Values.createUserJob.priorityClassName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       {{- if .Values.schedulerName }}
@@ -86,6 +89,10 @@ spec:
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
+      {{- end }}
+      {{- if .Values.createUserJob.extraInitContainers }}
+      initContainers:
+        {{- tpl (toYaml .Values.createUserJob.extraInitContainers) . | nindent 8 }}
       {{- end }}
       containers:
         - name: create-user
@@ -119,7 +126,7 @@ spec:
               {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.createUserJob.extraContainers }}
-          {{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.createUserJob.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

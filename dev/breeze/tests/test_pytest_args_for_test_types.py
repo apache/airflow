@@ -18,176 +18,185 @@ from __future__ import annotations
 
 import pytest
 
+from airflow_breeze.global_constants import GroupOfTests
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
+def _all_providers() -> list[str]:
+    providers_root = AIRFLOW_ROOT_PATH / "providers"
+    return sorted(
+        file.parent.relative_to(providers_root).as_posix() for file in providers_root.rglob("provider.yaml")
+    )
+
+
+def _find_all_integration_folders() -> list[str]:
+    providers_root = AIRFLOW_ROOT_PATH / "providers"
+    return sorted(
+        provider_posix_path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for provider_posix_path in providers_root.rglob("integration")
+    )
+
+
 @pytest.mark.parametrize(
-    "test_type, pytest_args, skip_provider_tests",
+    "test_group, test_type, pytest_args",
     [
-        # Those list needs to be updated every time we add a new directory to tests/ folder
+        # Those list needs to be updated every time we add a new directory to airflow-core/tests/ folder
         (
+            GroupOfTests.CORE,
             "Core",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
+                "airflow-core/tests/unit/core",
+                "airflow-core/tests/unit/executors",
+                "airflow-core/tests/unit/jobs",
+                "airflow-core/tests/unit/models",
+                "airflow-core/tests/unit/ti_deps",
+                "airflow-core/tests/unit/utils",
             ],
-            False,
         ),
         (
-            "Integration",
-            ["tests/integration"],
-            False,
-        ),
-        (
-            "Integration",
+            GroupOfTests.INTEGRATION_PROVIDERS,
+            "All",
             [
-                "tests/integration/api_experimental",
-                "tests/integration/cli",
-                "tests/integration/executors",
-                "tests/integration/security",
+                "providers/apache/cassandra/tests/integration",
+                "providers/apache/drill/tests/integration",
+                "providers/apache/hive/tests/integration",
+                "providers/apache/kafka/tests/integration",
+                "providers/apache/pinot/tests/integration",
+                "providers/apache/tinkerpop/tests/integration",
+                "providers/celery/tests/integration",
+                "providers/google/tests/integration",
+                "providers/microsoft/mssql/tests/integration",
+                "providers/mongo/tests/integration",
+                "providers/openlineage/tests/integration",
+                "providers/qdrant/tests/integration",
+                "providers/redis/tests/integration",
+                "providers/trino/tests/integration",
+                "providers/ydb/tests/integration",
             ],
-            True,
         ),
         (
+            GroupOfTests.INTEGRATION_CORE,
+            "All",
+            ["airflow-core/tests/integration"],
+        ),
+        (
+            GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
-            False,
+            ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
         ),
         (
+            GroupOfTests.CORE,
             "Serialization",
-            ["tests/serialization"],
-            False,
+            ["airflow-core/tests/unit/serialization"],
         ),
         (
-            "System",
-            ["tests/system"],
-            False,
-        ),
-        (
-            "Operators",
-            ["tests/operators", "--exclude-virtualenv-operator", "--exclude-external-python-operator"],
-            False,
-        ),
-        (
+            GroupOfTests.PROVIDERS,
             "Providers",
-            ["tests/providers"],
-            False,
+            [
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
+            ],
         ),
         (
-            "Providers",
-            [],
-            True,
-        ),
-        (
+            GroupOfTests.PROVIDERS,
             "Providers[amazon]",
-            ["tests/providers/amazon"],
-            False,
+            ["providers/amazon/tests"],
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers[common.io]",
-            ["tests/providers/common/io"],
-            False,
+            ["providers/common/io/tests"],
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
-            ["tests/providers/amazon", "tests/providers/google", "tests/providers/apache/hive"],
-            False,
+            [
+                "providers/amazon/tests",
+                "providers/google/tests",
+                "providers/apache/hive/tests",
+            ],
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
-                "tests/providers",
-                "--ignore=tests/providers/amazon",
-                "--ignore=tests/providers/google",
-                "--ignore=tests/providers/microsoft/azure",
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_providers()
+                    if provider not in ["amazon", "google", "microsoft/azure"]
+                ],
             ],
-            False,
         ),
         (
-            "PlainAsserts",
+            GroupOfTests.PROVIDERS,
+            "Providers[-edge]",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
-                "--assert=plain",
+                *[f"providers/{provider}/tests" for provider in _all_providers() if provider != "edge"],
             ],
-            False,
         ),
         (
+            GroupOfTests.CORE,
             "All-Quarantined",
-            ["tests", "-m", "quarantined", "--include-quarantined"],
-            False,
+            ["airflow-core/tests/unit/", "-m", "quarantined", "--include-quarantined"],
         ),
         (
-            "PythonVenv",
+            GroupOfTests.PROVIDERS,
+            "All-Quarantined",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
+                "-m",
+                "quarantined",
+                "--include-quarantined",
             ],
-            False,
         ),
         (
-            "BranchPythonVenv",
-            [
-                "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
-            ],
-            False,
-        ),
-        (
-            "ExternalPython",
-            [
-                "tests/operators/test_python.py::TestExternalPythonOperator",
-            ],
-            False,
-        ),
-        (
-            "BranchExternalPython",
-            [
-                "tests/operators/test_python.py::TestBranchExternalPythonOperator",
-            ],
-            False,
-        ),
-        (
+            GroupOfTests.CORE,
             "Other",
             [
-                "tests/auth",
-                "tests/callbacks",
-                "tests/charts",
-                "tests/cluster_policies",
-                "tests/config_templates",
-                "tests/dag_processing",
-                "tests/datasets",
-                "tests/decorators",
-                "tests/hooks",
-                "tests/io",
-                "tests/lineage",
-                "tests/listeners",
-                "tests/macros",
-                "tests/notifications",
-                "tests/plugins",
-                "tests/secrets",
-                "tests/security",
-                "tests/sensors",
-                "tests/task",
-                "tests/template",
-                "tests/testconfig",
-                "tests/timetables",
-                "tests/triggers",
+                "airflow-core/tests/unit/assets",
+                "airflow-core/tests/unit/callbacks",
+                "airflow-core/tests/unit/charts",
+                "airflow-core/tests/unit/cluster_policies",
+                "airflow-core/tests/unit/config_templates",
+                "airflow-core/tests/unit/dag_processing",
+                "airflow-core/tests/unit/datasets",
+                "airflow-core/tests/unit/decorators",
+                "airflow-core/tests/unit/hooks",
+                "airflow-core/tests/unit/io",
+                "airflow-core/tests/unit/lineage",
+                "airflow-core/tests/unit/listeners",
+                "airflow-core/tests/unit/logging",
+                "airflow-core/tests/unit/macros",
+                "airflow-core/tests/unit/plugins",
+                "airflow-core/tests/unit/secrets",
+                "airflow-core/tests/unit/security",
+                "airflow-core/tests/unit/sensors",
+                "airflow-core/tests/unit/task",
+                "airflow-core/tests/unit/testconfig",
+                "airflow-core/tests/unit/timetables",
             ],
-            False,
+        ),
+        (
+            GroupOfTests.HELM,
+            "All",
+            ["helm-tests"],
+        ),
+        (
+            GroupOfTests.HELM,
+            "airflow_aux",
+            ["helm-tests/tests/helm_tests/airflow_aux"],
         ),
     ],
 )
 def test_pytest_args_for_regular_test_types(
+    test_group: GroupOfTests,
     test_type: str,
     pytest_args: list[str],
-    skip_provider_tests: bool,
 ):
     assert (
         convert_test_type_to_pytest_args(
+            test_group=test_group,
             test_type=test_type,
-            skip_provider_tests=skip_provider_tests,
         )
         == pytest_args
     )
@@ -195,139 +204,189 @@ def test_pytest_args_for_regular_test_types(
 
 def test_pytest_args_for_missing_provider():
     with pytest.raises(SystemExit):
-        convert_test_type_to_pytest_args(test_type="Providers[missing.provider]", skip_provider_tests=False)
-
-
-@pytest.mark.parametrize(
-    "helm_test_package, pytest_args",
-    [
-        (
-            None,
-            ["helm_tests"],
-        ),
-        (
-            "airflow_aux",
-            ["helm_tests/airflow_aux"],
-        ),
-        (
-            "all",
-            ["helm_tests"],
-        ),
-    ],
-)
-def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: list[str]):
-    assert (
         convert_test_type_to_pytest_args(
-            test_type="Helm", skip_provider_tests=False, helm_test_package=helm_test_package
+            test_group=GroupOfTests.PROVIDERS,
+            test_type="Providers[missing.provider]",
         )
-        == pytest_args
-    )
 
 
 @pytest.mark.parametrize(
-    "parallel_test_types, folders, skip_provider_tests",
+    "test_group, parallel_test_types, folders",
     [
         (
+            GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
-            False,
+            ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
         ),
         (
+            GroupOfTests.CORE,
             "CLI",
             [
-                "tests/cli",
+                "airflow-core/tests/unit/cli",
             ],
-            False,
         ),
         (
+            GroupOfTests.CORE,
             "API CLI",
             [
-                "tests/api",
-                "tests/api_experimental",
-                "tests/api_connexion",
-                "tests/api_internal",
-                "tests/cli",
+                "airflow-core/tests/unit/api",
+                "airflow-core/tests/unit/api_fastapi",
+                "airflow-core/tests/unit/cli",
             ],
-            False,
         ),
         (
+            GroupOfTests.CORE,
             "Core",
-            ["tests/core", "tests/executors", "tests/jobs", "tests/models", "tests/ti_deps", "tests/utils"],
-            False,
+            [
+                "airflow-core/tests/unit/core",
+                "airflow-core/tests/unit/executors",
+                "airflow-core/tests/unit/jobs",
+                "airflow-core/tests/unit/models",
+                "airflow-core/tests/unit/ti_deps",
+                "airflow-core/tests/unit/utils",
+            ],
         ),
         (
-            "Core Providers",
+            GroupOfTests.PROVIDERS,
+            "Providers",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
-                "tests/providers",
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
             ],
-            False,
         ),
         (
-            "Core Providers[amazon]",
+            GroupOfTests.PROVIDERS,
+            "Providers[amazon]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
-                "tests/providers/amazon",
+                "providers/amazon/tests",
             ],
-            False,
         ),
         (
-            "Core Providers[amazon] Providers[google]",
+            GroupOfTests.PROVIDERS,
+            "Providers[amazon] Providers[google]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
-                "tests/providers/amazon",
-                "tests/providers/google",
+                "providers/amazon/tests",
+                "providers/google/tests",
             ],
-            False,
         ),
         (
-            "Core Providers[-amazon,google]",
+            GroupOfTests.PROVIDERS,
+            "Providers[-amazon,google]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
-                "tests/providers",
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_providers()
+                    if provider not in ["amazon", "google"]
+                ],
             ],
-            False,
         ),
         (
-            "Core Providers[amazon] Providers[google]",
+            GroupOfTests.PROVIDERS,
+            "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_providers()
+                    if provider not in ["amazon", "google"]
+                ],
+                *["providers/amazon/tests", "providers/google/tests"],
             ],
-            True,
+        ),
+        (
+            GroupOfTests.INTEGRATION_PROVIDERS,
+            "All",
+            _find_all_integration_folders(),
+        ),
+        (
+            GroupOfTests.HELM,
+            "All",
+            [
+                "helm-tests",
+            ],
+        ),
+        (
+            GroupOfTests.TASK_SDK,
+            "All",
+            [
+                "task-sdk/tests",
+            ],
+        ),
+        (
+            GroupOfTests.CTL,
+            "All",
+            [
+                "airflow-ctl/tests",
+            ],
+        ),
+        (
+            GroupOfTests.INTEGRATION_CORE,
+            "All",
+            [
+                "airflow-core/tests/integration",
+            ],
+        ),
+        (
+            GroupOfTests.SYSTEM,
+            "None",
+            [],
         ),
     ],
 )
 def test_folders_for_parallel_test_types(
-    parallel_test_types: str, folders: list[str], skip_provider_tests: bool
+    test_group: GroupOfTests, parallel_test_types: str, folders: list[str]
 ):
     assert (
         convert_parallel_types_to_folders(
-            parallel_test_types_list=parallel_test_types.split(" "), skip_provider_tests=skip_provider_tests
+            test_group=test_group,
+            parallel_test_types_list=parallel_test_types.split(" "),
         )
         == folders
     )
+
+
+@pytest.mark.parametrize(
+    "test_group, parallel_test_types",
+    [
+        (
+            GroupOfTests.CORE,
+            "Providers",
+        ),
+        (
+            GroupOfTests.CORE,
+            "Helm",
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "API CLI",
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "API CLI Providers",
+        ),
+        (
+            GroupOfTests.HELM,
+            "API",
+        ),
+        (
+            GroupOfTests.HELM,
+            "Providers",
+        ),
+        (
+            GroupOfTests.INTEGRATION_PROVIDERS,
+            "API",
+        ),
+        (
+            GroupOfTests.INTEGRATION_CORE,
+            "WWW",
+        ),
+        (
+            GroupOfTests.SYSTEM,
+            "CLI",
+        ),
+    ],
+)
+def xtest_wrong_types_for_parallel_test_types(test_group: GroupOfTests, parallel_test_types: str):
+    with pytest.raises(SystemExit):
+        convert_parallel_types_to_folders(
+            test_group=test_group,
+            parallel_test_types_list=parallel_test_types.split(" "),
+        )

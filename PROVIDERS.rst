@@ -19,7 +19,7 @@
 Apache Airflow Providers
 ************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 What is a provider?
 ===================
@@ -57,7 +57,7 @@ releasing new versions of the providers. This means that the code changes in the
 reviewed by Airflow committers and merged when they are accepted by them. Also we must have sufficient
 test coverage and documentation that allow us to maintain the providers, and our users to use them.
 
-The providers - their latest version in "main" branch of airflow repository - are installed and tested together
+The providers - their latest version in "main" branch of Airflow repository - are installed and tested together
 with other community providers and one of the key properties of the community providers is that the latest
 version of providers contribute their dependencies to constraints of Airflow, published when Airflow Core is
 released. This means that when users are using constraints published by Airflow, they can install all
@@ -85,14 +85,14 @@ Airflow main branch to being decommissioned and removed from the main branch in 
 
    Technical details on how to manage lifecycle of providers are described in the document:
 
-   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/airflow/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
+   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
 
 
 Accepting new community providers
 ---------------------------------
 
 Accepting new community providers should be a deliberate process that requires ``[DISCUSSION]``
-followed by ``[VOTE]`` thread at the airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
+followed by ``[VOTE]`` thread at the Airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
 
 In case the provider is integration with an open-source software rather than service we can relax the vote
 procedure a bit. Particularly if the open-source software is an Apache Software Foundation,
@@ -123,6 +123,15 @@ the community. Also it is often easier to advertise and promote usage of the pro
 themselves when they own, manage and release their provider, especially when they can synchronize releases
 of their provider with new feature, the service might get added.
 
+Examples:
+
+Huawei Cloud provider - `Discussion <https://lists.apache.org/thread/f5tk9c734wlyv616vyy8r34ymth3dqbc>`_
+Cloudera provider - `Discussion <https://lists.apache.org/thread/2z0lvgj466ksxxrbvofx41qvn03jrwwb>`_, `Vote <https://lists.apache.org/thread/8b1jvld3npgzz2z0o3gv14lvtornbdrm>`_
+PgVector / Weaviate/ OpenAI provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Lazy Consensus vote <https://lists.apache.org/thread/zrq6554lwobhngtwyzp7tpgnyfsxxybh>`_
+Pinecone / OpenAI / Cohere provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Vote <https://lists.apache.org/thread/skh32jksvcf4yx4fhhsfz8lq6w5nhfjc>`_, `VOTE Result <https://lists.apache.org/thread/oq7h2n88zfo3dzldy5w8xlp9kyngs7x8>`_
+
+Note that some providers have regular vote and some lazy consensus, please refer to the above sections for explanation why it's not the same for all providers
+
 Community providers release process
 -----------------------------------
 
@@ -136,6 +145,10 @@ classification, whether there are breaking changes, new features or just bugs co
 Upgrading Minimum supported version of Airflow
 ----------------------------------------------
 
+.. note::
+
+   The following policy applies for Airflow 2. It has not yet been finalized for Airflow 3 and is subject to changes.
+
 One of the important limitations of the Providers released by the community is that we introduce the limit
 of a minimum supported version of Airflow. The minimum version of Airflow is the ``MINOR`` version (2.4, 2.5 etc.)
 indicating that the providers might use features that appeared in this release. The default support timespan
@@ -144,8 +157,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.7.0 in the first Provider's release after 27th of April 2024. 27th of April 2023 is the date when the
-first ``PATCHLEVEL`` of 2.6 (2.6.0) has been released.
+to 3.0.0 in the first Provider's release after 22nd of April 2026. 22nd of April 2025 is the date when the
+first ``PATCHLEVEL``  version of 3.0 (3.0.0) was released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use
@@ -155,7 +168,7 @@ will be able to use the new version without breaking their workflows. When we up
 2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump ``MINOR`` version of the
 provider when we increase minimum Airflow version.
 
-Increasing the minimum version ot the Providers is one of the reasons why 3rd-party provider maintainers
+Increasing the minimum version of the Providers is one of the reasons why 3rd-party provider maintainers
 might want to maintain their own providers - as they can decide to support older versions of Airflow.
 
 3rd-parties relation to community providers
@@ -305,7 +318,7 @@ There are the following consequences (or lack of them) of removing the provider:
   longer maintained by the Apache Airflow community - linking to this page. This information should also
   find its way to the package documentation and consequently - to the description of the package in PyPI.
 * An ``[ANNOUNCE]`` thread is sent to the devlist and user list announcing removal of the provider
-* The released provider packages remain available on PyPI and in the
+* The released providers remain available on PyPI and in the
    `Archives <https://archive.apache.org/dist/airflow/providers/>`_ of the Apache
    Software Foundation, while they are removed from the
    `Downloads <https://downloads.apache.org/airflow/providers/>`_ .
@@ -326,3 +339,14 @@ There are the following consequences (or lack of them) of removing the provider:
     last released. This however, should only be done in case there are no viable alternatives for the users.
 * Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
   of accepting new provider described above.
+
+Provider Dependencies
+=====================
+
+The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
+
+All provider dependencies, including versions and constraints, are listed in this file.
+When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
+
+To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
+Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.

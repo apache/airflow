@@ -78,10 +78,10 @@ Airflow Webserver:
       {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.web.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.web.path }}/
 {{- end }}
 {{- end }}
-{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 Flower dashboard:
 {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
       {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
@@ -92,16 +92,20 @@ Flower dashboard:
       {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.flower.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.flower.path }}/
 {{- end }}
 {{- end }}
 {{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
+{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
 Airflow Webserver:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+{{- else }}
+Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-api-server {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+{{- end }}
 
 {{- if .Values.flower.enabled }}
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")}}
+{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)}}
 Flower dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
 
 {{- end }}
@@ -131,7 +135,7 @@ You can get Fernet Key value by running the following:
 
 {{- end }}
 
-{{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- if or (contains "KubernetesExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 {{- if and (not .Values.logs.persistence.enabled) (eq (lower (tpl .Values.config.logging.remote_logging .)) "false") }}
 
 WARNING:

@@ -2,7 +2,7 @@
     "name": "Apache Airflow - sqlite",
     "dockerComposeFile": [
         "../scripts/ci/docker-compose/devcontainer.yml",
-        "../scripts/ci/docker-compose/backend-sqlite.yml"
+        "../scripts/ci/docker-compose/devcontainer-sqlite.yml"
     ],
     "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"

@@ -22,38 +22,42 @@ Working with Git
 In this document you can learn basics of how you should use Git in Airflow project. It explains branching model and stresses
 that we are using rebase workflow. It also explains how to sync your fork with the main repository.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Airflow Git Branches
 ====================
 
-All new development in Airflow happens in the ``main`` branch. All PRs should target that branch.
+All new development in Airflow happens in the ``main`` branch which is now Airflow 3. All PRs should target that branch.
 
-We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where maintainers
+We also have a ``v2-10-test`` branch that is used to test ``2.10.x`` series of Airflow 2 and where maintainers
 cherry-pick selected commits from the main branch.
 
-Cherry-picking is done with the ``-x`` flag.
+*For Contributors*:
+All bug fixes after ``2.10.0`` release will target Airflow 3. We will make the best effort to make them available in ``2.10.x``,
+but if somebody wants to guarantee that a fix is included in ``2.10.x``, they need to raise the PR explicitly to the ``v2-10-test`` branch too.
 
-The ``v2-*-test`` branch might be broken at times during testing. Expect force-pushes there so
-maintainers should coordinate between themselves on who is working on the ``v2-*-test`` branch -
-usually these are developers with the release manager permissions.
+*For Committers*:
+When merging bugfix PRs to the ``main`` branch, the committers should also try to cherry-pick it to ``v2-10-test`` branch.
+If there are merge conflicts, the committer should add a comment on the original PR, informing the author and asking them
+to raise a separate PR against ``v2-10-test`` branch. If this doesn't happen, there is no guarantee that the PR will be part of ``2.10.x``
+Cherry-picking is done with the ``-x`` flag. In the future, this can happen automatically with the help of a bot and appropriate
+label on a PR.
 
-The ``v2-*-stable`` branch is rather stable - there are minimum changes coming from approved PRs that
-passed the tests. This means that the branch is rather, well, "stable".
-
-Once the ``v2-*-test`` branch stabilizes, the ``v2-*-stable`` branch is synchronized with ``v2-*-test``.
-The ``v2-*-stable`` branches are used to release ``2.*.x`` releases.
+Once the ``v2-10-test`` branch stabilizes, the ``v2-10-stable`` branch is synchronized with ``v2-10-test``.
+The ``v2-10-stable`` branches are used to release ``2.10.x`` releases.
 
 The general approach is that cherry-picking a commit that has already had a PR and unit tests run
-against main is done to ``v2-*-test`` branches, but PRs from contributors towards 2.0 should target
-``v2-*-stable`` branches.
+against main is done to ``v2-10-test`` branch, and PRs from contributors towards 2.0 should target
+``v2-10-test`` branch.
 
-The ``v2-*-test`` branches and ``v2-*-stable`` ones are merged just before the release and that's the
+The ``v2-10-test`` branch and ``v2-10-stable`` ones are merged just before the release and that's the
 time when they converge.
 
 The production images are released in DockerHub from:
 
 * main branch for development
+* ``3.*.*``, ``3.*.*rc*`` releases from the ``v3-*-stable`` branch when we prepare release candidates and
+  final releases.
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
   final releases.
 
@@ -77,6 +81,7 @@ A lot of people are unfamiliar with the rebase workflow in Git, but we think it 
 providing a better alternative to the merge workflow. We've therefore written a short guide for those who
 would like to learn it.
 
+Rebasing is a good practice recommended to follow for all code changes.
 
 As of February 2022, GitHub introduced the capability of "Update with Rebase" which make it easy to perform
 rebase straight in the GitHub UI, so in cases when there are no conflicts, rebasing to latest version
@@ -108,21 +113,20 @@ Here is how rebase looks in practice (you can find a summary below these detaile
 
 1. You first need to add the Apache project remote to your git repository. This is only necessary once,
 so if it's not the first time you are following this tutorial you can skip this step. In this example,
-we will be adding the remote
-as "apache" so you can refer to it easily:
+we will be adding the remote as "apache" so you can refer to it easily
 
 * If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
 * If you use https: ``git remote add apache https://github.com/apache/airflow.git``
 
 2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can do this
-   via:
+   via
 
    ``git fetch apache`` (to fetch apache remote)
 
    ``git fetch --all``  (to fetch all remotes)
 
 3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can easily check
-   what is the base commit you should rebase from by:
+   what is the base commit you should rebase from via
 
    ``git merge-base my-branch apache/main``
 
@@ -143,11 +147,25 @@ as "apache" so you can refer to it easily:
 
    Will "transplant" all commits after the commit with the HASH.
 
-4. Providing that you weren't already working on your branch, check out your feature branch locally via:
+4. Providing that you weren't already working on your branch, check out your feature branch locally via
 
    ``git checkout my-branch``
 
-5. Rebase:
+5. Commit your code change
+
+   ``git add .``
+
+   ``git commit``
+
+   If you encounter error "Please tell me who you are .git", run the below commands to set up.
+
+   ``git config user.name "someone"``
+
+   ``git config user.email "someone@someplace.com"``
+
+   You can add the ``--global`` flag to avoid setting it for every cloned repo.
+
+6. Rebase
 
    ``git rebase HASH --onto apache/main``
 
@@ -155,14 +173,16 @@ as "apache" so you can refer to it easily:
 
    ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/main``
 
-6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
-   push your changes to your repository. That should trigger the build in our CI if you have a
-   Pull Request (PR) opened already.
+   Rebasing is a good practice recommended to follow for all code changes.
 
-7. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
+7. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
+   push your changes to your repository. That should trigger the build in our CI if you have a
+   Pull Request (PR) opened already
+
+8. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
    about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
    part and requires deliberately correcting your code and looking at what has changed since you developed your
-   changes.
+   changes
 
    There are various tools that can help you with this. You can use:
 
@@ -173,11 +193,11 @@ as "apache" so you can refer to it easily:
    you have a very intuitive and helpful merge tool. For more information, see
    `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
-8. After you've solved your conflict run:
+9. After you've solved your conflict run
 
    ``git rebase --continue``
 
-   And go either to point 6. or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
+   And go to either point 6 or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
 
 
@@ -187,13 +207,17 @@ Summary
 
 Useful when you understand the flow but don't remember the steps and want a quick reference.
 
-``git fetch --all``
-``git merge-base my-branch apache/main``
-``git checkout my-branch``
-``git rebase HASH --onto apache/main``
-``git push --force-with-lease``
+.. code-block:: console
+
+    git fetch --all
+    git add .
+    git commit
+    git merge-base my-branch apache/main
+    git checkout my-branch
+    git rebase HASH --onto apache/main
+    git push --force-with-lease
 
 -------
 
-Now, once you know it all you can read more about how Airflow repository is a monorepo containing both airflow package and
-more than 80 `provider packages <11_provider_packages.rst>`__ and how to develop providers.
+Now, once you know it all you can read more about how Airflow repository is a monorepo containing both Airflow package and
+more than 80 `providers <11_documentation_building.rst>`__ and how to develop providers.

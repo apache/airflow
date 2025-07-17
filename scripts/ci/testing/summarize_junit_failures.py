@@ -23,7 +23,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 # Do not use anything outsdie of standard library in this file!
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 TEXT_RED = "\033[31m"
@@ -31,7 +31,7 @@ TEXT_YELLOW = "\033[33m"
 TEXT_RESET = "\033[0m"
 
 
-@lru_cache(maxsize=None)
+@cache
 def translate_classname(classname):
     # The pytest xunit output has "classname" in the python sense as 'dir.subdir.package.Class' -- we want to
     # convert that back in to a pytest "selector" of dir/subdir/package.py::Class
@@ -43,7 +43,7 @@ def translate_classname(classname):
 
     parts = classname.split(".")
 
-    for offset, component in enumerate(parts, 1):
+    for offset, component in enumerate(parts, 1):  # noqa: B007
         candidate = context / component
 
         if candidate.is_dir():
@@ -98,11 +98,11 @@ def summarize_file(input, test_type, backend):
     for testcase in testsuite.findall(".//testcase[error]"):
         case_name = translate_name(testcase)
         for err in testcase.iterfind("error"):
-            print(f'{case_name}: {TEXT_YELLOW}{err.get("message")}{TEXT_RESET}')
+            print(f"{case_name}: {TEXT_YELLOW}{err.get('message')}{TEXT_RESET}")
     for testcase in testsuite.findall(".//testcase[failure]"):
         case_name = translate_name(testcase)
         for failure in testcase.iterfind("failure"):
-            print(f'{case_name}: {TEXT_YELLOW}{failure.get("message")}{TEXT_RESET}')
+            print(f"{case_name}: {TEXT_YELLOW}{failure.get('message')}{TEXT_RESET}")
 
 
 if __name__ == "__main__":

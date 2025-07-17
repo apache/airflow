@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Setup your project
 ##################
@@ -25,19 +25,112 @@ Setup your project
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/pycharm_clone.png"
+        <img src="images/pycharm_clone.png"
              alt="Cloning github fork to Pycharm">
       </div>
-
 
 2. Paste the repository link in the URL field and submit.
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/click_on_clone.png"
+        <img src="images/pycharm_click_on_clone.png"
              alt="Cloning github fork to Pycharm">
       </div>
+
+3. Synchronize local ``.venv`` virtualenv using uv
+
+    .. code-block:: bash
+
+      $ uv sync
+
+This will create ``.venv`` virtual environment in the project root directory and install all the dependencies of
+airflow core. If you plan to work on providers, at this time you can install dependencies for all providers:
+
+    .. code-block:: bash
+
+      $ uv sync --all-packages
+
+Or for specific provider and its cross-provider dependencies:
+
+    .. code-block:: bash
+
+      $ uv sync --packages apache-airflow-provider-amazon
+
+Next: Configure your IDEA project.
+
+3. The fastest way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
+   ``module.xml`` file using the ``setup_idea.py`` script:
+
+   To setup the source roots for all the modules that exist in the project, you can run the following command:
+   This needs to done on the Airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
+   ``.idea/modules.xml`` files if they exist.
+
+    .. code-block:: bash
+
+      $ uv run setup_idea.py
+
+   Then Restart the PyCharm/IntelliJ IDEA.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm-airflow.iml.png"
+             alt="airflow.iml">
+      </div>
+
+   .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/pycharm-modules.xml.png"
+              alt="modules.xml">
+        </div>
+
+4. Alternatively, you can configure your project manually. Configure the source root directories well
+   as for ``airflow-core`` ``task-sdk``, ``airflow-ctl`` and ``devel-common``. You also have to set
+   "source" and "tests" root directories for each provider you want to develop (!).
+
+   In Airflow 3.0 we split ``airflow-core``, ``task-sdk``, ``airflow-ctl``, ``devel-common``,
+   and each provider to be separate distribution - each with separate ``pyproject.toml`` file,
+   so you need to separately add ``src`` and ``tests`` directories for each provider you develop
+   to be respectively "source roots" and "test roots".
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_add_provider_sources_and_tests.png"
+             alt="Adding Source Root directories to Pycharm">
+      </div>
+
+   You also need to add ``task-sdk`` sources (and ``devel-common`` in similar way).
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_add_task_sdk_sources.png"
+             alt="Adding Source Root directories to Pycharm">
+      </div>
+
+5. Once step 3 or 4 is done you should configure python interpreter for your PyCharm/IntelliJ to use
+   the virtualenv created by ``uv sync``.
+
+    .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/pycharm_add_interpreter.png"
+              alt="Configuring Python Interpreter">
+        </div>
+
+6. It is recommended to invalidate caches and restart PyCharm after setting up the project.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_invalidate_caches.png"
+             alt="Invalidate caches and restart Pycharm">
+      </div>
+
+
 
 Setting up debugging
 ####################
@@ -68,45 +161,24 @@ It requires "airflow-env" virtual environment configured locally.
   .. raw:: html
 
     <div align="center" style="padding-bottom:10px">
-      <img src="images/quick_start/add Interpreter.png"
+      <img src="images/pycharm_add_interpreter.png"
            alt="Adding existing interpreter">
     </div>
 
-- In PyCharm IDE open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
-  machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
+- In PyCharm IDE open Airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
+  machine when breeze Airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
 - Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
 
-- Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
+- Add a ``__main__`` block at the end of your DAG file to make it runnable:
 
   .. code-block:: python
 
     if __name__ == "__main__":
-        dag.clear()
-        dag.run()
+        dag.test()
 
-- Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
-
-  - Click on Add configuration
-
-    .. raw:: html
-
-        <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/add_configuration.png"
-               alt="Add Configuration pycharm">
-        </div>
-
-  - Add Script Path and Environment Variable to new Python configuration
-
-    .. raw:: html
-
-        <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/add_env_variable.png"
-               alt="Add environment variable pycharm">
-        </div>
-
-- Now Debug an example dag and view the entries in tables such as ``dag_run, xcom`` etc in MySQL Workbench.
+- Run the file.
 
 Creating a branch
 #################
@@ -116,7 +188,7 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_1.png"
+        <img src="images/pycharm_creating_branch_1.png"
              alt="Creating a new branch">
       </div>
 
@@ -125,8 +197,8 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_2.png"
+        <img src="images/pycharm_creating_branch_2.png"
              alt="Giving a name to a branch">
       </div>
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

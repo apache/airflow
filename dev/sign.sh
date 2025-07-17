@@ -17,7 +17,7 @@
 # under the License.
 set -euo pipefail
 
-# Use this to sign the tar balls generated via hatch
+# Use this to sign the tarballs and packages generated
 # you will still be required to type in your signing key password
 # or it needs to be available in your keychain
 

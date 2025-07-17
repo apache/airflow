@@ -21,12 +21,14 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable
 from io import StringIO
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple
+from typing import Any, NamedTuple
 
 import click
 
@@ -39,8 +41,7 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    RUNS_ON_PUBLIC_RUNNER,
-    RUNS_ON_SELF_HOSTED_RUNNER,
+    PUBLIC_AMD_RUNNERS,
     GithubEvents,
     github_events,
 )
@@ -54,7 +55,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -82,6 +83,9 @@ def free_space():
         run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
         run_command(["df", "-h"])
         run_command(["docker", "logout", "ghcr.io"], check=False)
+        shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
+        AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
+        run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
@@ -96,7 +100,7 @@ def resource_check():
 HOME_DIR = Path(os.path.expanduser("~")).resolve()
 
 DIRECTORIES_TO_FIX = [
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     HOME_DIR / ".aws",
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",
@@ -151,7 +155,7 @@ def fix_ownership(use_sudo: bool):
         fix_ownership_without_docker()
         sys.exit(0)
     get_console().print("[info]Fixing ownership using docker.")
-    fix_ownership_using_docker()
+    fix_ownership_using_docker(quiet=False)
     # Always succeed
     sys.exit(0)
 
@@ -244,26 +248,30 @@ def selective_check(
     github_actor: str,
     github_context: str,
 ):
-    from airflow_breeze.utils.selective_checks import SelectiveChecks
+    try:
+        from airflow_breeze.utils.selective_checks import SelectiveChecks
 
-    github_context_dict = json.loads(github_context) if github_context else {}
-    github_event = GithubEvents(github_event_name)
-    if commit_ref is not None:
-        changed_files = get_changed_files(commit_ref=commit_ref)
-    else:
-        changed_files = ()
-    sc = SelectiveChecks(
-        commit_ref=commit_ref,
-        files=changed_files,
-        default_branch=default_branch,
-        default_constraints_branch=default_constraints_branch,
-        pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
-        github_event=github_event,
-        github_repository=github_repository,
-        github_actor=github_actor,
-        github_context_dict=github_context_dict,
-    )
-    print(str(sc), file=sys.stderr)
+        github_context_dict = json.loads(github_context) if github_context else {}
+        github_event = GithubEvents(github_event_name)
+        if commit_ref is not None:
+            changed_files = get_changed_files(commit_ref=commit_ref)
+        else:
+            changed_files = ()
+        sc = SelectiveChecks(
+            commit_ref=commit_ref,
+            files=changed_files,
+            default_branch=default_branch,
+            default_constraints_branch=default_constraints_branch,
+            pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
+            github_event=github_event,
+            github_repository=github_repository,
+            github_actor=github_actor,
+            github_context_dict=github_context_dict,
+        )
+        print(str(sc), file=sys.stderr)
+    except Exception:
+        get_console().print_exception(show_locals=True)
+        sys.exit(1)
 
 
 TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
@@ -287,8 +295,6 @@ class WorkflowInfo(NamedTuple):
         yield get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else "")
         yield get_ga_output(name="event_name", value=str(self.event_name))
         yield get_ga_output(name="runs-on", value=self.get_runs_on())
-        yield get_ga_output(name="in-workflow-build", value=self.in_workflow_build())
-        yield get_ga_output(name="build-job-description", value=self.get_build_job_description())
         yield get_ga_output(name="canary-run", value=self.is_canary_run())
         yield get_ga_output(name="run-coverage", value=self.run_coverage())
 
@@ -300,33 +306,32 @@ class WorkflowInfo(NamedTuple):
         for label in self.pull_request_labels:
             if "use public runners" in label:
                 get_console().print("[info]Force running on public runners")
-                return RUNS_ON_PUBLIC_RUNNER
-        if not os.environ.get("AIRFLOW_SELF_HOSTED_RUNNER"):
-            return RUNS_ON_PUBLIC_RUNNER
-        return RUNS_ON_SELF_HOSTED_RUNNER
-
-    def in_workflow_build(self) -> str:
-        if self.event_name == "push" or self.head_repo == self.target_repo:
-            return "true"
-        return "false"
-
-    def get_build_job_description(self) -> str:
-        if self.in_workflow_build() == "true":
-            return "Build"
-        return "Skip Build (look in pull_request_target)"
+                return PUBLIC_AMD_RUNNERS
+        return PUBLIC_AMD_RUNNERS
 
     def is_canary_run(self) -> str:
         if (
-            self.event_name == "push"
+            self.event_name
+            in [
+                GithubEvents.PUSH.value,
+                GithubEvents.WORKFLOW_DISPATCH.value,
+                GithubEvents.SCHEDULE.value,
+            ]
             and self.head_repo == "apache/airflow"
             and self.ref_name
             and (self.ref_name == "main" or TEST_BRANCH_MATCHER.match(self.ref_name))
         ):
             return "true"
+        if "canary" in self.pull_request_labels:
+            return "true"
         return "false"
 
     def run_coverage(self) -> str:
-        if self.event_name == "push" and self.head_repo == "apache/airflow" and self.ref == "refs/heads/main":
+        if (
+            self.event_name == GithubEvents.PUSH.value
+            and self.head_repo == "apache/airflow"
+            and self.ref == "refs/heads/main"
+        ):
             return "true"
         return "false"
 
@@ -343,10 +348,10 @@ def workflow_info(context: str) -> WorkflowInfo:
     pr_number: int | None = None
     ref_name = ctx.get("ref_name")
     ref = ctx.get("ref")
-    if event_name == "pull_request":
+    if event_name == GithubEvents.PULL_REQUEST.value:
         event = ctx.get("event")
         if event:
-            pr = event.get("pull_request")
+            pr = event.get(GithubEvents.PULL_REQUEST.value)
             if pr:
                 labels = pr.get("labels")
                 if labels:
@@ -355,15 +360,19 @@ def workflow_info(context: str) -> WorkflowInfo:
                 target_repo = pr["base"]["repo"]["full_name"]
                 head_repo = pr["head"]["repo"]["full_name"]
                 pr_number = pr["number"]
-    elif event_name == "push":
+    elif event_name == GithubEvents.PUSH.value:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
-    elif event_name == "schedule":
+    elif event_name == GithubEvents.SCHEDULE.value:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
-    elif event_name == "pull_request_target":
+    elif event_name == GithubEvents.WORKFLOW_DISPATCH.value:
+        target_repo = ctx["repository"]
+        head_repo = ctx["repository"]
+        event_name = ctx["event_name"]
+    elif event_name == GithubEvents.PULL_REQUEST_TARGET.value:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
@@ -410,13 +419,3 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         sys.exit(1)
     wi = workflow_info(context=context)
     wi.print_all_ga_outputs()
-
-
-@ci_group.command(
-    name="find-backtracking-candidates",
-    help="Find new releases of dependencies that could be the reason of backtracking.",
-)
-def find_backtracking_candidates():
-    from airflow_breeze.utils.backtracking import print_backtracking_candidates
-
-    print_backtracking_candidates()

@@ -17,41 +17,20 @@
 
 from __future__ import annotations
 
-import json
 import os
-from glob import glob
 from pathlib import Path
-from typing import Any
+
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_ROOT_PATH,
+)
 
 CONSOLE_WIDTH = 180
 
-ROOT_DIR = Path(__file__).parents[5].resolve()
-PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
-
-
-def _load_schema() -> dict[str, Any]:
-    with open(PROVIDER_DATA_SCHEMA_PATH) as schema_file:
-        content = json.load(schema_file)
-    return content
+PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_ROOT_PATH / "airflow" / "provider.yaml.schema.json"
 
 
 def _filepath_to_module(filepath: str):
-    return str(Path(filepath).relative_to(ROOT_DIR)).replace("/", ".")
-
-
-def _filepath_to_system_tests(filepath: str):
-    return str(
-        ROOT_DIR
-        / "tests"
-        / "system"
-        / "providers"
-        / Path(filepath).relative_to(ROOT_DIR / "airflow" / "providers")
-    )
-
-
-def get_provider_yaml_paths():
-    """Returns list of provider.yaml files"""
-    return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
+    return str(Path(filepath).relative_to(AIRFLOW_ROOT_PATH)).replace("/", ".")
 
 
 def pretty_format_path(path: str, start: str) -> str:

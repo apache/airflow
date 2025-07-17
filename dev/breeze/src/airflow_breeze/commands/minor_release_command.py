@@ -17,26 +17,22 @@
 from __future__ import annotations
 
 import os
+import sys
 
 import click
 
-from airflow_breeze.commands.common_options import option_answer
+from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
-
-CI = os.environ.get("CI")
-DRY_RUN = True if CI else False
 
 
 def create_branch(version_branch):
     if confirm_action(f"Create version branch: {version_branch}?"):
-        run_command(["git", "checkout", "main"], dry_run_override=DRY_RUN, check=True)
-        run_command(
-            ["git", "checkout", "-b", f"v{version_branch}-test"], dry_run_override=DRY_RUN, check=True
-        )
+        run_command(["git", "checkout", "main"], check=True)
+        run_command(["git", "checkout", "-b", f"v{version_branch}-test"], check=True)
         console_print(f"Created branch: v{version_branch}-test")
 
 
@@ -57,19 +53,16 @@ def update_default_branch(version_branch):
 
 def commit_changes(version_branch):
     if confirm_action("Commit the above changes?"):
-        run_command(["git", "add", "-p", "."], dry_run_override=DRY_RUN, check=True)
+        run_command(["git", "add", "-p", "."], check=True)
         run_command(
-            ["git", "commit", "-m", f"Update default branches for {version_branch}"],
-            dry_run_override=DRY_RUN,
+            ["git", "commit", "-m", f"Update default branches for {version_branch}", "--no-verify"],
             check=True,
         )
 
 
 def create_stable_branch(version_branch):
     if confirm_action(f"Create stable branch: v{version_branch}-stable?"):
-        run_command(
-            ["git", "checkout", "-b", f"v{version_branch}-stable"], dry_run_override=DRY_RUN, check=True
-        )
+        run_command(["git", "checkout", "-b", f"v{version_branch}-stable"], check=True)
         console_print(f"Created branch: v{version_branch}-stable")
     else:
         run_command(["git", "checkout", f"v{version_branch}-stable"], check=True)
@@ -77,24 +70,32 @@ def create_stable_branch(version_branch):
 
 def push_test_and_stable_branch(version_branch):
     if confirm_action("Push test and stable branches?"):
-        run_command(["git", "checkout", f"v{version_branch}-test"], dry_run_override=DRY_RUN, check=True)
         run_command(
+            ["git", "checkout", f"v{version_branch}-test"],
             ["git", "push", "--set-upstream", "origin", f"v{version_branch}-test"],
-            dry_run_override=DRY_RUN,
             check=True,
         )
-        run_command(["git", "checkout", f"v{version_branch}-stable"], dry_run_override=DRY_RUN, check=True)
+        run_command(["git", "checkout", f"v{version_branch}-stable"], check=True)
         run_command(
             ["git", "push", "--set-upstream", "origin", f"v{version_branch}-stable"],
-            dry_run_override=DRY_RUN,
             check=True,
         )
 
 
 def checkout_main():
     if confirm_action("We now need to checkout main. Continue?"):
-        run_command(["git", "checkout", "main"], dry_run_override=DRY_RUN, check=True)
-        run_command(["git", "pull"])
+        result = run_command(["git", "checkout", "main"], check=False, capture_output=True)
+        if result.returncode != 0:
+            console_print("[error]Failed to checkout main.[/]")
+            console_print(result.stdout)
+            console_print(result.stderr)
+            sys.exit(1)
+        result = run_command(["git", "pull"], capture_output=True, check=False)
+        if result.returncode != 0:
+            console_print("[error]Failed to pull repo.[/]")
+            console_print(result.stdout)
+            console_print(result.stderr)
+            sys.exit(1)
 
 
 def instruction_update_version_branch(version_branch):
@@ -131,21 +132,24 @@ def instruction_update_version_branch(version_branch):
                 required_approving_review_count: 1
             """
         )
+        console_print()
+        console_print(
+            "Update name of `backport` label to "
+            f"backport-to-v{version_branch}-test in .github/boring-cyborg.yml"
+        )
+        console_print()
         console_print("Once you finish with the above. Commit the changes and make a PR against main")
         confirm_action("I'm done with the changes. Continue?", abort=True)
 
 
 def create_constraints(version_branch):
     if confirm_action("Do you want to create branches from the constraints main?"):
-        run_command(["git", "checkout", "constraints-main"], dry_run_override=DRY_RUN, check=True)
-        run_command(["git", "pull", "origin", "constraints-main"], dry_run_override=DRY_RUN, check=True)
-        run_command(
-            ["git", "checkout", "-b", f"constraints-{version_branch}"], dry_run_override=DRY_RUN, check=True
-        )
+        run_command(["git", "checkout", "constraints-main"], check=True)
+        run_command(["git", "pull", "origin", "constraints-main"], check=True)
+        run_command(["git", "checkout", "-b", f"constraints-{version_branch}"], check=True)
         if confirm_action("Push the new branch?"):
             run_command(
                 ["git", "push", "--set-upstream", "origin", f"constraints-{version_branch}"],
-                dry_run_override=DRY_RUN,
                 check=True,
             )
 
@@ -156,10 +160,23 @@ def create_constraints(version_branch):
 )
 @click.option("--version-branch", help="The version branch you want to create e.g 2-4", required=True)
 @option_answer
+@option_verbose
+@option_dry_run
 def create_minor_version_branch(version_branch):
     for obj in version_branch.split("-"):
-        assert isinstance(int(obj), int)
-    os.chdir(AIRFLOW_SOURCES_ROOT)
+        if not obj.isdigit():
+            console_print(f"[error]Failed `version_branch` part {obj!r} not a digit.")
+            sys.exit(1)
+        elif len(obj) > 1 and obj.startswith("0"):
+            # `01` is a valid digit string, as well as it could be converted to the integer,
+            # however, it might be considered as typo (e.g. 10) so better stop here
+            console_print(
+                f"[error]Found leading zero into the `version_branch` part {obj!r} ",
+                f"if it is not a typo consider to use {int(obj)} instead.",
+            )
+            sys.exit(1)
+
+    os.chdir(AIRFLOW_ROOT_PATH)
     repo_root = os.getcwd()
     console_print()
     console_print(f"Repo root: {repo_root}")
@@ -174,7 +191,7 @@ def create_minor_version_branch(version_branch):
     create_branch(version_branch)
     # Build ci image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.10"], check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes
