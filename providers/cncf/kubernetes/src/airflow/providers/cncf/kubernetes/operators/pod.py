@@ -1132,7 +1132,7 @@ class KubernetesPodOperator(BaseOperator):
             **self.labels,
             **self._get_ti_pod_labels(context, include_try_number=False),
         }
-        label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
+        label_strings = [f"{label_id}={str(label) if label is not None else ''}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
             labels_value = f"{labels_value},{self.POD_CHECKED_KEY}!=True"
