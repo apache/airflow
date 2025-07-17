@@ -105,6 +105,9 @@ steps:
         echo "Building image with version: $$NEW_VERSION"
         echo "Authors: $$AUTHORS"
         
+        # Enable BuildKit for heredoc syntax support
+        export DOCKER_BUILDKIT=1
+        
         docker build \
           --build-arg AIRFLOW_VERSION=3.0.2 \
           --build-arg AIRFLOW_EXTRAS=aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv \
