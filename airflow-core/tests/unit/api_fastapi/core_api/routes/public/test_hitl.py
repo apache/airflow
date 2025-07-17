@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -111,8 +113,51 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "chosen_options": None,
         "response_received": False,
         "subject": "This is subject",
-        "ti_id": sample_ti.id,
         "user_id": None,
+        "task_instance": {
+            "dag_display_name": "dag",
+            "dag_id": "dag",
+            "dag_run_id": "test",
+            "dag_version": {
+                "bundle_name": "dag_maker",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": mock.ANY,
+                "dag_display_name": "dag",
+                "dag_id": "dag",
+                "id": mock.ANY,
+                "version_number": 1,
+            },
+            "duration": None,
+            "end_date": None,
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "id": sample_ti.id,
+            "logical_date": mock.ANY,
+            "map_index": -1,
+            "max_tries": 0,
+            "note": None,
+            "operator": "EmptyOperator",
+            "pid": None,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 1,
+            "queue": "default",
+            "queued_when": None,
+            "rendered_fields": {},
+            "rendered_map_index": None,
+            "run_after": mock.ANY,
+            "scheduled_when": None,
+            "start_date": None,
+            "state": None,
+            "task_display_name": "op1",
+            "task_id": "op1",
+            "trigger": None,
+            "triggerer_job": None,
+            "try_number": 0,
+            "unixname": "root",
+        },
     }
 
 

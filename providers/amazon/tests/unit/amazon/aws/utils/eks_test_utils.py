@@ -181,7 +181,7 @@ def _input_builder(options: InputTypes, minimal: bool) -> dict:
     values: list[tuple] = deepcopy(options.REQUIRED)
     if not minimal:
         values.extend(deepcopy(options.OPTIONAL))
-    return dict(values)  # type: ignore
+    return dict(values)
 
 
 def string_to_regex(value: str) -> Pattern[str]:
