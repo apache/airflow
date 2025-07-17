@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+[build-system]
+requires = [ "hatchling==1.27.0" ]
+build-backend = "hatchling.build"
+
 [project]
 name = "apache-airflow-task-sdk-tests"
 description = "Task SDK tests for Apache Airflow"
