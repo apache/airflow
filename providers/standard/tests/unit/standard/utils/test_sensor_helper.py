@@ -33,9 +33,9 @@ from airflow.providers.standard.utils.sensor_helper import (
     _get_count,
     _get_external_task_group_task_ids,
 )
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
