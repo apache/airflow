@@ -721,6 +721,7 @@ def providers_tests(**kwargs):
 @option_keep_env_variables
 @option_mount_sources
 @option_python
+@option_skip_docker_compose_down
 @option_test_timeout
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))

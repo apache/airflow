@@ -34,15 +34,16 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.task_sdk_tests import TASK_SDK_TESTS_ROOT_PATH
 
 DOCKER_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "docker-tests"
 DOCKER_TESTS_TESTS_MODULE_PATH = DOCKER_TESTS_ROOT_PATH / "tests" / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT_PATH / "requirements.txt"
 
+TASK_SDK_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-tests"
 TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
 TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_TESTS_ROOT_PATH / "requirements.txt"
 
@@ -313,7 +314,9 @@ def convert_test_type_to_pytest_args(
             providers_to_test = []
             for provider in provider_list:
                 provider_path = (
-                    AIRFLOW_ROOT_PATH.joinpath(provider.replace(".", "/")).relative_to(AIRFLOW_ROOT_PATH)
+                    AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(provider.replace(".", "/")).relative_to(
+                        AIRFLOW_ROOT_PATH
+                    )
                     / "tests"
                 )
                 if provider_path.is_dir():
