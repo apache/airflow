@@ -203,11 +203,7 @@ def get_dags(
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_latest_run_ui(dag_id: str, session: SessionDep) -> list[DAGRunLightResponse]:
-    """
-    Get latest run.
-
-    This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
-    """
+    """Get latest run."""
     if dag_id == "~":
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
