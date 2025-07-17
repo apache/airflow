@@ -16,14 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext } from "react";
+import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 
-export type OpenGroupsContextType = {
-  allGroupIds: Array<string>;
-  openGroupIds: Array<string>;
-  setAllGroupIds: (groupIds: Array<string>) => void;
-  setOpenGroupIds: (groupIds: Array<string>) => void;
-  toggleGroupId: (groupId: string) => void;
-};
-
-export const OpenGroupsContext = createContext<OpenGroupsContextType | undefined>(undefined);
+// Union type for navigation items that can be either external views or react apps
+export type NavItemResponse = ExternalViewResponse | ReactAppResponse;
