@@ -8,18 +8,18 @@ steps:
       - |
         if [[ "$BRANCH_NAME" == "main" ]]; then
           # Get the latest version number from the registry
-          LATEST_VERSION=$(gcloud artifacts docker images list us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
+          REGISTRY_VERSION=$(gcloud artifacts docker images list us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
             --filter="tags:3.0.2-cnb-v*" \
             --format="value(tags)" \
             --sort-by=~create_time \
             --limit=1 | grep -o '3\.0\.2-cnb-v[0-9]*' | head -1)
           
-          if [[ -z "$LATEST_VERSION" ]]; then
+          if [[ -z "$REGISTRY_VERSION" ]]; then
             # No existing version found, start with v1
             NEW_VERSION="3.0.2-cnb-v1"
           else
             # Extract version number and increment
-            VERSION_NUM=$(echo "$LATEST_VERSION" | grep -o '[0-9]*$')
+            VERSION_NUM=$(echo "$REGISTRY_VERSION" | grep -o '[0-9]*$')
             NEW_VERSION_NUM=$((VERSION_NUM + 1))
             NEW_VERSION="3.0.2-cnb-v$NEW_VERSION_NUM"
           fi
