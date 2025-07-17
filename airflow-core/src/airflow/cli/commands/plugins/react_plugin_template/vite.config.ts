@@ -34,44 +34,27 @@ export default defineConfig(({ command }) => {
       lib: {
         entry: resolve("src", "main.tsx"),
         fileName: 'main',
-        formats: ['es'],
-        name: '{{PROJECT_NAME}}'
+        formats: ['umd'],
+        name: 'AirflowPlugin',
       },
       rollupOptions: {
-        external: [
-          'react',
-          'react-dom',
-          '@chakra-ui/react',
-          '@emotion/react',
-          '@tanstack/react-query',
-          '@tanstack/react-table',
-          '@tanstack/react-virtual',
-          'axios',
-          'chakra-react-select',
-          'dayjs',
-          'i18next',
-          'i18next-browser-languagedetector',
-          'i18next-http-backend',
-          'next-themes',
-          'react-hook-form',
-          'react-i18next',
-          'react-icons',
-          'react-router-dom',
-          'use-debounce',
-          'usehooks-ts',
-          'zustand'
-        ],
+        external: ["react", "react-dom", "react/jsx-runtime", "@chakra-ui/react"],
         output: {
           globals: {
-            'react': 'React',
-            'react-dom': 'ReactDOM'
-          }
-        }
+            react: "React",
+            "react/jsx-runtime": "ReactJSXRuntime",
+          },
+        },
       },
-      sourcemap: true
     } : {
       // Development build configuration
       chunkSizeWarningLimit: 1600
+    },
+    define: {
+      global: "globalThis",
+      "process.env": "{}",
+      // Define process.env for browser compatibility
+      "process.env.NODE_ENV": JSON.stringify("production"),
     },
     plugins: [
       react(),

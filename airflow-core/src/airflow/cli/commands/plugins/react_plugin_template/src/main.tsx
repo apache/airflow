@@ -20,10 +20,9 @@
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { FC } from "react";
-import { RouterProvider } from "react-router-dom";
 
 import { ColorModeProvider } from "src/context/colorMode";
-import { router } from "src/router";
+import { HomePage } from "src/pages/HomePage";
 
 import { client } from "./queryClient";
 import { system } from "./theme";
@@ -35,12 +34,12 @@ export interface PluginComponentProps {
 /**
  * Main plugin component
  */
-export const PluginComponent: FC<PluginComponentProps> = (props) => {
+const PluginComponent: FC<PluginComponentProps> = (props) => {
   return (
     <ChakraProvider value={system}>
       <ColorModeProvider>
         <QueryClientProvider client={client}>
-          <RouterProvider router={router} />
+          <HomePage />
         </QueryClientProvider>
       </ColorModeProvider>
     </ChakraProvider>
