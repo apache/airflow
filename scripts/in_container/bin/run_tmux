@@ -127,7 +127,7 @@ if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 2
     tmux split-window -h
     tmux set-option -p @airflow_component "Go worker"
-    tmux send-keys 'go run ./go-sdk/example/main.go run \
+    tmux send-keys 'cd go-sdk; go run ./go-sdk/example/main.go run \
   --broker-address=localhost:${REDIS_HOST_PORT} \
   --queues default \
   --execution-api-url http://localhost:${REDIS_HOST_PORT}/execution' C-m
