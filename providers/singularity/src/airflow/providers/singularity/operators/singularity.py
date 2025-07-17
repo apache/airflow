@@ -93,8 +93,8 @@ class SingularityOperator(BaseOperator):
         self.pull_folder = pull_folder
         self.volumes = volumes or []
         self.working_dir = working_dir
-        self.cli: None
-        self.container: None
+        self.cli = None
+        self.container = None
 
     def execute(self, context: Context) -> None:
         self.log.info("Preparing Singularity container %s", self.image)
