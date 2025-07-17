@@ -473,9 +473,6 @@ class CeleryExecutor(BaseExecutor):
 
         celery_tasks = {}
         not_adopted_tis = []
-
-        print(f"!@# I'm inside CeleryExecutor.try_adopt_task_instances, tis={tis}")
-
         for ti in tis:
             if ti.external_executor_id is not None:
                 celery_tasks[ti.external_executor_id] = (AsyncResult(ti.external_executor_id), ti)
