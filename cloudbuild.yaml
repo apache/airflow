@@ -8,32 +8,21 @@ steps:
       - |
         if [[ "$$BRANCH_NAME" == "main" ]]; then
           # Get the latest version number from the registry
-          echo "Fetching existing versions from registry..."
           ALL_TAGS=$$(gcloud artifacts docker images list us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
             --format="value(tags)" \
             --sort-by=~create_time)
-          echo "All tags found: $$ALL_TAGS"
           
           REGISTRY_VERSION=$$(echo "$$ALL_TAGS" | grep '3\.0\.2-cnb-v[0-9]*' | head -1)
-          echo "Latest version found: $$REGISTRY_VERSION"
           
           if [[ -z "$$REGISTRY_VERSION" ]]; then
-            # No existing version found, start with v1
             NEW_VERSION="3.0.2-cnb-v1"
-            echo "No existing version found, starting with v1"
           else
-            # Extract version number and increment
             VERSION_NUM=$$(echo "$$REGISTRY_VERSION" | grep -o '[0-9]*$$')
             NEW_VERSION_NUM=$$((VERSION_NUM + 1))
             NEW_VERSION="3.0.2-cnb-v$$NEW_VERSION_NUM"
-            echo "Incrementing version from $$REGISTRY_VERSION to $$NEW_VERSION"
           fi
-          
-          echo "Using version: $$NEW_VERSION"
         else
-          # For feature branches, use SHA only (no cnb-v prefix)
           NEW_VERSION="$SHORT_SHA"
-          echo "Using SHA version: $SHORT_SHA"
         fi
         
         # Get unique authors from recent commits (last 50 commits)
@@ -44,21 +33,9 @@ steps:
           AUTHORS="dev@ivedha.com"
         fi
         
-        echo "Authors: $$AUTHORS"
-        
         # Write to a temporary file for next steps
-        echo "Writing version to file: $$NEW_VERSION"
         echo "$$NEW_VERSION" > /workspace/version.txt
-        
-        echo "Writing authors to file: $$AUTHORS"
         echo "$$AUTHORS" > /workspace/authors.txt
-        
-        echo "Files created:"
-        ls -la /workspace/
-        echo "Version file content:"
-        cat /workspace/version.txt
-        echo "Authors file content:"
-        cat /workspace/authors.txt
 
   # Build the Docker image with proper tagging and custom labels
   - name: "gcr.io/cloud-builders/docker"
@@ -68,42 +45,17 @@ steps:
       - "-c"
       - |
         # Read the version and authors from temporary files
-        echo "Checking if version file exists..."
-        ls -la /workspace/
-        
-        if [[ -f "/workspace/version.txt" ]]; then
-          NEW_VERSION=$$(cat /workspace/version.txt)
-          echo "Version file content: '$$NEW_VERSION'"
-        else
-          echo "Version file not found!"
-          NEW_VERSION=""
-        fi
-        
-        if [[ -f "/workspace/authors.txt" ]]; then
-          AUTHORS=$$(cat /workspace/authors.txt)
-          echo "Authors file content: '$$AUTHORS'"
-        else
-          echo "Authors file not found!"
-          AUTHORS=""
-        fi
-        
-        echo "NEW_VERSION: '$$NEW_VERSION'"
-        echo "AUTHORS: '$$AUTHORS'"
+        NEW_VERSION=$$(cat /workspace/version.txt)
+        AUTHORS=$$(cat /workspace/authors.txt)
         
         # Fallback if variables are empty
         if [[ -z "$$NEW_VERSION" ]]; then
-          # If version is empty, use SHA as fallback
           NEW_VERSION="$SHORT_SHA"
-          echo "Using fallback version: $$NEW_VERSION"
         fi
         
         if [[ -z "$$AUTHORS" ]]; then
           AUTHORS="dev@ivedha.com"
-          echo "Using fallback authors: $$AUTHORS"
         fi
-        
-        echo "Building image with version: $$NEW_VERSION"
-        echo "Authors: $$AUTHORS"
         
         # Enable BuildKit for heredoc syntax support
         export DOCKER_BUILDKIT=1
@@ -140,30 +92,8 @@ steps:
       - "-c"
       - |
         NEW_VERSION=$$(cat /workspace/version.txt)
-        echo "Pushing image with version: $$NEW_VERSION"
-        
-        # Debug: Check if we can authenticate to the registry
-        echo "Testing registry access..."
-        gcloud auth configure-docker us-docker.pkg.dev --quiet
-        
-        # Debug: List repositories to verify access
-        echo "Listing repositories..."
-        gcloud artifacts repositories list --location=us
-        
-        # Debug: Check specific repository
-        echo "Checking repository details..."
-        gcloud artifacts repositories describe ar-workload-airflow-nonprod --location=us
-        
-        # Try to push
-        echo "Attempting to push image..."
         docker push "us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION"
         
-
-
-
-
-
-
 # Set timeout for the build (in seconds)
 timeout: "3600s"
 
