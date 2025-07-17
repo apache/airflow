@@ -51,60 +51,52 @@ steps:
   # Build the Docker image with proper tagging and custom labels
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Docker Image"
+    entrypoint: "bash"
     args:
-      - "build"
-      - "--build-arg"
-      - "AIRFLOW_VERSION=3.0.2"
-      - "--build-arg"
-      - "AIRFLOW_EXTRAS=aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv"
-      - "--build-arg"
-      - "AIRFLOW_IMAGE_TYPE=prod"
-      - "--build-arg"
-      - "AIRFLOW_UID=50000"
-      - "--build-arg"
-      - "BUILD_ID=$$BUILD_ID"
-      - "--build-arg"
-      - "COMMIT_SHA=$$COMMIT_SHA"
-      - "--label"
-      - "com.ivedha.image.source=https://github.com/your-org/cnb-workload-airflow"
-      - "--label"
-      - "com.ivedha.image.created=$$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      - "--label"
-      - "com.ivedha.image.authors=$$(cat $$CLOUDBUILD_OUTPUT | grep AUTHORS | cut -d'=' -f2)"
-      - "--label"
-      - "com.ivedha.image.url=https://ivedha.com"
-      - "--label"
-      - "com.ivedha.image.version=3.0.2"
-      - "--label"
-      - "com.ivedha.image.revision=$$COMMIT_SHA"
-      - "--label"
-      - "com.ivedha.image.vendor=Ivedha"
-      - "--label"
-      - "com.ivedha.image.title=CNB Workload Airflow Image"
-      - "--label"
-      - "com.ivedha.image.description=Custom Apache Airflow image for CNB workload management"
-      - "--label"
-      - "com.ivedha.image.ref.name=airflow"
-      - "--label"
-      - "com.ivedha.main-image.build-id=$$BUILD_ID"
-      - "--label"
-      - "com.ivedha.main-image.commit-sha=$$COMMIT_SHA"
-      - "--label"
-      - "com.ivedha.branch=$$BRANCH_NAME"
-      - "--label"
-      - "com.ivedha.build-timestamp=$$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      - "-t"
-      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)"
-      - "-t"
-      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
-      - "."
+      - "-c"
+      - |
+        # Read the version from the output file
+        NEW_VERSION=$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)
+        AUTHORS=$$(cat $$CLOUDBUILD_OUTPUT | grep AUTHORS | cut -d'=' -f2)
+        
+        echo "Building image with version: $$NEW_VERSION"
+        echo "Authors: $$AUTHORS"
+        
+        docker build \
+          --build-arg AIRFLOW_VERSION=3.0.2 \
+          --build-arg AIRFLOW_EXTRAS=aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv \
+          --build-arg AIRFLOW_IMAGE_TYPE=prod \
+          --build-arg AIRFLOW_UID=50000 \
+          --build-arg BUILD_ID=$$BUILD_ID \
+          --build-arg COMMIT_SHA=$$COMMIT_SHA \
+          --label "com.ivedha.image.source=https://github.com/your-org/cnb-workload-airflow" \
+          --label "com.ivedha.image.created=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          --label "com.ivedha.image.authors=$$AUTHORS" \
+          --label "com.ivedha.image.url=https://ivedha.com" \
+          --label "com.ivedha.image.version=3.0.2" \
+          --label "com.ivedha.image.revision=$$COMMIT_SHA" \
+          --label "com.ivedha.image.vendor=Ivedha" \
+          --label "com.ivedha.image.title=CNB Workload Airflow Image" \
+          --label "com.ivedha.image.description=Custom Apache Airflow image for CNB workload management" \
+          --label "com.ivedha.image.ref.name=airflow" \
+          --label "com.ivedha.main-image.build-id=$$BUILD_ID" \
+          --label "com.ivedha.main-image.commit-sha=$$COMMIT_SHA" \
+          --label "com.ivedha.branch=$$BRANCH_NAME" \
+          --label "com.ivedha.build-timestamp=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          -t "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION" \
+          -t "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest" \
+          .
 
   # Push the Docker image to the registry
   - name: "gcr.io/cloud-builders/docker"
     id: "Push Docker Image"
+    entrypoint: "bash"
     args:
-      - "push"
-      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)"
+      - "-c"
+      - |
+        NEW_VERSION=$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)
+        echo "Pushing image with version: $$NEW_VERSION"
+        docker push "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION"
 
   # Push the latest tag as well
   - name: "gcr.io/cloud-builders/docker"
