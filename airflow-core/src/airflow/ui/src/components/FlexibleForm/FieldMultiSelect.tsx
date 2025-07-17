@@ -78,7 +78,7 @@ export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) =
       name={`element_${name}`}
       onChange={handleChange}
       options={
-        param.schema.examples?.map((value) => ({
+        (param.schema.examples ?? param.schema.enum)?.map((value) => ({
           label: labelLookup(value, param.schema.values_display),
           value,
         })) ?? []

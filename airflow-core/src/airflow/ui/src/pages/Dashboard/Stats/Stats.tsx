@@ -18,7 +18,7 @@
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiClipboard, FiZap } from "react-icons/fi";
+import { FiClipboard, FiZap, FiClock } from "react-icons/fi";
 
 import { useDashboardServiceDagStats } from "openapi/queries";
 import { useAutoRefresh } from "src/utils";
@@ -36,6 +36,7 @@ export const Stats = () => {
   const queuedDagsCount = statsData?.queued_dag_count ?? 0;
   const runningDagsCount = statsData?.running_dag_count ?? 0;
   const activeDagsCount = statsData?.active_dag_count ?? 0;
+  const hitlTIsCount = 20;
   const { t: translate } = useTranslation("dashboard");
 
   return (
@@ -48,6 +49,15 @@ export const Stats = () => {
       </Flex>
 
       <HStack gap={4}>
+        <StatsCard
+          colorScheme="failed"
+          count={hitlTIsCount}
+          icon={<FiClock />}
+          isLoading={isStatsLoading}
+          label={translate("stats.hitlTIs")}
+          link="hitl"
+        />
+
         <StatsCard
           colorScheme="failed"
           count={failedDagsCount}
