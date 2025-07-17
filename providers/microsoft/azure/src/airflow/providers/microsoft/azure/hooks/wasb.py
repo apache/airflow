@@ -56,6 +56,7 @@ from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
+    from azure.storage.blob import BlobPrefix
     from azure.storage.blob._models import BlobProperties
 
 AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
@@ -712,7 +713,7 @@ class WasbAsyncHook(WasbHook):
         include: list[str] | None = None,
         delimiter: str = "/",
         **kwargs: Any,
-    ) -> list[BlobProperties]:
+    ) -> list[BlobProperties | BlobPrefix]:
         """
         List blobs in a given container.
 
@@ -725,7 +726,7 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list: list[BlobProperties] = []
+        blob_list: list[BlobProperties | BlobPrefix] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
             blob_list.append(blob)
