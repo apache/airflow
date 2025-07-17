@@ -158,16 +158,21 @@ class BaseOperations:
         limit: int = 50,
         params: dict | None = None,
         **kwargs,
-    ) -> list | ServerResponseError:
+    ) -> type[BaseModel] | ServerResponseError:
         entry_list = []
         shared_params = {**(params or {}), **kwargs}
         try:
             self.response = self.client.get(path, params=shared_params)
             first_pass = data_model.model_validate_json(self.response.content)
-            entry_list.append(first_pass)
+            for key, value in first_pass.model_dump().items():
+                if key != "total_entries" and isinstance(value, list):
+                    data_entity = key
+                print(f"data_entity {data_entity}")
+            entry_list.extend(getattr(first_pass, data_entity))
+            print(f"entry list = {entry_list}")
             total_entries = first_pass.total_entries  # type: ignore[attr-defined]
             if total_entries < limit:
-                return entry_list
+                return first_pass
             offset = offset + limit
             print(offset)
             while offset < total_entries:
@@ -175,8 +180,9 @@ class BaseOperations:
                 self.response = self.client.get(path, params=loop_params)
                 entry = data_model.model_validate_json(self.response.content)
                 offset = offset + limit
-                entry_list.append(entry)
-            return entry_list
+                entry_list.append(getattr(entry, data_entity))
+            data_model_instance = data_model(data_entity=entry_list, total_entries=total_entries)
+            return data_model.model_validate_json(data_model_instance)
         except ServerResponseError as e:
             raise e
 
@@ -225,11 +231,12 @@ class AssetsOperations(BaseOperations):
 
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
-        try:
+        """ try:
             self.response = self.client.get("/assets/aliases")
             return AssetAliasCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            raise e
+            raise e """
+        return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
     def create_event(
         self, asset_event_body: CreateAssetEventsBody
@@ -389,7 +396,12 @@ class ConnectionsOperations(BaseOperations):
 
     def list(self) -> list | ServerResponseError:
         """List all connections from the API server."""
-        return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
+        try:
+            self.response = self.client.get("connections")
+            return ConnectionCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+        # return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
 
     def create(
         self,
@@ -472,11 +484,7 @@ class DagOperations(BaseOperations):
 
     def get_tags(self) -> DAGTagCollectionResponse | ServerResponseError:
         """Get all DAG tags."""
-        try:
-            self.response = self.client.get("dagTags")
-            return DAGTagCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_list(path="dagTags", data_model=DAGTagCollectionResponse)
 
     def list(self) -> list | ServerResponseError:
         """List DAGs."""
@@ -504,11 +512,7 @@ class DagOperations(BaseOperations):
             raise e
 
     def list_import_error(self) -> ImportErrorCollectionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get("importErrors")
-            return ImportErrorCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_list(path="importErrors", data_model=ImportErrorCollectionResponse)
 
     def get_stats(self, dag_ids: list) -> DagStatsCollectionResponse | ServerResponseError:  # type: ignore
         try:
@@ -525,18 +529,12 @@ class DagOperations(BaseOperations):
             raise e
 
     def list_version(self, dag_id: str) -> DAGVersionCollectionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/dagVersions")
-            return DAGVersionCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagVersions", data_model=DAGVersionCollectionResponse
+        )
 
     def list_warning(self) -> DAGWarningCollectionResponse | ServerResponseError:
-        try:
-            self.response = self.client.get("dagWarnings")
-            return DAGWarningCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        return super().execute_list(path="dagWarnings", data_model=DAGWarningCollectionResponse)
 
 
 class DagRunOperations(BaseOperations):
@@ -601,6 +599,11 @@ class PoolsOperations(BaseOperations):
 
     def list(self) -> list | ServerResponseError:
         """List all pools."""
+        """ try:
+            self.response = self.client.get("pools")
+            return PoolCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e """
         return super().execute_list(path="pools", data_model=PoolCollectionResponse)
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
