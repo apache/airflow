@@ -118,10 +118,10 @@ steps:
           --label "com.ivedha.image.source=https://github.com/your-org/cnb-workload-airflow" \
           --label "com.ivedha.image.created=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
           --label "com.ivedha.image.authors=$$AUTHORS" \
-          --label "com.ivedha.image.url=https://ivedha.com" \
-          --label "com.ivedha.image.version=3.0.2" \
+          --label "com.ivedha.image.url=us-docker.pkg.dev/$PROJECT_ID/ar-workload-airflow-nonprod" \
+          --label "com.ivedha.image.version=$$NEW_VERSION" \
           --label "com.ivedha.image.revision=$COMMIT_SHA" \
-          --label "com.ivedha.image.vendor=Ivedha" \
+          --label "com.ivedha.image.vendor=Ivedha Inc" \
           --label "com.ivedha.image.title=CNB Workload Airflow Image" \
           --label "com.ivedha.image.description=Custom Apache Airflow image for CNB workload management" \
           --label "com.ivedha.image.ref.name=airflow" \
