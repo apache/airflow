@@ -49,7 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.13"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -57,8 +57,8 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "yandexcloud>=0.308.0",
-    "yandex-query-client>=0.1.4",
+    "yandexcloud>=0.308.0; python_version < '3.13'",
+    "yandex-query-client>=0.1.4; python_version < '3.13'",
 ]
 
 # The optional dependencies should be modified in place in the generated file
