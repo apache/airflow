@@ -146,7 +146,7 @@ These authorization methods are:
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
 
 It should be noted that the parameter ``methods`` listed above may only have relevance for a specific subset of the auth manager's authorization methods.
-For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter method is relevant in the context of ``is_authorized_configuration``.
+For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.
 
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
