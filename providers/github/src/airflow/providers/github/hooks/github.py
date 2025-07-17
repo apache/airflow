@@ -57,9 +57,6 @@ class GithubHook(BaseHook):
         host = conn.host
         extras = conn.extra_dejson or {}
 
-        # Currently the only method of authenticating to GitHub in Airflow is via a token. This is not the
-        # only means available, but raising an exception to enforce this method for now.
-        # TODO: When/If other auth methods are implemented this exception should be removed/modified.
         if not access_token:
             if not extras:
                 raise AirflowException("An access token is required to authenticate to GitHub.")
