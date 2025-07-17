@@ -249,6 +249,16 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 
 if __name__ == "__main__":
+    if not GITHUB_TOKEN:
+        console.print(
+            "[red]GITHUB_TOKEN environment variable is not set. This will lead to failures on rate limits.[/]\n"
+            "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
+            "the URL:\n\n"
+            "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-update-installers-and-pre-commit\n\n"
+            "Once you have the token you can prepend pre-commit command with GITHUB_TOKEN='<your token>' or"
+            "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
+        )
+        sys.exit(1)
     changed = False
     golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
