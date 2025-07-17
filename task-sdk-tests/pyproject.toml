@@ -16,8 +16,8 @@
 # under the License.
 
 [project]
-name = "apache-airflow-docker-tests"
-description = "Docker tests for Apache Airflow"
+name = "apache-airflow-task-sdk-tests"
+description = "Task SDK tests for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]

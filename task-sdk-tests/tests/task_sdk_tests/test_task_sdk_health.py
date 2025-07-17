@@ -85,21 +85,16 @@ def test_task_sdk_health(default_docker_image, tmp_path_factory, monkeypatch):
     compose.down(remove_orphans=True, volumes=True, quiet=True)
 
     try:
-        # Start Docker Compose
         compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for task SDK test")
 
-        # Import the SDK client
         from airflow.sdk.api.client import Client
 
-        # Initialize the client
-        client = Client(base_url=f"http://{TASK_SDK_HOST_PORT}/execution", token="dummy-token")
+        client = Client(base_url=f"http://{TASK_SDK_HOST_PORT}/execution", token="not-a-token")
 
-        # Make the health ping request
         console.print("[yellow]Making health check request...")
         response = client.get("health/ping", headers={"Airflow-API-Version": TASK_SDK_API_VERSION})
 
-        # Print the response details
         console.print(" Health Check Response ".center(72, "="))
         console.print(f"[bright_blue]Status Code:[/] {response.status_code}")
         console.print("[bright_blue]Response Headers:[/]")
@@ -109,9 +104,8 @@ def test_task_sdk_health(default_docker_image, tmp_path_factory, monkeypatch):
         console.print(response.json())
         console.print("=" * 72)
 
-        # Verify the response
         assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
+        assert response.json() == {"ok": ["airflow.api_fastapi.auth.tokens.JWTValidator"], "failing": {}}
 
     except Exception:
         print_diagnostics(compose, compose.version(), docker.version())
