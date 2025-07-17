@@ -48,12 +48,6 @@ else:
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
-try:
-    from airflow.sdk.definitions.taskgroup import TaskGroup
-except ImportError:
-    # Fallback for Airflow < 3.1
-    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-
 pytestmark = pytest.mark.db_test
 
 

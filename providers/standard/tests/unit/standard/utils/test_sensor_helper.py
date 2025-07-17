@@ -33,7 +33,6 @@ from airflow.providers.standard.utils.sensor_helper import (
     _get_count,
     _get_external_task_group_task_ids,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -41,8 +40,15 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
+try:
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+except ImportError:
+    # Fallback for Airflow < 3.1
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
 
 TI = TaskInstance
 
