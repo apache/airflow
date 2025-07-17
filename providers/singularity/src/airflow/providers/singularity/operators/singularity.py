@@ -93,8 +93,8 @@ class SingularityOperator(BaseOperator):
         self.pull_folder = pull_folder
         self.volumes = volumes or []
         self.working_dir = working_dir
-        self.cli: Any = None
-        self.container: Any = None
+        self.cli: None
+        self.container: None
 
     def execute(self, context: Context) -> None:
         self.log.info("Preparing Singularity container %s", self.image)
@@ -140,8 +140,8 @@ class SingularityOperator(BaseOperator):
             self.image, options=self.options, args=self.start_command, start=False
         )
 
-        self.instance.start()  # type: ignore[attr-defined]
-        self.log.info(self.instance.cmd)  # type: ignore[attr-defined]
+        self.instance.start()
+        self.log.info(self.instance.cmd)
         self.log.info("Created instance %s from %s", self.instance, self.image)
 
         self.log.info("Running command %s", self._get_command())
@@ -152,7 +152,7 @@ class SingularityOperator(BaseOperator):
 
         # Stop the instance
         self.log.info("Stopping instance %s", self.instance)
-        self.instance.stop()  # type: ignore[attr-defined]
+        self.instance.stop()
 
         if self.auto_remove and os.path.exists(self.image):
             shutil.rmtree(self.image)
