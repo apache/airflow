@@ -29,11 +29,10 @@ steps:
             echo "Incrementing version from $$REGISTRY_VERSION to $$NEW_VERSION"
           fi
           
-          echo "NEW_VERSION=$$NEW_VERSION" >> $$CLOUDBUILD_OUTPUT
           echo "Using version: $$NEW_VERSION"
         else
-          # For feature branches, use SHA
-          echo "NEW_VERSION=$$SHORT_SHA" >> $$CLOUDBUILD_OUTPUT
+          # For feature branches, use SHA only (no cnb-v prefix)
+          NEW_VERSION="$$SHORT_SHA"
           echo "Using SHA version: $$SHORT_SHA"
         fi
         
@@ -45,8 +44,11 @@ steps:
           AUTHORS="dev@ivedha.com"
         fi
         
-        echo "AUTHORS=$$AUTHORS" >> $$CLOUDBUILD_OUTPUT
         echo "Authors: $$AUTHORS"
+        
+        # Write to a temporary file for next steps
+        echo "$$NEW_VERSION" > /workspace/version.txt
+        echo "$$AUTHORS" > /workspace/authors.txt
 
   # Build the Docker image with proper tagging and custom labels
   - name: "gcr.io/cloud-builders/docker"
@@ -55,9 +57,27 @@ steps:
     args:
       - "-c"
       - |
-        # Read the version from the output file
-        NEW_VERSION=$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)
-        AUTHORS=$$(cat $$CLOUDBUILD_OUTPUT | grep AUTHORS | cut -d'=' -f2)
+        # Read the version and authors from temporary files
+        NEW_VERSION=$$(cat /workspace/version.txt)
+        AUTHORS=$$(cat /workspace/authors.txt)
+        
+        echo "NEW_VERSION: '$$NEW_VERSION'"
+        echo "AUTHORS: '$$AUTHORS'"
+        
+        # Fallback if variables are empty
+        if [[ -z "$$NEW_VERSION" ]]; then
+          if [[ "$$BRANCH_NAME" == "main" ]]; then
+            NEW_VERSION="3.0.2-cnb-v1"
+          else
+            NEW_VERSION="$$SHORT_SHA"
+          fi
+          echo "Using fallback version: $$NEW_VERSION"
+        fi
+        
+        if [[ -z "$$AUTHORS" ]]; then
+          AUTHORS="dev@ivedha.com"
+          echo "Using fallback authors: $$AUTHORS"
+        fi
         
         echo "Building image with version: $$NEW_VERSION"
         echo "Authors: $$AUTHORS"
@@ -94,7 +114,7 @@ steps:
     args:
       - "-c"
       - |
-        NEW_VERSION=$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)
+        NEW_VERSION=$$(cat /workspace/version.txt)
         echo "Pushing image with version: $$NEW_VERSION"
         docker push "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION"
 
