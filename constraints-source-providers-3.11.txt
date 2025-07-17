@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-16T19:43:20.419949
+# This constraints file was automatically generated on 2025-07-17T19:51:07.604600
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -95,7 +95,6 @@ atlassian-python-api==4.0.4
 attrs==25.3.0
 aws-sam-translator==1.99.0
 aws-xray-sdk==2.14.0
-awswrangler==3.12.1
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.35.0
@@ -116,9 +115,9 @@ azure-mgmt-resource==24.0.0
 azure-mgmt-storage==23.0.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
-azure-storage-blob==12.25.1
-azure-storage-file-datalake==12.20.0
-azure-storage-file-share==12.21.0
+azure-storage-blob==12.26.0
+azure-storage-file-datalake==12.21.0
+azure-storage-file-share==12.22.0
 azure-synapse-artifacts==0.20.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
@@ -179,7 +178,7 @@ deltalake==1.1.0
 deprecation==2.1.0
 diagrams==0.24.4
 dill==0.3.1.1
-distlib==0.3.9
+distlib==0.4.0
 distro==1.9.0
 dnspython==2.7.0
 docker==7.1.0
@@ -343,7 +342,7 @@ jsonpickle==3.4.2
 jsonpointer==3.0.0
 jsonschema-path==0.3.4
 jsonschema-specifications==2025.4.1
-jsonschema==4.24.0
+jsonschema==4.24.1
 jupyter_client==8.6.3
 jupyter_core==5.8.1
 jupyterlab_pygments==0.3.0
@@ -361,7 +360,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
-litellm==1.74.3
+litellm==1.74.4
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -407,7 +406,7 @@ nbformat==5.10.4
 neo4j==5.28.1
 nest-asyncio==1.6.0
 networkx==3.5
-nh3==0.2.22
+nh3==0.3.0
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
@@ -437,7 +436,7 @@ ordered-set==4.1.0
 orjson==3.11.0
 oss2==2.19.1
 packaging==25.0
-pagerduty==3.0.0
+pagerduty==3.1.0
 pandas-gbq==0.29.2
 pandas-stubs==2.3.0.250703
 pandas==2.2.3
@@ -524,7 +523,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
-python-keycloak==5.6.0
+python-keycloak==5.7.0
 python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.78.0
@@ -567,7 +566,7 @@ ruamel.yaml==0.18.14
 ruff==0.12.3
 s3fs==2025.7.0
 s3transfer==0.13.0
-sagemaker_studio==1.0.18
+sagemaker_studio==1.0.19
 scikit-learn==1.7.0
 scipy==1.16.0
 scramp==1.4.6

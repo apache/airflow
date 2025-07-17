@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-16T19:45:03.301494
+# This constraints file was automatically generated on 2025-07-17T19:52:48.727165
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -53,7 +53,7 @@ idna==3.10
 importlib_metadata==8.4.0
 itsdangerous==2.2.0
 jsonschema-specifications==2025.4.1
-jsonschema==4.24.0
+jsonschema==4.24.1
 lazy-object-proxy==1.11.0
 libcst==1.8.2
 linkify-it-py==2.0.3
