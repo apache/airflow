@@ -8,20 +8,25 @@ steps:
       - |
         if [[ "$$BRANCH_NAME" == "main" ]]; then
           # Get the latest version number from the registry
-          REGISTRY_VERSION=$$(gcloud artifacts docker images list us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
-            --filter="tags:3.0.2-cnb-v*" \
+          echo "Fetching existing versions from registry..."
+          ALL_TAGS=$$(gcloud artifacts docker images list us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
             --format="value(tags)" \
-            --sort-by=~create_time \
-            --limit=1 | grep -o '3\.0\.2-cnb-v[0-9]*' | head -1)
+            --sort-by=~create_time)
+          echo "All tags found: $$ALL_TAGS"
+          
+          REGISTRY_VERSION=$$(echo "$$ALL_TAGS" | grep '3\.0\.2-cnb-v[0-9]*' | head -1)
+          echo "Latest version found: $$REGISTRY_VERSION"
           
           if [[ -z "$$REGISTRY_VERSION" ]]; then
             # No existing version found, start with v1
             NEW_VERSION="3.0.2-cnb-v1"
+            echo "No existing version found, starting with v1"
           else
             # Extract version number and increment
             VERSION_NUM=$$(echo "$$REGISTRY_VERSION" | grep -o '[0-9]*$$')
             NEW_VERSION_NUM=$$((VERSION_NUM + 1))
             NEW_VERSION="3.0.2-cnb-v$$NEW_VERSION_NUM"
+            echo "Incrementing version from $$REGISTRY_VERSION to $$NEW_VERSION"
           fi
           
           echo "NEW_VERSION=$$NEW_VERSION" >> $$CLOUDBUILD_OUTPUT
@@ -110,7 +115,6 @@ steps:
 
 # Define the images to be built and pushed
 images:
-  - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$(cat $$CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)"
   - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
 
 # Set timeout for the build (in seconds)
