@@ -157,12 +157,12 @@ steps:
         # Try to push
         echo "Attempting to push image..."
         docker push "us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION"
+        
 
 
 
-# Define the images to be built and pushed
-images:
-  - "us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$(cat /workspace/version.txt)"
+
+
 
 # Set timeout for the build (in seconds)
 timeout: "3600s"
