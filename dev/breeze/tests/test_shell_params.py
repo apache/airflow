@@ -33,13 +33,13 @@ console = Console(width=400, color_system="standard")
     [
         pytest.param(
             {},
-            {"python": "3.12"},
+            {"python": "3.13"},
             {
                 "DEFAULT_BRANCH": AIRFLOW_BRANCH,
-                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.12",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.12",
+                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.13",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.13",
             },
-            id="python3.12",
+            id="python3.13",
         ),
         pytest.param(
             {},

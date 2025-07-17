@@ -31,7 +31,12 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -58,6 +63,7 @@ class TestDagEndpoint:
 
     @staticmethod
     def _clear_db():
+        clear_db_connections()
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()

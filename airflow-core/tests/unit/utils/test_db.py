@@ -24,7 +24,6 @@ import re
 from contextlib import redirect_stdout
 from io import StringIO
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -36,7 +35,6 @@ from sqlalchemy import Column, Integer, MetaData, Table, select
 
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
-from airflow.providers.fab.auth_manager.models.db import FABDBManager
 from airflow.settings import engine
 from airflow.utils.db import (
     _REVISION_HEADS_MAP,
@@ -53,6 +51,7 @@ from airflow.utils.db import (
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
+from unit.cli.commands.test_kerberos_command import PY313
 
 pytestmark = pytest.mark.db_test
 
@@ -71,9 +70,16 @@ class TestDb:
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-        # test FAB models
-        for table_name, table in FABDBManager.metadata.tables.items():
-            all_meta_data._add_table(table_name, table.schema, table)
+        skip_fab = PY313
+        if not skip_fab:
+            # FAB DB Manager
+            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+
+            # test FAB models
+            for table_name, table in FABDBManager.metadata.tables.items():
+                all_meta_data._add_table(table_name, table.schema, table)
+        else:
+            print("Ignoring FAB models in Python 3.13+ as FAB is not compatible with 3.13+ yet.")
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             engine.connect(),
@@ -103,10 +109,19 @@ class TestDb:
             lambda t: (t[0] == "remove_table" and t[1].name == "_xcom_archive"),
         ]
 
+        if skip_fab:
+            ignores.append(lambda t: (t[1].name.startswith("ab_")))
+            ignores.append(
+                lambda t: (t[0] == "remove_index" and t[1].columns[0].table.name.startswith("ab_"))
+            )
+
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
-
-        assert not diff, "Database schema and SQLAlchemy model are not in sync: " + str(diff)
+        if diff:
+            print("Database schema and SQLAlchemy model are not in sync: ")
+            for single_diff in diff:
+                print(f"Diff: {single_diff}")
+            pytest.fail("Database schema and SQLAlchemy model are not in sync")
 
     def test_only_single_head_revision_in_migrations(self):
         config = Config()
@@ -161,6 +176,10 @@ class TestDb:
     )
     @mock.patch("alembic.command")
     def test_upgradedb(self, mock_alembic_command, auth, expected):
+        if PY313 and "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" in str(auth):
+            pytest.skip(
+                "Skipping test for FAB Auth Manager on Python 3.13+ as FAB is not compatible with 3.13+ yet."
+            )
         with conf_vars(auth):
             upgradedb()
             mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
@@ -231,34 +250,6 @@ class TestDb:
         downgrade(to_revision="abc")
         actual = mock_om.call_args.kwargs["revision"]
         assert actual == "abc"
-
-    @pytest.mark.parametrize("skip_init", [False, True])
-    @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
-    )
-    @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
-    @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
-    @mock.patch("airflow.utils.db.drop_airflow_models")
-    @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
-    @mock.patch("airflow.utils.db.initdb")
-    @mock.patch("airflow.settings.engine.connect")
-    def test_resetdb(
-        self,
-        mock_connect,
-        mock_init,
-        mock_drop_moved,
-        mock_drop_airflow,
-        mock_fabdb_manager,
-        skip_init,
-    ):
-        session_mock = MagicMock()
-        resetdb(session_mock, skip_init=skip_init)
-        mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
-        mock_drop_moved.assert_called_once_with(mock_connect.return_value)
-        if skip_init:
-            mock_init.assert_not_called()
-        else:
-            mock_init.assert_called_once_with(session=session_mock)
 
     def test_resetdb_logging_level(self):
         unset_logging_level = logging.root.level

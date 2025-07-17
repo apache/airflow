@@ -25,7 +25,6 @@ import responses
 from responses import matchers
 
 from airflow.models import Connection
-from airflow.providers.yandex.hooks.yq import YQHook
 
 try:
     import importlib.util
@@ -37,6 +36,8 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 yandexcloud = pytest.importorskip("yandexcloud")
+
+from airflow.providers.yandex.hooks.yq import YQHook
 
 OAUTH_TOKEN = "my_oauth_token"
 IAM_TOKEN = "my_iam_token"

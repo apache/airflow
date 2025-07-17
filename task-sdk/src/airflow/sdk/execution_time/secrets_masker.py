@@ -373,7 +373,6 @@ class SecretsMasker(logging.Filter):
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
-
             if new_mask:
                 self.replacer = re.compile("|".join(self.patterns))
 

@@ -39,7 +39,6 @@ import methodtools
 import pendulum
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
-from packaging import version as packaging_version
 from sqlalchemy import (
     Boolean,
     Column,
@@ -461,28 +460,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
-
-        from airflow.providers.fab import __version__ as FAB_VERSION
-        from airflow.providers.fab.www.security import permissions
-
         updated_access_control = {}
         for role, perms in access_control.items():
-            if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
-                updated_access_control[role] = updated_access_control.get(role, {})
-                if isinstance(perms, (set, list)):
-                    # Support for old-style access_control where only the actions are specified
-                    updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
-                else:
-                    updated_access_control[role] = perms
-            elif isinstance(perms, dict):
-                # Not allow new access control format with old FAB versions
-                raise AirflowException(
-                    "Please upgrade the FAB provider to a version >= 1.3.0 to allow "
-                    "use the Dag Level Access Control new format."
-                )
+            updated_access_control[role] = updated_access_control.get(role, {})
+            if isinstance(perms, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                updated_access_control[role]["DAGs"] = set(perms)
             else:
-                updated_access_control[role] = set(perms)
-
+                updated_access_control[role] = perms
         return updated_access_control
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:

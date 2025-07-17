@@ -567,7 +567,7 @@ percent-encoded when you access them via UI (/ = %2F)
 | PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>  | faster to build or pull. Production image optimized for size. |
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
-- \<X.Y\> - Python version (Major + Minor).Should be one of \["3.10", "3.11", "3.12" \].
+- \<X.Y\> - Python version (Major + Minor).Should be one of \["3.10", "3.11", "3.12", "3.13" \].
 
 
 ----

@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-snowflake``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -58,7 +58,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.21.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
-``pyarrow``                                 ``>=16.1.0``
+``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
 ``snowflake-connector-python``              ``>=3.7.1``
 ``snowflake-sqlalchemy``                    ``>=1.4.0``
 ``snowflake-snowpark-python``               ``>=1.17.0; python_version < "3.12"``

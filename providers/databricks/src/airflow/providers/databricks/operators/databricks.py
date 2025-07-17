@@ -52,6 +52,9 @@ from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, Base
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.databricks.operators.databricks_workflow import (
+        DatabricksWorkflowTaskGroup,
+    )
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup

@@ -47,6 +47,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -65,7 +66,10 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "numpy" = [
-    "numpy>=1.26.0",
+    "numpy>=1.22.4; python_version<'3.11'",
+    "numpy>=1.23.2; python_version=='3.11'",
+    "numpy>=1.26.0; python_version=='3.12'",
+    "numpy>=2.1.0; python_version>='3.13'",
 ]
 
 [dependency-groups]
@@ -75,7 +79,10 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "numpy>=1.26.0",
+    "numpy>=1.22.4; python_version<'3.11'",
+    "numpy>=1.23.2; python_version=='3.11'",
+    "numpy>=1.26.0; python_version=='3.12'",
+    "numpy>=2.1.0; python_version>='3.13'",
 ]
 
 # To build docs:

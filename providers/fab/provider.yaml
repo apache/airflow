@@ -59,6 +59,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.13"
+
 config:
   fab:
     description: This section contains configs specific to FAB provider.

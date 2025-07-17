@@ -586,6 +586,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         and verifies only the subset of fields that are needed at runtime.
         """
         for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
+            if not dist.metadata:
+                continue
             package_name = canonicalize_name(dist.metadata["name"])
             if package_name in self._provider_dict:
                 continue
