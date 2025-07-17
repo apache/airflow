@@ -88,13 +88,13 @@ class SingularityOperator(BaseOperator):
         self.environment = environment or {}
         self.force_pull = force_pull
         self.image = image
-        self.instance = None
+        self.instance: Any = None
         self.options = options or []
         self.pull_folder = pull_folder
         self.volumes = volumes or []
         self.working_dir = working_dir
-        self.cli = None
-        self.container = None
+        self.cli: Any = None
+        self.container: Any = None
 
     def execute(self, context: Context) -> None:
         self.log.info("Preparing Singularity container %s", self.image)
