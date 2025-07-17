@@ -252,20 +252,16 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
 
     def _get_dttm_filter(self, context):
-        logical_date = context.get("logical_date")
-        if AIRFLOW_V_3_0_PLUS:
-            if logical_date is None:
-                dag_run = context.get("dag_run")
-                if TYPE_CHECKING:
-                    assert dag_run
+        # get the right base timestamp (Airflow 3.x logical_date, 2.x execution_date)
+        logical_date = self._get_logical_date(context)
 
-                logical_date = dag_run.run_after
         if self.execution_delta:
             dttm = logical_date - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
         else:
             dttm = logical_date
+
         return dttm if isinstance(dttm, list) else [dttm]
 
     def poke(self, context: Context) -> bool:
