@@ -66,7 +66,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    _shared_client = None  # Class-level attribute to store the shared client
+    _shared_client = None
 
     def __init__(
         self,
