@@ -2429,11 +2429,11 @@ export type GetDagsUiData = {
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
 
-export type GetLatestRunUiData = {
+export type GetLatestRunInfoData = {
     dagId: string;
 };
 
-export type GetLatestRunUiResponse = Array<DAGRunLightResponse>;
+export type GetLatestRunInfoResponse = Array<DAGRunLightResponse>;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -4559,7 +4559,7 @@ export type $OpenApiTs = {
     };
     '/ui/dags/{dag_id}/latest_run': {
         get: {
-            req: GetLatestRunUiData;
+            req: GetLatestRunInfoData;
             res: {
                 /**
                  * Successful Response

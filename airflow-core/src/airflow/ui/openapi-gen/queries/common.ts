@@ -288,12 +288,12 @@ export const UseDagServiceGetDagsUiKeyFn = ({ dagDisplayNamePattern, dagIdPatter
   tags?: string[];
   tagsMatchMode?: "any" | "all";
 } = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
-export type DagServiceGetLatestRunUiDefaultResponse = Awaited<ReturnType<typeof DagService.getLatestRunUi>>;
-export type DagServiceGetLatestRunUiQueryResult<TData = DagServiceGetLatestRunUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useDagServiceGetLatestRunUiKey = "DagServiceGetLatestRunUi";
-export const UseDagServiceGetLatestRunUiKeyFn = ({ dagId }: {
+export type DagServiceGetLatestRunInfoDefaultResponse = Awaited<ReturnType<typeof DagService.getLatestRunInfo>>;
+export type DagServiceGetLatestRunInfoQueryResult<TData = DagServiceGetLatestRunInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagServiceGetLatestRunInfoKey = "DagServiceGetLatestRunInfo";
+export const UseDagServiceGetLatestRunInfoKeyFn = ({ dagId }: {
   dagId: string;
-}, queryKey?: Array<unknown>) => [useDagServiceGetLatestRunUiKey, ...(queryKey ?? [{ dagId }])];
+}, queryKey?: Array<unknown>) => [useDagServiceGetLatestRunInfoKey, ...(queryKey ?? [{ dagId }])];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLog>>;
 export type EventLogServiceGetEventLogQueryResult<TData = EventLogServiceGetEventLogDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";

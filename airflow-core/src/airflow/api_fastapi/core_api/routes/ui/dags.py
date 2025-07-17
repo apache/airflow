@@ -202,7 +202,7 @@ def get_dags(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
-def get_latest_run_ui(dag_id: str, session: SessionDep) -> list[DAGRunLightResponse]:
+def get_latest_run_info(dag_id: str, session: SessionDep) -> list[DAGRunLightResponse]:
     """Get latest run."""
     if dag_id == "~":
         raise HTTPException(

@@ -243,13 +243,9 @@ paths:
     get:
       tags:
       - DAG
-      summary: Get Latest Run Ui
-      description: 'Get latest run.
-
-
-        This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
-        all DAGs.'
-      operationId: get_latest_run_ui
+      summary: Get Latest Run Info
+      description: Get latest run.
+      operationId: get_latest_run_info
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -268,7 +264,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DAGRunLightResponse'
-                title: Response Get Latest Run Ui
+                title: Response Get Latest Run Info
         '404':
           content:
             application/json:
