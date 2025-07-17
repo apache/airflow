@@ -31,7 +31,7 @@ export const HomePage = () => {
           Welcome to Your New React App!
         </Heading>
         <Text fontSize="lg" color="fg.muted">
-          This project was bootstrapped with the Airflow UI configuration.
+          This project was bootstrapped with the Airflow React Plugin tool.
         </Text>
         <Button onClick={toggleColorMode} colorPalette="blue">
           Toggle Theme
