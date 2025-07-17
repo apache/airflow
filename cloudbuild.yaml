@@ -9,7 +9,7 @@ steps:
         if [[ "$$BRANCH_NAME" == "main" ]]; then
           # Get the latest version number from the registry
           echo "Fetching existing versions from registry..."
-          ALL_TAGS=$$(gcloud artifacts docker images list us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
+          ALL_TAGS=$$(gcloud artifacts docker images list us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
             --format="value(tags)" \
             --sort-by=~create_time)
           echo "All tags found: $$ALL_TAGS"
@@ -129,8 +129,7 @@ steps:
           --label "com.ivedha.main-image.commit-sha=$COMMIT_SHA" \
           --label "com.ivedha.branch=$BRANCH_NAME" \
           --label "com.ivedha.build-timestamp=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-          -t "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION" \
-          -t "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest" \
+          -t "us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION" \
           .
 
   # Push the Docker image to the registry
@@ -142,18 +141,28 @@ steps:
       - |
         NEW_VERSION=$$(cat /workspace/version.txt)
         echo "Pushing image with version: $$NEW_VERSION"
-        docker push "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION"
+        
+        # Debug: Check if we can authenticate to the registry
+        echo "Testing registry access..."
+        gcloud auth configure-docker us-docker.pkg.dev --quiet
+        
+        # Debug: List repositories to verify access
+        echo "Listing repositories..."
+        gcloud artifacts repositories list --location=us
+        
+        # Debug: Check specific repository
+        echo "Checking repository details..."
+        gcloud artifacts repositories describe ar-workload-airflow-nonprod --location=us
+        
+        # Try to push
+        echo "Attempting to push image..."
+        docker push "us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$NEW_VERSION"
 
-  # Push the latest tag as well
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Push Latest Tag"
-    args:
-      - "push"
-      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
+
 
 # Define the images to be built and pushed
 images:
-  - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
+  - "us-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$$(cat /workspace/version.txt)"
 
 # Set timeout for the build (in seconds)
 timeout: "3600s"
