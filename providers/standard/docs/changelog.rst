@@ -35,6 +35,43 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Human-in-the-loop logic to core Airflow and implement 'HITLOperator', 'ApprovalOperator', 'HITLEntryOperator' in standard provider (#52868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sensor skipping in Airflow 3.x branching operators (#53455)``
+* ``fix(hitl): Fix HITLEntryOperator "options" and "defaults" handling (#53184)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore in standard provider where possible (#53308)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move 'BaseHook' imports to version_compat for standard provider (#52766)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+   * ``Remove 'set_current_context' from 'airflow.models.taskinstance' (#53036)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Fix example dag example_external_task_parent_deferrable.py imports (#52956)``
+
 1.4.0
 .....
 
