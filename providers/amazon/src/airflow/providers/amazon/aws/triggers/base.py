@@ -66,6 +66,8 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
+    _shared_client = None  # Class-level attribute to store the shared client
+
     def __init__(
         self,
         *,
@@ -142,7 +144,12 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()
-        async with await hook.get_async_conn() as client:
+
+        if AwsBaseWaiterTrigger._shared_client is None:
+            AwsBaseWaiterTrigger._shared_client = await hook.get_async_conn()
+        client = AwsBaseWaiterTrigger._shared_client
+
+        async with client:
             waiter = hook.get_waiter(
                 self.waiter_name,
                 deferrable=True,
