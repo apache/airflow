@@ -400,135 +400,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         except NotFound:
             return False
 
-    @deprecated(
-        planned_removal_date="July 30, 2025",
-        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_table",
-        category=AirflowProviderDeprecationWarning,
-    )
-    @GoogleBaseHook.fallback_to_default_project_id
-    def create_empty_table(
-        self,
-        project_id: str = PROVIDE_PROJECT_ID,
-        dataset_id: str | None = None,
-        table_id: str | None = None,
-        table_resource: dict[str, Any] | None = None,
-        schema_fields: list | None = None,
-        time_partitioning: dict | None = None,
-        cluster_fields: list[str] | None = None,
-        labels: dict | None = None,
-        view: dict | None = None,
-        materialized_view: dict | None = None,
-        encryption_configuration: dict | None = None,
-        retry: Retry = DEFAULT_RETRY,
-        location: str | None = None,
-        exists_ok: bool = True,
-    ) -> Table:
-        """
-        Create a new, empty table in the dataset.
-
-        To create a view, which is defined by a SQL query, parse a dictionary to
-        the *view* argument.
-
-        :param project_id: The project to create the table into.
-        :param dataset_id: The dataset to create the table into.
-        :param table_id: The Name of the table to be created.
-        :param table_resource: Table resource as described in documentation:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-            If provided all other parameters are ignored.
-        :param schema_fields: If set, the schema field list as defined here:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-
-            .. code-block:: python
-
-                schema_fields = [
-                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-                ]
-
-        :param labels: a dictionary containing labels for the table, passed to BigQuery
-        :param retry: Optional. How to retry the RPC.
-        :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and expiration as per API specifications.
-
-            .. seealso::
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
-        :param cluster_fields: [Optional] The fields used for clustering.
-            BigQuery supports clustering for both partitioned and
-            non-partitioned tables.
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
-        :param view: [Optional] A dictionary containing definition for the view.
-            If set, it will create a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
-
-            .. code-block:: python
-
-                view = {
-                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
-                    "useLegacySql": False,
-                }
-
-        :param materialized_view: [Optional] The materialized view definition.
-        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-
-            .. code-block:: python
-
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
-                }
-
-        :param num_retries: Maximum number of retries in case of connection problems.
-        :param location: (Optional) The geographic location where the table should reside.
-        :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
-        :return: Created table
-        """
-        _table_resource: dict[str, Any] = {}
-
-        if self.location:
-            _table_resource["location"] = self.location
-
-        if schema_fields:
-            _table_resource["schema"] = {"fields": schema_fields}
-
-        if time_partitioning:
-            _table_resource["timePartitioning"] = time_partitioning
-
-        if cluster_fields:
-            _table_resource["clustering"] = {"fields": cluster_fields}
-
-        if labels:
-            _table_resource["labels"] = labels
-
-        if view:
-            _table_resource["view"] = view
-
-        if materialized_view:
-            _table_resource["materializedView"] = materialized_view
-
-        if encryption_configuration:
-            _table_resource["encryptionConfiguration"] = encryption_configuration
-
-        table_resource = table_resource or _table_resource
-        table_resource = self._resolve_table_reference(
-            table_resource=table_resource,
-            project_id=project_id,
-            dataset_id=dataset_id,
-            table_id=table_id,
-        )
-        table = Table.from_api_repr(table_resource)
-        result = self.get_client(project_id=project_id, location=location).create_table(
-            table=table, exists_ok=exists_ok, retry=retry
-        )
-        get_hook_lineage_collector().add_output_asset(
-            context=self,
-            scheme="bigquery",
-            asset_kwargs={
-                "project_id": result.project,
-                "dataset_id": result.dataset_id,
-                "table_id": result.table_id,
-            },
-        )
-        return result
-
     @GoogleBaseHook.fallback_to_default_project_id
     def create_table(
         self,
@@ -2248,7 +2119,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         self,
         sql: str,
         pass_value: Any,
-        records: list[Any],
+        records: list[Any] | None = None,
         tolerance: float | None = None,
     ) -> None:
         """

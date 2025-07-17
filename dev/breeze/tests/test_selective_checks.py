@@ -1040,7 +1040,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "testable-core-integrations": "['kerberos']",
+                    "testable-core-integrations": "['kerberos', 'redis']",
                     "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
@@ -1148,6 +1148,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("go-sdk/sdk/variable.go",),
             {"run-go-sdk-tests": "true"},
             id="Run go tests for go-sdk",
+        ),
+        (
+            pytest.param(
+                ("devel-common/pyproject.toml",),
+                {
+                    "needs-mypy": "true",
+                    "mypy-checks": ALL_MYPY_CHECKS,
+                },
+                id="All mypy checks should run when devel-common/pyproject.toml changes",
+            )
         ),
     ],
 )

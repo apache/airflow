@@ -29,18 +29,14 @@ from contextlib import contextmanager
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import asyncssh
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.sftp.version_compat import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
@@ -293,9 +289,25 @@ class SFTPHook(SSHHook):
         """
         with self.get_managed_conn() as conn:
             if isinstance(local_full_path, BytesIO):
+                # It's a file-like object ( BytesIO), so use getfo().
+                self.log.info("Using streaming download for %s", remote_full_path)
                 conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
-            else:
+            # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
+            elif hasattr(local_full_path, "write"):
+                self.log.info("Using streaming download for %s", remote_full_path)
+                # We need to cast to pass pre-commit checks
+                stream_full_path = cast("IO[bytes]", local_full_path)
+                conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)
+            elif isinstance(local_full_path, (str, bytes, os.PathLike)):
+                # It's a string path, so use get().
+                self.log.info("Using standard file download for %s", remote_full_path)
                 conn.get(remote_full_path, local_full_path, prefetch=prefetch)
+            # If it's neither, it's an unsupported type.
+            else:
+                raise TypeError(
+                    f"Unsupported type for local_full_path: {type(local_full_path)}. "
+                    "Expected a stream-like object or a path-like object."
+                )
 
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
@@ -743,7 +755,7 @@ class SFTPHookAsync(BaseHook):
             if self.known_hosts.lower() == "none":
                 conn_config.update(known_hosts=None)
             else:
-                conn_config.update(known_hosts=self.known_hosts)  # type: ignore
+                conn_config.update(known_hosts=self.known_hosts)
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)
             conn_config["client_keys"] = [_private_key]

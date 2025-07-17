@@ -76,6 +76,7 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
     from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:
@@ -122,10 +123,17 @@ class TestExternalTaskSensorV2:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
             dag.sync_to_db()
+        if AIRFLOW_V_3_0_PLUS:
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+        else:
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
-            ti = TaskInstance(task=task, run_id=self.dag_run_id)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_version = DagVersion.get_latest_version(task_group[idx].dag_id)
+                ti = TaskInstance(task=task, run_id=self.dag_run_id, dag_version_id=dag_version.id)
+            else:
+                ti = TaskInstance(task=task, run_id=self.dag_run_id)
             ti.run(ignore_ti_state=True, mark_success=True)
             ti.set_state(target_states[idx])
 
@@ -145,16 +153,27 @@ class TestExternalTaskSensorV2:
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        if AIRFLOW_V_3_0_PLUS:
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+        else:
+            SerializedDagModel.write_dag(dag)
 
         for task in task_group:
             if task.task_id == "fake_mapped_task":
                 for map_index in map_indexes:
-                    ti = TaskInstance(task=task, run_id=self.dag_run_id, map_index=map_index)
+                    if AIRFLOW_V_3_0_PLUS:
+                        dag_version = DagVersion.get_latest_version(dag.dag_id)
+                        ti = TaskInstance(task=task, run_id=self.dag_run_id, dag_version_id=dag_version.id)
+                    else:
+                        ti = TaskInstance(task=task, run_id=self.dag_run_id, map_index=map_index)
                     ti.run(ignore_ti_state=True, mark_success=True)
                     ti.set_state(target_state)
             else:
-                ti = TaskInstance(task=task, run_id=self.dag_run_id)
+                if AIRFLOW_V_3_0_PLUS:
+                    dag_version = DagVersion.get_latest_version(dag.dag_id)
+                    ti = TaskInstance(task=task, run_id=self.dag_run_id, dag_version_id=dag_version.id)
+                else:
+                    ti = TaskInstance(task=task, run_id=self.dag_run_id)
                 ti.run(ignore_ti_state=True, mark_success=True)
                 ti.set_state(target_state)
 
@@ -1848,6 +1867,8 @@ def dag_bag_cyclic():
 
         for dag in dags:
             if AIRFLOW_V_3_0_PLUS:
+                dag.sync_to_db()
+                SerializedDagModel.write_dag(dag, bundle_name="testing")
                 dag_bag.bag_dag(dag=dag)
             else:
                 dag_bag.bag_dag(dag=dag, root_dag=dag)  # type: ignore[call-arg]
@@ -2005,6 +2026,9 @@ def dag_bag_head_tail(session):
 @provide_session
 def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
+    dag.sync_to_db()
+    if AIRFLOW_V_3_0_PLUS:
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
     # "Run" 10 times.
     for delta in range(10):
@@ -2022,7 +2046,12 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
             dagrun.execution_date = logical_date
         session.add(dagrun)
         for task in dag.tasks:
-            ti = TaskInstance(task=task)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_version = DagVersion.get_latest_version(task.dag_id, session=session)
+                ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+
+            else:
+                ti = TaskInstance(task=task)
             dagrun.task_instances.append(ti)
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
@@ -2030,9 +2059,11 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
 
 
-@provide_session
 def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
+    dag.sync_to_db()
+    if AIRFLOW_V_3_0_PLUS:
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
 
     # "Run" 10 times.
     for delta in range(10):
@@ -2049,8 +2080,13 @@ def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail,
         else:
             dagrun.execution_date = logical_date
         session.add(dagrun)
+
         for task in dag.tasks:
-            ti = TaskInstance(task=task)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+                ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+            else:
+                ti = TaskInstance(task=task)
             dagrun.task_instances.append(ti)
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
@@ -2109,6 +2145,7 @@ def dag_bag_head_tail_mapped_tasks():
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
+        dag.sync_to_db()
         dag_bag.bag_dag(dag=dag)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
@@ -2116,10 +2153,11 @@ def dag_bag_head_tail_mapped_tasks():
     return dag_bag
 
 
-@provide_session
 def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
     dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
-
+    dag.sync_to_db()
+    if AIRFLOW_V_3_0_PLUS:
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
     # "Run" 10 times.
     for delta in range(10):
         logical_date = DEFAULT_DATE + timedelta(days=delta)
@@ -2138,11 +2176,24 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         for task in dag.tasks:
             if task.task_id == "dummy_task":
                 for map_index in range(5):
-                    ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
+                    if AIRFLOW_V_3_0_PLUS:
+                        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+                        ti = TaskInstance(
+                            task=task,
+                            run_id=dagrun.run_id,
+                            map_index=map_index,
+                            dag_version_id=dag_version.id,
+                        )
+                    else:
+                        ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
                     ti.state = TaskInstanceState.SUCCESS
                     dagrun.task_instances.append(ti)
             else:
-                ti = TaskInstance(task=task, run_id=dagrun.run_id)
+                if AIRFLOW_V_3_0_PLUS:
+                    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+                    ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+                else:
+                    ti = TaskInstance(task=task, run_id=dagrun.run_id)
                 ti.state = TaskInstanceState.SUCCESS
                 dagrun.task_instances.append(ti)
     session.flush()

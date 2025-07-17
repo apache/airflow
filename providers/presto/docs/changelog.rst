@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.9.1
+.....
+
+Misc
+~~~~
+
+* ``Provider Migration: Update presto for Airflow 3.0 compatibility (#52608)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.9.0
 .....
 

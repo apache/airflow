@@ -39,11 +39,7 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 Credentials = ClientSecretCredential | AzureIdentityCredentialAdapter | DefaultAzureCredential
 
@@ -342,7 +338,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         """Return the DataLakeServiceClient object (cached)."""
         return self.get_conn()
 
-    def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
+    def get_conn(self) -> DataLakeServiceClient:
         """Return the DataLakeServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}

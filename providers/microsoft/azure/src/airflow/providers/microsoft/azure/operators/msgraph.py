@@ -32,8 +32,7 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
-from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.providers.microsoft.azure.version_compat import XCOM_RETURN_KEY, BaseOperator
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -321,7 +320,7 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context)
-                    skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
+                    skip = sum([len(result["value"]) for result in results]) + top if results else top
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters

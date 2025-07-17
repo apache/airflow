@@ -38,13 +38,8 @@ import csv
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.hive.version_compat import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from airflow.providers.apache.hive.version_compat import AIRFLOW_VAR_NAME_FORMAT_MAPPING, BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
 
@@ -870,7 +865,7 @@ class HiveServer2Hook(DbApiHook):
         username: str | None = None
         password: str | None = None
 
-        db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+        db = self.get_connection(self.get_conn_id())
 
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:
@@ -912,7 +907,7 @@ class HiveServer2Hook(DbApiHook):
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+            db = self.get_connection(self.get_conn_id())
             # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
@@ -1034,9 +1029,10 @@ class HiveServer2Hook(DbApiHook):
         schema = kwargs["schema"] if "schema" in kwargs else "default"
         return self.get_results(sql, schema=schema, hive_conf=parameters)["data"]
 
-    def _get_pandas_df(  # type: ignore
+    def _get_pandas_df(
         self,
-        sql: str,
+        sql,
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
@@ -1052,9 +1048,10 @@ class HiveServer2Hook(DbApiHook):
         df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df
 
-    def _get_polars_df(  # type: ignore
+    def _get_polars_df(
         self,
-        sql: str,
+        sql,
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
@@ -1081,7 +1078,7 @@ class HiveServer2Hook(DbApiHook):
         **kwargs: Any,
     ) -> pd.DataFrame: ...
 
-    @overload  # type: ignore[override]
+    @overload
     def get_df(
         self,
         sql: str,
@@ -1092,7 +1089,7 @@ class HiveServer2Hook(DbApiHook):
         **kwargs: Any,
     ) -> pl.DataFrame: ...
 
-    def get_df(  # type: ignore
+    def get_df(
         self,
         sql: str,
         schema: str = "default",

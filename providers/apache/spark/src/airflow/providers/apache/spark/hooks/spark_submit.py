@@ -32,11 +32,7 @@ from typing import Any
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.apache.spark.version_compat import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 

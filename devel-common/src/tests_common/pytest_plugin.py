@@ -100,6 +100,7 @@ if not keep_env_variables:
         # Keep per enabled integrations
         "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
         "kerberos": {"kerberos": {"*"}},
+        "redis": {"redis": {"*"}},
     }
     _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
     _KEEP_CONFIGS: dict[str, set[str]] = {}
@@ -302,7 +303,7 @@ def pytest_addoption(parser: pytest.Parser):
         dest="integration",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino,redis]. ",
     )
     group.addoption(
         "--keep-env-variables",
@@ -963,7 +964,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
-                    from airflow.www.security_appless import ApplessAirflowSecurityManager  # type: ignore
+                    from airflow.www.security_appless import ApplessAirflowSecurityManager
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
@@ -2103,7 +2104,7 @@ def mocked_parse(spy_agency):
 
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
-            task.dag = dag  # type: ignore[assignment]
+            task.dag = dag
             # Fixture only helps in regular base operator tasks, so mypy is wrong here
             task = dag.task_dict[task.task_id]  # type: ignore[assignment]
         else:
@@ -2241,8 +2242,8 @@ def create_runtime_ti(mocked_parse):
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
             # Fixture only helps in regular base operator tasks, so mypy is wrong here
-            task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
+            task.dag = dag
+            task = dag.task_dict[task.task_id]
 
         data_interval_start = None
         data_interval_end = None
@@ -2250,7 +2251,7 @@ def create_runtime_ti(mocked_parse):
         if task.dag.timetable:
             if run_type == DagRunType.MANUAL:
                 data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                    run_after=logical_date  # type: ignore
+                    run_after=logical_date
                 )
             else:
                 drinfo = task.dag.timetable.next_dagrun_info(
@@ -2295,6 +2296,7 @@ def create_runtime_ti(mocked_parse):
                 run_id=run_id,
                 try_number=try_number,
                 map_index=map_index,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),

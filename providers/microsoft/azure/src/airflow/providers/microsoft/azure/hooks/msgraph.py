@@ -50,11 +50,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
 )
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -297,7 +293,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 proxies=proxies,
             )
             http_client = GraphClientFactory.create_with_default_middleware(
-                api_version=api_version,  # type: ignore
+                api_version=api_version,
                 client=httpx.AsyncClient(
                     mounts=httpx_proxies,
                     timeout=Timeout(timeout=self.timeout),
@@ -305,10 +301,10 @@ class KiotaRequestAdapterHook(BaseHook):
                     trust_env=trust_env,
                     base_url=base_url,
                 ),
-                host=host,  # type: ignore
+                host=host,
             )
             auth_provider = AzureIdentityAuthenticationProvider(
-                credentials=credentials,  # type: ignore
+                credentials=credentials,
                 scopes=scopes,
                 allowed_hosts=allowed_hosts,
             )
@@ -364,7 +360,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("MSAL Proxies: %s", msal_proxies)
         if certificate_path or certificate_data:
             return CertificateCredential(
-                tenant_id=tenant_id,  # type: ignore
+                tenant_id=tenant_id,
                 client_id=login,  # type: ignore
                 password=password,
                 certificate_path=certificate_path,
@@ -375,7 +371,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 connection_verify=verify,
             )
         return ClientSecretCredential(
-            tenant_id=tenant_id,  # type: ignore
+            tenant_id=tenant_id,
             client_id=login,  # type: ignore
             client_secret=password,  # type: ignore
             authority=authority,

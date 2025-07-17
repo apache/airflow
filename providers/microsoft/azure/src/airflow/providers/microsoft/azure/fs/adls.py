@@ -21,11 +21,7 @@ from typing import TYPE_CHECKING, Any
 from azure.identity import ClientSecretCredential
 
 from airflow.providers.microsoft.azure.utils import get_field, parse_blob_account_url
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
