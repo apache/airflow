@@ -123,7 +123,6 @@ Let's go over the different parameters used by most of these methods.
   * ``POST``: Can the user create a resource?
   * ``PUT``: Can the user modify the resource?
   * ``DELETE``: Can the user delete the resource?
-  * ``MENU``: Can the user see the resource in the menu? Note: this method is only applicable to a subset of auth manager Authorization methods.
 
 * ``details``: Optional details about the resource being accessed.
 * ``user``: The user trying to access the resource.
@@ -181,8 +180,8 @@ The following methods aren't required to override to have a functional Airflow a
 
 * ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it will call ``is_authorized_dag`` for every single item.
 * ``get_authorized_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
-  * Note: The ``get_authorized_dag_ids`` may be of particular interest if you rely on per-DAG access controls derived from one or more fields on a given DAG (e.g. DAG tags).
-  * This method requires an active session with the Airflow metadata database. As such, it is recommended you refer to the :doc:`../../database-erd-ref`.
+  * Note: To filter the results of ``get_authorized_dag_ids``, it is recommended that you define the filtering logic in your ``filter_authorized_dag_ids`` method. For example, this may be usefule if you rely on per-DAG access controls derived from one or more fields on a given DAG (e.g. DAG tags).
+  * This method requires an active session with the Airflow metadata database. As such, overriding the ``get_authorized_dag_ids`` method is an advanced use case, which should be considered carefully -- it is recommended you refer to the :doc:`../../database-erd-ref`.
 
 CLI
 ^^^
@@ -241,6 +240,9 @@ Additional Caveats
 * Your auth manager should not reference anything from the ``airflow.security.permissions`` module, as that module is in the process of being deprecated.
   * Instead, your code should use the definitions in ``airflow.api_fastapi.auth.managers.models.resource_details``.
 * The ``access_control`` attribute of a DAG instance is only compatible with the FAB auth manager. Custom auth manager implementations should leverage ``get_authorized_dag_ids`` for DAG instance attribute-based access controls in more customizable ways (e.g. authorization based on DAG tags, DAG bundles, etc.).
+* You may find it useful to define a private, generalized ``_is_authorized`` method which acts as the standardized authorization mechanism, and which each
+  public ``is_authorized_*`` method calls with the appropriate parameters.
+  For concrete examples of this, refer to the ``SimpleAuthManager._is_authorized_method``. Further, it may be useful to optionally use the ``airflow.api_fastapi.auth.managers.base_auth_manager.ExtendedResourceMethod`` reference within your private method.
 
 DAG and DAG Sub-Component Authorization
 ---------------------------------------
