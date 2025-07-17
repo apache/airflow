@@ -428,3 +428,20 @@ class TestEmailOauth2:
         assert smtp_mock.auth.called
         args, _ = smtp_mock.auth.call_args
         assert args[0] == "XOAUTH2"
+
+    @mock.patch("airflow.utils.email._get_smtp_connection")
+    def test_send_mime_email_oauth2_missing_token(self, mock_get_smtp):
+        smtp_mock = mock.Mock()
+        mock_get_smtp.return_value = smtp_mock
+
+        msg = MIMEMultipart()
+        with pytest.raises(ValueError):
+            email.send_mime_email(
+                e_from="airflow@example.com",
+                e_to="apache@example.com",
+                mime_msg=msg,
+                dryrun=False,
+                auth_type="oauth2",
+            )
+
+        assert not smtp_mock.auth.called
