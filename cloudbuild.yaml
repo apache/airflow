@@ -1,0 +1,126 @@
+steps:
+  # Get the latest version number and authors from commits
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "Get Latest Version and Authors"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        if [[ "$BRANCH_NAME" == "main" ]]; then
+          # Get the latest version number from the registry
+          LATEST_VERSION=$(gcloud artifacts docker images list us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow \
+            --filter="tags:3.0.2-cnb-v*" \
+            --format="value(tags)" \
+            --sort-by=~create_time \
+            --limit=1 | grep -o '3\.0\.2-cnb-v[0-9]*' | head -1)
+          
+          if [[ -z "$LATEST_VERSION" ]]; then
+            # No existing version found, start with v1
+            NEW_VERSION="3.0.2-cnb-v1"
+          else
+            # Extract version number and increment
+            VERSION_NUM=$(echo "$LATEST_VERSION" | grep -o '[0-9]*$')
+            NEW_VERSION_NUM=$((VERSION_NUM + 1))
+            NEW_VERSION="3.0.2-cnb-v$NEW_VERSION_NUM"
+          fi
+          
+          echo "NEW_VERSION=$NEW_VERSION" >> $CLOUDBUILD_OUTPUT
+          echo "Using version: $NEW_VERSION"
+        else
+          # For feature branches, use SHA
+          echo "NEW_VERSION=$SHORT_SHA" >> $CLOUDBUILD_OUTPUT
+          echo "Using SHA version: $SHORT_SHA"
+        fi
+        
+        # Get unique authors from recent commits (last 50 commits)
+        AUTHORS=$(git log --pretty=format:"%an <%ae>" -50 | sort -u | tr '\n' ',' | sed 's/,$//')
+        
+        # If no authors found, use default
+        if [[ -z "$AUTHORS" ]]; then
+          AUTHORS="dev@ivedha.com"
+        fi
+        
+        echo "AUTHORS=$AUTHORS" >> $CLOUDBUILD_OUTPUT
+        echo "Authors: $AUTHORS"
+
+  # Build the Docker image with proper tagging and custom labels
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Build Docker Image"
+    args:
+      - "build"
+      - "--build-arg"
+      - "AIRFLOW_VERSION=3.0.2"
+      - "--build-arg"
+      - "AIRFLOW_EXTRAS=aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv"
+      - "--build-arg"
+      - "AIRFLOW_IMAGE_TYPE=prod"
+      - "--build-arg"
+      - "AIRFLOW_UID=50000"
+      - "--build-arg"
+      - "BUILD_ID=$BUILD_ID"
+      - "--build-arg"
+      - "COMMIT_SHA=$COMMIT_SHA"
+      - "--label"
+      - "com.ivedha.image.source=https://github.com/your-org/cnb-workload-airflow"
+      - "--label"
+      - "com.ivedha.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - "--label"
+      - "com.ivedha.image.authors=$(cat $CLOUDBUILD_OUTPUT | grep AUTHORS | cut -d'=' -f2)"
+      - "--label"
+      - "com.ivedha.image.url=https://ivedha.com"
+      - "--label"
+      - "com.ivedha.image.version=3.0.2"
+      - "--label"
+      - "com.ivedha.image.revision=$COMMIT_SHA"
+      - "--label"
+      - "com.ivedha.image.vendor=Ivedha"
+      - "--label"
+      - "com.ivedha.image.title=CNB Workload Airflow Image"
+      - "--label"
+      - "com.ivedha.image.description=Custom Apache Airflow image for CNB workload management"
+      - "--label"
+      - "com.ivedha.image.ref.name=airflow"
+      - "--label"
+      - "com.ivedha.main-image.build-id=$BUILD_ID"
+      - "--label"
+      - "com.ivedha.main-image.commit-sha=$COMMIT_SHA"
+      - "--label"
+      - "com.ivedha.branch=$BRANCH_NAME"
+      - "--label"
+      - "com.ivedha.build-timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - "-t"
+      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$(cat $CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)"
+      - "-t"
+      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
+      - "."
+
+  # Push the Docker image to the registry
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push Docker Image"
+    args:
+      - "push"
+      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$(cat $CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)"
+
+  # Push the latest tag as well
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push Latest Tag"
+    args:
+      - "push"
+      - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
+
+# Define the images to be built and pushed
+images:
+  - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:$(cat $CLOUDBUILD_OUTPUT | grep NEW_VERSION | cut -d'=' -f2)"
+  - "us-central1-docker.pkg.dev/prj-prd-cnb-workload/ar-workload-airflow-nonprod/airflow:latest"
+
+# Set timeout for the build (in seconds)
+timeout: "3600s"
+
+# Configure build options
+options:
+  # Enable Docker layer caching to speed up builds
+  machineType: "E2_HIGHCPU_8"
+  # Use a larger disk size for the build
+  diskSizeGb: "100"
+  # Enable logging
+  logging: CLOUD_LOGGING_ONLY 
