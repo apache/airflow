@@ -56,7 +56,7 @@ from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
-    from azure.storage.blob import BlobPrefix
+    from azure.storage.blob._list_blobs_helper import BlobPrefix
     from azure.storage.blob._models import BlobProperties
 
 AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
