@@ -1,3 +1,4 @@
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -33,9 +34,10 @@ maintainers = [
     { name = "Apache Software Foundation", email="dev@airflow.apache.org" },
 ]
 version = "0.0.1"
+
 dependencies = [
     "apache-airflow-devel-common",
-    "python-on-whales>=0.67.0",
+    "python-on-whales>=0.70.0",
     "apache-airflow-task-sdk",
 ]
 
