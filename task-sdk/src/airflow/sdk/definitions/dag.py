@@ -1385,7 +1385,7 @@ if TYPE_CHECKING:
 
 
 def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
-    from airflow.sdk.bases.decorator import fixup_decorator_warning_stack
+    from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
 
     # TODO: Task-SDK: remove __DAG_class
     # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
