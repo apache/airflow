@@ -121,14 +121,19 @@ export const Header = ({
                 <Menu.Positioner>
                   <Menu.Content>
                     <Menu.Item value="reparse">
-                      <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
+                      <div style={{ width: "100%" }}>
+                        <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} width="100%" />
+                      </div>
                     </Menu.Item>
                     <Menu.Item closeOnSelect={false} value="delete">
-                      <DeleteDagButton
-                        dagDisplayName={dag.dag_display_name}
-                        dagId={dag.dag_id}
-                        variant="outline"
-                      />
+                      <div style={{ width: "100%" }}>
+                        <DeleteDagButton
+                          dagDisplayName={dag.dag_display_name}
+                          dagId={dag.dag_id}
+                          variant="outline"
+                          width="100%"
+                        />
+                      </div>
                     </Menu.Item>
                   </Menu.Content>
                 </Menu.Positioner>

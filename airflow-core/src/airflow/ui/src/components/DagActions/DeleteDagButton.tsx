@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
@@ -30,13 +30,14 @@ type DeleteDagButtonProps = {
   readonly dagId: string;
   readonly variant?: "ghost" | "outline" | "solid";
   readonly withText?: boolean;
-};
+} & ButtonProps;
 
 const DeleteDagButton = ({
   dagDisplayName,
   dagId,
   variant = "solid",
   withText = true,
+  ...rest
 }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ const DeleteDagButton = ({
       navigate("/dags");
     },
   });
+  const { width } = rest;
 
   return (
     <>
@@ -59,6 +61,7 @@ const DeleteDagButton = ({
         text={translate("dagActions.delete.button")}
         variant={variant}
         withText={withText}
+        {...(Boolean(width) ? { width } : {})}
       />
 
       <DeleteDialog
