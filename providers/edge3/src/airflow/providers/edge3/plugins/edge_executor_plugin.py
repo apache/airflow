@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
@@ -213,12 +214,22 @@ try:
 except AirflowConfigException:
     EDGE_EXECUTOR_ACTIVE = False
 
+# Load the API endpoint only on api-server (Airflow 3.x) or webserver (Airflow 2.x)
+# todo(jscheffl): Remove this check when the discussion in
+#                 https://lists.apache.org/thread/w170czq6r7bslkqp1tk6bjjjo0789wgl
+#                 resulted in a proper API to selective initialize. Maybe backcompat-shim
+#                 is also needed to support Airflow-versions prior the rework.
+if AIRFLOW_V_3_0_PLUS:
+    RUNNING_ON_APISERVER = sys.argv[1] in ["api-server"] if len(sys.argv) > 1 else False
+else:
+    RUNNING_ON_APISERVER = "gunicorn" in sys.argv[0] and "airflow-webserver" in sys.argv
+
 
 class EdgeExecutorPlugin(AirflowPlugin):
     """EdgeExecutor Plugin - provides API endpoints for Edge Workers in Webserver."""
 
     name = "edge_executor"
-    if EDGE_EXECUTOR_ACTIVE:
+    if EDGE_EXECUTOR_ACTIVE and RUNNING_ON_APISERVER:
         if AIRFLOW_V_3_0_PLUS:
             fastapi_apps = [_get_api_endpoint()]
         else:
