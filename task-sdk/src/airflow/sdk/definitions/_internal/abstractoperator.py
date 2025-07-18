@@ -37,6 +37,7 @@ from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.weight_rule import WeightRule
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
