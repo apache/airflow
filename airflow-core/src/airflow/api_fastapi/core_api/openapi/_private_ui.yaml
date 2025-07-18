@@ -1352,13 +1352,6 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        deadline:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/DeadlineAlertResponse'
-            type: array
-          - type: 'null'
-          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -1449,7 +1442,6 @@ components:
       - relative_fileloc
       - fileloc
       - description
-      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -1589,31 +1581,6 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
-    DeadlineAlertResponse:
-      properties:
-        reference:
-          type: string
-          title: Reference
-        interval:
-          type: string
-          format: duration
-          title: Interval
-        callback:
-          type: string
-          title: Callback
-        callback_kwargs:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Callback Kwargs
-      type: object
-      required:
-      - reference
-      - interval
-      - callback
-      title: DeadlineAlertResponse
-      description: Deadline alert serializer for responses.
     EdgeResponse:
       properties:
         source_id:
