@@ -19,7 +19,6 @@ from __future__ import annotations
 import inspect
 import itertools
 import re
-import sys
 import textwrap
 import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
@@ -726,25 +725,3 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     source_tree = cst.parse_module(python_source)
     modified_tree = source_tree.visit(_TaskDecoratorRemover(task_decorator_name))
     return modified_tree.code
-
-
-class _autostacklevel_warn:
-    def __init__(self, delta):
-        self.warnings = __import__("warnings")
-        self.delta = delta
-
-    def __getattr__(self, name):
-        return getattr(self.warnings, name)
-
-    def __dir__(self):
-        return dir(self.warnings)
-
-    def warn(self, message, category=None, stacklevel=1, source=None):
-        self.warnings.warn(message, category, stacklevel + self.delta, source)
-
-
-def fixup_decorator_warning_stack(func, delta: int = 2):
-    if func.__globals__.get("warnings") is sys.modules["warnings"]:
-        # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
-        # `warnings.warn` to ignore the decorator.
-        func.__globals__["warnings"] = _autostacklevel_warn(delta)
