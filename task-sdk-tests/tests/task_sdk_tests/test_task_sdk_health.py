@@ -62,11 +62,8 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
     copyfile(docker_compose_file, tmp_docker_compose_file)
 
     # Set environment variables for the test
-    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", os.environ.get("DOCKER_IMAGE", "apache/airflow:2.8.1"))
-    monkeypatch.setenv(
-        "_PIP_ADDITIONAL_REQUIREMENTS",
-        f"apache-airflow-task-sdk=={os.environ.get('TASK_SDK_VERSION', '1.0.1a1')}",
-    )
+    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", os.environ.get("DOCKER_IMAGE", "apache/airflow:3.0.3"))
+    monkeypatch.setenv("TASK_SDK_VERSION", os.environ.get("TASK_SDK_VERSION", "1.0.3"))
 
     # Initialize Docker client
     compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])

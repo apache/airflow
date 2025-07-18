@@ -18,7 +18,7 @@
 ---
 x-airflow-common:
   &airflow-common
-  image: ${AIRFLOW_IMAGE_NAME:-ghcr.io/apache/airflow/main/prod/python3.10}
+  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.0.3}
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -27,8 +27,6 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
-    _PIP_ADDITIONAL_REQUIREMENTS: >
-      ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-task-sdk==${TASK_SDK_VERSION:-1.0.1}}
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -93,7 +91,14 @@ services:
 
   airflow-scheduler:
     <<: *airflow-common
-    command: scheduler
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo "Installing Task SDK version: ${TASK_SDK_VERSION:-1.1.0}"
+        pip install --no-deps apache-airflow-task-sdk==${TASK_SDK_VERSION:-1.1.0}
+        echo "Starting Airflow scheduler..."
+        /entrypoint airflow scheduler
     healthcheck:
       test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob"]
       interval: 30s

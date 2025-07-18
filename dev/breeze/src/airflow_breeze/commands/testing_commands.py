@@ -782,7 +782,7 @@ def task_sdk_tests(**kwargs):
 @click.option(
     "--task-sdk-version",
     help="Version of Task SDK to test",
-    default="1.0.1",
+    default="1.0.3",
     show_default=True,
     envvar="TASK_SDK_VERSION",
 )
