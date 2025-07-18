@@ -39,8 +39,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10, !=3.13"
 
 dependencies = [
     "black>=23.11.0",
@@ -75,7 +76,6 @@ dependencies = [
     "twine>=4.0.2",
     "tqdm>=4.67.1",
     "boto3>=1.34.90",
-    "awswrangler>=3.11.0",
     "semver>=3.0.4"
 ]
 

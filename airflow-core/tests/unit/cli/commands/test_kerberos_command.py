@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
@@ -27,6 +28,8 @@ from airflow.security.kerberos import KerberosMode
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+PY313 = sys.version_info >= (3, 13)
 
 
 class TestKerberosCommand:
@@ -100,6 +103,8 @@ class TestKerberosCommand:
             log="/tmp/kerberos.log",
         )
 
+        python_3_13_close_calls = [mock.call().close()] if PY313 else []
+
         mock_pid_file.mock_calls[0] = mock.call(mock_setup_locations.return_value[0], -1)
         assert mock_open.mock_calls == [
             mock.call(mock_setup_locations.return_value[1], "a"),
@@ -109,7 +114,9 @@ class TestKerberosCommand:
             mock.call().truncate(0),
             mock.call().truncate(0),
             mock.call().__exit__(None, None, None),
+            *python_3_13_close_calls,
             mock.call().__exit__(None, None, None),
+            *python_3_13_close_calls,
         ]
 
     @mock.patch("airflow.cli.commands.kerberos_command.krb")
