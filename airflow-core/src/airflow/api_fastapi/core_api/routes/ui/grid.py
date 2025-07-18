@@ -249,7 +249,7 @@ def get_grid_runs(
             return []
 
         version_service = DagVersionService(session)
-        version_info_list = version_service.get_version_info_for_runs(dag_id, dag_runs)
+        version_info_list = version_service.get_version_info_for_runs(dag_runs)
 
         response = []
         for dag_run, version_info in zip(dag_runs, version_info_list):
