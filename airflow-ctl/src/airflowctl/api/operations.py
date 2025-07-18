@@ -153,13 +153,12 @@ class BaseOperations:
         self,
         *,
         path: str,
-        data_model: type[BaseModel],
+        data_model,
         offset: int = 0,
         limit: int = 50,
         params: dict | None = None,
         **kwargs,
     ) -> type[BaseModel] | ServerResponseError:
-        entry_list = []
         shared_params = {**(params or {}), **kwargs}
         try:
             self.response = self.client.get(path, params=shared_params)
@@ -167,22 +166,21 @@ class BaseOperations:
             for key, value in first_pass.model_dump().items():
                 if key != "total_entries" and isinstance(value, list):
                     data_entity = key
-                print(f"data_entity {data_entity}")
-            entry_list.extend(getattr(first_pass, data_entity))
-            print(f"entry list = {entry_list}")
-            total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+                    print(f"data_entity {data_entity}")
+                    break
+            entry_list = getattr(first_pass,key)
+            total_entries = first_pass.total_entries # type: ignore[attr-defined]
             if total_entries < limit:
                 return first_pass
             offset = offset + limit
-            print(offset)
             while offset < total_entries:
                 loop_params = {**shared_params, "offset": offset}
                 self.response = self.client.get(path, params=loop_params)
                 entry = data_model.model_validate_json(self.response.content)
                 offset = offset + limit
-                entry_list.append(getattr(entry, data_entity))
-            data_model_instance = data_model(data_entity=entry_list, total_entries=total_entries)
-            return data_model.model_validate_json(data_model_instance)
+                entry_list.extend(getattr(entry, data_entity))
+            obj = data_model(**{key: entry_list,"total_entries" :total_entries})
+            return data_model.model_validate(obj.model_dump())
         except ServerResponseError as e:
             raise e
 
@@ -396,12 +394,12 @@ class ConnectionsOperations(BaseOperations):
 
     def list(self) -> list | ServerResponseError:
         """List all connections from the API server."""
-        try:
+        """ try:
             self.response = self.client.get("connections")
             return ConnectionCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            raise e
-        # return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
+            raise e """
+        return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
 
     def create(
         self,
@@ -583,7 +581,7 @@ class JobsOperations(BaseOperations):
     def list(self, job_type: str, hostname: str, is_alive: bool) -> list | ServerResponseError:
         """List all jobs."""
         params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
-        return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
+        return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params,offset = 2,limit = 5)
 
 
 class PoolsOperations(BaseOperations):
@@ -604,7 +602,7 @@ class PoolsOperations(BaseOperations):
             return PoolCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e """
-        return super().execute_list(path="pools", data_model=PoolCollectionResponse)
+        return super().execute_list(path="pools", data_model=PoolCollectionResponse,offset = 2,limit = 5)
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
@@ -644,6 +642,12 @@ class ProvidersOperations(BaseOperations):
 
     def list(self) -> list | ServerResponseError:
         """List all providers."""
+        
+        """ try:
+            self.response = self.client.get(f"providers")
+            return ProviderCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e """
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
 
 
