@@ -25,7 +25,12 @@ from typing import TYPE_CHECKING, Any
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
-from urllib3.exceptions import ReadTimeoutError
+from urllib3.exceptions import (
+    ConnectionError,
+    IncompleteRead,
+    ProtocolError,
+    ReadTimeoutError,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
@@ -105,7 +110,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     self.resource_version,
                 )
 
-    def _pod_events(self, kube_client: client.CoreV1Api, query_kwargs: dict):
+    def _pod_events(self, kube_client: client.CoreV1Api, query_kwargs: dict, connection_retry_attempt=0):
         watcher = watch.Watch()
         try:
             if self.namespace == ALL_NAMESPACES:
@@ -121,6 +126,25 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 query_kwargs["resource_version"] = resource_version
                 return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
             raise
+        except (
+            ProtocolError,
+            ConnectionError,
+            IncompleteRead,
+        ) as e:  # sometimes connection error occurs if the pod runs too long
+            if connection_retry_attempt == 3:
+                raise
+
+            self.log.warning("Unexpected Kubernetes connection error: %s", e)
+            self.log.warning(
+                "Retrying with most recent event. Attempt: %s", str(connection_retry_attempt + 1)
+            )
+
+            time.sleep(1)
+            return self._pod_events(
+                kube_client=kube_client,
+                query_kwargs=query_kwargs,
+                connection_retry_attempt=(connection_retry_attempt + 1),
+            )
 
     def _run(
         self,
