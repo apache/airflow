@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box, Text } from "@chakra-ui/react";
+import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { VersionIndicator } from "src/components/ui/VersionIndicator";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
@@ -28,44 +29,6 @@ import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import type { GridTask } from "./utils";
 
 const BAR_HEIGHT = 100;
-
-type VersionIndicatorProps = {
-  readonly ariaLabel: string;
-  readonly type: "dagrun" | "mixed";
-  readonly versionNumber?: number | null;
-};
-
-const VersionIndicator = ({ ariaLabel, type, versionNumber }: VersionIndicatorProps) => {
-  const isDagRun = type === "dagrun";
-
-  return (
-    <Box
-      aria-label={ariaLabel}
-      bg="orange.400"
-      height="100px"
-      left={isDagRun ? "-1px" : undefined}
-      position="absolute"
-      right={isDagRun ? undefined : "-1px"}
-      top="0"
-      width="2px"
-      zIndex={isDagRun ? 3 : 4}
-    >
-      <Text
-        aria-label={`Version ${versionNumber ?? "unknown"}`}
-        color="orange.700"
-        fontSize="10px"
-        fontWeight="bold"
-        left={isDagRun ? "-5px" : undefined}
-        position="absolute"
-        right={isDagRun ? undefined : "-5px"}
-        top="-16px"
-        whiteSpace="nowrap"
-      >
-        {`v${versionNumber ?? ""}`}
-      </Text>
-    </Box>
-  );
-};
 
 type Props = {
   readonly hasMixedVersions?: boolean | null;
@@ -101,21 +64,25 @@ export const Bar = ({
       position="relative"
       transition="background-color 0.2s"
     >
-      {Boolean(showVersionIndicator) && (
+      {/* Dag version change indicator - shows when version changes between runs */}
+      {showVersionIndicator ? (
         <VersionIndicator
-          ariaLabel="DAG version change indicator"
-          type="dagrun"
+          aria-label="Dag version change indicator"
+          orientation="vertical"
+          position="left"
           versionNumber={versionNumber}
         />
-      )}
+      ) : undefined}
 
-      {Boolean(hasMixedVersions) && (
+      {/* Mixed version indicator - shows when tasks have different versions within a run */}
+      {hasMixedVersions ? (
         <VersionIndicator
-          ariaLabel="Mixed version indicator"
-          type="mixed"
+          aria-label="Mixed version indicator"
+          orientation="vertical"
+          position="right"
           versionNumber={latestVersionNumber}
         />
-      )}
+      ) : undefined}
 
       <Flex
         alignItems="flex-end"
@@ -143,6 +110,7 @@ export const Bar = ({
           {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
         </GridButton>
       </Flex>
+
       <TaskInstancesColumn
         nodes={nodes}
         runId={run.run_id}

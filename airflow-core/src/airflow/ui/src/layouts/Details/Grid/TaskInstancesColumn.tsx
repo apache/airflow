@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { VersionIndicator } from "src/components/ui/VersionIndicator";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
@@ -36,43 +37,27 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
   const [searchParams] = useSearchParams();
   const search = searchParams.toString();
 
+  const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
+
   return nodes.map((node, idx) => {
-    // todo: how does this work with mapped? same task id for multiple tis
-    const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
+    const taskInstance = taskInstanceMap.get(node.id);
 
     if (!taskInstance) {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
-    // Check if dag_version changed compared to previous task
+    // Check if previous task has different version number
     const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
-    const prevTaskInstance = prevNode ? taskInstances.find((ti) => ti.task_id === prevNode.id) : undefined;
+    const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
 
-    const showVersionDivider = Boolean(
-      prevTaskInstance &&
-        taskInstance.dag_version_id !== undefined &&
-        prevTaskInstance.dag_version_id !== undefined &&
-        taskInstance.dag_version_id !== prevTaskInstance.dag_version_id,
+    const showVersionIndicator = Boolean(
+      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
     );
 
     return (
-      <Box key={`${node.id}-${runId}`} position="relative">
-        {showVersionDivider ? (
-          <Box bg="orange.400" height="2px" left="0" position="absolute" top="-1px" width="18px" zIndex={3}>
-            <Text
-              bg="white"
-              borderRadius="2px"
-              color="orange.700"
-              fontSize="8px"
-              position="absolute"
-              px="1px"
-              right="-8px"
-              top="-4px"
-              whiteSpace="nowrap"
-            >
-              {`v${taskInstance.dag_version_number ?? ""}`}
-            </Text>
-          </Box>
+      <Box key={node.id} position="relative">
+        {showVersionIndicator ? (
+          <VersionIndicator orientation="horizontal" versionNumber={taskInstance.dag_version_number} />
         ) : undefined}
         <GridTI
           dagId={dagId}
