@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 from operator import attrgetter
-from typing import Any
 
 import pendulum
 import pytest
@@ -56,6 +55,28 @@ TASK_GROUP_ID = "task_group"
 INNER_TASK_GROUP = "inner_task_group"
 INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
+GRID_RUN_1 = {
+    "dag_id": "test_dag",
+    "duration": 0,
+    "end_date": "2024-12-31T00:00:00Z",
+    "run_after": "2024-11-30T00:00:00Z",
+    "run_id": "run_1",
+    "run_type": "scheduled",
+    "start_date": "2016-01-01T00:00:00Z",
+    "state": "success",
+}
+
+GRID_RUN_2 = {
+    "dag_id": "test_dag",
+    "duration": 0,
+    "end_date": "2024-12-31T00:00:00Z",
+    "run_after": "2024-11-30T00:00:00Z",
+    "run_id": "run_2",
+    "run_type": "manual",
+    "start_date": "2016-01-01T00:00:00Z",
+    "state": "failed",
+}
+
 GRID_NODES = [
     {
         "children": [{"id": "mapped_task_group.subtask", "is_mapped": True, "label": "subtask"}],
@@ -84,27 +105,6 @@ GRID_NODES = [
     },
     {"id": "mapped_task_2", "is_mapped": True, "label": "mapped_task_2"},
 ]
-
-
-def extract_dynamic_fields(run_data: dict[str, Any]) -> dict[str, Any]:
-    """Extract and validate dynamic UUID fields from DAG run data."""
-    dynamic_fields: dict[str, Any] = {}
-
-    # Extract required dag_version_id (UUID)
-    assert "dag_version_id" in run_data
-    dag_version_id = run_data.pop("dag_version_id")
-    assert isinstance(dag_version_id, str)
-    assert len(dag_version_id) > 0
-    assert dag_version_id.count("-") == 4  # UUID format validation
-    dynamic_fields["dag_version_id"] = dag_version_id
-
-    # Extract optional latest_version_number
-    if "latest_version_number" in run_data:
-        latest_version_number = run_data.pop("latest_version_number")
-        assert isinstance(latest_version_number, int)
-        dynamic_fields["latest_version_number"] = latest_version_number
-
-    return dynamic_fields
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -272,110 +272,93 @@ class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
         response = test_client.get(f"/grid/runs/{DAG_ID}")
         assert response.status_code == 200
-        actual = response.json()
-
-        assert len(actual) == 2
-
-        # Extract dynamic UUID fields before exact matching
-        extract_dynamic_fields(actual[0])
-        extract_dynamic_fields(actual[1])
-        expected_run_1 = {
-            "dag_id": "test_dag",
-            "duration": 0,
-            "end_date": "2024-12-31T00:00:00Z",
-            "run_after": "2024-11-30T00:00:00Z",
-            "run_id": "run_1",
-            "run_type": "scheduled",
-            "start_date": "2016-01-01T00:00:00Z",
-            "state": "success",
-            "dag_version_number": 1,
-            "is_version_changed": False,
-            "has_mixed_versions": False,
-        }
-
-        expected_run_2 = {
-            "dag_id": "test_dag",
-            "duration": 0,
-            "end_date": "2024-12-31T00:00:00Z",
-            "run_after": "2024-11-30T00:00:00Z",
-            "run_id": "run_2",
-            "run_type": "manual",
-            "start_date": "2016-01-01T00:00:00Z",
-            "state": "failed",
-            "dag_version_number": 1,
-            "is_version_changed": False,
-            "has_mixed_versions": False,
-        }
-
-        assert actual[0] == expected_run_1
-        assert actual[1] == expected_run_2
+        assert response.json() == [
+            GRID_RUN_1,
+            GRID_RUN_2,
+        ]
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        "order_by,expected",
         [
-            ("logical_date", ["run_1", "run_2"]),
-            ("-logical_date", ["run_2", "run_1"]),
-            ("run_after", ["run_1", "run_2"]),
-            ("-run_after", ["run_2", "run_1"]),
+            (
+                "logical_date",
+                [
+                    GRID_RUN_1,
+                    GRID_RUN_2,
+                ],
+            ),
+            (
+                "-logical_date",
+                [
+                    GRID_RUN_2,
+                    GRID_RUN_1,
+                ],
+            ),
+            (
+                "run_after",
+                [
+                    GRID_RUN_1,
+                    GRID_RUN_2,
+                ],
+            ),
+            (
+                "-run_after",
+                [
+                    GRID_RUN_2,
+                    GRID_RUN_1,
+                ],
+            ),
         ],
     )
-    def test_should_response_200_order_by(self, test_client, order_by, expected_order):
+    def test_should_response_200_order_by(self, test_client, order_by, expected):
         response = test_client.get(f"/grid/runs/{DAG_ID}", params={"order_by": order_by})
         assert response.status_code == 200
-        actual = response.json()
-
-        assert len(actual) == 2
-        for i, expected_run_id in enumerate(expected_order):
-            assert actual[i]["run_id"] == expected_run_id
-            assert "dag_version_id" in actual[i]
-            assert "dag_version_number" in actual[i]
-            assert actual[i]["dag_version_number"] == 1
+        assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "limit, expected_count",
+        "limit, expected",
         [
-            (1, 1),
-            (2, 2),
+            (
+                1,
+                [GRID_RUN_1],
+            ),
+            (
+                2,
+                [GRID_RUN_1, GRID_RUN_2],
+            ),
         ],
     )
-    def test_should_response_200_limit(self, test_client, limit, expected_count):
+    def test_should_response_200_limit(self, test_client, limit, expected):
         response = test_client.get(f"/grid/runs/{DAG_ID}", params={"limit": limit})
         assert response.status_code == 200
-        actual = response.json()
-
-        assert len(actual) == expected_count
-        for run in actual:
-            assert "dag_version_id" in run
-            assert "dag_version_number" in run
+        assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected_count",
+        "params, expected",
         [
             (
                 {
                     "run_after_gte": timezone.datetime(2024, 11, 30),
                     "run_after_lte": timezone.datetime(2024, 11, 30),
                 },
-                2,
+                [GRID_RUN_1, GRID_RUN_2],
             ),
             (
                 {
                     "run_after_gte": timezone.datetime(2024, 10, 30),
                     "run_after_lte": timezone.datetime(2024, 10, 30),
                 },
-                0,
+                [],
             ),
         ],
     )
-    def test_runs_should_response_200_date_filters(self, test_client, params, expected_count):
+    def test_runs_should_response_200_date_filters(self, test_client, params, expected):
         response = test_client.get(
             f"/grid/runs/{DAG_ID}",
             params=params,
         )
         assert response.status_code == 200
-        actual = response.json()
-
-        assert len(actual) == expected_count
+        assert response.json() == expected
 
     @pytest.mark.parametrize(
         "params, expected",
@@ -489,13 +472,28 @@ class TestGetGridDataEndpoint:
         session.commit()
         response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
         assert response.status_code == 200
-        actual = response.json()
-
-        assert len(actual) == 2
-        for run in actual:
-            assert "dag_version_id" in run
-            assert "dag_version_number" in run
-            assert run["dag_version_number"] == 1
+        assert response.json() == [
+            {
+                "dag_id": "test_dag",
+                "duration": 0,
+                "end_date": "2024-12-31T00:00:00Z",
+                "run_after": "2024-11-30T00:00:00Z",
+                "run_id": "run_1",
+                "run_type": "scheduled",
+                "start_date": "2016-01-01T00:00:00Z",
+                "state": "success",
+            },
+            {
+                "dag_id": "test_dag",
+                "duration": 0,
+                "end_date": "2024-12-31T00:00:00Z",
+                "run_after": "2024-11-30T00:00:00Z",
+                "run_id": "run_2",
+                "run_type": "manual",
+                "start_date": "2016-01-01T00:00:00Z",
+                "state": "failed",
+            },
+        ]
 
     def test_grid_ti_summaries_group(self, session, test_client):
         run_id = "run_4-1"
@@ -503,24 +501,154 @@ class TestGetGridDataEndpoint:
         response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
         assert response.status_code == 200
         actual = response.json()
-
-        assert actual["dag_id"] == "test_dag_4"
-        assert actual["run_id"] == "run_4-1"
-        assert "task_instances" in actual
-
-        task_instances = actual["task_instances"]
-        assert len(task_instances) == 9
+        expected = {
+            "dag_id": "test_dag_4",
+            "run_id": "run_4-1",
+            "task_instances": [
+                {
+                    "state": "success",
+                    "task_id": "t1",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "t2",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "t7",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "child_states": {"success": 2},
+                    "max_end_date": "2025-03-02T00:00:12Z",
+                    "min_start_date": "2025-03-02T00:00:04Z",
+                    "state": "success",
+                    "task_id": "task_group-1",
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.t6",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "child_states": {"success": 3},
+                    "max_end_date": "2025-03-02T00:00:12Z",
+                    "min_start_date": "2025-03-02T00:00:06Z",
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2",
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t3",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t4",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t5",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+            ],
+        }
+        for obj in actual, expected:
+            tis = obj["task_instances"]
+            tis[:] = sorted(tis, key=lambda x: x["task_id"])
+        assert actual == expected
 
     def test_grid_ti_summaries_mapped(self, session, test_client):
         run_id = "run_2"
         session.commit()
         response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
         assert response.status_code == 200
-        actual = response.json()
+        data = response.json()
+        actual = data["task_instances"]
 
-        assert actual["dag_id"] == "test_dag"
-        assert actual["run_id"] == "run_2"
-        assert "task_instances" in actual
+        def sort_dict(in_dict):
+            in_dict = sorted(in_dict, key=lambda x: x["task_id"])
+            out = []
+            for d in in_dict:
+                n = {k: d[k] for k in sorted(d, reverse=True)}
+                out.append(n)
+            return out
 
-        task_instances = actual["task_instances"]
-        assert len(task_instances) == 8
+        expected = [
+            {
+                "child_states": {"None": 1},
+                "task_id": "mapped_task_2",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"running": 1},
+                "max_end_date": "2024-12-30T01:02:03Z",
+                "min_start_date": "2024-12-30T01:00:00Z",
+                "state": "running",
+                "task_id": "mapped_task_group",
+            },
+            {
+                "state": "running",
+                "task_id": "mapped_task_group.subtask",
+                "child_states": None,
+                "max_end_date": None,
+                "min_start_date": None,
+            },
+            {
+                "state": "success",
+                "task_id": "task",
+                "child_states": None,
+                "max_end_date": None,
+                "min_start_date": None,
+            },
+            {
+                "child_states": {"None": 2},
+                "task_id": "task_group",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"None": 1},
+                "task_id": "task_group.inner_task_group",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"None": 2},
+                "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"None": 4},
+                "task_id": "task_group.mapped_task",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+        ]
+        expected = sort_dict(expected)
+        actual = sort_dict(actual)
+        assert actual == expected
