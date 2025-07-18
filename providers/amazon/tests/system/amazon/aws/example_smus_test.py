@@ -92,6 +92,10 @@ def get_mwaa_environment_params(
     return parameters
 
 
+def dict_to_ecs_environment(params_dict):
+    return [{"name": key, "value": value} for key, value in params_dict.items()]
+
+
 @task
 def mock_mwaa_environment(parameters: dict):
     """
@@ -129,6 +133,7 @@ with DAG(
     )
 
     setup_mwaa_environment = mock_mwaa_environment(mock_mwaa_environment_params)
+    environment_vars = dict_to_ecs_environment(mock_mwaa_environment_params)
 
     # [START howto_operator_sagemaker_unified_studio_notebook]
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
@@ -147,7 +152,7 @@ with DAG(
         waiter_delay=5,  # optional
         deferrable=False,  # optional
         executor_config={  # optional
-            "overrides": {"containerOverrides": {"environment": mock_mwaa_environment_params}}
+            "overrides": {"containerOverrides": {"name": "container", "environment": environment_vars}}
         },
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
@@ -156,6 +161,7 @@ with DAG(
         # TEST SETUP
         test_context,
         setup_mwaa_environment,
+        environment_vars,
         # TEST BODY
         run_notebook,
     )
