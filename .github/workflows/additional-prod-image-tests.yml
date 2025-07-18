@@ -187,4 +187,4 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Run Task SDK integration tests"
-        run: breeze testing task-sdk-integration-tests
+        run: breeze testing task-sdk-integration-tests --task-sdk-version 1.1.0
