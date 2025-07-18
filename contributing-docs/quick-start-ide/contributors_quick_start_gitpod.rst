@@ -20,7 +20,7 @@
 Connect your project to Gitpod
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Goto |airflow_github| and fork the project.
+1. Go to |airflow_github| and fork the project.
 
    .. |airflow_github| raw:: html
 
@@ -33,7 +33,7 @@ Connect your project to Gitpod
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` and copy the clone link.
+2. Go to your github account's fork of airflow, click on ``Code``, and copy the clone link.
 
    .. raw:: html
 
@@ -42,39 +42,87 @@ Connect your project to Gitpod
              alt="Cloning github fork of Apache airflow">
       </div>
 
-3. Add goto https://gitpod.io/#<copied-url> as shown.
+3. Add go to https://gitpod.io/#<copied-url> as shown.
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
         <img src="images/airflow_gitpod_url.png"
-             alt="Open personal airflow clone with Gitpod">
+             alt="Open personal Airflow clone with Gitpod">
       </div>
 
-Set up Breeze in Gitpod
-~~~~~~~~~~~~~~~~~~~~~~~
 
-Gitpod default image have all the required packages installed.
+Installing Breeze
+---------------
 
-1. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` ) to install Breeze
-2. Run ``breeze`` to enter breeze in Gitpod.
+Gitpod's default image includes the required packages. You can install Breeze using either uv or pipx:
 
-Setting up database in Breeze
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Once you enter breeze environment is initialized, create airflow tables and users from the breeze CLI.
-The ``airflow db reset`` command is required to execute at least once for Airflow Breeze to
-get the database/tables created. When you run the tests, your database will be initialized automatically
-the first time you run tests.
-
-.. note::
-
-   This step is needed when you would like to run/use webserver.
+Using uv (recommended):
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
-  root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
-    --email admin@example.com --firstname foo --lastname bar
+   pip install uv
+   uv tool install -e ./dev/breeze
 
-Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.
+Using pipx (alternative):
+
+.. code-block:: bash
+
+   pip install pipx
+   pipx install -e ./dev/breeze
+
+Initializing the Database
+-----------------------
+
+Before running the webserver, you need to initialize the database:
+
+1. Reset the database:
+
+   .. code-block:: bash
+
+      airflow db reset
+
+2. Create an admin user:
+
+   .. code-block:: bash
+
+      airflow users create \
+         --role Admin \
+         --username admin \
+         --password admin \
+         --email admin@example.com \
+         --firstname foo \
+         --lastname bar
+
+.. note::
+    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
+
+Starting Airflow
+--------------
+
+To start Airflow using Breeze:
+
+.. image:: images/airflow-gitpod.png
+   :alt: Open personal Airflow clone with Gitpod
+   :align: center
+   :width: 600px
+
+.. code-block:: bash
+
+   breeze start-airflow
+
+To start Airflow in development mode:
+
+.. code-block:: bash
+
+   breeze start-airflow --dev-mode
+
+
+.. note::
+   The database initialization step is required only when you plan to use the webserver.
+   When running tests, the database will be initialized automatically on the first run.
+
+Next Steps
+---------
+
+For typical development tasks, refer to the `Quick Start Guide <../03_contributors_quick_start.rst>`_.

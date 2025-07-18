@@ -27,30 +27,32 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from functools import cache
 from pathlib import Path
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
 PYPROJECT_TOML_FILE = "pyproject.toml"
 
 
-def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
+def search_upwards_for_airflow_root_path(start_from: Path) -> Path | None:
     root = Path(start_from.root)
-    d = start_from
-    while d != root:
-        airflow_candidate = d / "airflow"
-        airflow_candidate_init_py = airflow_candidate / "__init__.py"
+    directory = start_from
+    while directory != root:
+        airflow_candidate_init_py = directory / "airflow-core" / "src" / "airflow" / "__init__.py"
+        if airflow_candidate_init_py.exists() and "airflow" in airflow_candidate_init_py.read_text().lower():
+            return directory
+        airflow_2_candidate_init_py = directory / "airflow" / "__init__.py"
         if (
-            airflow_candidate.is_dir()
-            and airflow_candidate_init_py.is_file()
-            and "airflow" in airflow_candidate_init_py.read_text().lower()
+            airflow_2_candidate_init_py.exists()
+            and "airflow" in airflow_2_candidate_init_py.read_text().lower()
+            and directory.parent.name != "src"
         ):
-            return airflow_candidate.parent
-        d = d.parent
+            return directory
+        directory = directory.parent
     return None
 
 
@@ -91,16 +93,20 @@ def get_package_setup_metadata_hash() -> str:
     """
     # local imported to make sure that autocomplete works
     try:
-        from importlib.metadata import distribution  # type: ignore[attr-defined]
+        from importlib.metadata import distribution
     except ImportError:
-        from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
+        from importlib_metadata import distribution  # type: ignore[assignment]
 
     prefix = "Package config hash: "
     metadata = distribution("apache-airflow-breeze").metadata
     try:
-        description = metadata.json["description"]  # type: ignore[attr-defined]
-    except AttributeError:
-        description = metadata.as_string()
+        description = metadata.json["description"]
+    except (AttributeError, KeyError):
+        description = str(metadata["Description"]) if "Description" in metadata else ""
+
+    if isinstance(description, list):
+        description = "\n".join(description)
+
     for line in description.splitlines(keepends=False):
         if line.startswith(prefix):
             return line[len(prefix) :]
@@ -208,7 +214,7 @@ def get_installation_airflow_sources() -> Path | None:
     Retrieves the Root of the Airflow Sources where Breeze was installed from.
     :return: the Path for Airflow sources.
     """
-    return search_upwards_for_airflow_sources_root(Path(__file__).resolve().parent)
+    return search_upwards_for_airflow_root_path(Path(__file__).resolve().parent)
 
 
 def get_used_airflow_sources() -> Path:
@@ -217,7 +223,7 @@ def get_used_airflow_sources() -> Path:
     upwards in directory tree or sources where Breeze was installed from.
     :return: the Path for Airflow sources we use.
     """
-    current_sources = search_upwards_for_airflow_sources_root(Path.cwd())
+    current_sources = search_upwards_for_airflow_root_path(Path.cwd())
     if current_sources is None:
         current_sources = get_installation_airflow_sources()
         if current_sources is None:
@@ -226,8 +232,8 @@ def get_used_airflow_sources() -> Path:
     return current_sources
 
 
-@cache
-def find_airflow_sources_root_to_operate_on() -> Path:
+@clearable_cache
+def find_airflow_root_path_to_operate_on() -> Path:
     """
     Find the root of airflow sources we operate on. Handle the case when Breeze is installed via
     `pipx` or `uv tool` from a different source tree, so it searches upwards of the current directory
@@ -250,13 +256,13 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     :return: Path for the found sources.
 
     """
-    sources_root_from_env = os.getenv("AIRFLOW_SOURCES_ROOT", None)
+    sources_root_from_env = os.getenv("AIRFLOW_ROOT_PATH", None)
     if sources_root_from_env:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
         get_console().print(
-            "\n[error]Breeze should only be installed with -e flag[/]\n\n"
+            "\n[error]Breeze should only be installed with --editable flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
             '[warning]If during installation you see warning starting "Ignoring --editable install",[/]\n'
@@ -283,59 +289,73 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     return airflow_sources
 
 
-AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
-AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
-AIRFLOW_UI_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui"
-AIRFLOW_OLD_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-AIRFLOW_PROVIDERS_PROJECT = AIRFLOW_SOURCES_ROOT / "providers"
-AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_PROJECT / "src"
-AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"
-TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests" / "system"
-DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
-BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
-GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"
-CONSTRAINTS_CACHE_DIR = BUILD_CACHE_DIR / "constraints"
-PROVIDER_DEPENDENCIES_JSON_FILE_PATH = GENERATED_DIR / "provider_dependencies.json"
-PROVIDER_METADATA_JSON_FILE_PATH = GENERATED_DIR / "provider_metadata.json"
-WWW_CACHE_DIR = BUILD_CACHE_DIR / "www"
-UI_CACHE_DIR = BUILD_CACHE_DIR / "ui"
-AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
-WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
-WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
-WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
-WWW_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "www" / "hash.txt"
-WWW_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "node_modules"
-WWW_STATIC_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" / "dist"
-UI_ASSET_COMPILE_LOCK = UI_CACHE_DIR / ".asset_compile.lock"
-UI_ASSET_OUT_FILE = UI_CACHE_DIR / "asset_compile.out"
-UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_DIR / "asset_compile_dev_mode.out"
-UI_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "ui" / "hash.txt"
-UI_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui" / "node_modules"
-UI_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui" / "dist"
-DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
-FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
-FILES_SBOM_DIR = FILES_DIR / "sbom"
-HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
-KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
-LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
-DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
-OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
-REPRODUCIBLE_DIR = OUT_DIR / "reproducible"
-GENERATED_PROVIDER_PACKAGES_DIR = DIST_DIR / "provider_packages"
-DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
-SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
-SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "docker"
-SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
-SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "local.yml"
-GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
-GENERATED_DOCKER_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker.env"
-GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
-DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
-CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
-OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
-BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
-AIRFLOW_HOME_DIR = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
+AIRFLOW_ROOT_PATH = find_airflow_root_path_to_operate_on().resolve()
+AIRFLOW_PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
+AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
+AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
+AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
+AIRFLOW_WWW_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "www"
+AIRFLOW_UI_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
+# Do not delete it - it is used for old commit retrieval from providers
+AIRFLOW_ORIGINAL_PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "airflow" / "providers"
+AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+AIRFLOW_DIST_PATH = AIRFLOW_ROOT_PATH / "dist"
+
+TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+TASK_SDK_DIST_PATH = TASK_SDK_ROOT_PATH / "dist"
+TASK_SDK_SOURCES_PATH = TASK_SDK_ROOT_PATH / "src"
+
+AIRFLOW_CTL_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl"
+AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
+AIRFLOW_CTL_DIST_PATH = AIRFLOW_CTL_ROOT_PATH / "dist"
+
+# Same here - do not remove those this is used for past commit retrieval
+PREVIOUS_AIRFLOW_PROVIDERS_SOURCES_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "src"
+PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH = PREVIOUS_AIRFLOW_PROVIDERS_SOURCES_PATH / "airflow" / "providers"
+PREVIOUS_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_ROOT_PATH / "tests"
+PREVIOUS_SYSTEM_TESTS_PROVIDERS_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "tests" / "system"
+
+AIRFLOW_DEVEL_COMMON_PATH = AIRFLOW_ROOT_PATH / "devel-common"
+DOCS_ROOT = AIRFLOW_ROOT_PATH / "docs"
+BUILD_CACHE_PATH = AIRFLOW_ROOT_PATH / ".build"
+GENERATED_PATH = AIRFLOW_ROOT_PATH / "generated"
+CONSTRAINTS_CACHE_PATH = BUILD_CACHE_PATH / "constraints"
+PROVIDER_DEPENDENCIES_JSON_PATH = GENERATED_PATH / "provider_dependencies.json"
+PROVIDER_METADATA_JSON_PATH = GENERATED_PATH / "provider_metadata.json"
+UI_CACHE_PATH = BUILD_CACHE_PATH / "ui"
+AIRFLOW_TMP_PATH = AIRFLOW_ROOT_PATH / "tmp"
+UI_ASSET_COMPILE_LOCK = UI_CACHE_PATH / ".asset_compile.lock"
+UI_ASSET_OUT_FILE = UI_CACHE_PATH / "asset_compile.out"
+UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_PATH / "asset_compile_dev_mode.out"
+UI_ASSET_HASH_PATH = AIRFLOW_ROOT_PATH / ".build" / "ui" / "hash.txt"
+UI_NODE_MODULES_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui" / "node_modules"
+UI_DIST_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui" / "dist"
+
+DAGS_PATH = AIRFLOW_ROOT_PATH / "dags"
+FILES_PATH = AIRFLOW_ROOT_PATH / "files"
+FILES_SBOM_PATH = FILES_PATH / "sbom"
+KUBE_PATH = AIRFLOW_ROOT_PATH / ".kube"
+LOGS_PATH = AIRFLOW_ROOT_PATH / "logs"
+OUT_PATH = AIRFLOW_ROOT_PATH / "out"
+
+REPRODUCIBLE_PATH = OUT_PATH / "reproducible"
+DOCS_DIR = AIRFLOW_ROOT_PATH / "docs"
+SCRIPTS_CI_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci"
+SCRIPTS_DOCKER_PATH = AIRFLOW_ROOT_PATH / "scripts" / "docker"
+SCRIPTS_CI_DOCKER_COMPOSE_PATH = SCRIPTS_CI_PATH / "docker-compose"
+SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
+GENERATED_DOCKER_COMPOSE_ENV_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_docker_compose.env"
+GENERATED_DOCKER_ENV_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_docker.env"
+GENERATED_DOCKER_LOCK_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated.lock"
+DOCKER_CONTEXT_PATH = AIRFLOW_ROOT_PATH / "docker-context-files"
+CACHE_TEMP_PATH = tempfile.TemporaryDirectory()
+OUTPUT_LOG_PATH = Path(CACHE_TEMP_PATH.name, "out.log")
+BREEZE_ROOT_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze"
+BREEZE_SOURCES_PATH = BREEZE_ROOT_PATH / "src"
+BREEZE_DOC_PATH = BREEZE_ROOT_PATH / "doc"
+BREEZE_IMAGES_PATH = BREEZE_DOC_PATH / "images"
+AIRFLOW_HOME_PATH = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
 
 
 def create_volume_if_missing(volume_name: str):
@@ -370,24 +390,23 @@ def create_directories_and_files() -> None:
     Creates all directories and files that are needed for Breeze to work via docker-compose.
     Checks if setup has been updates since last time and proposes to upgrade if so.
     """
-    BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    DAGS_DIR.mkdir(parents=True, exist_ok=True)
-    FILES_DIR.mkdir(parents=True, exist_ok=True)
-    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
-    KUBE_DIR.mkdir(parents=True, exist_ok=True)
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_LOG.mkdir(parents=True, exist_ok=True)
-    (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
-    (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
-    (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
+    BUILD_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    DAGS_PATH.mkdir(parents=True, exist_ok=True)
+    FILES_PATH.mkdir(parents=True, exist_ok=True)
+    KUBE_PATH.mkdir(parents=True, exist_ok=True)
+    LOGS_PATH.mkdir(parents=True, exist_ok=True)
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    OUTPUT_LOG_PATH.mkdir(parents=True, exist_ok=True)
+    (AIRFLOW_ROOT_PATH / ".bash_aliases").touch()
+    (AIRFLOW_ROOT_PATH / ".bash_history").touch()
+    (AIRFLOW_ROOT_PATH / ".inputrc").touch()
 
 
 def cleanup_python_generated_files():
     if get_verbose():
         get_console().print("[info]Cleaning .pyc and __pycache__")
     permission_errors = []
-    for path in AIRFLOW_SOURCES_ROOT.rglob("*.pyc"):
+    for path in AIRFLOW_ROOT_PATH.rglob("*.pyc"):
         try:
             path.unlink()
         except FileNotFoundError:
@@ -395,7 +414,7 @@ def cleanup_python_generated_files():
             pass
         except PermissionError:
             permission_errors.append(path)
-    for path in AIRFLOW_SOURCES_ROOT.rglob("__pycache__"):
+    for path in AIRFLOW_ROOT_PATH.rglob("__pycache__"):
         try:
             shutil.rmtree(path)
         except FileNotFoundError:

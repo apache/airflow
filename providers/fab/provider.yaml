@@ -1,0 +1,230 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-fab
+
+name: Fab
+
+description: |
+  `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
+
+# The provider is not yet ready to be released, we will skip it by default when preparing new release waves
+# For providers until we think it should be released.
+state: ready
+
+source-date-epoch: 1751473430
+
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 2.3.0
+  - 2.2.1
+  - 2.2.0
+  - 2.1.0
+  - 2.0.2
+  - 2.0.1
+  - 2.0.0
+  - 1.5.2
+  - 1.5.1
+  - 1.5.0
+  - 1.4.1
+  - 1.4.0
+  - 1.3.0
+  - 1.2.2
+  - 1.2.1
+  - 1.2.0
+  - 1.1.1
+  - 1.1.0
+  - 1.0.4
+  - 1.0.3
+  - 1.0.2
+  - 1.0.1
+  - 1.0.0
+
+excluded-python-versions:
+  - "3.13"
+
+config:
+  fab:
+    description: This section contains configs specific to FAB provider.
+    options:
+      navbar_color:
+        description: |
+          Define the color of navigation bar
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#fff"
+      navbar_text_color:
+        description: |
+          Define the color of text in the navigation bar
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#51504f"
+      navbar_hover_color:
+        description: |
+          Define the color of navigation bar links when hovered
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#eee"
+      navbar_text_hover_color:
+        description: |
+          Define the color of text in the navigation bar when hovered
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#51504f"
+      access_denied_message:
+        description: |
+          The message displayed when a user attempts to execute actions beyond their authorised privileges.
+        version_added: 2.1.0
+        type: string
+        example: ~
+        default: "Access is Denied"
+      expose_hostname:
+        description: |
+          Expose hostname in the web server
+        version_added: 2.1.0
+        type: string
+        example: ~
+        default: "False"
+      auth_rate_limited:
+        description: |
+          Boolean for enabling rate limiting on authentication endpoints.
+        version_added: 1.0.2
+        type: boolean
+        example: ~
+        default: "True"
+      auth_rate_limit:
+        description: |
+          Rate limit for authentication endpoints.
+        version_added: 1.0.2
+        type: string
+        example: ~
+        default: "5 per 40 second"
+      update_fab_perms:
+        description: |
+          Update FAB permissions and sync security manager roles
+          on webserver startup
+        version_added: 1.0.2
+        type: string
+        example: ~
+        default: "True"
+      auth_backends:
+        description: |
+          Comma separated list of auth backends to authenticate users of the API.
+        version_added: 2.0.0
+        type: string
+        example: ~
+        default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
+      config_file:
+        description: |
+          Path of webserver config file used for configuring the webserver parameters
+        version_added: 2.0.0
+        type: string
+        example: ~
+        default: "{AIRFLOW_HOME}/webserver_config.py"
+      session_backend:
+        description: |
+          The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
+          ``database`` backend, sessions are store in the database and they can be
+          managed there (for example when you reset password of the user, all sessions for that user are
+          deleted). For the ``securecookie`` backend, sessions are stored in encrypted cookies on the client
+          side. The ``securecookie`` mechanism is 'lighter' than database backend, but sessions are not
+          deleted when you reset password of the user, which means that other than waiting for expiry time,
+          the only way to invalidate all sessions for a user is to change secret_key and restart webserver
+          (which also invalidates and logs out all other user's sessions).
+
+          When you are using ``database`` backend, make sure to keep your database session table small
+          by periodically running ``airflow db clean --table session`` command, especially if you have
+          automated API calls that will create a new session for each call rather than reuse the sessions
+          stored in browser cookies.
+        version_added: 2.0.0
+        type: string
+        example: "securecookie"
+        default: "database"
+      session_lifetime_minutes:
+        description: |
+          The UI cookie lifetime in minutes. User will be logged out from UI after
+          ``[fab] session_lifetime_minutes`` of non-activity
+        version_added: 2.0.0
+        type: integer
+        example: ~
+        default: "43200"
+      enable_proxy_fix:
+        description: |
+          Enable werkzeug ``ProxyFix`` middleware for reverse proxy
+        version_added: 2.1.0
+        type: boolean
+        example: ~
+        default: "False"
+      proxy_fix_x_for:
+        description: |
+          Number of values to trust for ``X-Forwarded-For``.
+          See `Werkzeug: X-Forwarded-For Proxy Fix
+          <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
+        version_added: 2.1.0
+        type: integer
+        example: ~
+        default: "1"
+      proxy_fix_x_proto:
+        description: |
+          Number of values to trust for ``X-Forwarded-Proto``.
+          See `Werkzeug: X-Forwarded-For Proxy Fix
+          <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
+        version_added: 2.1.0
+        type: integer
+        example: ~
+        default: "1"
+      proxy_fix_x_host:
+        description: |
+          Number of values to trust for ``X-Forwarded-Host``.
+          See `Werkzeug: X-Forwarded-For Proxy Fix
+          <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
+        version_added: 2.1.0
+        type: integer
+        example: ~
+        default: "1"
+      proxy_fix_x_port:
+        description: |
+          Number of values to trust for ``X-Forwarded-Port``.
+          See `Werkzeug: X-Forwarded-For Proxy Fix
+          <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
+        version_added: 2.1.0
+        type: integer
+        example: ~
+        default: "1"
+      proxy_fix_x_prefix:
+        description: |
+          Number of values to trust for ``X-Forwarded-Prefix``.
+          See `Werkzeug: X-Forwarded-For Proxy Fix
+          <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
+        version_added: 2.1.0
+        type: integer
+        example: ~
+        default: "1"
+
+auth-managers:
+  - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
+extra-project-metadata: license-files = ["NOTICE", "*/LICENSE*"]

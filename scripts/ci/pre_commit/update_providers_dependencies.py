@@ -15,39 +15,46 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "rich>=12.4.4",
+#   "pyyaml>=6.0.2",
+#   "tomli>=2.0.1; python_version < '3.11'"
+# ]
+# ///
 from __future__ import annotations
 
 import json
 import os
 import sys
-from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 import yaml
-from rich.console import Console
 
-console = Console(color_system="standard", width=200)
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    console,
+    get_imports_from_file,
+)
 
 AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
+DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
-AIRFLOW_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "providers"
-AIRFLOW_PROVIDERS_SRC_DIR = AIRFLOW_PROVIDERS_DIR / "src" / "airflow" / "providers"
-AIRFLOW_TESTS_PROVIDERS_DIR = AIRFLOW_PROVIDERS_DIR / "tests"
-AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR = AIRFLOW_TESTS_PROVIDERS_DIR / "tests" / "system"
-
-DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
-
-PYPROJECT_TOML_FILE_PATH = AIRFLOW_SOURCES_ROOT / "pyproject.toml"
+PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 MY_FILE = Path(__file__).resolve()
-MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
+PROVIDERS: set[str] = set()
 
+PYPROJECT_TOML_CONTENT: dict[str, dict[str, Any]] = {}
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported from Airflow
+sys.path.insert(0, str(AIRFLOW_CORE_SOURCES_PATH))  # make sure setup is imported from Airflow
 
 warnings: list[str] = []
 errors: list[str] = []
@@ -59,54 +66,41 @@ ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultd
 ALL_PROVIDERS: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict())
 ALL_PROVIDER_FILES: list[Path] = []
 
-# Allow AST to parse the files.
-sys.path.append(str(AIRFLOW_SOURCES_ROOT))
 
-
-class ImportFinder(NodeVisitor):
-    """
-    AST visitor that collects all imported names in its imports
-    """
-
-    def __init__(self) -> None:
-        self.imports: list[str] = []
-        self.handled_import_exception = list[str]
-        self.tried_imports: list[str] = []
-
-    def process_import(self, import_name: str) -> None:
-        self.imports.append(import_name)
-
-    def get_import_name_from_import_from(self, node: ImportFrom) -> list[str]:
-        import_names: list[str] = []
-        for alias in node.names:
-            name = alias.name
-            fullname = f"{node.module}.{name}" if node.module else name
-            import_names.append(fullname)
-        return import_names
-
-    def visit_Import(self, node: Import):
-        for alias in node.names:
-            self.process_import(alias.name)
-
-    def visit_ImportFrom(self, node: ImportFrom):
-        if node.module == "__future__":
-            return
-        for fullname in self.get_import_name_from_import_from(node):
-            self.process_import(fullname)
+def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    return tomllib.loads(pyproject_toml_file_path.read_text())
 
 
 def find_all_providers_and_provider_files():
-    for root, _, filenames in os.walk(AIRFLOW_PROVIDERS_SRC_DIR):
+    for root, dirs, filenames in os.walk(AIRFLOW_PROVIDERS_ROOT_PATH):
         for filename in filenames:
             if filename == "provider.yaml":
-                provider_file = Path(root, filename)
-                provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)).replace(
-                    os.sep, "."
+                provider_yaml_file = Path(root, filename)
+                provider_name = str(
+                    provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
+                ).replace(os.sep, ".")
+                PROVIDERS.add(provider_name)
+                PYPROJECT_TOML_CONTENT[provider_name] = load_pyproject_toml(
+                    provider_yaml_file.parent / "pyproject.toml"
                 )
-                provider_info = yaml.safe_load(provider_file.read_text())
+                # only descend to "src" directory in the new structure
+                # this avoids descending into .venv or "build" directories in case
+                # someone works on providers in a separate virtualenv
+                if "src" in dirs:
+                    dirs[:] = ["src"]
+                else:
+                    raise ValueError(
+                        f"The provider {provider_name} does not have 'src' folder"
+                        f" in {provider_yaml_file.parent}"
+                    )
+                provider_info = yaml.safe_load(provider_yaml_file.read_text())
                 if provider_info["state"] == "suspended":
                     suspended_paths.append(
-                        provider_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR).as_posix()
+                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix()
                     )
                 ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
@@ -138,53 +132,47 @@ def get_provider_id_from_import(import_name: str, file_path: Path) -> str | None
     return provider_id
 
 
-def get_imports_from_file(file_path: Path) -> list[str]:
-    root = parse(file_path.read_text(), file_path.name)
-    visitor = ImportFinder()
-    visitor.visit(root)
-    return visitor.imports
-
-
-def get_provider_id_from_file_name(file_path: Path) -> str | None:
-    # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    try:
-        relative_path = file_path.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)
-    except ValueError:
-        try:
-            relative_path = file_path.relative_to(AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR)
-        except ValueError:
-            try:
-                relative_path = file_path.relative_to(AIRFLOW_TESTS_PROVIDERS_DIR)
-            except ValueError:
-                errors.append(f"Wrong file not in the providers package = {file_path}")
+def get_provider_id_from_path(file_path: Path) -> str | None:
+    """
+    Get the provider id from the path of the file it belongs to.
+    """
+    for parent in file_path.parents:
+        # This works fine for both new and old providers structure - because we moved provider.yaml to
+        # the top-level of the provider and this code finding "providers"  will find the "providers" package
+        # in old structure and "providers" directory in new structure - in both cases we can determine
+        # the provider id from the relative folders
+        if (parent / "provider.yaml").exists():
+            for providers_root_candidate in parent.parents:
+                if providers_root_candidate.name == "providers":
+                    return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
+            else:
                 return None
-    provider_id = get_provider_id_from_relative_import_or_file(str(relative_path))
-    if provider_id is None and file_path.name not in ["__init__.py", "get_provider_info.py"]:
-        if relative_path.as_posix().startswith(tuple(suspended_paths)):
-            return None
-        else:
-            warnings.append(f"We had a problem to classify the file {file_path} to a provider")
-    return provider_id
+    return None
 
 
 def check_if_different_provider_used(file_path: Path) -> None:
-    file_provider = get_provider_id_from_file_name(file_path)
+    file_provider = get_provider_id_from_path(file_path)
     if not file_provider:
         return
-    imports = get_imports_from_file(file_path)
+    imports = get_imports_from_file(file_path, only_top_level=False)
     for import_name in imports:
         imported_provider = get_provider_id_from_import(import_name, file_path)
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
             continue
 
-        if imported_provider == "standard":
-            # Standard -- i.e. BashOperator is used in a lot of example dags, but we don't want to mark this
+        if "/example_dags/" in file_path.as_posix():
+            # If provider is used in a example dags, we don't want to mark this
             # as a provider cross dependency
-            if file_path.name == "celery_executor_utils.py" or "/example_dags/" in file_path.as_posix():
-                continue
-        if imported_provider and file_provider != imported_provider:
-            ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
+            continue
+        if imported_provider == "standard" and file_path.name == "celery_executor_utils.py":
+            # some common standard operators are pre-imported in celery when it starts in order to speed
+            # up the task startup time - but it does not mean that standard provider is a cross-provider
+            # dependency of the celery executor
+            continue
+        if imported_provider:
+            if file_provider != imported_provider:
+                ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
 STATES: dict[str, str] = {}
@@ -195,12 +183,22 @@ if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
     num_providers = len(ALL_PROVIDERS)
-    console.print(f"Found {num_providers} providers with {num_files} Python files.")
+    console.print(f"Refreshed {num_providers} providers with {num_files} Python files.")
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
-    for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
-        ALL_DEPENDENCIES[provider]["devel-deps"].extend(provider_yaml_content.get("devel-dependencies") or [])
+    for provider in sorted(ALL_PROVIDERS.keys()):
+        provider_yaml_content = ALL_PROVIDERS[provider]
+        if provider in PROVIDERS:
+            ALL_DEPENDENCIES[provider]["deps"].extend(
+                PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]
+            )
+            dependency_groups = PYPROJECT_TOML_CONTENT[provider].get("dependency-groups")
+            if dependency_groups and dependency_groups.get("dev"):
+                ALL_DEPENDENCIES[provider]["devel-deps"].extend(
+                    [dep for dep in dependency_groups["dev"] if not dep.startswith("apache-airflow")]
+                )
+        else:
+            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
         ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:
@@ -233,31 +231,10 @@ if __name__ == "__main__":
         DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else "{}"
     )
     new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
-    old_md5sum = MY_MD5SUM_FILE.read_text().strip() if MY_MD5SUM_FILE.exists() else ""
     old_content = DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else ""
     new_content = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
     DEPENDENCIES_JSON_FILE_PATH.write_text(new_content)
     if new_content != old_content:
-        if os.environ.get("CI"):
-            # make sure the message is printed outside the folded section
-            console.print("::endgroup::")
-            console.print()
-            console.print(f"There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
-            console.print(
-                f"[red]You need to run the following command locally and commit generated "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} file:\n"
-            )
-            console.print("breeze static-checks --type update-providers-dependencies --all-files")
-            console.print()
-            console.print("[yellow]Make sure to rebase your changes on the latest main branch!")
-            console.print()
-            sys.exit(1)
-        else:
-            console.print()
-            console.print(
-                f"[yellow]Regenerated new dependencies. Please commit "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
-            )
-            console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
-            console.print()
-    console.print()
+        console.print()
+        console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
+        console.print()

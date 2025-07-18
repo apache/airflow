@@ -24,15 +24,15 @@ import os
 import re
 import sys
 from functools import lru_cache
-from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    SCRIPTS_DOCKER_DIR,
+    AIRFLOW_ROOT_PATH,
+    SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
 )
@@ -80,29 +80,28 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
     ("LICENSE", "/opt/airflow/LICENSE"),
-    ("NOTICE", "/opt/airflow/NOTICE"),
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
-    ("airflow", "/opt/airflow/airflow"),
+    ("airflow-core", "/opt/airflow/airflow-core"),
+    ("airflow-ctl", "/opt/airflow/airflow-ctl"),
     ("constraints", "/opt/airflow/constraints"),
     ("clients", "/opt/airflow/clients"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
+    ("docker-stack-docs", "/opt/airflow/docker-stack-docs"),
+    ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
     ("generated", "/opt/airflow/generated"),
-    ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
-    ("task_sdk", "/opt/airflow/task_sdk"),
+    ("task-sdk", "/opt/airflow/task-sdk"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
-    ("tests_common", "/opt/airflow/tests_common"),
-    ("tests", "/opt/airflow/tests"),
-    ("helm_tests", "/opt/airflow/helm_tests"),
-    ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
-    ("docker_tests", "/opt/airflow/docker_tests"),
+    ("devel-common", "/opt/airflow/devel-common"),
+    ("helm-tests", "/opt/airflow/helm-tests"),
+    ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
+    ("docker-tests", "/opt/airflow/docker-tests"),
     ("chart", "/opt/airflow/chart"),
-    ("hatch_build.py", "/opt/airflow/hatch_build.py"),
 ]
 
 
@@ -179,8 +178,7 @@ def check_docker_is_running():
     )
     if response.returncode != 0:
         get_console().print(
-            "[error]Docker is not running.[/]\n"
-            "[warning]Please make sure Docker is installed and running.[/]"
+            "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         sys.exit(1)
 
@@ -417,7 +415,7 @@ def prepare_docker_build_command(
     final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
     final_command.extend(image_params.prepare_arguments_for_docker_build_command())
-    final_command.extend(["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."])
+    final_command.extend(["-t", image_params.airflow_image_name, "--target", "main", "."])
     final_command.extend(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
@@ -433,11 +431,11 @@ def construct_docker_push_command(
     :param image_params: parameters of the image
     :return: Command to run as list of string
     """
-    return ["docker", "push", image_params.airflow_image_name_with_tag]
+    return ["docker", "push", image_params.airflow_image_name]
 
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
-    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
+    build_command_result: RunCommandResult = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -446,7 +444,7 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             output=output,
             check=False,
             text=True,
@@ -491,7 +489,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
     """
-    for entrypoint in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
+    for entrypoint in SCRIPTS_DOCKER_PATH.glob("entrypoint*.sh"):
         if get_verbose() and not quiet:
             get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
         if not os.access(entrypoint.as_posix(), os.X_OK):
@@ -515,13 +513,13 @@ def perform_environment_checks(quiet: bool = False):
 
 
 def get_docker_syntax_version() -> str:
-    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
-    return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
+    return (AIRFLOW_ROOT_PATH / "Dockerfile").read_text().splitlines()[0]
 
 
 def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
-    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
     platforms: set[str] = set()
     for image_params in image_params_list:
@@ -534,7 +532,6 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
         docker_syntax = get_docker_syntax_version()
         get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
         warm_up_image_param = copy.deepcopy(image_params_list[0])
-        warm_up_image_param.image_tag = "warmup"
         warm_up_image_param.push = False
         warm_up_image_param.platform = platform
         build_command = prepare_base_build_command(image_params=warm_up_image_param)
@@ -548,7 +545,7 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     FROM scratch
     LABEL description="test warmup image"
     """,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             text=True,
             check=False,
         )
@@ -564,7 +561,7 @@ OWNERSHIP_CLEANUP_DOCKER_TAG = (
 )
 
 
-def fix_ownership_using_docker(quiet: bool = False):
+def fix_ownership_using_docker(quiet: bool = True):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
@@ -572,7 +569,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         "docker",
         "run",
         "-v",
-        f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow/",
+        f"{AIRFLOW_ROOT_PATH}:/opt/airflow/",
         "-e",
         f"HOST_OS={get_host_os()}",
         "-e",
@@ -580,18 +577,21 @@ def fix_ownership_using_docker(quiet: bool = False):
         "-e",
         f"HOST_GROUP_ID={get_host_group_id()}",
         "-e",
+        f"VERBOSE={str(get_verbose()).lower()}",
+        "-e",
         f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
         "--rm",
         "-t",
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(cmd, text=True, check=False, capture_output=quiet)
+    run_command(cmd, text=True, check=False, quiet=quiet)
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
-    Removes specified docker networks. If no networks are specified, it removes all unused networks.
+    Removes specified docker networks. If no networks are specified, it removes all networks created by breeze.
+    Any network with label "com.docker.compose.project=breeze" are removed when no networks are specified.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the networks exist.
 
@@ -599,14 +599,40 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
     if networks is None:
         run_command(
-            ["docker", "network", "prune", "-f"],
+            ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
+            quiet=True,
         )
     else:
         for network in networks:
             run_command(
                 ["docker", "network", "rm", network],
+                check=False,
+                stderr=DEVNULL,
+                quiet=True,
+            )
+
+
+def remove_docker_volumes(volumes: list[str] | None = None) -> None:
+    """
+    Removes specified docker volumes. If no volumes are specified, it removes all volumes created by breeze.
+    Any volume with label "com.docker.compose.project=breeze" are removed when no volumes are specified.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the volumes exist.
+
+    :param volumes: list of volumes to remove
+    """
+    if volumes is None:
+        run_command(
+            ["docker", "volume", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for volume in volumes:
+            run_command(
+                ["docker", "volume", "rm", volume],
                 check=False,
                 stderr=DEVNULL,
             )
@@ -698,7 +724,11 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
 
 
 def execute_command_in_shell(
-    shell_params: ShellParams, project_name: str, command: str | None = None, output: Output | None = None
+    shell_params: ShellParams,
+    project_name: str,
+    command: str | None = None,
+    output: Output | None = None,
+    signal_error: bool = True,
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -707,7 +737,6 @@ def execute_command_in_shell(
 
     * backend - to force sqlite backend
     * clean_sql_db=True - to clean the sqlite DB
-    * executor - to force SequentialExecutor
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
     * project_name - to avoid name clashes with default "breeze" project name used
@@ -740,10 +769,12 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
-    return enter_shell(shell_params, output=output)
+    return enter_shell(shell_params, output=output, signal_error=signal_error)
 
 
-def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunCommandResult:
+def enter_shell(
+    shell_params: ShellParams, output: Output | None = None, signal_error: bool = True
+) -> RunCommandResult:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -813,11 +844,55 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     )
     if command_result.returncode == 0:
         return command_result
-    else:
+    if signal_error:
         get_console().print(f"[red]Error {command_result.returncode} returned[/]")
-        if get_verbose():
-            get_console().print(command_result.stderr)
-        return command_result
+    if get_verbose():
+        get_console().print(command_result.stderr)
+    notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
+    return command_result
+
+
+def notify_on_unhealthy_backend_container(project_name: str, backend: str, output: Output | None = None):
+    """Put emphasis on unhealthy backend container and `breeze down` command for user."""
+    if backend not in ["postgres", "mysql"] or os.environ.get("CI") == "true":
+        return
+
+    if _is_backend_container_unhealthy(project_name, backend):
+        get_console(output=output).print(
+            "[warning]The backend container is unhealthy. You might need to run `down` "
+            "command to clean up:\n\n"
+            "\tbreeze down[/]\n"
+        )
+
+
+def _is_backend_container_unhealthy(project_name: str, backend: str) -> bool:
+    try:
+        filter = f"name={project_name}-{backend}"
+        search_response = run_command(
+            ["docker", "ps", "--filter", filter, "--format={{.Names}}"],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        container_name = search_response.stdout.strip()
+
+        # Skip the check if not found or multiple containers found
+        if len(container_name.strip().splitlines()) != 1:
+            return False
+
+        inspect_response = run_command(
+            ["docker", "inspect", "--format={{.State.Health.Status}}", container_name],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if inspect_response.returncode == 0:
+            return inspect_response.stdout.strip() == "unhealthy"
+    # We don't want to misguide the user, so in case of any error we skip the check
+    except Exception:
+        pass
+
+    return False
 
 
 def is_docker_rootless() -> bool:
@@ -827,6 +902,7 @@ def is_docker_rootless() -> bool:
             capture_output=True,
             check=False,
             text=True,
+            quiet=True,
         )
         if response.returncode == 0 and "rootless" in response.stdout.strip():
             get_console().print("[info]Docker is running in rootless mode.[/]\n")
@@ -835,3 +911,56 @@ def is_docker_rootless() -> bool:
         # we ignore if docker is missing
         pass
     return False
+
+
+def check_airflow_cache_builder_configured():
+    result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
+    if result_inspect_builder.returncode != 0:
+        get_console().print(
+            "[error]Airflow Cache builder must be configured to "
+            "build multi-platform images with multiple builders[/]"
+        )
+        get_console().print()
+        get_console().print(
+            "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
+            " for instructions on setting it up."
+        )
+        sys.exit(1)
+
+
+def check_regctl_installed():
+    result_regctl = run_command(["regctl", "version"], check=False)
+    if result_regctl.returncode != 0:
+        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
+        )
+        sys.exit(1)
+
+
+def check_docker_buildx_plugin():
+    result_docker_buildx = run_command(
+        ["docker", "buildx", "version"],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result_docker_buildx.returncode != 0:
+        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
+        get_console().print()
+        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
+        sys.exit(1)
+    from packaging.version import Version
+
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    packaging_version = Version(version)
+    if packaging_version < Version("0.13.0"):
+        get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/docker/buildx?tab=readme-ov-file#installing for installation info."
+        )
+        sys.exit(1)
+    else:
+        get_console().print(f"[success]Docker buildx plugin is installed and in good version: {version}[/]")

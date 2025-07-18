@@ -41,7 +41,7 @@ from airflow_breeze.utils.github import (
     download_constraints_file,
     download_file_from_github,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, FILES_SBOM_PATH
 from airflow_breeze.utils.projects_google_spreadsheet import MetadataFromSpreadsheet, get_project_metadata
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -50,9 +50,9 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
-def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
+def start_cdxgen_servers(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
     """
-    Start cdxgen server that is used to perform cdxgen scans of applications in child process
+    Start cdxgen servers that is used to perform cdxgen scans of applications in child process
     :param run_in_parallel: run parallel servers
     :param parallelism: parallelism to use
     :param application_root_path: path where the application to scan is located
@@ -69,10 +69,15 @@ def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, para
         fork_cdxgen_server(application_root_path)
     else:
         for i in range(parallelism):
-            fork_cdxgen_server(application_root_path, port=9091 + i)
+            fork_cdxgen_server(application_root_path, port=8080 + i)
     time.sleep(1)
-    get_console().print("[info]Waiting for cdxgen server to start")
+    get_console().print("[info]Waiting for cdxgen server(s) to start")
     time.sleep(3)
+    if os.environ.get("CI", "false") == "true":
+        # In CI we wait longer for the server to start
+        get_console().print("[info]Waiting longer for cdxgen server(s) to start in CI")
+        time.sleep(5)
+        print("::endgroup::")
 
 
 def fork_cdxgen_server(application_root_path, port=9090):
@@ -115,7 +120,7 @@ def fork_cdxgen_server(application_root_path, port=9090):
 def get_port_mapping(x):
     # if we do not sleep here, then we could skip mapping for some process if it is handle
     time.sleep(1)
-    return multiprocessing.current_process().name, 9091 + x
+    return multiprocessing.current_process().name, 8080 + x
 
 
 def get_cdxgen_port_mapping(parallelism: int, pool: Pool) -> dict[str, int]:
@@ -137,7 +142,7 @@ def get_all_airflow_versions_image_name(python_version: str) -> str:
 
 
 def list_providers_from_providers_requirements(
-    airflow_site_archive_directory: Path,
+    airflow_site_archive_path: Path,
 ) -> Generator[tuple[str, str, str, Path], None, None]:
     for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
         if not node_name.startswith("provider"):
@@ -146,7 +151,7 @@ def list_providers_from_providers_requirements(
         provider_id, provider_version = node_name.rsplit("-", 1)
 
         provider_documentation_directory = (
-            airflow_site_archive_directory
+            airflow_site_archive_path
             / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
         )
         provider_version_documentation_directory = provider_documentation_directory / provider_version
@@ -162,7 +167,7 @@ def list_providers_from_providers_requirements(
 
 TARGET_DIR_NAME = "provider_requirements"
 
-PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_DIR / TARGET_DIR_NAME
+PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_PATH / TARGET_DIR_NAME
 DOCKER_FILE_PREFIX = f"/files/sbom/{TARGET_DIR_NAME}/"
 
 
@@ -176,7 +181,7 @@ def get_requirements_for_provider(
 ) -> tuple[int, str]:
     provider_path_array = provider_id.split(".")
     if not provider_version:
-        provider_file = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
+        provider_file = (AIRFLOW_ROOT_PATH / "airflow" / "providers").joinpath(
             *provider_path_array
         ) / "provider.yaml"
         provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
@@ -213,8 +218,7 @@ def get_requirements_for_provider(
             f"Provider requirements already existed, skipped generation for {provider_id} version "
             f"{provider_version} python {python_version}",
         )
-    else:
-        provider_folder_path.mkdir(exist_ok=True)
+    provider_folder_path.mkdir(exist_ok=True, parents=True)
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
@@ -235,7 +239,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
             "-e",
             f"HOST_GROUP_ID={os.getgid()}",
             "-v",
-            f"{AIRFLOW_SOURCES_ROOT}/files:/files",
+            f"{AIRFLOW_ROOT_PATH}/files:/files",
             get_all_airflow_versions_image_name(python_version=python_version),
             "-c",
             ";".join(command.splitlines()[1:-1]),
@@ -246,7 +250,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
     get_console(output=output).print(f"[info]Provider requirements in {provider_with_core_path}")
     base_packages = {package.split("==")[0] for package in airflow_core_path.read_text().splitlines()}
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
-    provider_packages = sorted(
+    provider_distributions = sorted(
         [
             line
             for line in provider_with_core_path.read_text().splitlines()
@@ -254,11 +258,11 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
         ]
     )
     get_console(output=output).print(
-        f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
+        f"[info]Provider {provider_id} has {len(provider_distributions)} transitively "
         f"dependent packages (excluding airflow and its dependencies)"
     )
-    get_console(output=output).print(provider_packages)
-    provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_packages))
+    get_console(output=output).print(provider_distributions)
+    provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_distributions))
     get_console(output=output).print(
         f"[success]Generated {provider_id}:{provider_version}:python{python_version} requirements in "
         f"{provider_without_core_file}"
@@ -329,7 +333,7 @@ class SbomApplicationJob:
     target_path: Path
 
     @abstractmethod
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -369,22 +373,34 @@ class SbomCoreJob(SbomApplicationJob):
             source_dir = source_dir / f"python{self.python_version}"
         return source_dir
 
-    def download_dependency_files(self, output: Output | None) -> bool:
+    def download_dependency_files(self, output: Output | None, github_token: str | None) -> bool:
         source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
-        lock_file_relative_path = "airflow/www/yarn.lock"
+        version_number = int(self.airflow_version.split(".")[0])
+        lock_file_relative_path = (
+            "airflow-core/src/airflow/ui/package.json" if version_number >= 3 else "airflow/www/yarn.lock"
+        )
+        source_dir_with_file = (
+            (source_dir / "package.json") if version_number >= 3 else (source_dir / "yarn.lock")
+        )
         if self.include_npm:
             download_file_from_github(
-                tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
+                reference=self.airflow_version,
+                path=lock_file_relative_path,
+                output_file=source_dir_with_file,
+                github_token=github_token,
             )
         else:
-            (source_dir / "yarn.lock").unlink(missing_ok=True)
+            source_dir_with_file.unlink(missing_ok=True)
         if self.include_python:
             if not download_constraints_file(
-                airflow_version=self.airflow_version,
+                constraints_reference=f"constraints-{self.airflow_version}",
                 python_version=self.python_version,
-                include_provider_dependencies=self.include_provider_dependencies,
+                airflow_constraints_mode="constraints"
+                if self.include_provider_dependencies
+                else "constraints-no-providers",
                 output_file=source_dir / "requirements.txt",
+                github_token=github_token,
             ):
                 get_console(output=output).print(
                     f"[warning]Failed to download constraints file for "
@@ -396,7 +412,7 @@ class SbomCoreJob(SbomApplicationJob):
             (source_dir / "requirements.txt").unlink(missing_ok=True)
         return True
 
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
@@ -404,7 +420,7 @@ class SbomCoreJob(SbomApplicationJob):
             f"include_provider_dependencies={self.include_provider_dependencies}, "
             f"python={self.include_python}, npm={self.include_npm}"
         )
-        if not self.download_dependency_files(output):
+        if not self.download_dependency_files(output, github_token=github_token):
             return 0, f"SBOM Generate {self.airflow_version}:{self.python_version}"
 
         get_console(output=output).print(
@@ -463,7 +479,7 @@ class SbomProviderJob(SbomApplicationJob):
     def get_job_name(self) -> str:
         return f"{self.provider_id}:{self.provider_version}:python{self.python_version}"
 
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
@@ -502,12 +518,16 @@ class SbomProviderJob(SbomApplicationJob):
 
 
 def produce_sbom_for_application_via_cdxgen_server(
-    job: SbomApplicationJob, output: Output | None, port_map: dict[str, int] | None = None
+    job: SbomApplicationJob,
+    output: Output | None,
+    github_token: str | None,
+    port_map: dict[str, int] | None = None,
 ) -> tuple[int, str]:
     """
     Produces SBOM for application using cdxgen server.
     :param job: Job to run
     :param output: Output to use
+    :param github_token: GitHub token to use for downloading files`
     :param port_map map of process name to port - making sure that one process talks to one server
          in case parallel processing is used
     :return: tuple with exit code and output
@@ -518,7 +538,7 @@ def produce_sbom_for_application_via_cdxgen_server(
     else:
         port = port_map[multiprocessing.current_process().name]
         get_console(output=output).print(f"[info]Using port {port}")
-    return job.produce(output, port)
+    return job.produce(output, port, github_token)
 
 
 def convert_licenses(licenses: list[dict[str, Any]]) -> str:

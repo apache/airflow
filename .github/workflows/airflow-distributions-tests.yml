@@ -1,0 +1,135 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Non-core Distribution tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      # Static inputs defined to choose which distribution to test to run
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      distribution-name:
+        description: "The name of the distribution to test"
+        required: true
+        type: string
+      distribution-cmd-format:
+        description: "The type of distribution to test"  # eg prepare-task-sdk-distributions
+        required: true
+        type: string
+      test-type:
+        description: "distribution test type"  # eg task-sdk-tests
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      python-versions:
+        description: "JSON-formatted array of Python versions to build images from"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      canary-run:
+        description: "Whether this is a canary run (true/false)"
+        required: true
+        type: string
+      use-local-venv:
+        description: "Whether local venv should be used for tests (true/false)"
+        required: true
+        type: string
+      test-timeout:
+        required: false
+        type: number
+        default: 60
+
+permissions:
+  contents: read
+jobs:
+  distributions-tests:
+    timeout-minutes: ${{ fromJSON(inputs.test-timeout) }}
+    name: ${{ inputs.distribution-name }}:P${{ matrix.python-version }} tests
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: "${{fromJSON(inputs.python-versions)}}"
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
+        if: ${{ inputs.use-local-venv != 'true' }}
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+        shell: bash
+        if: ${{ inputs.use-local-venv == 'true' }}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        if: ${{ inputs.use-local-venv == 'true' }}
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+        if: ${{ matrix.python-version == inputs.default-python-version }}
+      # Conditional steps based on the distribution name
+      - name: "Prepare Airflow ${{inputs.distribution-name}}: wheel"
+        env:
+          DISTRIBUTION_TYPE: "${{ inputs.distribution-cmd-format }}"
+          USE_LOCAL_HATCH: "${{ inputs.use-local-venv }}"
+        run: |
+          uv tool uninstall hatch || true
+          uv tool install hatch==1.14.1
+          breeze release-management "${DISTRIBUTION_TYPE}" --distribution-format wheel
+        if: ${{ matrix.python-version == inputs.default-python-version }}
+      - name: "Verify wheel packages with twine"
+        run: |
+          uv tool uninstall twine || true
+          uv tool install twine && twine check dist/*.whl
+        if: ${{ matrix.python-version == inputs.default-python-version }}
+      - name: >
+          Run unit tests for Airflow ${{inputs.distribution-name}}:Python ${{ matrix.python-version }}
+        env:
+          PYTHON_VERSION: "${{ matrix.python-version }}"
+          TEST_TYPE: "${{ inputs.test-type }}"
+        run: >
+          breeze testing "${TEST_TYPE}" --python "${PYTHON_VERSION}"

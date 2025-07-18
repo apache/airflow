@@ -21,12 +21,16 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
       airflowVersion:
-        description: 'Airflow version'
+        description: 'Airflow version (e.g. 3.0.1, 3.0.1rc1, 3.0.1b1)'
         required: true
-      skipLatest:
-        description: 'Skip Latest: Set to true if not latest.'
+      amdOnly:
+        type: boolean
+        description: 'Limit to amd64 images'
+        default: false
+      limitPythonVersions:
+        type: string
+        description: 'Force python versions (e.g. "3.10 3.11")'
         default: ''
-        required: false
 permissions:
   contents: read
   packages: read
@@ -40,43 +44,20 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-24.04"]
     outputs:
-      pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
-      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
-      defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
-      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
-      skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
-      limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
+      pythonVersions: ${{ steps.determine-python-versions.outputs.python-versions }}
+      platformMatrix: ${{ steps.determine-matrix.outputs.platformMatrix }}
+      airflowVersion: ${{ steps.check-airflow-version.outputs.airflowVersion }}
+      skipLatest: ${{ steps.check-airflow-version.outputs.skip-latest }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Selective checks
-        id: selective-checks
-        env:
-          VERBOSE: "false"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
-  release-images:
-    timeout-minutes: 120
-    name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
-    runs-on: ["ubuntu-22.04"]
-    needs: [build-info]
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ${{ fromJSON(needs.build-info.outputs.pythonVersions) }}
+      AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+      AMD_ONLY: ${{ github.event.inputs.amdOnly }}
+      LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -88,106 +69,82 @@ jobs:
       "utkarsharma2"
       ]'), github.event.sender.login)
     steps:
+      - name: "Input parameters summary"
+        shell: bash
+        run: |
+          echo "Input parameters summary"
+          echo "========================="
+          echo "Airflow version: '${AIRFLOW_VERSION}'"
+          echo "AMD only: '${AMD_ONLY}'"
+          echo "Limit python versions: '${LIMIT_PYTHON_VERSIONS}'"
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: >
+          docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: "Check airflow version"
+        id: check-airflow-version
+        shell: bash
+        run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: Free space
-        run: breeze ci free-space --answer yes
-      - name: "Cleanup dist and context file"
-        run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Login to hub.docker.com"
-        run: >
-          echo ${{ secrets.DOCKERHUB_TOKEN }} |
-          docker login --password-stdin --username ${{ secrets.DOCKERHUB_USER }}
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: "Install buildx plugin"
+        with:
+          use-uv: "true"
+      - name: Selective checks
+        id: selective-checks
+        env:
+          VERBOSE: "false"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+      - name: "Determine build matrix"
+        shell: bash
+        id: determine-matrix
+        run: |
+          if [[ "${AMD_ONLY}" = "true" ]]; then
+             echo 'platformMatrix=["linux/amd64"]' >> "${GITHUB_OUTPUT}"
+          else
+             echo 'platformMatrix=["linux/amd64", "linux/arm64"]' >> "${GITHUB_OUTPUT}"
+          fi
+      - name: "Determine python versions"
+        shell: bash
+        id: determine-python-versions
+        env:
+          ALL_PYTHON_VERSIONS: ${{ steps.selective-checks.outputs.all-python-versions }}
         # yamllint disable rule:line-length
         run: |
-          sudo apt-get update
-          sudo apt-get install ca-certificates curl
-          sudo install -m 0755 -d /etc/apt/keyrings
-          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-          sudo chmod a+r /etc/apt/keyrings/docker.asc
+          # override python versions if specified
+          if [[ "${LIMIT_PYTHON_VERSIONS}" != "" ]]; then
+            PYTHON_VERSIONS=$(python3 -c "import json; print(json.dumps('${LIMIT_PYTHON_VERSIONS}'.split(' ')))")
+          else
+            PYTHON_VERSIONS=${ALL_PYTHON_VERSIONS}
+          fi
+          echo "python-versions=${PYTHON_VERSIONS}" >> "${GITHUB_OUTPUT}"
 
-          # Add the repository to Apt sources:
-          echo \
-          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update
-          sudo apt install docker-buildx-plugin
-      - name: "Install regctl"
-        # yamllint disable rule:line-length
-        run: |
-          mkdir -p ~/bin
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >${HOME}/bin/regctl
-          chmod 755 ${HOME}/bin/regctl
-          echo "${HOME}/bin" >>${GITHUB_PATH}
-      - name: "Install emulation support"
-        run: docker run --privileged --rm tonistiigi/binfmt --install all
-      - name: "Create airflow_cache builder"
-        run: docker buildx create --name airflow_cache
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-format wheel
-          --version-suffix-for-pypi dev0 ${{ needs.build-info.outputs.chicken-egg-providers }}
-        if: needs.build-info.outputs.chicken-egg-providers != ''
-      - name: "Copy dist packages to docker-context files"
-        shell: bash
-        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
-        if: needs.build-info.outputs.chicken-egg-providers != ''
-      - name: >
-          Release regular images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        run: >
-          breeze release-management release-prod-images
-          --dockerhub-repo ${{ github.repository }}
-          --airflow-version  ${{ github.event.inputs.airflowVersion }}
-          ${{ needs.build-info.outputs.skipLatest }}
-          ${{ needs.build-info.outputs.limitPlatform }}
-          --limit-python ${{ matrix.python-version }}
-          --chicken-egg-providers "${{ needs.build-info.outputs.chicken-egg-providers }}"
-        env:
-          COMMIT_SHA: ${{ github.sha }}
-      - name: >
-          Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        run: >
-          breeze release-management release-prod-images
-          --dockerhub-repo ${{ github.repository }}
-          --airflow-version  ${{ github.event.inputs.airflowVersion }}
-          ${{ needs.build-info.outputs.skipLatest }}
-          ${{ needs.build-info.outputs.limitPlatform }}
-          --limit-python ${{ matrix.python-version }} --slim-images
-        env:
-          COMMIT_SHA: ${{ github.sha }}
-      - name: >
-          Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        run: >
-          breeze prod-image verify
-          --pull
-          --image-name
-          ${{github.repository}}:${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
-      - name: >
-          Verify slim AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        run: >
-          breeze prod-image verify
-          --pull
-          --slim-image
-          --image-name
-          ${{github.repository}}:slim-${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
-      - name: "Docker logout"
-        run: docker logout
-        if: always()
+
+  release-images:
+    name: "Release images"
+    needs: [build-info]
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ${{ fromJSON(needs.build-info.outputs.pythonVersions) }}
+    uses: ./.github/workflows/release_single_dockerhub_image.yml
+    secrets:
+      DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    permissions:
+      contents: read
+    with:
+      pythonVersion: ${{ matrix.python }}
+      airflowVersion: ${{ needs.build-info.outputs.airflowVersion }}
+      platformMatrix: ${{ needs.build-info.outputs.platformMatrix }}
+      skipLatest: ${{ needs.build-info.outputs.skipLatest }}
+      armRunners: ${{ needs.build-info.outputs.arm-runners }}
+      amdRunners: ${{ needs.build-info.outputs.amd-runners }}

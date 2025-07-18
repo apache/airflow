@@ -1,0 +1,83 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+ /*
+ This file contains style overrides for the sphinx-design extension.
+
+ The original defaults can be found here:
+    https://sphinx-design.readthedocs.io/en/alabaster-theme/css_variables.html
+ */
+
+:root {
+    --sd-color-tabs-label-active: #017cee;
+    --sd-color-tabs-label-hover: #68d1ff;
+    --sd-color-tabs-underline-active: #017cee;
+    --sd-color-tabs-underline-hover: #68d1ff;
+    --sd-color-tabs-underline: transparent;
+}
+
+div.admonition.warning {
+  background: #e8cccc;
+  font-weight: bolder;
+}
+
+.rst-content .warning .admonition-title {
+  background: #cc341d;
+}
+
+/* Patches as of moving to Sphinx 7 to get layout to previous state  */
+/* Needs to be cleaned in a follow-up to source this from the origin style in */
+/* https://github.com/apache/airflow-site/blob/main/landing-pages/site/assets/scss/_rst-content.scss */
+.base-layout {
+  padding-top: 163px !important; /* banner + navbar + 2px padding */
+}
+
+section {
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+}
+
+section ol li p:last-child, section ul li p:last-child {
+  margin-bottom: 0 !important;
+}
+
+a.headerlink {
+  content: "" !important;
+  font-size: 75% !important;
+}
+
+a.headerlink::after {
+  content: " [link]" !important;  /* Theme image not existing */
+  visibility: visible !important;
+}
+
+/* compensate for sticky headers for anchored links */
+:target::before {
+  content: "";
+  display: block;
+  height: 161px; /* 40px banner + 121px navbar */
+  margin: -161px 0 0; /* negative fixed header height */
+}
+
+@media (max-width: 1280px) {
+  :target::before {
+    height: 117px; /* 40px banner + 77px mobile navbar */
+    margin: -117px 0 0; /* negative fixed header height */
+  }
+}

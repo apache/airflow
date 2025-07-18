@@ -118,7 +118,7 @@ Team and how members of it are chosen can be found in the
 
 ### Does CVE in Airflow Providers impact Airflow core package ?
 
-Airflow core package is released separately from provider packages. While Airflow comes with ``constraints``
+Airflow core package is released separately from provider distributions. While Airflow comes with ``constraints``
 which describe which version of providers have been tested when the version of Airflow was released, the
 users of Airflow are advised to install providers independently of Airflow core when they want to apply
 security fixes found and released in providers. Therefore, the issues found and fixed in providers do

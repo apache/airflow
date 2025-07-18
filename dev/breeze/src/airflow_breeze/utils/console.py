@@ -23,11 +23,12 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-from functools import cache
 from typing import NamedTuple, TextIO
 
 from rich.console import Console
 from rich.theme import Theme
+
+from airflow_breeze.utils.functools_cache import clearable_cache
 
 recording_width = os.environ.get("RECORD_BREEZE_WIDTH")
 recording_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
@@ -90,26 +91,29 @@ class Output(NamedTuple):
         return self.title.replace("[", "\\[")
 
 
-@cache
+CONSOLE_WIDTH: int | None = int(os.environ.get("CI_WIDTH", "202")) if os.environ.get("CI") else None
+
+
+@clearable_cache
 def get_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,
         color_system="standard",
-        width=202 if not recording_width else int(recording_width),
+        width=CONSOLE_WIDTH if not recording_width else int(recording_width),
         file=output.file if output else None,
         theme=get_theme(),
         record=True if recording_file else False,
     )
 
 
-@cache
+@clearable_cache
 def get_stderr_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,
         color_system="standard",
         stderr=True,
         file=output.file if output else None,
-        width=202 if not recording_width else int(recording_width),
+        width=CONSOLE_WIDTH if not recording_width else int(recording_width),
         theme=get_theme(),
         record=True if recording_file else False,
     )

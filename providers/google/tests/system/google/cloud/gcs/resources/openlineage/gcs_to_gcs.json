@@ -1,0 +1,158 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_gcs.copy_single_gcs_file"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_gcs.copy_single_gcs_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "home/airflow/gcs/data/gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}/random.bin"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "backup_random.bin"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_gcs.copy_files"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_gcs.copy_files"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "home/airflow/gcs/data/gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}/subdir"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "backup"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_gcs.copy_files_with_match_glob"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_gcs.copy_files_with_match_glob"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "data"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "backup"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_gcs.copy_files_with_list"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_gcs.copy_files_with_list"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "home/airflow/gcs/data/gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}/random.bin"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "backup"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_gcs.move_single_file"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_gcs.move_single_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "home/airflow/gcs/data/gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}/random.bin"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "backup_random.bin"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_gcs.move_files_with_list"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_gcs.move_files_with_list"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "home/airflow/gcs/data/gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}/random.bin"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "backup"
+            }
+        ]
+    }
+]

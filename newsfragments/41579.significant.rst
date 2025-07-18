@@ -1,1 +1,0 @@
-Removed deprecated ``apply_defaults`` function from ``airflow/utils/decorators.py``.

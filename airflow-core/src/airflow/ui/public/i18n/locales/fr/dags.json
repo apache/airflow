@@ -1,0 +1,87 @@
+{
+  "assetSchedule": "{{count}} sur {{total}} assets mis à jour",
+  "dagActions": {
+    "delete": {
+      "button": "Supprimer le DAG",
+      "warning": "Cela supprimera toutes les métadonnées liées au DAG, y compris les exécutions et les tâches."
+    }
+  },
+  "filters": {
+    "allRunTypes": "Tous les types de Run",
+    "allStates": "Tous les états",
+    "paused": {
+      "active": "Actif",
+      "all": "Tous",
+      "paused": "En pause"
+    }
+  },
+  "ownerLink": "Lien du propriétaire pour {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Aucune tâche trouvée.",
+      "title": "Tâches concernées : {{count}}"
+    },
+    "clear": {
+      "button": "Réinitialiser {{type}}",
+      "buttonTooltip": "Appuyez sur Maj+c pour réinitialiser",
+      "error": "Échec de la réinitialisation de {{type}}",
+      "title": "Réinitialiser {{type}}"
+    },
+    "delete": {
+      "button": "Supprimer {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Supprimer {{type}}",
+        "warning": "Cela supprimera toutes les métadonnées liées à {{type}}."
+      },
+      "error": "Erreur lors de la suppression de {{type}}",
+      "success": {
+        "description": "La demande de suppression de {{type}} a été effectuée avec succès.",
+        "title": "{{type}} supprimé avec succès"
+      }
+    },
+    "markAs": {
+      "button": "Marquer {{type}} comme...",
+      "buttonTooltip": {
+        "failed": "Appuyez sur Maj+f pour marquer comme échoué",
+        "success": "Appuyez sur Maj+s pour marquer comme réussi"
+      },
+      "title": "Marquer {{type}} comme {{state}}"
+    },
+    "options": {
+      "downstream": "En aval",
+      "existingTasks": "Réinitialiser les tâches existantes",
+      "future": "Futur",
+      "onlyFailed": "Réinitialiser uniquement les tâches échouées",
+      "past": "Passé",
+      "queueNew": "Ajouter de nouvelles tâches en file d'attente",
+      "upstream": "En amont"
+    }
+  },
+  "search": {
+    "advanced": "Recherche avancée",
+    "clear": "Effacer la recherche",
+    "dags": "Rechercher des DAGs",
+    "hotkey": "+K",
+    "tasks": "Rechercher des tâches"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Trier par nom affiché (A-Z)",
+      "desc": "Trier par nom affiché (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Trier par date de début du dernier Run (du plus ancien au plus récent)",
+      "desc": "Trier par date de début du dernier Run (du plus récent au plus ancien)"
+    },
+    "lastRunState": {
+      "asc": "Trier par état du dernier Run (A-Z)",
+      "desc": "Trier par état du dernier Run (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Trier par date du prochain Run (du plus ancien au plus récent)",
+      "desc": "Trier par date du prochain Run (du plus récent au plus ancien)"
+    },
+    "placeholder": "Trier par"
+  }
+}

@@ -91,12 +91,26 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: kedaConnection
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
+  {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
+  {{- end }}
+  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
+  - name: AIRFLOW__API__SECRET_KEY
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "api_secret_key_secret" . }}
+        key: api-secret-key
+  {{- end }}
+  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  - name: AIRFLOW__API_AUTH__JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "jwt_secret" . }}
+        key: jwt-secret
   {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
@@ -139,6 +153,15 @@ If release name contains chart name it will be used as a full name.
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
+        key: connection
+    {{- end }}
+  {{- end }}
+  {{- if .Values.opensearch.enabled }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
+  - name: AIRFLOW__OPENSEARCH__HOST
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "opensearch_secret" . }}
         key: connection
     {{- end }}
   {{- end }}
@@ -387,8 +410,16 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
 {{- end }}
 
+{{- define "jwt_secret" -}}
+  {{- default (printf "%s-jwt-secret" .Release.Name) .Values.jwtSecretName }}
+{{- end }}
+
 {{- define "webserver_secret_key_secret" -}}
   {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
+{{- end }}
+
+{{- define "api_secret_key_secret" -}}
+  {{- default (printf "%s-api-secret-key" (include "airflow.fullname" .)) .Values.apiSecretKeySecretName }}
 {{- end }}
 
 {{- define "redis_password_secret" -}}
@@ -425,6 +456,10 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "elasticsearch_secret" -}}
   {{- default (printf "%s-elasticsearch" (include "airflow.fullname" .)) .Values.elasticsearch.secretName }}
+{{- end }}
+
+{{- define "opensearch_secret" -}}
+  {{- default (printf "%s-opensearch" (include "airflow.fullname" .)) .Values.opensearch.secretName }}
 {{- end }}
 
 {{- define "flower_secret" -}}
@@ -569,6 +604,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
   readOnly: True
 {{- end }}
 
+{{- define "airflow_api_server_config_configmap_name" -}}
+  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+{{- end }}
+
+{{- define "airflow_api_server_config_mount" -}}
+- name: api-server-config
+  mountPath: {{ template "airflow_webserver_config_path" . }}
+  subPath: webserver_config.py
+  readOnly: True
+{{- end }}
+
 {{- define "airflow_local_setting_path" -}}
   {{- printf "%s/config/airflow_local_settings.py" .Values.airflowHome | quote }}
 {{- end }}
@@ -590,13 +636,23 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{/* Helper to generate service account name respecting .Values.$section.serviceAccount flags */}}
-{{- define "_serviceAccountName" -}}
-  {{- $sa := get (get .Values .key) "serviceAccount" }}
-  {{- if $sa.create }}
-    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) $sa.name | quote }}
+{{/* Helper for service account name generation */}}
+{{- define "_serviceAccountNameGen" -}}
+  {{- if .sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) .sa.name | quote }}
   {{- else }}
-    {{- default "default" $sa.name | quote }}
+    {{- default "default" .sa.name | quote }}
+  {{- end }}
+{{- end }}
+
+{{/* Helper to generate service account name respecting .Values.$section.serviceAccount or .Values.$section.$subSection.serviceAccount flags */}}
+{{- define "_serviceAccountName" -}}
+  {{- if .subKey }}
+    {{- $sa := get (get (get .Values .key) .subKey) "serviceAccount" -}}
+    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+  {{- else }}
+    {{- $sa := get (get .Values .key) "serviceAccount" }}
+    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
   {{- end }}
 {{- end }}
 
@@ -646,10 +702,26 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
 {{- end }}
 
+{{/* Create the name of the worker celery service account to use */}}
+{{- define "worker.celery.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker-celery") .) -}}
+{{- end }}
+
+{{/* Create the name of the worker kubernetes service account to use */}}
+{{- define "worker.kubernetes.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "kubernetes" "nameSuffix" "worker-kubernetes") .) -}}
+{{- end }}
+
 {{/* Create the name of the triggerer service account to use */}}
 {{- define "triggerer.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "triggerer") .) -}}
 {{- end }}
+
+{{/* Determine trigger capacity, taking Airflow 2 and 3 config option differences into account */}}
+{{- define "triggerer.capacity" -}}
+  {{- $triggerer_section := .Values.config.triggerer | default dict }}
+  {{- $triggerer_section.capacity | default $triggerer_section.default_capacity | default 1000 | int -}}
+{{- end -}}
 
 {{/* Create the name of the dag processor service account to use */}}
 {{- define "dagProcessor.serviceAccountName" -}}

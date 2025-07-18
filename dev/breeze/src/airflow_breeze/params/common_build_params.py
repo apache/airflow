@@ -32,7 +32,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.platforms import get_real_platform
+from airflow_breeze.utils.platforms import get_normalized_platform
 
 
 @dataclass
@@ -62,17 +62,15 @@ class CommonBuildParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    image_tag: str | None = None
     install_mysql_client_type: str = ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: str | None = None
     push: bool = False
-    python: str = "3.9"
-    tag_as_latest: bool = False
+    python: str = "3.10"
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
-    version_suffix_for_pypi: str | None = None
+    version_suffix: str | None = None
     verbose: bool = False
     debian_version: str = "bookworm"
     build_arg_values: list[str] = field(default_factory=list)
@@ -88,10 +86,6 @@ class CommonBuildParams:
     @property
     def image_type(self) -> str:
         raise NotImplementedError()
-
-    @property
-    def airflow_pre_cached_pip_packages(self) -> str:
-        return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
     def airflow_base_image_name(self):
@@ -135,16 +129,7 @@ class CommonBuildParams:
 
     @property
     def airflow_image_readme_url(self):
-        return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
-
-    @property
-    def airflow_image_name_with_tag(self):
-        """Construct image link"""
-        image = (
-            f"{self.airflow_base_image_name}/{self.airflow_branch}/"
-            f"{self.image_type.lower()}/python{self.python}"
-        )
-        return image if self.image_tag is None else image + f":{self.image_tag}"
+        return "https://raw.githubusercontent.com/apache/airflow/refs/heads/main/docker-stack-docs/README.md"
 
     def get_cache(self, single_platform: str) -> str:
         if "," in single_platform:
@@ -153,28 +138,21 @@ class CommonBuildParams:
                 f"tried for {single_platform}[/]"
             )
             sys.exit(1)
-        return f"{self.airflow_image_name}:cache-{get_real_platform(single_platform)}"
+        platform_tag = get_normalized_platform(single_platform).replace("/", "-")
+        return f"{self.airflow_image_name}:cache-{platform_tag}"
 
     def is_multi_platform(self) -> bool:
         return "," in self.platform
 
-    def preparing_latest_image(self) -> bool:
-        return (
-            self.tag_as_latest
-            or self.airflow_image_name == self.airflow_image_name_with_tag
-            or self.airflow_image_name_with_tag.endswith("latest")
-        )
-
     @property
     def platforms(self) -> list[str]:
-        return self.platform.split(",")
+        return [get_normalized_platform(single_platform) for single_platform in self.platform.split(",")]
 
     def _build_arg(self, name: str, value: Any, optional: bool):
         if value is None or "":
             if optional:
                 return
-            else:
-                raise ValueError(f"Value for {name} cannot be empty or None")
+            raise ValueError(f"Value for {name} cannot be empty or None")
         if value is True:
             str_value = "true"
         elif value is False:
@@ -203,10 +181,31 @@ class CommonBuildParams:
 
         airflow_version = get_airflow_version()
         try:
-            if self.version_suffix_for_pypi and self.version_suffix_for_pypi not in airflow_version:
+            if self.version_suffix and self.version_suffix not in airflow_version:
                 version = Version(airflow_version)
-                return version.base_version + f".{self.version_suffix_for_pypi}"
+                return version.base_version + f".{self.version_suffix}"
         except Exception:
             # in case of any failure just fall back to the original version set
             pass
         return airflow_version
+
+    def _set_common_opt_args(self):
+        self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
+        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
+        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
+        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
+        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
+        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
+        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
+        self._opt_arg("COMMIT_SHA", self.commit_sha)
+        self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
+        self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("DOCKER_HOST", self.docker_host)
+        self._opt_arg("VERSION_SUFFIX", self.version_suffix)
+
+    def _set_common_req_args(self):
+        self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)
+        self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
+        self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
+        self._req_arg("BUILD_ID", self.build_id)
+        self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)

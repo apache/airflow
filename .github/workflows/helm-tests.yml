@@ -20,31 +20,33 @@ name: Helm tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       helm-test-packages:
         description: "Stringified JSON array of helm test packages to test"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       default-python-version:
         description: "Which version of python should be used by default"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uvloop (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   tests-helm:
     timeout-minutes: 80
     name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +59,6 @@ jobs:
       DB_RESET: "false"
       JOB_ID: "helm-tests"
       USE_XDIST: "true"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -67,20 +68,24 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
-        run: breeze testing helm-tests --test-type "${{ matrix.helm-test-package }}"
+        env:
+          HELM_TEST_PACKAGE: "${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --test-type "${HELM_TEST_PACKAGE}"
 
   tests-helm-release:
     timeout-minutes: 80
     name: "Release Helm"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
     steps:
@@ -88,13 +93,15 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: Setup git for tagging
         run: |
           git config --global user.email "name@example.com"
@@ -123,13 +130,12 @@ jobs:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Fetch Git Tags"
         run: git fetch --tags
-      - name: "Test helm chart issue generation automatically"
-        # Adding same tags for now, will address in a follow-up
+      - name: "Test helm chart issue generation"
         run: >
-          breeze release-management generate-issue-content-helm-chart --limit-pr-count 10
-          --latest --verbose
+          breeze release-management generate-issue-content-helm-chart --limit-pr-count 2
+          --previous-release helm-chart/1.15.0 --current-release helm-chart/1.16.0 --verbose
       - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: Helm artifacts
           path: ./dist/airflow-*

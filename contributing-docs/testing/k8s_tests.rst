@@ -34,7 +34,7 @@ Before running ``breeze k8s`` cluster commands you need to setup the environment
 by ``breeze k8s setup-env`` command. Breeze in this command makes sure to download tools that
 are needed to run k8s tests: Helm, Kind, Kubectl in the right versions and sets up a
 Python virtualenv that is needed to run the tests. All those tools and env are setup in
-``.build/.k8s-env`` folder. You can activate this environment yourselves as usual by sourcing
+``kubernetes-tests/.venv`` folder. You can activate this environment yourselves as usual by sourcing
 ``bin/activate`` script, but since we are supporting multiple clusters in the same installation
 it is best if you use ``breeze k8s shell`` with the right parameters specifying which cluster
 to use.
@@ -47,7 +47,7 @@ per each combination of Python and Kubernetes version. This is used during CI wh
 tests against those different clusters - even in parallel.
 
 The cluster name follows the pattern ``airflow-python-X.Y-vA.B.C`` where X.Y is a major/minor Python version
-and A.B.C is Kubernetes version. Example cluster name:  ``airflow-python-3.9-v1.24.0``
+and A.B.C is Kubernetes version. Example cluster name:  ``airflow-python-3.10-v1.24.0``
 
 Most of the commands can be executed in parallel for multiple images/clusters by adding ``--run-in-parallel``
 to create clusters or deploy airflow. Similarly checking for status, dumping logs and deleting clusters
@@ -89,9 +89,12 @@ In order to deploy Airflow, the PROD image of Airflow need to be extended and ex
 template files should be added to the image. This is done via ``build-k8s-image``, ``upload-k8s-image``.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag.
 
+Deploy Airflow to Kubernetes Cluster
+------------------------------------
+
 Then Airflow (by using Helm Chart) can be deployed to the cluster via ``deploy-airflow`` command.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag. You can
-pass extra options when deploying airflow to configure your depliyment.
+pass extra options when deploying Airflow to configure your deployment.
 
 You can check the status, dump logs and finally delete cluster via ``status``, ``logs``, ``delete-cluster``
 commands. This can also be done for all created clusters in parallel via ``--all`` flag.
@@ -100,6 +103,22 @@ You can interact with the cluster (via ``shell`` and ``k9s`` commands).
 
 You can run set of k8s tests via ``tests`` command. You can also run tests in parallel on all/selected
 clusters by ``--run-in-parallel`` flag.
+
+
+**Note**:
+
+If you want to run tests with a non-``LocalExecutor``, you need to deploy Airflow with the corresponding ``executor`` flags.
+For example, if you want to run tests with ``KubernetesExecutor``
+
+.. code-block:: bash
+
+    breeze k8s tests --executor KubernetesExecutor
+
+you need to deploy Airflow with the ``--executor KubernetesExecutor`` flag.
+
+.. code-block:: bash
+
+    breeze k8s deploy-airflow --executor KubernetesExecutor
 
 
 Running tests with Kubernetes Cluster
@@ -129,8 +148,8 @@ Entering shell with Kubernetes Cluster
 This shell is prepared to run Kubernetes tests interactively. It has ``kubectl`` and ``kind`` cli tools
 available in the path, it has also activated virtualenv environment that allows you to run tests via pytest.
 
-The virtualenv is available in ./.build/.k8s-env/
-The binaries are available in ``.build/.k8s-env/bin`` path.
+The virtualenv is available in ./kubernetes-tests/.venv/
+The binaries are available in ``kubernetes-tests/.venv/bin`` path.
 
 .. code-block:: bash
 
@@ -184,26 +203,26 @@ The typical session for tests with Kubernetes looks like follows:
     breeze k8s setup-env
 
 The first time you run it, it should result in creating the virtualenv and installing good versions
-of kind, kubectl and helm. All of them are installed in ``./build/.k8s-env`` (binaries available in ``bin``
+of kind, kubectl and helm. All of them are installed in ``./build/k8s-env`` (binaries available in ``bin``
 sub-folder of it).
 
 .. code-block:: text
 
-    Initializing K8S virtualenv in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
-    Reinstalling PIP version in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
-    Installing necessary packages in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
+    Initializing K8S virtualenv in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
+    Reinstalling PIP version in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
+    Installing necessary packages in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
     The ``kind`` tool is not downloaded yet. Downloading 0.14.0 version.
     Downloading from: https://github.com/kubernetes-sigs/kind/releases/download/v0.14.0/kind-darwin-arm64
     The ``kubectl`` tool is not downloaded yet. Downloading 1.24.3 version.
     Downloading from: https://storage.googleapis.com/kubernetes-release/release/v1.24.3/bin/darwin/arm64/kubectl
     The ``helm`` tool is not downloaded yet. Downloading 3.9.2 version.
     Downloading from: https://get.helm.sh/helm-v3.9.2-darwin-arm64.tar.gz
-    Extracting the darwin-arm64/helm to /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
-    Moving the helm to /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/helm
+    Extracting the darwin-arm64/helm to /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Moving the helm to /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin/helm
 
 
 This prepares the virtual environment for tests and downloads the right versions of the tools
-to ``./build/.k8s-env``
+to ``./build/k8s-env``
 
 2. Create the KinD cluster:
 
@@ -215,25 +234,8 @@ Should result in KinD creating the K8S cluster.
 
 .. code-block:: text
 
-    Config created in /Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kindconfig.yaml:
+    Config created in /Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.24.2/.kindconfig.yaml:
 
-    # Licensed to the Apache Software Foundation (ASF) under one
-    # or more contributor license agreements.  See the NOTICE file
-    # distributed with this work for additional information
-    # regarding copyright ownership.  The ASF licenses this file
-    # to you under the Apache License, Version 2.0 (the
-    # "License"); you may not use this file except in compliance
-    # with the License.  You may obtain a copy of the License at
-    #
-    #   http://www.apache.org/licenses/LICENSE-2.0
-    #
-    # Unless required by applicable law or agreed to in writing,
-    # software distributed under the License is distributed on an
-    # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    # KIND, either express or implied.  See the License for the
-    # specific language governing permissions and limitations
-    # under the License.
-    ---
     kind: Cluster
     apiVersion: kind.x-k8s.io/v1alpha4
     networking:
@@ -249,9 +251,7 @@ Should result in KinD creating the K8S cluster.
             listenAddress: "127.0.0.1"
             protocol: TCP
 
-
-
-    Creating cluster "airflow-python-3.9-v1.24.2" ...
+    Creating cluster "airflow-python-3.10-v1.24.2" ...
      ✓ Ensuring node image (kindest/node:v1.24.2) 🖼
      ✓ Preparing nodes 📦 📦
      ✓ Writing configuration 📜
@@ -259,10 +259,10 @@ Should result in KinD creating the K8S cluster.
      ✓ Installing CNI 🔌
      ✓ Installing StorageClass 💾
      ✓ Joining worker nodes 🚜
-    Set kubectl context to "kind-airflow-python-3.9-v1.24.2"
+    Set kubectl context to "kind-airflow-python-3.10-v1.24.2"
     You can now use your cluster with:
 
-    kubectl cluster-info --context kind-airflow-python-3.9-v1.24.2
+    kubectl cluster-info --context kind-airflow-python-3.10-v1.24.2
 
     Not sure what to do next? 😅  Check out https://kind.sigs.k8s.io/docs/user/quick-start/
 
@@ -270,13 +270,14 @@ Should result in KinD creating the K8S cluster.
     Connecting to localhost:18150. Num try: 1
     Error when connecting to localhost:18150 : ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 
-    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.9 --kubernetes-version v1.24.2` to (re)deploy airflow
+    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.10 --kubernetes-version v1.24.2` to (re)deploy airflow
 
-    KinD cluster airflow-python-3.9-v1.24.2 created!
+    KinD cluster airflow-python-3.10-v1.24.2 created!
 
     NEXT STEP: You might now configure your cluster by:
 
     breeze k8s configure-cluster
+
 
 3. Configure cluster for Airflow - this will recreate namespace and upload test resources for Airflow.
 
@@ -286,20 +287,20 @@ Should result in KinD creating the K8S cluster.
 
 .. code-block:: text
 
-    Configuring airflow-python-3.9-v1.24.2 to be ready for Airflow deployment
-    Deleting K8S namespaces for kind-airflow-python-3.9-v1.24.2
+    Configuring airflow-python-3.10-v1.24.2 to be ready for Airflow deployment
+    Deleting K8S namespaces for kind-airflow-python-3.10-v1.24.2
     Error from server (NotFound): namespaces "airflow" not found
     Error from server (NotFound): namespaces "test-namespace" not found
     Creating namespaces
     namespace/airflow created
     namespace/test-namespace created
-    Created K8S namespaces for cluster kind-airflow-python-3.9-v1.24.2
+    Created K8S namespaces for cluster kind-airflow-python-3.10-v1.24.2
 
-    Deploying test resources for cluster kind-airflow-python-3.9-v1.24.2
+    Deploying test resources for cluster kind-airflow-python-3.10-v1.24.2
     persistentvolume/test-volume created
     persistentvolumeclaim/test-volume created
     service/airflow-webserver-node-port created
-    Deployed test resources for cluster kind-airflow-python-3.9-v1.24.2
+    Deployed test resources for cluster kind-airflow-python-3.10-v1.24.2
 
 
     NEXT STEP: You might now build your k8s image by:
@@ -317,45 +318,45 @@ Should show the status of current KinD cluster.
 .. code-block:: text
 
     ========================================================================================================================
-    Cluster: airflow-python-3.9-v1.24.2
+    Cluster: airflow-python-3.10-v1.24.2
 
-        * KUBECONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kubeconfig
-        * KINDCONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kindconfig.yaml
+        * KUBECONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.24.2/.kubeconfig
+        * KINDCONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.24.2/.kindconfig.yaml
 
-    Cluster info: airflow-python-3.9-v1.24.2
+    Cluster info: airflow-python-3.10-v1.24.2
 
     Kubernetes control plane is running at https://127.0.0.1:48366
     CoreDNS is running at https://127.0.0.1:48366/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
     To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
-    Storage class for airflow-python-3.9-v1.24.2
+    Storage class for airflow-python-3.10-v1.24.2
 
     NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
     standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  83s
 
-    Running pods for airflow-python-3.9-v1.24.2
+    Running pods for airflow-python-3.10-v1.24.2
 
     NAME                                                               READY   STATUS    RESTARTS   AGE
     coredns-6d4b75cb6d-rwp9d                                           1/1     Running   0          71s
     coredns-6d4b75cb6d-vqnrc                                           1/1     Running   0          71s
-    etcd-airflow-python-3.9-v1.24.2-control-plane                      1/1     Running   0          84s
+    etcd-airflow-python-3.10-v1.24.2-control-plane                     1/1     Running   0          84s
     kindnet-ckc8l                                                      1/1     Running   0          69s
     kindnet-qqt8k                                                      1/1     Running   0          71s
-    kube-apiserver-airflow-python-3.9-v1.24.2-control-plane            1/1     Running   0          84s
-    kube-controller-manager-airflow-python-3.9-v1.24.2-control-plane   1/1     Running   0          84s
+    kube-apiserver-airflow-python-3.10-v1.24.2-control-plane           1/1     Running   0          84s
+    kube-controller-manager-airflow-python-3.10-v1.24.2-control-plane  1/1     Running   0          84s
     kube-proxy-6g7hn                                                   1/1     Running   0          69s
     kube-proxy-dwfvp                                                   1/1     Running   0          71s
-    kube-scheduler-airflow-python-3.9-v1.24.2-control-plane            1/1     Running   0          84s
+    kube-scheduler-airflow-python-3.10-v1.24.2-control-plane            1/1     Running   0          84s
 
     KinD Cluster API server URL: http://localhost:48366
     Connecting to localhost:18150. Num try: 1
     Error when connecting to localhost:18150 : ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 
-    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.9 --kubernetes-version v1.24.2` to (re)deploy airflow
+    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.10 --kubernetes-version v1.24.2` to (re)deploy airflow
 
 
-    Cluster healthy: airflow-python-3.9-v1.24.2
+    Cluster healthy: airflow-python-3.10-v1.24.2
 
 5. Build the image base on PROD Airflow image. You need to build the PROD image first (the command will
    guide you if you did not) either by running the build separately or passing ``--rebuild-base-image``
@@ -373,15 +374,15 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    Building the K8S image for Python 3.9 using airflow base image: ghcr.io/apache/airflow/main/prod/python3.9:latest
+    Building the K8S image for Python 3.10 using Airflow base image: ghcr.io/apache/airflow/main/prod/python3.10:latest
 
     [+] Building 0.1s (8/8) FINISHED
      => [internal] load build definition from Dockerfile                                                                                                                                                                                                                                           0.0s
      => => transferring dockerfile: 301B                                                                                                                                                                                                                                                           0.0s
      => [internal] load .dockerignore                                                                                                                                                                                                                                                              0.0s
      => => transferring context: 35B                                                                                                                                                                                                                                                               0.0s
-     => [internal] load metadata for ghcr.io/apache/airflow/main/prod/python3.9:latest                                                                                                                                                                                                             0.0s
-     => [1/3] FROM ghcr.io/apache/airflow/main/prod/python3.9:latest                                                                                                                                                                                                                               0.0s
+     => [internal] load metadata for ghcr.io/apache/airflow/main/prod/python3.10:latest                                                                                                                                                                                                             0.0s
+     => [1/3] FROM ghcr.io/apache/airflow/main/prod/python3.10:latest                                                                                                                                                                                                                               0.0s
      => [internal] load build context                                                                                                                                                                                                                                                              0.0s
      => => transferring context: 3.00kB                                                                                                                                                                                                                                                            0.0s
      => CACHED [2/3] COPY airflow/example_dags/ /opt/airflow/dags/                                                                                                                                                                                                                                 0.0s
@@ -389,7 +390,7 @@ Should show the status of current KinD cluster.
      => exporting to image                                                                                                                                                                                                                                                                         0.0s
      => => exporting layers                                                                                                                                                                                                                                                                        0.0s
      => => writing image sha256:c0bdd363c549c3b0731b8e8ce34153d081f239ee2b582355b7b3ffd5394c40bb                                                                                                                                                                                                   0.0s
-     => => naming to ghcr.io/apache/airflow/main/prod/python3.9-kubernetes:latest
+     => => naming to ghcr.io/apache/airflow/main/prod/python3.10-kubernetes:latest
 
     NEXT STEP: You might now upload your k8s image by:
 
@@ -404,16 +405,16 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    K8S Virtualenv is initialized in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
-    Good version of kind installed: 0.14.0 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
-    Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
-    Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
+    K8S Virtualenv is initialized in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
+    Good version of kind installed: 0.14.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
     Stable repo is already added
-    Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.9-kubernetes to cluster airflow-python-3.9-v1.24.2
-    Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-worker", loading...
-    Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-control-plane", loading...
+    Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.10-kubernetes to cluster airflow-python-3.10-v1.24.2
+    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.10-v1.24.2-worker", loading...
+    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.10-v1.24.2-control-plane", loading...
 
-    NEXT STEP: You might now deploy airflow by:
+    NEXT STEP: You might now deploy Airflow by:
 
     breeze k8s deploy-airflow
 
@@ -426,8 +427,8 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    Deploying Airflow for cluster airflow-python-3.9-v1.24.2
-    Deploying kind-airflow-python-3.9-v1.24.2 with airflow Helm Chart.
+    Deploying Airflow for cluster airflow-python-3.10-v1.24.2
+    Deploying kind-airflow-python-3.10-v1.24.2 with Airflow Helm Chart.
     Copied chart sources to /private/var/folders/v3/gvj4_mw152q556w2rrh7m46w0000gn/T/chart_edu__kir/chart
     Deploying Airflow from /private/var/folders/v3/gvj4_mw152q556w2rrh7m46w0000gn/T/chart_edu__kir/chart
     NAME: airflow
@@ -442,7 +443,7 @@ Should show the status of current KinD cluster.
     Your release is named airflow.
     You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
-    Airflow Webserver:     kubectl port-forward svc/airflow-webserver 8080:8080 --namespace airflow
+    Airflow API server:     kubectl port-forward svc/airflow-api-server 8080:8080 --namespace airflow
     Default Webserver (Airflow UI) Login credentials:
         username: admin
         password: admin
@@ -468,13 +469,13 @@ Should show the status of current KinD cluster.
     unnecessary restarts of your Airflow components.
 
     Information on how to set a static webserver secret key can be found here:
-    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
-    Deployed kind-airflow-python-3.9-v1.24.2 with airflow Helm Chart.
+    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
+    Deployed kind-airflow-python-3.10-v1.24.2 with Airflow Helm Chart.
 
-    Airflow for Python 3.9 and K8S version v1.24.2 has been successfully deployed.
+    Airflow for Python 3.10 and K8S version v1.24.2 has been successfully deployed.
 
-    The KinD cluster name: airflow-python-3.9-v1.24.2
-    The kubectl cluster name: kind-airflow-python-3.9-v1.24.2.
+    The KinD cluster name: airflow-python-3.10-v1.24.2
+    The kubectl cluster name: kind-airflow-python-3.10-v1.24.2.
 
 
     KinD Cluster API server URL: http://localhost:48366
@@ -482,7 +483,7 @@ Should show the status of current KinD cluster.
     Established connection to webserver at http://localhost:18150/health and it is healthy.
     Airflow Web server URL: http://localhost:18150 (admin/admin)
 
-    NEXT STEP: You might now run tests or interact with airflow via shell (kubectl, pytest etc.) or k9s commands:
+    NEXT STEP: You might now run tests or interact with Airflow via shell (kubectl, pytest etc.) or k9s commands:
 
 
     breeze k8s tests
@@ -497,7 +498,7 @@ Should show the status of current KinD cluster.
 Note that the tests are executed in production container not in the CI container.
 There is no need for the tests to run inside the Airflow CI container image as they only
 communicate with the Kubernetes-run Airflow deployed via the production image.
-Those Kubernetes tests require virtualenv to be created locally with airflow installed.
+Those Kubernetes tests require virtualenv to be created locally with Airflow installed.
 The virtualenv required will be created automatically when the scripts are run.
 
 8a) You can run all the tests
@@ -508,24 +509,39 @@ The virtualenv required will be created automatically when the scripts are run.
 
 .. code-block:: text
 
-    Running tests with kind-airflow-python-3.9-v1.24.2 cluster.
-     Command to run: pytest kubernetes_tests
-    ========================================================================================= test session starts ==========================================================================================
-    platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/python
-    cachedir: .pytest_cache
-    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
-    plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
-    setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
-    collected 55 items
+    Using CPython 3.12.7
+    Creating virtual environment at: .venv
+    Activate with: source .venv/bin/activate
+    Resolved 775 packages in 84ms
+    Audited 190 packages in 1ms
+    Good version of kind installed: 0.26.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of kubectl installed: 1.31.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of helm installed: 3.16.4 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Stable repo is already added
 
-    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
-    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
-    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
-    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
+    Running tests with kind-airflow-python-3.10-v1.29.12 cluster.
+     Command to run: uv run pytest kubernetes-tests/tests/
+    Installed 74 packages in 179ms
+    /Users/jarek/IdeaProjects/airflow/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+    The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+      warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+    ======================================================================================================================================= test session starts ========================================================================================================================================
+    platform darwin -- Python 3.12.7, pytest-8.3.3, pluggy-1.5.0 -- /Users/jarek/IdeaProjects/airflow/.venv/bin/python3
+    cachedir: .pytest_cache
+    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes-tests
+    configfile: pyproject.toml
+    plugins: asyncio-0.24.0, cov-6.0.0, instafail-0.5.0, timeouts-1.2.1, time-machine-2.16.0, custom-exit-code-0.3.0, icdiff-0.9, kgb-7.2, rerunfailures-15.0, mock-3.14.0, unordered-0.6.1, anyio-4.6.2.post1, xdist-3.6.1, requests-mock-1.12.1
+    asyncio: mode=Mode.STRICT, default_loop_scope=None
+    setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
+    collected 52 items
+
+    kubernetes-tests/tests/kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED
+    ...                                                                                                                                                     [  1%]
 
 8b) You can enter an interactive shell to run tests one-by-one
 
-This enters the virtualenv in ``.build/.k8s-env`` folder:
+This enters the virtualenv in ``kubernetes-tests/.venv`` folder:
 
 .. code-block:: bash
 
@@ -537,7 +553,7 @@ Once you enter the environment, you receive this information:
 
     Entering interactive k8s shell.
 
-    (kind-airflow-python-3.9-v1.24.2:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.2:KubernetesExecutor)>
 
 In a separate terminal you can open the k9s CLI:
 
@@ -561,7 +577,7 @@ tests using the standard IntelliJ Run/Debug feature. You just need a few steps:
     :alt: Kubernetes testing virtualenv
 
 The virtualenv is created in your "Airflow" source directory in the
-``.build/.k8s-env`` folder and you have to find ``python`` binary and choose
+``kubernetes-tests/.venv`` folder and you have to find ``python`` binary and choose
 it when selecting interpreter.
 
 9b) Choose pytest as test runner:
@@ -576,6 +592,7 @@ it when selecting interpreter.
     :align: center
     :alt: Run/Debug tests
 
+Make sure to select the ``kubernetes-tests/.venv`` as venv for your project.
 
 NOTE! The first time you run it, it will likely fail with
 ``kubernetes.config.config_exception.ConfigException``:
@@ -586,15 +603,15 @@ environment variable copying it from the result of "breeze k8s tests":
 
     echo ${KUBECONFIG}
 
-    /home/jarek/code/airflow/.build/.kube/config
+    /home/jarek/code/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.28.13/.kube/config
 
 .. image:: images/kubeconfig-env.png
     :align: center
     :alt: Run/Debug tests
 
-
-The configuration for Kubernetes is stored in your "Airflow" source directory in ".build/.kube/config" file
-and this is where KUBECONFIG env should point to.
+The .env file with the KUBECONFIG variable is also set in ``kubernetes-tests/.env`` file - pointing
+to the file above - so you can also use it to set the KUBECONFIG variable in your IDE by settings the
+``kubernetes-tests/`` folder as the folder where your IDE should look for the .env file (if the IDE supports it)
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring Kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
@@ -603,7 +620,14 @@ kubernetes_tests as your working directory.
 
 .. code-block:: bash
 
-    pytest test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+    pytest tests/kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+
+You can also run the tests with ``uv``
+
+.. code-block:: bash
+
+    uv run --env .env pytest tests/kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+
 
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 Airflow to KinD cluster.
@@ -647,9 +671,9 @@ Kind has also useful commands to inspect your running cluster:
 
 .. code-block:: text
 
-    Deleting KinD cluster airflow-python-3.9-v1.24.2!
-    Deleting cluster "airflow-python-3.9-v1.24.2" ...
-    KinD cluster airflow-python-3.9-v1.24.2 deleted!
+    Deleting KinD cluster airflow-python-3.10-v1.24.2!
+    Deleting cluster "airflow-python-3.10-v1.24.2" ...
+    KinD cluster airflow-python-3.10-v1.24.2 deleted!
 
 
 Running complete k8s tests
@@ -661,7 +685,7 @@ You can also run complete k8s tests with
 
     breeze k8s run-complete-tests
 
-This will create cluster, build images, deploy airflow run tests and finally delete clusters as single
+This will create cluster, build images, deploy Airflow run tests and finally delete clusters as single
 command. It is the way it is run in our CI, you can also run such complete tests in parallel.
 
 -----

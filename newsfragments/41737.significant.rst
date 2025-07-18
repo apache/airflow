@@ -1,1 +1,0 @@
-Removed deprecated ``TaskStateTrigger`` from ``airflow.triggers.external_task`` module.

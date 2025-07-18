@@ -21,13 +21,21 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-AIRFLOW_SOURCES = Path(__file__).resolve().parent.parent.parent.parent
+AIRFLOW_SOURCES = Path(__file__).resolve().parents[3]
 
 
-HEADERS = ("Version", "Current Patch/Minor", "State", "First Release", "Limited Support", "EOL/Terminated")
+HEADERS = (
+    "Version",
+    "Current Patch/Minor",
+    "State",
+    "First Release",
+    "Limited Maintenance",
+    "EOL/Terminated",
+)
 
 SUPPORTED_VERSIONS = (
-    ("2", "2.10.3", "Supported", "Dec 17, 2020", "TBD", "TBD"),
+    ("3", "3.0.3", "Supported", "Apr 22, 2025", "TBD", "TBD"),
+    ("2", "2.11.0", "Supported", "Dec 17, 2020", "Oct 22, 2025", "Apr 22, 2026"),
     ("1.10", "1.10.15", "EOL", "Aug 27, 2018", "Dec 17, 2020", "June 17, 2021"),
     ("1.9", "1.9.0", "EOL", "Jan 03, 2018", "Aug 27, 2018", "Aug 27, 2018"),
     ("1.8", "1.8.2", "EOL", "Mar 19, 2017", "Jan 03, 2018", "Jan 03, 2018"),
@@ -54,7 +62,7 @@ if __name__ == "__main__":
         + "\n\n",
     )
     replace_text_between(
-        file=AIRFLOW_SOURCES / "docs" / "apache-airflow" / "installation" / "supported-versions.rst",
+        file=AIRFLOW_SOURCES / "airflow-core" / "docs" / "installation" / "supported-versions.rst",
         start=" .. Beginning of auto-generated table\n",
         end=" .. End of auto-generated table\n",
         replacement_text="\n"

@@ -1,1 +1,0 @@
-Remove ``virtualenv`` extra as PythonVirtualenvOperator has been moved to standard provider and switched to use built-in venv package.

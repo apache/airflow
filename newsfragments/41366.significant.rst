@@ -1,3 +1,0 @@
-``airflow.contrib`` modules have been removed
-
-All modules from ``airflow.contrib``, which were deprecated in Airflow 2, have been removed.

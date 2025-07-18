@@ -20,16 +20,12 @@ name: CI Image Checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
-      runs-on-as-json-docs-build:
-        description: "The array of labels (in json form) determining the labels used for docs build."
-        required: true
-        type: string
-      image-tag:
-        description: "Tag to set for the image"
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       needs-mypy:
@@ -45,7 +41,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       branch:
-        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
         type: string
       canary-run:
@@ -63,10 +59,6 @@ on:  # yamllint disable-line rule:truthy
       upgrade-to-newer-dependencies:
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
-        type: string
-      chicken-egg-providers:
-        description: "List of providers that should be prepared from sources"
-        required: false
         type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
@@ -108,16 +100,72 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run coverage or not (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID:
+        required: true
+      DOCS_AWS_SECRET_ACCESS_KEY:
+        required: true
 
+
+permissions:
+  contents: read
 jobs:
+  install-pre-commit:
+    timeout-minutes: 5
+    name: "Install pre-commit for cache (only canary runs)"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+    if: inputs.basic-checks-only == 'false'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.canary-run == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: inputs.canary-run == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
+        if: inputs.canary-run == 'true'
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
+        with:
+          python-version: ${{steps.breeze.outputs.host-python-version}}
+        if: inputs.canary-run == 'true'
+      - name: "Prepare .tar file from pre-commit cache"
+        run: |
+          tar -C ~ -czf /tmp/cache-pre-commit.tar.gz .cache/pre-commit .cache/uv
+        shell: bash
+        if: inputs.canary-run == 'true'
+      - name: "Save pre-commit cache"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          # yamllint disable rule:line-length
+          key: cache-pre-commit-v4-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          path: /tmp/cache-pre-commit.tar.gz
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: inputs.canary-run == 'true'
+
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
-      IMAGE_TAG: ${{ inputs.image-tag }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: inputs.basic-checks-only == 'false' && inputs.latest-versions-only != 'true'
     steps:
@@ -125,19 +173,15 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ inputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/pyproject.toml
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -149,7 +193,7 @@ jobs:
         env:
           VERBOSE: "false"
           SKIP: ${{ inputs.skip-pre-commits }}
-          COLUMNS: "250"
+          COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
@@ -157,7 +201,8 @@ jobs:
   mypy:
     timeout-minutes: 45
     name: "MyPy checks"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    needs: install-pre-commit
     if: inputs.needs-mypy == 'true'
     strategy:
       fail-fast: false
@@ -165,20 +210,21 @@ jobs:
         mypy-check: ${{ fromJSON(inputs.mypy-checks) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -186,19 +232,20 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: pre-commit run --color always --verbose --hook-stage manual ${{matrix.mypy-check}} --all-files
+        run: pre-commit run --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
         env:
           VERBOSE: "false"
-          COLUMNS: "250"
+          COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
           INCLUDE_MYPY_VOLUME: "false"
+          MYPY_CHECK: ${{ matrix.mypy-check }}
 
   build-docs:
     timeout-minutes: 150
     name: "Build documentation"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.docs-build == 'true'
     strategy:
       fail-fast: false
@@ -208,7 +255,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -218,79 +264,99 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v4
-        id: cache-doc-inventories
         with:
-          path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
-          restore-keys: |
-            docs-inventory-${{ hashFiles('pyproject.toml;') }}
-            docs-inventory-
+          platform: ${{ inputs.platform }}
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
+      - name: "Restore docs inventory cache"
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: ./generated/_inventory_cache/
+          key: cache-docs-inventory-v1-${{ hashFiles('**/pyproject.toml') }}
+        id: restore-docs-inventory-cache
       - name: "Building docs with ${{ matrix.flag }} flag"
+        env:
+          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${{ inputs.docs-list-as-string }} ${{ matrix.flag }}
+          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }} --refresh-airflow-inventories
+      - name: "Save docs inventory cache"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: ./generated/_inventory_cache/
+          key: cache-docs-inventory-v1-${{ hashFiles('**/pyproject.toml') }}
+          if-no-files-found: 'error'
+          retention-days: '2'
+        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
+        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
+        if: steps.restore-docs-inventory-cache != 'true' && matrix.flag == '--docs-only'
       - name: "Upload build docs"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: airflow-docs
-          path: './docs/_build'
-          retention-days: 7
-          if-no-files-found: error
+          path: './generated/_build'
+          retention-days: '7'
+          if-no-files-found: 'error'
         if: matrix.flag == '--docs-only'
 
   publish-docs:
     timeout-minutes: 150
     name: "Publish documentation"
+    permissions:
+      id-token: write
+      contents: read
     needs: build-docs
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
       - name: "Download docs prepared as artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: airflow-docs
-          path: './docs/_build'
+          path: './generated/_build'
       - name: Check disk space available
-        run: df -h
+        run: df -H
       - name: Create /mnt/airflow-site directory
         run: sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git /mnt/airflow-site/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/airflow-site" >> "$GITHUB_ENV"
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
-        uses: ./.github/actions/prepare_breeze_and_image
       - name: "Publish docs"
+        env:
+          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${{ inputs.docs-list-as-string }}
+          ${DOCS_LIST_AS_STRING}
       - name: Check disk space available
-        run: df -h
+        run: df -H
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
       - name: "Generate back references for apache-airflow"
@@ -306,22 +372,19 @@ jobs:
           rm /tmp/awscliv2.zip
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
-        if: inputs.branch == 'main'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
-        if: inputs.branch == 'main'
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
-        if: inputs.branch == 'main'
-        run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs
+        run: aws s3 sync --delete ./generated/_build s3://apache-airflow-docs
 
   test-python-api-client:
     timeout-minutes: 60
     name: "Test Python API client"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.needs-api-codegen == 'true'
     env:
       BACKEND: "postgres"
@@ -331,7 +394,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       JOB_ID: "python-api-client-tests"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
@@ -340,25 +402,27 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           repository: "apache/airflow-client-python"
           fetch-depth: 1
           persist-credentials: false
           path: ./airflow-client-python
-      - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
       - name: "Generate airflow python client"
         run: >
-          breeze release-management prepare-python-client --package-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          breeze release-management prepare-python-client --distribution-format both
+          --python-client-repo ./airflow-client-python
       - name: "Show diff"
         run: git diff --color HEAD
         working-directory: ./airflow-client-python

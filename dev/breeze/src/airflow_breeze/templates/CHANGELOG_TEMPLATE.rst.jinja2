@@ -20,6 +20,16 @@
 {{ version }}
 {{ version_header }}
 
+
+{%- if min_airflow_version_bump %}
+
+.. note::
+    This release of provider is only available for Airflow X.Y+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+{%- endif %}
+
+
 {%- if WITH_BREAKING_CHANGES and classified_changes.breaking_changes %}
 
 Breaking changes
@@ -59,6 +69,15 @@ Misc
 {%- endfor %}
 {%- endif %}
 
+
+{%- if classified_changes and classified_changes.docs %}
+
+Doc-only
+~~~~~~~~
+{% for doc in classified_changes.docs %}
+* ``{{ doc.message_without_backticks | safe }}``
+{%- endfor %}
+{%- endif %}
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

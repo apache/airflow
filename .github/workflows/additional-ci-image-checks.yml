@@ -20,20 +20,12 @@ name: Additional CI image checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
-        required: true
-        type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
-        required: true
-        type: string
-      image-tag:
-        description: "Tag to set for the image"
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       python-versions:
@@ -41,7 +33,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       branch:
-        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
         type: string
       constraints-branch:
@@ -88,6 +80,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
@@ -95,7 +89,7 @@ jobs:
   # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
   # delay cache refresh. It does not attempt to upgrade to newer dependencies.
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
-  # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
+  # it uses prepared airflow and provider distributions that invalidate the cache anyway most of the time
   push-early-buildx-cache-to-github-registry:
     name: Push Early Image Cache
     uses: ./.github/workflows/push-image-cache.yml
@@ -103,79 +97,52 @@ jobs:
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
       packages: write
-    secrets: inherit
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      runners: ${{ inputs.runners }}
       cache-type: "Early"
       include-prod-images: "false"
       push-latest-images: "false"
-      platform: "linux/amd64"
+      platform: ${{ inputs.platform }}
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: ${{ inputs.use-uv}}
+      use-uv: ${{ inputs.use-uv }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
-    timeout-minutes: 11
+    timeout-minutes: 17
     name: Check that image builds quickly
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
-      PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
-      PYTHON_VERSION: ${{ inputs.default-python-version }}
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      PYTHON_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
+      PLATFORM: ${{ inputs.platform }}
     if: inputs.branch == 'main'
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Login to ghcr.io"
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 600 --platform "linux/amd64"
-
-#  # This is only a check if ARM images are successfully building when committer runs PR from
-#  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
-#  # There is no point in running this one in "canary" run, because the above step is doing the
-#  # same build anyway.
-#  build-ci-arm-images:
-#    name: Build CI ARM images (in-workflow)
-#    uses: ./.github/workflows/ci-image-build.yml
-#    permissions:
-#      contents: read
-#      packages: write
-#    secrets: inherit
-#    with:
-#      push-image: "false"
-#      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-#      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-#      image-tag: ${{ inputs.image-tag }}
-#      python-versions: ${{ inputs.python-versions }}
-#      platform: "linux/arm64"
-#      branch: ${{ inputs.branch }}
-#      constraints-branch: ${{ inputs.constraints-branch }}
-#      use-uv: ${{ inputs.use-uv}}
-#      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-#      docker-cache: ${{ inputs.docker-cache }}
-#      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}
-#
+        run: breeze shell --max-time 900 --platform "${PLATFORM}"

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
+from base64 import b64encode
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -27,10 +28,11 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_CORE_INTEGRATIONS,
     ALL_PROVIDERS_INTEGRATIONS,
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
-    ALLOWED_INSTALLATION_PACKAGE_FORMATS,
+    ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -42,8 +44,9 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
     EDGE_EXECUTOR,
-    FASTAPI_API_HOST_PORT,
+    FAB_AUTH_MANAGER,
     FLOWER_HOST_PORT,
+    GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -55,12 +58,13 @@ from airflow_breeze.global_constants import (
     POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
+    SIMPLE_AUTH_MANAGER,
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
-    WEBSERVER_HOST_PORT,
+    WEB_HOST_PORT,
     GithubEvents,
     GroupOfTests,
     get_airflow_version,
@@ -69,17 +73,17 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    BUILD_CACHE_DIR,
-    GENERATED_DOCKER_COMPOSE_ENV_FILE,
-    GENERATED_DOCKER_ENV_FILE,
-    GENERATED_DOCKER_LOCK_FILE,
-    SCRIPTS_CI_DIR,
+    AIRFLOW_ROOT_PATH,
+    BUILD_CACHE_PATH,
+    GENERATED_DOCKER_COMPOSE_ENV_PATH,
+    GENERATED_DOCKER_ENV_PATH,
+    GENERATED_DOCKER_LOCK_PATH,
+    SCRIPTS_CI_PATH,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
 
-DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+DOCKER_COMPOSE_DIR = SCRIPTS_CI_PATH / "docker-compose"
 
 
 def generated_socket_compose_file(local_socket_path: str) -> str:
@@ -136,13 +140,13 @@ class ShellParams:
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
-    airflow_skip_constraints: bool = False
+    allow_pre_releases: bool = False
+    auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
-    chicken_egg_providers: str = ""
     clean_airflow_installation: bool = False
     collect_only: bool = False
     db_reset: bool = False
@@ -164,7 +168,6 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
@@ -180,7 +183,7 @@ class ShellParams:
     no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
-    package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
+    distribution_format: str = ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS[0]
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
@@ -193,7 +196,6 @@ class ShellParams:
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
-    remove_arm_packages: bool = False
     restart: bool = False
     run_db_tests_only: bool = False
     run_tests: bool = False
@@ -205,18 +207,19 @@ class ShellParams:
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
-    start_webserver_with_examples: bool = False
+    start_api_server_with_examples: bool = False
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
+    upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
-    use_packages_from_dist: bool = False
+    use_distributions_from_dist: bool = False
     use_uv: bool = False
     use_xdist: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
-    version_suffix_for_pypi: str = ""
+    version_suffix: str = ""
     warn_image_upgrade_needed: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
@@ -259,18 +262,21 @@ class ShellParams:
         return image
 
     @cached_property
-    def airflow_image_name_with_tag(self) -> str:
-        image = self.airflow_image_name
-        return image if not self.image_tag else image + f":{self.image_tag}"
-
-    @cached_property
     def airflow_image_kubernetes(self) -> str:
         image = f"{self.airflow_base_image_name}/{self.airflow_branch}/kubernetes/python{self.python}"
         return image
 
     @cached_property
     def airflow_sources(self):
-        return AIRFLOW_SOURCES_ROOT
+        return AIRFLOW_ROOT_PATH
+
+    @cached_property
+    def auth_manager_path(self):
+        auth_manager_paths = {
+            SIMPLE_AUTH_MANAGER: "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            FAB_AUTH_MANAGER: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+        return auth_manager_paths[self.auth_manager]
 
     @cached_property
     def image_type(self) -> str:
@@ -278,7 +284,7 @@ class ShellParams:
 
     @cached_property
     def md5sum_cache_dir(self) -> Path:
-        cache_dir = Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, self.image_type)
+        cache_dir = Path(BUILD_CACHE_PATH, self.airflow_branch, self.python, self.image_type)
         return cache_dir
 
     @cached_property
@@ -298,7 +304,7 @@ class ShellParams:
         if get_verbose():
             get_console().print(f"[info]Use {self.image_type} image[/]")
             get_console().print(f"[info]Branch Name: {self.airflow_branch}[/]")
-            get_console().print(f"[info]Docker Image: {self.airflow_image_name_with_tag}[/]")
+            get_console().print(f"[info]Docker Image: {self.airflow_image_name}[/]")
             get_console().print(f"[info]Airflow source version:{self.airflow_version}[/]")
             get_console().print(f"[info]Python Version: {self.python}[/]")
             get_console().print(f"[info]Backend: {self.backend} {self.backend_version}[/]")
@@ -341,11 +347,23 @@ class ShellParams:
                     self.airflow_extras = (
                         ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
                     )
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "fab" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
+                    )
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["fab"]) if current_extras else "fab"
+                    )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
+        if os.environ.get("CI", "false") == "true":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-tests.yml")
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
@@ -357,7 +375,7 @@ class ShellParams:
             self.mount_sources = MOUNT_REMOVE
         if self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES and self.use_airflow_version is None:
             get_console().print(
-                "[error]You need to specify --use-airflow-version when using one of the"
+                "[error]You need to specify `--use-airflow-version wheel | sdist` when using one of the"
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
             )
             sys.exit(1)
@@ -378,13 +396,13 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            if self.test_group == GroupOfTests.CORE:
+            if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
-            elif self.test_group == GroupOfTests.PROVIDERS:
+            elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
                 get_console().print(
-                    "[error]You can only use `core` or `providers` test "
+                    "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
                 sys.exit(1)
@@ -420,8 +438,7 @@ class ShellParams:
         broker_url = CELERY_BROKER_URLS_MAP.get(self.celery_broker)
         if not broker_url:
             get_console().print(
-                f"[warning]The broker {self.celery_broker} should "
-                f"be one of {CELERY_BROKER_URLS_MAP.keys()}"
+                f"[warning]The broker {self.celery_broker} should be one of {CELERY_BROKER_URLS_MAP.keys()}"
             )
             return ""
         # Map from short form (rabbitmq/redis) to actual urls
@@ -503,36 +520,56 @@ class ShellParams:
 
         _env: dict[str, str] = {}
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
-        _set_var(_env, "AIRFLOW_CI_IMAGE_WITH_TAG", self.airflow_image_name_with_tag)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
-        _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
+        _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
+        _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        if self.auth_manager == SIMPLE_AUTH_MANAGER:
+            _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
+        _set_var(
+            _env,
+            "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
+            "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
+        )
+        _set_var(_env, "AIRFLOW__API__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         if self.executor == EDGE_EXECUTOR:
             _set_var(
-                _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
+                _env,
+                "AIRFLOW__CORE__EXECUTOR",
+                "airflow.providers.edge3.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
-            # Dev Airflow 3 runs API on FastAPI transitional
-            port = 9091
-            if self.use_airflow_version and self.use_airflow_version.startswith("2."):
-                # Airflow 2.10 runs it in the webserver atm
-                port = 8080
+            _set_var(
+                _env, "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8")
+            )
+
+            # For testing Edge Worker on Windows... Default Run ID is having a colon (":") from the time which is
+            # made into the log path template, which then fails to be used in Windows. So we replace it with a dash
+            _set_var(
+                _env,
+                "AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE",
+                "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id|replace(':', '-') }}/task_id={{ ti.task_id }}/"
+                "{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}"
+                "attempt={{ try_number|default(ti.try_number) }}.log",
+            )
+
+            port = 8080
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
+        _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
         _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
-        _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CLEAN_AIRFLOW_INSTALLATION", self.clean_airflow_installation)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
@@ -553,10 +590,12 @@ class ShellParams:
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
+        _set_var(_env, "GITHUB_TOKEN", self.github_token)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
@@ -574,7 +613,7 @@ class ShellParams:
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
-        _set_var(_env, "PACKAGE_FORMAT", self.package_format)
+        _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
         _set_var(_env, "PROVIDERS_CONSTRAINTS_LOCATION", self.providers_constraints_location)
@@ -587,7 +626,6 @@ class ShellParams:
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
-        _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_TESTS", self.run_tests)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
@@ -598,22 +636,22 @@ class ShellParams:
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(
             _env,
-            "START_WEBSERVER_WITH_EXAMPLES",
-            self.start_webserver_with_examples,
+            "START_API_SERVER_WITH_EXAMPLES",
+            self.start_api_server_with_examples,
         )
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
+        _set_var(_env, "UPGRADE_SQLALCHEMY", self.upgrade_sqlalchemy)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
-        _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
+        _set_var(_env, "USE_DISTRIBUTIONS_FROM_DIST", self.use_distributions_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
         _set_var(_env, "USE_XDIST", self.use_xdist)
         _set_var(_env, "VERBOSE", get_verbose())
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
-        _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
-        _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
-        _set_var(_env, "FASTAPI_API_HOST_PORT", None, FASTAPI_API_HOST_PORT)
+        _set_var(_env, "VERSION_SUFFIX", self.version_suffix)
+        _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)
@@ -667,27 +705,26 @@ class ShellParams:
         """
         from filelock import FileLock
 
-        with FileLock(GENERATED_DOCKER_LOCK_FILE):
-            if GENERATED_DOCKER_ENV_FILE.exists():
-                generated_keys = GENERATED_DOCKER_ENV_FILE.read_text().splitlines()
+        with FileLock(GENERATED_DOCKER_LOCK_PATH):
+            if GENERATED_DOCKER_ENV_PATH.exists():
+                generated_keys = GENERATED_DOCKER_ENV_PATH.read_text().splitlines()
                 if set(env.keys()) == set(generated_keys):
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
                     return
-                else:
-                    if get_verbose():
-                        get_console().print(
-                            f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_FILE} and {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
-                        )
+                if get_verbose():
+                    get_console().print(
+                        f"[info]The keys has changed vs last run. Regenerating[/]: "
+                        f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
+                    )
             if get_verbose():
-                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_FILE}")
-            GENERATED_DOCKER_ENV_FILE.write_text("\n".join(sorted(env.keys())))
+                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
+            GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))
             if get_verbose():
                 get_console().print(
-                    f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
+                    f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                 )
-            GENERATED_DOCKER_COMPOSE_ENV_FILE.write_text(
+            GENERATED_DOCKER_COMPOSE_ENV_PATH.write_text(
                 "\n".join([f"{k}=${{{k}}}" for k in sorted(env.keys())])
             )
 

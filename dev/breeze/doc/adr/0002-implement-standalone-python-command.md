@@ -104,8 +104,8 @@ SLOC    Directory         SLOC-by-Language (Sorted)
 6314    chart             python=6218,sh=96
 3665    top_dir           sh=2896,python=769
 3102    dev               python=2938,sh=164
-1723    kubernetes_tests  python=1723
-280     docker_tests      python=280
+1723    kubernetes-tests  python=1723
+280     docker-tests      python=280
 140     metastore_browser python=140
 109     clients           sh=109
 28      images              sh=28
@@ -138,7 +138,7 @@ There are a few properties of Breeze/CI scripts that should be maintained though
   run a command and get everything done with the least number of prerequisites
 
 * The prerequisites for Breeze and CI are:
-   * Python 3.9+ (Python 3.9 end of life is October 2025)
+   * Python 3.10+ (Python 3.10 end of life is October 2025)
    * Docker (23.0+)
    * Docker Compose (2.16.0+)
    * No other tools and CLI commands should be needed

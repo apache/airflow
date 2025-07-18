@@ -63,28 +63,22 @@ Here is an example configuration with more than 200GB disk space for Docker:
 
 **Docker errors that may come while running breeze**
 
-- If docker not running in python virtual environment
-- **Solution**
-- 1. Create the docker group if it does not exist
-- ``sudo groupadd docker``
-- 2. Add your user to the docker group.
-- ``sudo usermod -aG docker $USER``
-- 3. Log in to the new docker group
-- ``newgrp docker``
-- 4. Check if docker can be run without root
-- ``docker run hello-world``
-- 5. In some cases you might make sure that "Allow the default Docker socket to
-  be used" in "Advanced" tab of "Docker Desktop" settings is checked
+- If docker not running in python virtual environment:
 
+    1. Create the docker group if it does not exist: ``sudo groupadd docker``
+    2. Add your user to the docker group: ``sudo usermod -aG docker $USER``
+    3. Log in to the new docker group: ``newgrp docker``
+    4. Check if docker can be run without root: ``docker run hello-world``
+    5. In some cases you might make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked-out
 
-.. raw:: html
+    .. raw:: html
 
-   <div align="center">
-        <img src="images/docker_socket.png" width="640" alt="Docker socket used">
-    </div>
+        <div align="center">
+            <img src="images/docker_socket.png" width="640" alt="Docker socket used">
+        </div>
 
 Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide <../../../contributing-docs/03_contributors_quick_start.rst>`__
+`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
 
 Docker Compose
 --------------
@@ -162,6 +156,17 @@ Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/
 We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
 easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
 that make it easier to work with Python.
+
+The ``gh`` cli needed for release managers
+------------------------------------------
+
+The ``gh`` GitHub CLI is a command line tool that allows you to interact with GitHub repositories, issues, pull
+requests, and more. It is useful for release managers to automate tasks such as creating releases,
+managing issues, and starting workflows (for example during documentation building). Release
+managers should have ``gh`` installed (see `gh installation guide <https://github.com/cli/cli>`_) and they
+should follow configuration steps to authorize ``gh`` in their local airflow repository (basically
+running ``gh auth login`` command and following the instructions).
+
 
 Alternative: pipx tool
 ----------------------
@@ -327,7 +332,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.10. In this
     case you should force-reinstall Breeze with ``uv`` (or ``pipx``):
 
         .. code-block:: bash
@@ -368,13 +373,13 @@ that Breeze works on
 
         .. code-block:: bash
 
-            uv tool install  --python 3.9.16 ./dev/breeze --force
+            uv tool install  --python 3.10.16 ./dev/breeze --force
 
         or
 
         .. code-block:: bash
 
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python --force
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.10.16/bin/python --force
 
 
 Running Breeze for the first time

@@ -17,11 +17,113 @@
 ---
 services:
   airflow:
+    environment:
+      - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     volumes:
       # Removes airflow sources from container
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/airflow
+      - ../../../empty:/opt/airflow/airflow-core/src
+      # Removes task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
+      # Remove all provider sources from container
+      # START automatically generated volumes by generate-volumes-for-sources pre-commit
+      - ../../../empty:/opt/airflow/providers/airbyte/src
+      - ../../../empty:/opt/airflow/providers/alibaba/src
+      - ../../../empty:/opt/airflow/providers/amazon/src
+      - ../../../empty:/opt/airflow/providers/apache/beam/src
+      - ../../../empty:/opt/airflow/providers/apache/cassandra/src
+      - ../../../empty:/opt/airflow/providers/apache/drill/src
+      - ../../../empty:/opt/airflow/providers/apache/druid/src
+      - ../../../empty:/opt/airflow/providers/apache/flink/src
+      - ../../../empty:/opt/airflow/providers/apache/hdfs/src
+      - ../../../empty:/opt/airflow/providers/apache/hive/src
+      - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/apache/impala/src
+      - ../../../empty:/opt/airflow/providers/apache/kafka/src
+      - ../../../empty:/opt/airflow/providers/apache/kylin/src
+      - ../../../empty:/opt/airflow/providers/apache/livy/src
+      - ../../../empty:/opt/airflow/providers/apache/pig/src
+      - ../../../empty:/opt/airflow/providers/apache/pinot/src
+      - ../../../empty:/opt/airflow/providers/apache/spark/src
+      - ../../../empty:/opt/airflow/providers/apache/tinkerpop/src
+      - ../../../empty:/opt/airflow/providers/apprise/src
+      - ../../../empty:/opt/airflow/providers/arangodb/src
+      - ../../../empty:/opt/airflow/providers/asana/src
+      - ../../../empty:/opt/airflow/providers/atlassian/jira/src
+      - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/cloudant/src
+      - ../../../empty:/opt/airflow/providers/cncf/kubernetes/src
+      - ../../../empty:/opt/airflow/providers/cohere/src
+      - ../../../empty:/opt/airflow/providers/common/compat/src
+      - ../../../empty:/opt/airflow/providers/common/io/src
+      - ../../../empty:/opt/airflow/providers/common/messaging/src
+      - ../../../empty:/opt/airflow/providers/common/sql/src
+      - ../../../empty:/opt/airflow/providers/databricks/src
+      - ../../../empty:/opt/airflow/providers/datadog/src
+      - ../../../empty:/opt/airflow/providers/dbt/cloud/src
+      - ../../../empty:/opt/airflow/providers/dingding/src
+      - ../../../empty:/opt/airflow/providers/discord/src
+      - ../../../empty:/opt/airflow/providers/docker/src
+      - ../../../empty:/opt/airflow/providers/edge3/src
+      - ../../../empty:/opt/airflow/providers/elasticsearch/src
+      - ../../../empty:/opt/airflow/providers/exasol/src
+      - ../../../empty:/opt/airflow/providers/fab/src
+      - ../../../empty:/opt/airflow/providers/facebook/src
+      - ../../../empty:/opt/airflow/providers/ftp/src
+      - ../../../empty:/opt/airflow/providers/git/src
+      - ../../../empty:/opt/airflow/providers/github/src
+      - ../../../empty:/opt/airflow/providers/google/src
+      - ../../../empty:/opt/airflow/providers/grpc/src
+      - ../../../empty:/opt/airflow/providers/hashicorp/src
+      - ../../../empty:/opt/airflow/providers/http/src
+      - ../../../empty:/opt/airflow/providers/imap/src
+      - ../../../empty:/opt/airflow/providers/influxdb/src
+      - ../../../empty:/opt/airflow/providers/jdbc/src
+      - ../../../empty:/opt/airflow/providers/jenkins/src
+      - ../../../empty:/opt/airflow/providers/keycloak/src
+      - ../../../empty:/opt/airflow/providers/microsoft/azure/src
+      - ../../../empty:/opt/airflow/providers/microsoft/mssql/src
+      - ../../../empty:/opt/airflow/providers/microsoft/psrp/src
+      - ../../../empty:/opt/airflow/providers/microsoft/winrm/src
+      - ../../../empty:/opt/airflow/providers/mongo/src
+      - ../../../empty:/opt/airflow/providers/mysql/src
+      - ../../../empty:/opt/airflow/providers/neo4j/src
+      - ../../../empty:/opt/airflow/providers/odbc/src
+      - ../../../empty:/opt/airflow/providers/openai/src
+      - ../../../empty:/opt/airflow/providers/openfaas/src
+      - ../../../empty:/opt/airflow/providers/openlineage/src
+      - ../../../empty:/opt/airflow/providers/opensearch/src
+      - ../../../empty:/opt/airflow/providers/opsgenie/src
+      - ../../../empty:/opt/airflow/providers/oracle/src
+      - ../../../empty:/opt/airflow/providers/pagerduty/src
+      - ../../../empty:/opt/airflow/providers/papermill/src
+      - ../../../empty:/opt/airflow/providers/pgvector/src
+      - ../../../empty:/opt/airflow/providers/pinecone/src
+      - ../../../empty:/opt/airflow/providers/postgres/src
+      - ../../../empty:/opt/airflow/providers/presto/src
+      - ../../../empty:/opt/airflow/providers/qdrant/src
+      - ../../../empty:/opt/airflow/providers/redis/src
+      - ../../../empty:/opt/airflow/providers/salesforce/src
+      - ../../../empty:/opt/airflow/providers/samba/src
+      - ../../../empty:/opt/airflow/providers/segment/src
+      - ../../../empty:/opt/airflow/providers/sendgrid/src
+      - ../../../empty:/opt/airflow/providers/sftp/src
+      - ../../../empty:/opt/airflow/providers/singularity/src
+      - ../../../empty:/opt/airflow/providers/slack/src
+      - ../../../empty:/opt/airflow/providers/smtp/src
+      - ../../../empty:/opt/airflow/providers/snowflake/src
+      - ../../../empty:/opt/airflow/providers/sqlite/src
+      - ../../../empty:/opt/airflow/providers/ssh/src
+      - ../../../empty:/opt/airflow/providers/standard/src
+      - ../../../empty:/opt/airflow/providers/tableau/src
+      - ../../../empty:/opt/airflow/providers/telegram/src
+      - ../../../empty:/opt/airflow/providers/teradata/src
+      - ../../../empty:/opt/airflow/providers/trino/src
+      - ../../../empty:/opt/airflow/providers/vertica/src
+      - ../../../empty:/opt/airflow/providers/weaviate/src
+      - ../../../empty:/opt/airflow/providers/yandex/src
+      - ../../../empty:/opt/airflow/providers/ydb/src
+      - ../../../empty:/opt/airflow/providers/zendesk/src
+      # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # However we keep in_container scripts in order to be able to debug easily the scripts that
       # are run with --mount-sources removed flag - such as installing airflow and providers
       - type: bind

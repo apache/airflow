@@ -55,23 +55,9 @@ option_airflow_constraints_mode_ci = click.option(
     show_default=True,
     help="Mode of constraints for Airflow for CI image building.",
 )
-option_airflow_skip_constraints = click.option(
-    "--airflow-skip-constraints",
-    is_flag=True,
-    help="Do not use constraints when installing airflow.",
-    envvar="AIRFLOW_SKIP_CONSTRAINTS",
-)
-option_install_airflow_with_constraints = click.option(
-    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
-    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
-)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
-    help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
+    help="Comma-separated list of providers selected to be installed (implies --use-distributions-from-dist).",
     envvar="INSTALL_SELECTED_PROVIDERS",
     default="",
 )
@@ -107,10 +93,10 @@ option_providers_skip_constraints = click.option(
     help="Do not use constraints when installing providers.",
     envvar="PROVIDERS_SKIP_CONSTRAINTS",
 )
-option_use_packages_from_dist = click.option(
-    "--use-packages-from-dist",
+option_use_distributions_from_dist = click.option(
+    "--use-distributions-from-dist",
     is_flag=True,
-    help="Install all found packages (--package-format determines type) from 'dist' folder "
+    help="Install all found distributions (--distribution-format determines type) from 'dist' folder "
     "when entering breeze.",
-    envvar="USE_PACKAGES_FROM_DIST",
+    envvar="USE_DISTRIBUTIONS_FROM_DIST",
 )

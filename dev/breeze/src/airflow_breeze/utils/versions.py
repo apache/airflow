@@ -30,10 +30,10 @@ def strip_leading_zeros_from_version(version: str) -> str:
     return ".".join(i.lstrip("0") or "0" for i in version.split("."))
 
 
-def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ""):
+def get_version_tag(version: str, provider_id: str, version_suffix: str = ""):
     if version_suffix is None:
         version_suffix = ""
-    return f"providers-{provider_package_id.replace('.','-')}/{version}{version_suffix}"
+    return f"providers-{provider_id.replace('.', '-')}/{version}{version_suffix}"
 
 
 def is_pre_release(version: str) -> bool:

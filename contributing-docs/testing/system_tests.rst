@@ -61,7 +61,7 @@ There are multiple ways of running system tests. Each system test is a self-cont
 other DAG. Some tests may require access to external services, enabled APIs or specific permissions. Make sure to
 prepare your  environment correctly, depending on the system tests you want to run - some may require additional
 configuration which should be documented by the relevant providers in their subdirectory
-``providers/tests/system/<provider_name>/README.md``.
+``tests/system/<provider_name>/README.md``.
 
 Running as Airflow DAGs
 .......................
@@ -84,13 +84,13 @@ For core:
 
 .. code-block:: bash
 
-  pytest --system tests/system/example_empty.py
+  pytest --system airflow-core/tests/system/example_empty.py
 
 For providers:
 
 .. code-block:: bash
 
-  pytest --system providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+  pytest --system providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
 
 
 Running via Breeze
@@ -102,17 +102,11 @@ For core:
 
 .. code-block:: bash
 
-  breeze testing system-tests tests/system/example_empty.py
+  breeze testing system-tests airflow-core/tests/system/example_empty.py
 
-
-For providers:
-
-.. code-block:: bash
-
-  breeze testing system-tests providers/tests/system/example_empty.py
 
 If you need to add some initialization of environment variables when entering Breeze, you can add a
-``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file.
+``environment_variables.env`` file in the ``files/airflow-breeze-config/environment_variables.env`` file.
 
 It will be automatically sourced when entering the Breeze environment. You can also add some additional
 initialization commands in the  ``files/airflow-breeze-config/init.sh`` file if you want to execute

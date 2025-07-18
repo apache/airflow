@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 
 import yaml
-from rich.console import Console
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -31,10 +30,8 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 
-console = Console(color_system="standard", width=200)
-
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
-PROVIDERS_SRC = AIRFLOW_SOURCES_ROOT / "providers" / "src" / "airflow" / "providers"
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, console
 
 EXAMPLE_DAGS_URL_MATCHER = re.compile(
     r"^(.*)(https://github.com/apache/airflow/tree/(.*)/airflow/providers/(.*)/example_dags)(/?>.*)$"
@@ -45,7 +42,7 @@ def get_provider_and_version(url_path: str) -> tuple[str, str]:
     candidate_folders = url_path.split("/")
     while candidate_folders:
         try:
-            with PROVIDERS_SRC.joinpath(*candidate_folders, "provider.yaml").open() as f:
+            with AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*candidate_folders, "provider.yaml").open() as f:
                 provider_info = yaml.safe_load(f)
             version = provider_info["versions"][0]
             provider = "-".join(candidate_folders)
@@ -65,21 +62,20 @@ def replace_match(file: Path, line: str) -> str | None:
     if match:
         url_path_to_dir = match.group(4)
         folders = url_path_to_dir.split("/")
-        example_dags_folder = PROVIDERS_SRC.joinpath(*folders, "example_dags")
+        example_dags_folder = AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*folders, "example_dags")
         provider, version = get_provider_and_version(url_path_to_dir)
         proper_system_tests_url = (
             f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
-            f"/providers/tests/system/{url_path_to_dir}"
+            f"/providers/{provider.replace('.', '/')}/tests/system/{url_path_to_dir}"
         )
         if not example_dags_folder.exists():
             if proper_system_tests_url in file.read_text():
                 console.print(f"[yellow] Removing from {file}[/]\n{line.strip()}")
                 return None
-            else:
-                new_line = re.sub(EXAMPLE_DAGS_URL_MATCHER, r"\1" + proper_system_tests_url + r"\5", line)
-                if new_line != line:
-                    console.print(f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}")
-                return new_line
+            new_line = re.sub(EXAMPLE_DAGS_URL_MATCHER, r"\1" + proper_system_tests_url + r"\5", line)
+            if new_line != line:
+                console.print(f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}")
+            return new_line
     return line
 
 

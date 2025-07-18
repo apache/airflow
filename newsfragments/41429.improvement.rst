@@ -1,1 +1,0 @@
-Add ``run_with_db_retries`` when the scheduler updates the deferred Task as failed to tolerate database deadlock issues.

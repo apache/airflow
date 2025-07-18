@@ -32,10 +32,6 @@ console = Console(color_system="standard", width=200)
 
 
 allowed_warnings: dict[str, tuple[str, ...]] = {
-    "airflow": (
-        "airflow.exceptions.RemovedInAirflow3Warning",
-        "airflow.utils.context.AirflowContextDeprecationWarning",
-    ),
     "providers": ("airflow.exceptions.AirflowProviderDeprecationWarning",),
 }
 compatible_decorators: frozenset[tuple[str, ...]] = frozenset(
@@ -95,8 +91,7 @@ def allowed_group_warnings(group: str) -> tuple[str, tuple[str, ...]]:
     group_warnings = allowed_warnings[group]
     if len(group_warnings) == 1:
         return f"expected {group_warnings[0]} type", group_warnings
-    else:
-        return f"expected one of {', '.join(group_warnings)} types", group_warnings
+    return f"expected one of {', '.join(group_warnings)} types", group_warnings
 
 
 def built_import_from(import_from: ast.ImportFrom) -> list[str]:
@@ -155,7 +150,7 @@ def resolve_name(obj: ast.Attribute | ast.Name) -> str:
         if isinstance(obj, ast.Name):
             name = f"{obj.id}.{name}" if name else obj.id
             break
-        elif isinstance(obj, ast.Attribute):
+        if isinstance(obj, ast.Attribute):
             name = f"{obj.attr}.{name}" if name else obj.attr
             obj = obj.value  # type: ignore[assignment]
         else:
@@ -193,7 +188,7 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
                     f"{expected_types}"
                 )
                 continue
-            elif not hasattr(category_keyword, "value"):
+            if not hasattr(category_keyword, "value"):
                 continue
             category_value_ast = category_keyword.value
 
@@ -203,8 +198,7 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
                 if not any(cv.endswith(category_value) for cv in warns_types):
                     errors += 1
                     print(
-                        f"{file}:{category_keyword.lineno}: "
-                        f"category={category_value}, but {expected_types}"
+                        f"{file}:{category_keyword.lineno}: category={category_value}, but {expected_types}"
                     )
                 errors += validate_end_of_life_deprecation_warnings(
                     file_path=file, decorator=decorator, warning_class=category_value

@@ -29,9 +29,13 @@
 # If we're using a StatefulSet
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
-{{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
-# If we're using elasticsearch logging
-{{- $elasticsearch := .Values.elasticsearch.enabled }}
+{{- $dagProcessorEnabled := .Values.dagProcessor.enabled }}
+{{- if eq $dagProcessorEnabled nil}}
+  {{ $dagProcessorEnabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- end }}
+{{- $localOrDagProcessorDisabled := or (not $dagProcessorEnabled) $local }}
+# If we're using elasticsearch or opensearch logging
+{{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
@@ -53,7 +57,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    executor: {{ .Values.executor }}
+    executor: {{ .Values.executor | replace "," "-" | trunc 63 | trimSuffix "-" | quote }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -207,6 +211,7 @@ spec:
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
           startupProbe:
+            initialDelaySeconds: {{ .Values.scheduler.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.scheduler.startupProbe.periodSeconds }}
@@ -217,8 +222,8 @@ spec:
                 {{- else }}
                   {{- include "scheduler_startup_check_command" . | indent 14 }}
                 {{- end }}
-          {{- if and $local (not $elasticsearch) }}
-          # Serve logs if we're in local mode and we don't have elasticsearch enabled.
+          {{- if and $local (not $remoteLogging) }}
+          # Serve logs if we're in local mode and we have neither elasticsearch nor opensearch enabled.
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
@@ -264,12 +269,19 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.scheduler.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
+          {{- if .Values.scheduler.logGroomerSidecar.env }}
+              {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: logs

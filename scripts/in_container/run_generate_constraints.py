@@ -28,13 +28,13 @@ from typing import TextIO
 
 import requests
 from click import Choice
-from in_container_utils import click, console, run_command
 
-AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.9")
-GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_SOURCE_DIR / "generated" / "provider_dependencies.json"
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
+GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
 
@@ -43,7 +43,7 @@ now = datetime.now().isoformat()
 NO_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 #
 # This constraints file was automatically generated on {now}
-# via "eager-upgrade" mechanism of PIP. For the "{DEFAULT_BRANCH}" branch of Airflow.
+# via `uv sync --resolution highest` for the "{DEFAULT_BRANCH}" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
 #
@@ -55,9 +55,9 @@ NO_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 SOURCE_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 #
 # This constraints file was automatically generated on {now}
-# via "eager-upgrade" mechanism of PIP. For the "{DEFAULT_BRANCH}" branch of Airflow.
+# via `uv sync --resolution highest for the "{DEFAULT_BRANCH}" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
-# 'apache-airflow' package and all available community provider packages.
+# 'apache-airflow' package and all available community provider distributions.
 #
 # Those constraints represent the dependencies that are used by all pull requests when they are build in CI.
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
@@ -68,7 +68,7 @@ SOURCE_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 #
 # This constraints file was automatically generated on {now}
-# via "eager-upgrade" mechanism of PIP. For the "{DEFAULT_BRANCH}" branch of Airflow.
+# via `uv pip install --resolution highest` for the "{DEFAULT_BRANCH}" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
 #
@@ -83,7 +83,7 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 # commands that might change the installed version of apache-airflow should include "apache-airflow==X.Y.Z"
 # in the list of install targets to prevent Airflow accidental upgrade or downgrade.
 #
-# Typical installation process of airflow for Python 3.9 is (with random selection of extras and custom
+# Typical installation process of airflow for Python 3.10 is (with random selection of extras and custom
 # dependencies added), usually consists of two steps:
 #
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):
@@ -103,13 +103,10 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 @dataclass
 class ConfigParams:
     airflow_constraints_mode: str
-    chicken_egg_providers: str
     constraints_github_repository: str
     default_constraints_branch: str
     github_actions: bool
-    eager_upgrade_additional_requirements: str
     python: str
-    use_uv: bool
 
     @cached_property
     def constraints_dir(self) -> Path:
@@ -129,90 +126,75 @@ class ConfigParams:
     def current_constraints_file(self) -> Path:
         return self.constraints_dir / f"{self.airflow_constraints_mode}-{self.python}.txt"
 
-    @cached_property
-    def get_freeze_command(self) -> list[str]:
-        # Some day we might use uv instead of pip
-        # if self.use_uv:
-        #     return ["uv", "pip", "freeze", "--python", sys.executable]
-        # else:
-        #     return ["pip", "freeze"]
-        return ["pip", "freeze"]
 
-    @cached_property
-    def get_install_command(self) -> list[str]:
-        if self.use_uv:
-            return ["uv", "pip", "install", "--python", sys.executable]
-        else:
-            return ["pip", "install"]
-
-    @cached_property
-    def get_uninstall_command(self) -> list[str]:
-        if self.use_uv:
-            return ["uv", "pip", "uninstall", "--python", sys.executable]
-        else:
-            return ["pip", "uninstall"]
-
-    @cached_property
-    def get_install_args(self) -> list[str]:
-        if self.use_uv:
-            return []
-        else:
-            return ["--root-user-action", "ignore"]
-
-    @cached_property
-    def get_uninstall_args(self) -> list[str]:
-        if self.use_uv:
-            return []
-        else:
-            return ["--root-user-action", "ignore", "--yes"]
-
-    @cached_property
-    def get_resolution_highest_args(self) -> list[str]:
-        if self.use_uv:
-            return ["--resolution", "highest"]
-        else:
-            return ["--upgrade", "--upgrade-strategy", "eager"]
-
-    @cached_property
-    def eager_upgrade_additional_requirements_list(self) -> list[str]:
-        if self.eager_upgrade_additional_requirements:
-            return self.eager_upgrade_additional_requirements.split(" ")
-        return []
-
-
-def install_local_airflow_with_eager_upgrade(config_params: ConfigParams) -> None:
+def install_local_airflow_with_latest_resolution(config_params: ConfigParams) -> None:
     run_command(
         [
-            *config_params.get_install_command,
-            "-e",
-            ".[all-core]",
-            *config_params.eager_upgrade_additional_requirements_list,
-            *config_params.get_resolution_highest_args,
+            "uv",
+            "sync",
+            "--resolution",
+            "highest",
+            "--no-dev",
+            "--package",
+            "apache-airflow-core",
         ],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCE_DIR,
+        cwd=AIRFLOW_ROOT_PATH,
         check=True,
     )
 
 
-def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
+def freeze_distributions_to_file(
+    config_params: ConfigParams,
+    file: TextIO,
+    distributions_to_exclude_from_constraints: list[str] | None = None,
+) -> None:
     console.print(f"[bright_blue]Freezing constraints to file: {file.name}")
+    if distributions_to_exclude_from_constraints:
+        console.print(
+            "[bright_blue]Excluding distributions from constraints:",
+            distributions_to_exclude_from_constraints,
+        )
+    else:
+        distributions_to_exclude_from_constraints = []
     result = run_command(
-        cmd=config_params.get_freeze_command,
+        # TODO(potiuk): check if we can change this to uv
+        cmd=["pip", "freeze"],
         github_actions=config_params.github_actions,
         text=True,
         check=True,
         capture_output=True,
     )
+    stdout = result.stdout
+    if os.environ.get("VERBOSE", "") == "true":
+        if os.environ.get("CI", "") == "true":
+            print("::group::Installed distributions")
+        console.print("[bright_blue]Installed distributions")
+        console.print(stdout)
+        console.print("[bright_blue]End of installed distributions")
+        if os.environ.get("CI", "") == "true":
+            print("::endgroup::")
     count_lines = 0
-    for line in sorted(result.stdout.split("\n")):
-        if line.startswith(("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")):
+    for line in sorted(stdout.split("\n")):
+        if line.startswith(
+            (
+                "apache_airflow",
+                "apache-airflow==",
+                "apache-airflow-core==",
+                "apache-airflow-task-sdk=",
+                "/opt/airflow",
+                "#",
+                "-e",
+            )
+        ):
             continue
         if "@" in line:
             continue
-        if "from file://" in line:
+        if "file://" in line:
             continue
         if line.strip() == "":
+            continue
+        if line in distributions_to_exclude_from_constraints:
             continue
         count_lines += 1
         file.write(line)
@@ -223,14 +205,19 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
 
 def download_latest_constraint_file(config_params: ConfigParams):
     constraints_url = (
-        "https://raw.githubusercontent.com/"
-        f"{config_params.constraints_github_repository}/{config_params.default_constraints_branch}/"
-        f"{config_params.airflow_constraints_mode}-{config_params.python}.txt"
+        "https://api.github.com/repos/"
+        f"{config_params.constraints_github_repository}/contents/"
+        f"{config_params.airflow_constraints_mode}-{config_params.python}.txt?ref={config_params.default_constraints_branch}"
     )
     # download the latest constraints file
     # download using requests
+    headers = {"Accept": "application/vnd.github.v3.raw"}
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
+    else:
+        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
-    r = requests.get(constraints_url, timeout=60)
+    r = requests.get(constraints_url, timeout=60, headers=headers)
     r.raise_for_status()
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)
@@ -285,32 +272,34 @@ def diff_constraints(config_params: ConfigParams) -> None:
 def uninstall_all_packages(config_params: ConfigParams):
     console.print("[bright_blue]Uninstall All PIP packages")
     result = run_command(
-        cmd=config_params.get_freeze_command,
+        # TODO(potiuk): check if we can change this to uv
+        cmd=["pip", "freeze"],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCE_DIR,
+        cwd=AIRFLOW_ROOT_PATH,
         text=True,
         check=True,
         capture_output=True,
     )
     # do not remove installer!
-    installer = "uv==" if config_params.use_uv else "pip=="
     all_installed_packages = [
         dep.split("==")[0]
         for dep in result.stdout.strip().split("\n")
-        if not dep.startswith(("apache-airflow", "apache-airflow==", "/opt/airflow", "#", "-e", installer))
+        if not dep.startswith(
+            ("apache-airflow", "apache-airflow==", "/opt/airflow", "#", "-e", "uv==", "pip==")
+        )
     ]
     run_command(
-        cmd=[*config_params.get_uninstall_command, *all_installed_packages],
+        cmd=["uv", "pip", "uninstall", *all_installed_packages],
         github_actions=config_params.github_actions,
-        cwd=AIRFLOW_SOURCE_DIR,
+        cwd=AIRFLOW_ROOT_PATH,
         text=True,
         check=True,
     )
 
 
-def get_all_active_provider_packages(python_version: str | None = None) -> list[str]:
+def get_all_active_provider_distributions(python_version: str | None = None) -> list[str]:
     return [
-        f"apache-airflow-providers-{provider.replace('.','-')}"
+        f"apache-airflow-providers-{provider.replace('.', '-')}"
         for provider in ALL_PROVIDER_DEPENDENCIES.keys()
         if ALL_PROVIDER_DEPENDENCIES[provider]["state"] == "ready"
         and (
@@ -329,9 +318,25 @@ def generate_constraints_source_providers(config_params: ConfigParams) -> None:
     """
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(SOURCE_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+        freeze_distributions_to_file(config_params, constraints_file)
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
+
+
+def get_locally_build_distribution_specs() -> list[str]:
+    """
+    Get all locally build distribution specification.
+
+    This is used to exclude them from the constraints file.
+    return: list of distributionss (distribution==version) to exclude from the constraints file.
+    """
+    all_distribution_specs = []
+    all_distributions_in_dist = AIRFLOW_DIST_PATH.glob("apache_airflow_providers_*.whl")
+    for dist_file_path in all_distributions_in_dist:
+        version = dist_file_path.name.split("-")[1]
+        distribution_name = dist_file_path.name.split("-")[0].replace("_", "-")
+        all_distribution_specs.append(f"{distribution_name}=={version}")
+    return all_distribution_specs
 
 
 def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
@@ -341,61 +346,65 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     providers are used by our users to install Airflow in reproducible way.
     :return:
     """
-    dist_dir = Path("/dist")
-    all_provider_packages = get_all_active_provider_packages(python_version=config_params.python)
-    chicken_egg_prefixes = []
-    packages_to_install = []
-    console.print("[bright_blue]Installing Airflow with PyPI providers with eager upgrade")
-    if config_params.chicken_egg_providers:
-        for chicken_egg_provider in config_params.chicken_egg_providers.split(" "):
-            chicken_egg_prefixes.append(f"apache-airflow-providers-{chicken_egg_provider.replace('.','-')}")
-        console.print(
-            f"[bright_blue]Checking if {chicken_egg_prefixes} are available in local dist folder "
-            f"as chicken egg providers)"
-        )
-    for provider_package in all_provider_packages:
-        if config_params.chicken_egg_providers and provider_package.startswith(tuple(chicken_egg_prefixes)):
-            glob_pattern = f"{provider_package.replace('-','_')}-*.whl"
-            console.print(
-                f"[bright_blue]Checking if {provider_package} is available in local dist folder "
-                f"with {glob_pattern} pattern"
-            )
-            files = dist_dir.glob(glob_pattern)
-            for file in files:
-                console.print(
-                    f"[yellow]Installing {file.name} from local dist folder as it is "
-                    f"a chicken egg provider"
-                )
-                packages_to_install.append(f"{provider_package} @ file://{file.as_posix()}")
-                break
-            else:
-                console.print(
-                    f"[yellow]Skipping {provider_package} as it is not found in dist folder to install."
-                )
-            # Skip checking if chicken egg provider is available in PyPI - it does not have to be there
-            continue
-        console.print(f"[bright_blue]Checking if {provider_package} is available in PyPI: ... ", end="")
-        r = requests.head(f"https://pypi.org/pypi/{provider_package}/json", timeout=60)
-        if r.status_code == 200:
-            console.print("[green]OK")
-            packages_to_install.append(provider_package)
-        else:
-            console.print("[yellow]NOK. Skipping.")
-    run_command(
+
+    # In case we have some problems with installing highest resolution of a dependency of one of our
+    # providers in PyPI - we can exclude the buggy version here. For example this happened with
+    # sqlalchemy-spanner==1.12.0 which did not have `whl` file in PyPI and was not installable
+    # and in this case we excluded it by adding ""sqlalchemy-spanner!=1.12.0" to the list below.
+    # In case we add exclusion here we should always link to the issue in the target dependency
+    # repository that tracks the problem with the dependency (we should create one if it does not exist).
+    #
+    # Example exclusion (not needed any more as sqlalchemy-spanner==1.12.0has been yanked in PyPI):
+    #
+    # additional_constraints_for_highest_resolution: list[str] = ["sqlalchemy-spanner!=1.12.0"]
+    #
+    # Current exclusions:
+    #
+    # * no exclusions
+    #
+    additional_constraints_for_highest_resolution: list[str] = []
+
+    result = run_command(
         cmd=[
-            *config_params.get_install_command,
-            ".[all-core]",
-            *packages_to_install,
-            *config_params.eager_upgrade_additional_requirements_list,
-            *config_params.get_resolution_highest_args,
+            "uv",
+            "pip",
+            "install",
+            "--no-sources",
+            "apache-airflow[all]",
+            "apache-airflow-core[all]",
+            "apache-airflow-task-sdk",
+            "./airflow-ctl",
+            *additional_constraints_for_highest_resolution,
+            "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
+            "--resolution",
+            "highest",
+            "--find-links",
+            "file://" + str(AIRFLOW_DIST_PATH),
         ],
         github_actions=config_params.github_actions,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        console.print(
+            "[red]Failed to install airflow with PyPI providers with highest resolution.[/]\n"
+            "[yellow]Please check the output above for details. One of they ways how to resolve it, in "
+            "case it is caused by a specific broken dependency version, is to exclude it above in the "
+            f"`additional_constraints_for_highest_resolution` list in [/] {__file__}"
+        )
+        sys.exit(result.returncode)
     console.print("[success]Installed airflow with PyPI providers with eager upgrade.")
+    distributions_to_exclude_from_constraints = get_locally_build_distribution_specs()
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(PYPI_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+        if distributions_to_exclude_from_constraints:
+            console.print(
+                "[yellow]Excluding some distributions because we install them locally from build .wheels"
+                "- those versions are missing from PyPI, so we need to exclude them from PyPI constraints."
+            )
+            # the command below prints detailed list of excluded distributions
+        freeze_distributions_to_file(
+            config_params, constraints_file, distributions_to_exclude_from_constraints
+        )
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
 
@@ -407,14 +416,13 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     """
     uninstall_all_packages(config_params)
     console.print(
-        "[bright_blue]Installing airflow with `all-core` extras only with eager upgrade in "
-        "installable mode."
+        "[bright_blue]Installing airflow with `all-core` extras only with eager upgrade in installable mode."
     )
-    install_local_airflow_with_eager_upgrade(config_params)
-    console.print("[success]Installed airflow with [all-core] extras only with eager upgrade.")
+    install_local_airflow_with_latest_resolution(config_params)
+    console.print("[success]Installed airflow with [all] extras only with eager upgrade.")
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+        freeze_distributions_to_file(config_params, constraints_file)
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
 
@@ -431,11 +439,6 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     help="Mode of constraints to generate",
 )
 @click.option(
-    "--chicken-egg-providers",
-    envvar="CHICKEN_EGG_PROVIDERS",
-    help="Providers that should be installed from packages built from current sources.",
-)
-@click.option(
     "--constraints-github-repository",
     default="apache/airflow",
     show_default=True,
@@ -447,12 +450,6 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     required=True,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     help="Branch to get constraints from",
-)
-@click.option(
-    "--eager-upgrade-additional-requirements",
-    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
-    default="",
-    help="Additional requirements to add to eager upgrade",
 )
 @click.option(
     "--github-actions",
@@ -477,23 +474,18 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
 )
 def generate_constraints(
     airflow_constraints_mode: str,
-    chicken_egg_providers: str,
     constraints_github_repository: str,
     default_constraints_branch: str,
-    eager_upgrade_additional_requirements: str,
     github_actions: bool,
     python: str,
     use_uv: bool,
 ) -> None:
     config_params = ConfigParams(
         airflow_constraints_mode=airflow_constraints_mode,
-        chicken_egg_providers=chicken_egg_providers,
         constraints_github_repository=constraints_github_repository,
         default_constraints_branch=default_constraints_branch,
-        eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
         github_actions=github_actions,
         python=python,
-        use_uv=use_uv,
     )
     if airflow_constraints_mode == "constraints-source-providers":
         generate_constraints_source_providers(config_params)

@@ -1,3 +1,0 @@
-PostgreSQL 12 is no longer supported
-
-PostgreSQL 12 is no longer being supported by the PostgreSQL community. You must upgrade to PostgreSQL 13+ to use this version of Airflow.

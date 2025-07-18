@@ -18,14 +18,15 @@
 from __future__ import annotations
 
 from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.workflow_commands import workflow_run
 from airflow_breeze.utils.path_utils import (
     create_directories_and_files,
-    find_airflow_sources_root_to_operate_on,
+    find_airflow_root_path_to_operate_on,
 )
 
 from airflow_breeze.configure_rich_click import click  # isort: skip  # noqa: F401
 
-find_airflow_sources_root_to_operate_on()
+find_airflow_root_path_to_operate_on()
 create_directories_and_files()
 
 
@@ -34,10 +35,9 @@ from airflow_breeze.commands.ci_commands import ci_group  # noqa: E402
 from airflow_breeze.commands.ci_image_commands import ci_image  # noqa: E402
 from airflow_breeze.commands.kubernetes_commands import kubernetes_group  # noqa: E402
 from airflow_breeze.commands.production_image_commands import prod_image  # noqa: E402
-from airflow_breeze.commands.release_management_commands import release_management  # noqa: E402
 from airflow_breeze.commands.minor_release_command import create_minor_version_branch  # noqa: E402, F401
 from airflow_breeze.commands.release_command import airflow_release  # noqa: E402, F401
-from airflow_breeze.commands.release_candidate_command import release_management  # noqa: E402, F811
+from airflow_breeze.commands.release_candidate_command import release_management  # noqa: E402
 from airflow_breeze.commands.sbom_commands import sbom  # noqa: E402
 from airflow_breeze.commands.setup_commands import setup  # noqa: E402
 from airflow_breeze.commands.testing_commands import group_for_testing  # noqa: E402
@@ -50,6 +50,7 @@ main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
 main.add_command(sbom)
+main.add_command(workflow_run)
 
 if __name__ == "__main__":
     main()

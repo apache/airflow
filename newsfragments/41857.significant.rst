@@ -1,3 +1,0 @@
-**Breaking Change**
-
-Airflow core now depends on Pydantic v2. If you have Pydantic v1 installed, please upgrade.

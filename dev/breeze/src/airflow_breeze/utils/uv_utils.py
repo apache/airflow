@@ -27,7 +27,7 @@ from airflow_breeze.utils.platforms import is_wsl2
 
 def get_uv_timeout(build_params: CommonBuildParams) -> int:
     """
-    Get the timeout for the uvicorn server. We do not want to change the default value to not slow down
+    Get the timeout for the uv requests. We do not want to change the default value to not slow down
     the --help and command line in general and also it might be useful to give escape hatch in case our
     WSL1 detection is wrong (it will fail default --use-uv build, but you will be able to skip the check by
     manually specifying --uv-http-timeout or --no-use-uv). So we only check for wsl2 when default value is

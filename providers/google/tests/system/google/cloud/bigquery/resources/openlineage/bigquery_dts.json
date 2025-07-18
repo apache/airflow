@@ -1,0 +1,63 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcp_bigquery_dts.create_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcp_bigquery_dts.create_table"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_gcp_bigquery_dts_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.DTS_BQ_TABLE",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "post_abbr",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcp_bigquery_dts.gcp_bigquery_start_transfer"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcp_bigquery_dts.gcp_bigquery_start_transfer"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket-gcp_bigquery_dts-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "us-states.csv"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_gcp_bigquery_dts_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.DTS_BQ_TABLE"
+            }
+        ]
+    }
+]

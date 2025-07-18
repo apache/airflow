@@ -29,7 +29,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import re2
 from alembic.script import ScriptDirectory
 from rich.console import Console
 from tabulate import tabulate
@@ -155,9 +154,9 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
             )
         )
     if app == "fab":
-        filepath = project_root / "docs" / "apache-airflow-providers-fab" / "migrations-ref.rst"
+        filepath = project_root / "providers" / "fab" / "docs" / "migrations-ref.rst"
     else:
-        filepath = project_root / "docs" / "apache-airflow" / "migrations-ref.rst"
+        filepath = project_root / "airflow-core" / "docs" / "migrations-ref.rst"
 
     update_doc(
         file=filepath,
@@ -223,15 +222,21 @@ def correct_mismatching_revision_nums(revisions: Iterable[Script]):
             assert rev.module.__file__ is not None
         file = Path(rev.module.__file__)
         content = file.read_text()
-        revision_match = re2.search(
+        revision_match = re.search(
             revision_pattern,
             content,
         )
-        revision_id_match = re2.search(revision_id_pattern, content)
+        if revision_match is None:
+            raise RuntimeError(f"revision = not found in {file}")
+        revision_id_match = re.search(revision_id_pattern, content)
+        if revision_id_match is None:
+            raise RuntimeError(f"Revision ID: not found in {file}")
         new_content = content.replace(revision_id_match.group(1), revision_match.group(1), 1)
-        down_revision_match = re2.search(down_revision_pattern, new_content)
-        revises_id_match = re2.search(revises_id_pattern, new_content)
+        down_revision_match = re.search(down_revision_pattern, new_content)
+        revises_id_match = re.search(revises_id_pattern, new_content)
         if down_revision_match:
+            if revises_id_match is None:
+                raise RuntimeError(f"Revises: not found in {file}")
             new_content = new_content.replace(revises_id_match.group(1), down_revision_match.group(1), 1)
         file.write_text(new_content)
 
