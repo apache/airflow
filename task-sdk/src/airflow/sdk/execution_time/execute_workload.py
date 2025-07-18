@@ -44,11 +44,13 @@ def execute_workload(workload: ExecuteTask) -> None:
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
     from airflow.sdk.log import configure_logging
-    from airflow.settings import dispose_orm
+    from airflow.settings import dispose_orm, LOGGING_CLASS_PATH
 
     dispose_orm(do_log=False)
 
-    configure_logging(output=sys.stdout.buffer, enable_pretty_log=False)
+    # Check if logging is already configured, if it is then LOGGING_CLASS_PATH is not None
+    if not LOGGING_CLASS_PATH:
+        configure_logging(output=sys.stdout.buffer, enable_pretty_log=False)
 
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"Executor does not know how to handle {type(workload)}")
