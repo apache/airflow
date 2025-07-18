@@ -69,7 +69,7 @@ dependencies = [
     "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved
-    "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12'",
+    "snowflake-snowpark-python>=1.27.0,<9999;python_version<='3.12'",
 ]
 
 # The optional dependencies should be modified in place in the generated file
