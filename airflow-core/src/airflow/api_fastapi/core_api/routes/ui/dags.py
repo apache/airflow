@@ -212,7 +212,7 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> list[DAGRunLightRes
     query = (
         select(DagRun)
         .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after)
+        .order_by(DagRun.run_after.desc())
         .limit(1)
         .options(
             load_only(
