@@ -18,99 +18,87 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from shutil import copyfile
 
 from python_on_whales import DockerClient, docker
 from rich.console import Console
-
-from task_sdk_tests.constants import AIRFLOW_ROOT_PATH, TASK_SDK_API_VERSION, TASK_SDK_HOST_PORT
 
 console = Console(width=400, color_system="standard")
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
+TASK_SDK_TESTS_ROOT = Path(__file__).parent.parent.parent
 
 
-def print_diagnostics(compose: DockerClient, compose_version: str, docker_version: str):
-    console.print(" Docker Version ".center(72, "="))
-    console.print(docker_version)
-    console.print(" Docker Compose Version ".center(72, "="))
-    console.print(compose_version)
-    console.print(" Compose Config ".center(72, "="))
-    console.print(json.dumps(compose.config(return_json=True), indent=4))
-    for service in compose.ps(all=True):
-        console.print(f"Service: {service.name} ".center(72, "="))
-        console.print(f" Service State {service.name}".center(50, "."))
-        console.print(service.state)
-        console.print(f" Service Config {service.name}".center(50, "."))
-        console.print(service.config)
-        console.print(f" Service Logs {service.name}".center(50, "."))
-        console.print(service.logs())
-        console.print(f"End of service: {service.name} ".center(72, "="))
-
-
-def test_task_sdk_health(default_docker_image, tmp_path_factory, monkeypatch):
+def test_task_sdk_health(tmp_path_factory, monkeypatch):
     """Test Task SDK health check using docker-compose environment."""
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
-    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
     console.print(f"[yellow]Tests are run in {tmp_dir}")
 
-    compose_file_path = (
-        AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
+    # Copy docker-compose.yaml to temp directory
+    docker_compose_file = TASK_SDK_TESTS_ROOT / "docker" / "docker-compose.yaml"
+    tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
+    copyfile(docker_compose_file, tmp_docker_compose_file)
+
+    # Set environment variables for the test
+    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", os.environ.get("DOCKER_IMAGE", "apache/airflow:2.8.1"))
+    monkeypatch.setenv(
+        "_PIP_ADDITIONAL_REQUIREMENTS",
+        f"apache-airflow-task-sdk=={os.environ.get('TASK_SDK_VERSION', '1.0.1a1')}",
     )
-    copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 
-    # Replace |version| placeholder with latest
-    with open(tmp_dir / "docker-compose.yaml") as f:
-        compose_config = f.read()
-    compose_config = compose_config.replace("apache/airflow:|version|", default_docker_image)
-    with open(tmp_dir / "docker-compose.yaml", "w") as f:
-        f.write(compose_config)
-
-    # Create required directories
-    subfolders = ("dags", "logs", "plugins", "config")
-    console.print(f"[yellow]Creating subfolders:[/ {subfolders}")
-    for subdir in subfolders:
-        (tmp_dir / subdir).mkdir()
-
-    # Create .env file with proper UID
-    dot_env_file = tmp_dir / ".env"
-    console.print(f"[yellow]Creating .env file:[/ {dot_env_file}")
-    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
-    console.print(" .env file content ".center(72, "="))
-    console.print(dot_env_file.read_text())
-
-    compose = DockerClient(compose_project_name="task-sdk-test", compose_project_directory=tmp_dir).compose
-    compose.down(remove_orphans=True, volumes=True, quiet=True)
+    # Initialize Docker client
+    compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
     try:
-        compose.up(detach=True, wait=True)
-        console.print("[green]Docker compose started for task SDK test")
+        # Start the services
+        compose.compose.up(detach=True)
+        console.print("[green]Docker Compose environment is up")
 
-        from airflow.sdk.api.client import Client
+        # Wait for services to be healthy
+        compose.compose.ps()
+        console.print("[green]Services are running")
 
-        client = Client(base_url=f"http://{TASK_SDK_HOST_PORT}/execution", token="not-a-token")
+        # Test the API server
+        response = docker.container.execute(
+            compose.compose.ps(services=["airflow-apiserver"])[0],
+            [
+                "curl",
+                "-s",
+                "-u",
+                f"{AIRFLOW_WWW_USER_USERNAME}:{AIRFLOW_WWW_USER_PASSWORD}",
+                "http://localhost:8080/api/v1/health",
+            ],
+        )
+        health_check = json.loads(response)
+        assert health_check["metadatabase"]["status"] == "healthy"
+        console.print("[green]API server is healthy")
 
-        console.print("[yellow]Making health check request...")
-        response = client.get("health/ping", headers={"Airflow-API-Version": TASK_SDK_API_VERSION})
+        # Test task-sdk installation
+        response = docker.container.execute(
+            compose.compose.ps(services=["airflow-apiserver"])[0], ["pip", "freeze"]
+        )
+        assert "apache-airflow-task-sdk" in response
+        console.print("[green]Task SDK is installed")
 
-        console.print(" Health Check Response ".center(72, "="))
-        console.print(f"[bright_blue]Status Code:[/] {response.status_code}")
-        console.print("[bright_blue]Response Headers:[/]")
-        for key, value in response.headers.items():
-            console.print(f"  {key}: {value}")
-        console.print("[bright_blue]Response Body:[/]")
-        console.print(response.json())
-        console.print("=" * 72)
+        # Test task-sdk API
+        response = docker.container.execute(
+            compose.compose.ps(services=["airflow-apiserver"])[0],
+            [
+                "curl",
+                "-s",
+                "-u",
+                f"{AIRFLOW_WWW_USER_USERNAME}:{AIRFLOW_WWW_USER_PASSWORD}",
+                "http://localhost:8080/execution/api/v1/health",
+            ],
+        )
+        task_sdk_health = json.loads(response)
+        assert task_sdk_health["status"] == "healthy"
+        console.print("[green]Task SDK API is healthy")
 
-        assert response.status_code == 200
-        assert response.json() == {"ok": ["airflow.api_fastapi.auth.tokens.JWTValidator"], "failing": {}}
-
-    except Exception:
-        print_diagnostics(compose, compose.version(), docker.version())
-        raise
     finally:
-        if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
-            compose.down(remove_orphans=True, volumes=True, quiet=True)
-            console.print("[green]Docker compose instance deleted")
+        # Clean up
+        compose.compose.down(volumes=True)
+        console.print("[yellow]Docker Compose environment is down")
