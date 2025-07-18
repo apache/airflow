@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import types
 from unittest import mock
 from unittest.mock import patch
 
@@ -602,3 +603,29 @@ class TestGitDagBundle:
                 repo_url=repo_url,
             )
             assert bundle.repo_url == expected
+
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_clone_passes_env_from_githook(self, mock_gitRepo):
+        def _fake_clone_from(*_, **kwargs):
+            if "env" not in kwargs:
+                raise GitCommandError("git", 128, "Permission denied")
+            return types.SimpleNamespace()
+
+        EXPECTED_ENV = {"GIT_SSH_COMMAND": "ssh -i /id_rsa -o StrictHostKeyChecking=no"}
+
+        mock_gitRepo.clone_from.side_effect = _fake_clone_from
+        mock_gitRepo.return_value = types.SimpleNamespace()
+
+        with mock.patch("airflow.providers.git.bundles.git.GitHook") as mock_githook:
+            mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+            mock_githook.return_value.env = EXPECTED_ENV
+
+            bundle = GitDagBundle(
+                name="my_repo",
+                git_conn_id="git_default",
+                repo_url="git@github.com:apache/airflow.git",
+                tracking_ref="main",
+            )
+            bundle._clone_bare_repo_if_required()
+            _, kwargs = mock_gitRepo.clone_from.call_args
+            assert kwargs["env"] == EXPECTED_ENV
