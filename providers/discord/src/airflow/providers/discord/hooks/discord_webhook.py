@@ -47,6 +47,9 @@ class DiscordWebhookHook(HttpHook):
     :param avatar_url: Override the default avatar of the webhook
     :param tts: Is a text-to-speech message
     :param proxy: Proxy to use to make the Discord webhook call
+    :param embeds: List of embed objects to send with the message. Each embed can contain
+                   an author object with name (required), url, and icon_url fields.
+                   URLs must use HTTPS.
     """
 
     conn_name_attr = "http_conn_id"
@@ -80,6 +83,13 @@ class DiscordWebhookHook(HttpHook):
         avatar_url: str | None = None,
         tts: bool = False,
         proxy: str | None = None,
+        embeds: list[dict[str, Any]] | None = None,
+        mentions: list[dict[str, Any]] | None = None,
+        mention_everyone: bool = False,
+        mention_roles: list[str] | None = None,
+        mention_channels: list[dict[str, Any]] | None = None,
+        reactions: list[dict[str, Any]] | None = None,
+        application_id: str = "airflow",
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -91,6 +101,13 @@ class DiscordWebhookHook(HttpHook):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
+        self.embeds = embeds
+        self.mentions = mentions
+        self.mention_everyone = mention_everyone
+        self.mention_roles = mention_roles
+        self.mention_channels = mention_channels
+        self.reactions = reactions
+        self.application_id = application_id
 
     def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
         """
@@ -119,6 +136,24 @@ class DiscordWebhookHook(HttpHook):
 
         return endpoint
 
+    def _validate_embeds(self, embeds: list[dict[str, Any]]) -> None:
+        """
+        Validate the structure of the embeds.
+
+        :param embeds: List of embed objects to validate
+        :raises AirflowException: If any embed object is invalid
+        """
+        for embed in embeds:
+            if not isinstance(embed, dict):
+                raise AirflowException("Each embed must be a dictionary.")
+            if "url" in embed:
+                if not isinstance(embed["url"], str) or not embed["url"].startswith("https://"):
+                    raise AirflowException("Embed URL must be a string starting with 'https://'.")
+            if "color" in embed and not isinstance(embed["color"], int):
+                raise AirflowException("Embed color must be an integer.")
+            if "author" in embed and not isinstance(embed["author"], dict):
+                raise AirflowException("Embed author must be a dictionary.")
+
     def _build_discord_payload(self) -> str:
         """
         Combine all relevant parameters into a valid Discord JSON payload.
@@ -134,10 +169,26 @@ class DiscordWebhookHook(HttpHook):
 
         payload["tts"] = self.tts
 
-        if len(self.message) <= 2000:
+        if self.message and len(self.message) <= 2000:
             payload["content"] = self.message
+        elif not self.message:
+            print("No message")
         else:
             raise AirflowException("Discord message length must be 2000 or fewer characters.")
+
+        if self.embeds:
+            self._validate_embeds(self.embeds)
+            payload["embeds"] = self.embeds
+        if self.mentions:
+            payload["mentions"] = self.mentions
+        payload["mention_everyone"] = self.mention_everyone
+        if self.mention_roles:
+            payload["mention_roles"] = self.mention_roles
+        if self.mention_channels:
+            payload["mention_channels"] = self.mention_channels
+        if self.reactions:
+            payload["reactions"] = self.reactions
+        payload["application_id"] = self.application_id
 
         return json.dumps(payload)
 
@@ -150,9 +201,12 @@ class DiscordWebhookHook(HttpHook):
 
         discord_payload = self._build_discord_payload()
 
-        self.run(
+        response = self.run(
             endpoint=self.webhook_endpoint,
             data=discord_payload,
             headers={"Content-type": "application/json"},
             extra_options={"proxies": proxies},
         )
+
+        if response.status_code != 204:
+            raise AirflowException(f"Discord webhook call failed: {response.text}")
