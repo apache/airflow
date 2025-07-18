@@ -336,7 +336,7 @@ class TestDagRun:
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        ti_op2.task.trigger_rule = "invalid"  # type: ignore
+        ti_op2.task.trigger_rule = "invalid"
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
@@ -1256,13 +1256,14 @@ class TestDagRun:
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_success_callback"
 
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+
         with dag_maker(
             dag_id="test_dagrun_success_callback",
             schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
             deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
                 interval=datetime.timedelta(hours=1),
                 callback=test_callback_for_deadline,
             ),
@@ -1277,7 +1278,7 @@ class TestDagRun:
             "test_state_succeeded2": TaskInstanceState.SUCCESS,
         }
 
-        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG.
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run = session.merge(dag_run)

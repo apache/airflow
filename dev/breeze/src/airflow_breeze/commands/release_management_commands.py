@@ -92,11 +92,11 @@ from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
-    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CONSTRAINTS_SOURCE_PROVIDERS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     PYTHON_TO_MIN_AIRFLOW_MAPPING,
@@ -245,7 +245,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.19"
+AIRFLOW_UV_VERSION = "0.7.21"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.44"
 RICH_VERSION = "14.0.0"
@@ -1977,7 +1977,7 @@ def alias_images(
     get_console().print("[info]Aliasing images with links to the newly created images.[/]")
     for python in python_versions:
         # Always alias the last python version to point to the non-python version
-        if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES:
             get_console().print(
                 f"[info]Aliasing the {image_prefix}{airflow_version}-python{python} "
                 f"version with {image_prefix}{airflow_version}[/]"
@@ -2001,7 +2001,7 @@ def alias_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES:
                 alias_image(
                     f"{dockerhub_repo}:{image_prefix}{airflow_version}",
                     f"{dockerhub_repo}:{image_prefix}latest",
@@ -2170,7 +2170,7 @@ def release_prod_images(
         run_command(docker_buildx_command)
         if metadata_file:
             get_console().print(f"[green]Metadata file stored in {metadata_file}")
-        if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1] and not metadata_file:
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES and not metadata_file:
             get_console().print(
                 f"[info]Aliasing the latest {python} version to {image_prefix}{airflow_version}[/]"
             )

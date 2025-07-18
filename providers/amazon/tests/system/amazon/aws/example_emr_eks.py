@@ -108,9 +108,9 @@ def run_eksctl_commands(cluster_name, ns):
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-cluster-access.html
     file = "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
     commands = f"""
-        curl --silent --location "{file}" | tar xz -C . &&
-        ./eksctl create iamidentitymapping --cluster {cluster_name} --namespace {ns} --service-name "emr-containers" &&
-        ./eksctl utils associate-iam-oidc-provider --cluster {cluster_name} --approve
+        curl --silent --location "{file}" | tar xz -C /tmp &&
+        /tmp/eksctl create iamidentitymapping --cluster {cluster_name} --namespace {ns} --service-name "emr-containers" &&
+        /tmp/eksctl utils associate-iam-oidc-provider --cluster {cluster_name} --approve
     """
 
     build = subprocess.Popen(
