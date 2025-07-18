@@ -82,7 +82,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 /providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
-/providers/keycloak/ @vincbeck
+/providers/keycloak/ @vincbeck @bugraoz93
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
 /providers/smtp/ @hussein-awala
