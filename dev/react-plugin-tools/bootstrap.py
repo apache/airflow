@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +17,17 @@
 # under the License.
 
 """
-Bootstrap React Plugin Directory Tool.
+Bootstrap React Plugin CLI Tool.
 
-This module provides CLI commands to create new React UI plugin directory based
-on the airflow-core/ui project structure. It sets up all the necessary configuration
-files, dependencies, and basic structure for development with the same tooling as
-used in Airflow's core UI.
+This script provides a command-line interface to create new React UI plugin
+directories based on the airflow-core/ui project structure. It sets up all the
+necessary configuration files, dependencies, and basic structure for development
+with the same tooling as used in Airflow's core UI.
 """
 
 from __future__ import annotations
 
+import argparse
 import re
 import shutil
 import sys
@@ -126,3 +128,52 @@ def bootstrap_react_plugin(args) -> None:
         if project_path.exists():
             shutil.rmtree(project_path)
         sys.exit(1)
+
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="Bootstrap a new React UI plugin project",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python bootstrap.py my-plugin
+  python bootstrap.py my-plugin --dir /path/to/projects/my-plugin
+
+This will create a new React project with all the necessary configuration
+files, dependencies, and structure needed for Airflow plugin development.
+        """,
+    )
+
+    parser.add_argument(
+        "name",
+        help="Name of the React plugin project (letters, numbers, hyphens, and underscores only)",
+    )
+
+    parser.add_argument(
+        "--dir",
+        "-d",
+        help="Target directory for the project (defaults to project name)",
+    )
+
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose output",
+    )
+
+    args = parser.parse_args()
+
+    try:
+        bootstrap_react_plugin(args)
+    except KeyboardInterrupt:
+        print("\n\nOperation cancelled by user.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

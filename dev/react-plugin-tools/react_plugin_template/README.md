@@ -17,6 +17,17 @@
  under the License.
  -->
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [{{PROJECT_NAME}}](#project_name)
+  - [Development](#development)
+  - [Best Practices](#best-practices)
+  - [Troubleshooting](#troubleshooting)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # {{PROJECT_NAME}}
 
 This is a React plugin template for Apache Airflow that builds as a library component.
@@ -87,6 +98,39 @@ The `package.json` is configured with:
 - `files` array specifying what gets published
 
 This ensures your plugin can be consumed as both a CommonJS and ES module with full TypeScript support.
+
+## Best Practices
+
+1. **Keep React External**: Always mark React ecosystem as external to avoid conflicts
+2. **Global Naming**: Use standardized global name (`AirflowPlugin`) for consistency
+3. **Error Handling**: Implement proper error boundaries and fallbacks
+4. **TypeScript**: Use proper typing for plugin props and exports
+5. **Bundle Size**: Monitor bundle size and externalize large dependencies if needed
+
+## Troubleshooting
+
+### Common Issues
+
+**"Failed to resolve module specifier 'react'"**
+
+- Ensure React is marked as external in `vite.config.ts`
+- Verify host application exposes React globally
+
+**"Cannot read properties of null (reading 'useState')"**
+
+- React instance mismatch - check external configuration
+- Verify global React is properly set in host application
+
+**"Objects are not valid as a React child"**
+
+- Ensure you're returning component functions, not JSX elements
+- Check that lazy loading returns proper component structure
+
+**MIME type issues**
+
+- Ensure `.js` and `.cjs` files are served with correct MIME type
+
+For more help, check the main project documentation.
 
 ### Deployment to Airflow Plugins
 
