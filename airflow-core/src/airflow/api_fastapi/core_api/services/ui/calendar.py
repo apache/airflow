@@ -28,7 +28,7 @@ from pendulum import DateTime
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeCollectionResponse,

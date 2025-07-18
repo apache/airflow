@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers

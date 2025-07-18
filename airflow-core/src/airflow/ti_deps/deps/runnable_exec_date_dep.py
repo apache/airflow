@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 

@@ -30,7 +30,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion

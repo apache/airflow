@@ -29,7 +29,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils.decorators import classproperty

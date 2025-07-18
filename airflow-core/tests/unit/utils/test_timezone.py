@@ -23,7 +23,7 @@ import pendulum
 import pytest
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.utils.timezone import coerce_datetime, parse_timezone
 
 CET = Timezone("Europe/Paris")

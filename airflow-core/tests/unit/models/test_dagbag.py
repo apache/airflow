@@ -34,7 +34,8 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
-from airflow import settings, timezone as tz
+from airflow import settings
+from airflow._shared import timezone as tz
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag, _capture_with_reraise
 from airflow.models.dagwarning import DagWarning, DagWarningType

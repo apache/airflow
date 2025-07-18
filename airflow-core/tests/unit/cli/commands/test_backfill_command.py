@@ -26,7 +26,7 @@ import pendulum
 import pytest
 
 import airflow.cli.commands.backfill_command
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.cli import cli_parser
 from airflow.models.backfill import ReprocessBehavior
 

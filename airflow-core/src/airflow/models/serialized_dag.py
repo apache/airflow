@@ -32,7 +32,7 @@ from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,

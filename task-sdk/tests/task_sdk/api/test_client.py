@@ -29,7 +29,7 @@ import uuid6
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
-from airflow.sdk import timezone
+from airflow.sdk._shared import timezone
 from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,

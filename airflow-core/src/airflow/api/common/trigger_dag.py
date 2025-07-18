@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils.session import NEW_SESSION, provide_session

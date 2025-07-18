@@ -30,7 +30,7 @@ from pydantic import (
     ConfigDict,
 )
 
-from airflow import timezone
+from airflow._shared import timezone
 
 UtcDateTime = Annotated[AwareDatetime, AfterValidator(lambda d: d.astimezone(timezone.utc))]
 """UTCDateTime is a datetime with timezone information"""

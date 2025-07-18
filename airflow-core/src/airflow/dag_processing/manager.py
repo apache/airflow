@@ -48,7 +48,7 @@ from tabulate import tabulate
 from uuid6 import uuid7
 
 import airflow.models
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager

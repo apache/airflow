@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
-from airflow.sdk import timezone
+from airflow.sdk._shared import timezone
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,

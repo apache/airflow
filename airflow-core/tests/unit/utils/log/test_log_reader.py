@@ -28,7 +28,8 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.tasklog import LogTemplate
 from airflow.providers.standard.operators.python import PythonOperator

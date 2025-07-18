@@ -28,7 +28,7 @@ import pytest
 from itsdangerous.url_safe import URLSafeSerializer
 from uuid6 import uuid7
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG

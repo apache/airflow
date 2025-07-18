@@ -103,6 +103,9 @@ services:
         source: ../../../scripts
         target: /opt/airflow/scripts
       - type: bind
+        source: ../../../shared
+        target: /opt/airflow/shared
+      - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
       - type: bind

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import datetime
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models.dag import DAG
 from airflow.sdk import task
 

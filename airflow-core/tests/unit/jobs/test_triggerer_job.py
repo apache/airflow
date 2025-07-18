@@ -32,7 +32,7 @@ import pytest
 from asgiref.sync import sync_to_async
 from structlog.typing import FilteringBoundLogger
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.executors import workloads
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (

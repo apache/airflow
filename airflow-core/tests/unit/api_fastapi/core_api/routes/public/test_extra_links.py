@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.dag_processing.bundles.manager import DagBundlesManager

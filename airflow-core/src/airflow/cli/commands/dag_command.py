@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole

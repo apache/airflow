@@ -39,7 +39,8 @@ from sqlalchemy import (
 )
 from tabulate import tabulate
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowClusterPolicyError,

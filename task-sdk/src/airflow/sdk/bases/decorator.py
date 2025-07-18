@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, T
 import attr
 import typing_extensions
 
-from airflow.sdk import timezone
+from airflow.sdk._shared import timezone
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,

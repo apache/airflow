@@ -34,7 +34,7 @@ from airflow.exceptions import (
 )
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import timezone
+from airflow.sdk._shared import timezone
 from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import RescheduleTask, TaskRescheduleStartDate

@@ -21,7 +21,7 @@ from datetime import datetime
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     TaskCallbackRequest,

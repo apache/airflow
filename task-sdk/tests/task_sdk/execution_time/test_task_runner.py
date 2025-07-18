@@ -46,7 +46,8 @@ from airflow.exceptions import (
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context, timezone
+from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
+from airflow.sdk._shared import timezone
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,

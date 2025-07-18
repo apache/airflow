@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator

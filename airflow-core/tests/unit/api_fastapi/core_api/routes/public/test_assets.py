@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 import time_machine
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,

@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.dag_dependency import DagDependency

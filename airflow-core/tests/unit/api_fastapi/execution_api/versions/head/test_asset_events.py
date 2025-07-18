@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 
 DEFAULT_DATE = timezone.parse("2021-01-01T00:00:00")

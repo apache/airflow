@@ -33,7 +33,8 @@ import uuid6
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,

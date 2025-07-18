@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models import DagBag
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator

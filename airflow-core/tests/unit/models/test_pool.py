@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool

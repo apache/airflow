@@ -29,7 +29,8 @@ from unittest import mock
 import pytest
 
 import airflow
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.exceptions import AirflowException
 from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers

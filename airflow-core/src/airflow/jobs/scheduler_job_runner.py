@@ -37,7 +37,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf

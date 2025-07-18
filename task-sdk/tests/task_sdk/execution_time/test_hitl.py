@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from uuid6 import uuid7
 
-from airflow.sdk import timezone
+from airflow.sdk._shared import timezone
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (

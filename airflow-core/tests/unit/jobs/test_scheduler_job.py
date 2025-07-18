@@ -37,7 +37,8 @@ from pytest import param
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest

@@ -32,7 +32,7 @@ import structlog
 from pydantic import TypeAdapter
 from structlog.typing import FilteringBoundLogger
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TaskInstance as TIDataModel,

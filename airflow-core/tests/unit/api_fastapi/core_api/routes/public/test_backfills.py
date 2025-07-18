@@ -24,7 +24,7 @@ import pendulum
 import pytest
 from sqlalchemy import and_, func, select
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG

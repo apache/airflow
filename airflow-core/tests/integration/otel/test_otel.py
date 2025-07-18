@@ -25,7 +25,7 @@ import time
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName

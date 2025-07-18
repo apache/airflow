@@ -28,7 +28,7 @@ from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select,
 from sqlalchemy.orm import Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import asset_trigger_association_table
 from airflow.models.base import Base

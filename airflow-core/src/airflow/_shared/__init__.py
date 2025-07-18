@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,11 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import pathlib
-
-from airflow._shared import timezone
-
-DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEST_DAGS_FOLDER = pathlib.Path(__file__).parent.with_name("dags")

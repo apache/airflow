@@ -24,7 +24,7 @@ from pydantic import NonNegativeInt
 from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,

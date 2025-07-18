@@ -32,7 +32,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG

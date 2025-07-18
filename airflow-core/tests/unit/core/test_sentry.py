@@ -26,7 +26,7 @@ import time_machine
 from sentry_sdk import configure_scope
 from sentry_sdk.transport import Transport
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State

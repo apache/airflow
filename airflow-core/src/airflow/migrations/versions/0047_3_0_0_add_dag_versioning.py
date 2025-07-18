@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy_utils import UUIDType
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.migrations.utils import ignore_sqlite_value_error
 from airflow.models.base import naming_convention

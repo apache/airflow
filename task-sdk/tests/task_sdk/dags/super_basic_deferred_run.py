@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 
 from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
-from airflow.sdk import timezone
+from airflow.sdk._shared import timezone
 from airflow.sdk.definitions.dag import dag
 
 

@@ -33,7 +33,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager

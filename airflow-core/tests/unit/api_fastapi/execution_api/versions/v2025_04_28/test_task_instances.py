@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.utils.state import State
 

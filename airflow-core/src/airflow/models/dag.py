@@ -60,7 +60,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
-from airflow import settings, timezone, utils
+from airflow import settings, utils
+from airflow._shared import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (

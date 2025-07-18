@@ -26,7 +26,7 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter

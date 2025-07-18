@@ -31,7 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
-from airflow import timezone as tz
+from airflow._shared import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,

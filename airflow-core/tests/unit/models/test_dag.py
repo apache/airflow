@@ -33,7 +33,8 @@ import pytest
 import time_machine
 from sqlalchemy import inspect, select
 
-from airflow import settings, timezone
+from airflow import settings
+from airflow._shared import timezone
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,

@@ -26,7 +26,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.configuration import conf
 from airflow.exceptions import DagCodeNotFound
 from airflow.models.base import ID_LEN, Base

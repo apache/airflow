@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState

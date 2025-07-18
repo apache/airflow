@@ -37,7 +37,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, and_, case, func, not_, or_, select
 from sqlalchemy.inspection import inspect
 
-from airflow import timezone
+from airflow._shared import timezone
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Base
