@@ -34,8 +34,8 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
     from airflow.sdk.definitions.context import Context
 else:
-    from airflow.models import BaseOperator  # type: ignore[no-redef]
-    from airflow.utils.context import Context  # type: ignore[no-redef]
+    from airflow.models import BaseOperator
+    from airflow.utils.context import Context
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook

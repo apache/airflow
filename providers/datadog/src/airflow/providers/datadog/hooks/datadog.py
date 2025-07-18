@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from datadog import api, initialize  # type: ignore[attr-defined]
+from datadog import api, initialize
 
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.version_compat import BaseHook

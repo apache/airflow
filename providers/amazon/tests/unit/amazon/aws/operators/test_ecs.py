@@ -359,7 +359,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        self.ecs.execute(mock_context)  # type: ignore[arg-type]
+        self.ecs.execute(mock_context)
 
         client_mock.run_task.assert_called_once_with(
             cluster="c",
@@ -394,7 +394,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
         with pytest.raises(EcsOperatorError):
-            self.ecs.execute(mock_context)  # type: ignore[arg-type]
+            self.ecs.execute(mock_context)
 
         client_mock.run_task.assert_called_once_with(
             cluster="c",
@@ -715,7 +715,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        assert self.ecs.execute(mock_context) == "Log output"  # type: ignore[arg-type]
+        assert self.ecs.execute(mock_context) == "Log output"
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
@@ -728,7 +728,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        assert self.ecs.execute(mock_context) is None  # type: ignore[arg-type]
+        assert self.ecs.execute(mock_context) is None
 
     @mock.patch.object(EcsBaseOperator, "client")
     def test_execute_xcom_with_no_log_fetcher(self, client_mock):
@@ -737,7 +737,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        assert self.ecs.execute(mock_context) is None  # type: ignore[arg-type]
+        assert self.ecs.execute(mock_context) is None
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch.object(AwsTaskLogFetcher, "get_last_log_message", return_value="Log output")
@@ -747,7 +747,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        assert self.ecs.execute(mock_context) is None  # type: ignore[arg-type]
+        assert self.ecs.execute(mock_context) is None
 
     @mock.patch.object(EcsRunTaskOperator, "client")
     def test_with_defer(self, client_mock):
@@ -759,7 +759,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
         with pytest.raises(TaskDeferred) as deferred:
-            self.ecs.execute(mock_context)  # type: ignore[arg-type]
+            self.ecs.execute(mock_context)
 
         assert isinstance(deferred.value.trigger, TaskDoneTrigger)
         assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
@@ -772,7 +772,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        self.ecs.execute_complete(mock_context, event)  # type: ignore[arg-type]
+        self.ecs.execute_complete(mock_context, event)
 
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])

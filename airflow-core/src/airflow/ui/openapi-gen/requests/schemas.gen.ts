@@ -3410,9 +3410,8 @@ export const $FastAPIRootMiddlewareResponse = {
 
 export const $HITLDetail = {
     properties: {
-        ti_id: {
-            type: 'string',
-            title: 'Ti Id'
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceResponse'
         },
         options: {
             items: {
@@ -3509,7 +3508,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['ti_id', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;

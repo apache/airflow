@@ -295,13 +295,13 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     dag_model = relationship(
         DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
+        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore[has-type]
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,

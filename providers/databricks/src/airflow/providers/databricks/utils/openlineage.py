@@ -342,8 +342,8 @@ def emit_openlineage_events_for_databricks_queries(
         event_batch = _create_ol_event_pair(
             job_namespace=namespace(),
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
-            start_time=query_metadata.get("start_time") or default_event_time,  # type: ignore[arg-type]
-            end_time=query_metadata.get("end_time") or default_event_time,  # type: ignore[arg-type]
+            start_time=query_metadata.get("start_time") or default_event_time,
+            end_time=query_metadata.get("end_time") or default_event_time,
             # Only finished status means it completed without failures
             is_successful=(query_metadata.get("status") or default_state).lower() == "finished",
             run_facets={**query_specific_run_facets, **common_run_facets, **additional_run_facets},

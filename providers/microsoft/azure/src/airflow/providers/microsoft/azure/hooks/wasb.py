@@ -57,6 +57,7 @@ from airflow.providers.microsoft.azure.version_compat import BaseHook
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
     from azure.storage.blob._models import BlobProperties
+    from azure.storage.blob.aio._list_blobs_helper import BlobPrefix
 
 AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
@@ -219,7 +220,7 @@ class WasbHook(BaseHook):
         )
 
     # TODO: rework the interface as it might also return AsyncContainerClient
-    def _get_container_client(self, container_name: str) -> ContainerClient:  # type: ignore[override]
+    def _get_container_client(self, container_name: str) -> ContainerClient:
         """
         Instantiate a container client.
 
@@ -621,7 +622,7 @@ class WasbAsyncHook(WasbHook):
             self.blob_service_client = AsyncBlobServiceClient(
                 account_url=account_url,
                 credential=token_credential,
-                **extra,  # type:ignore[arg-type]
+                **extra,
             )
             return self.blob_service_client
 
@@ -712,7 +713,7 @@ class WasbAsyncHook(WasbHook):
         include: list[str] | None = None,
         delimiter: str = "/",
         **kwargs: Any,
-    ) -> list[BlobProperties]:
+    ) -> list[BlobProperties | BlobPrefix]:
         """
         List blobs in a given container.
 
@@ -725,7 +726,7 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list: list[BlobProperties] = []
+        blob_list: list[BlobProperties | BlobPrefix] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
             blob_list.append(blob)
