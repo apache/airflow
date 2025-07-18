@@ -56,6 +56,7 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 1
+      activeDeadlineSeconds: {{ .Values.cleanup.activeDeadlineSeconds }}
       template:
         metadata:
           labels:

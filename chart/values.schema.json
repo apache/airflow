@@ -8877,6 +8877,15 @@
                     ],
                     "default": null,
                     "x-docsSection": null
+                },
+                "activeDeadlineSeconds": {
+                    "description": "Specify a TTL for all Pods launched by the cleanup Job",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300,
+                    "x-docsSection": null
                 }
             }
         },

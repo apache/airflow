@@ -2845,6 +2845,9 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
+  # Specify a TTL for all Pods launched by the cleanup Job
+  activeDeadlineSeconds: 300
+
 # Configuration for postgresql subchart
 # Not recommended for production
 postgresql:
