@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-18T02:23:59.539350
+# This constraints file was automatically generated on 2025-07-18T13:53:02.736711
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -305,8 +305,8 @@ humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
 hyperlink==21.0.0
-ibm-cloud-sdk-core==3.24.1
-ibmcloudant==0.10.4
+ibm-cloud-sdk-core==3.24.2
+ibmcloudant==0.10.5
 icdiff==2.0.7
 id==1.5.0
 identify==2.6.12
@@ -373,11 +373,11 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.4
-microsoft-kiota-authentication-azure==1.9.4
-microsoft-kiota-http==1.9.4
-microsoft-kiota-serialization-json==1.9.4
-microsoft-kiota-serialization-text==1.9.4
+microsoft-kiota-abstractions==1.9.5
+microsoft-kiota-authentication-azure==1.9.5
+microsoft-kiota-http==1.9.5
+microsoft-kiota-serialization-json==1.9.5
+microsoft-kiota-serialization-text==1.9.5
 mistune==3.1.3
 mmh3==5.1.0
 mongomock==4.3.0
@@ -461,7 +461,7 @@ pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
 polars==1.31.0
-portalocker==2.10.1
+portalocker==3.2.0
 pprintpp==0.4.0
 pre-commit-uv==4.1.4
 pre_commit==4.2.0
@@ -534,7 +534,7 @@ python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.0.0
-qdrant-client==1.14.3
+qdrant-client==1.15.0
 ray==2.47.1
 reactivex==4.0.4
 readme_renderer==44.0
