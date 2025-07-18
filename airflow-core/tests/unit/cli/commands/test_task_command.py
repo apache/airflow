@@ -83,7 +83,6 @@ class TestCliTasks:
     dag_run: DagRun
 
     @classmethod
-    @pytest.fixture(autouse=True)
     def setup_class(cls):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         parse_and_sync_to_db(os.devnull, include_examples=True)
