@@ -73,6 +73,11 @@ sensors:
       - airflow.providers.redis.sensors.redis_key
       - airflow.providers.redis.sensors.redis_pub_sub
 
+triggers:
+  - integration-name: Redis
+    python-modules:
+      - airflow.providers.redis.triggers.redis_await_message
+
 hooks:
   - integration-name: Redis
     python-modules:
