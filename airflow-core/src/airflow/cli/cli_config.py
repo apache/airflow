@@ -156,6 +156,7 @@ ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL = Arg(
     help="The logical date of the DAG or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
+ARG_DAG_RUN_ID = Arg(("-rid", "--dag-run-id"), help="The run_id of the DAGRun (optional)")
 ARG_BUNDLE_NAME = Arg(
     (
         "-B",
@@ -1221,6 +1222,7 @@ TASKS_COMMANDS = (
             ARG_ONLY_RUNNING,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
+            ARG_DAG_RUN_ID,
         ),
     ),
     ActionCommand(
