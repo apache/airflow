@@ -779,6 +779,13 @@ def task_sdk_tests(**kwargs):
 @option_include_success_outputs
 @option_verbose
 @option_dry_run
+@click.option(
+    "--task-sdk-version",
+    help="Version of Task SDK to test",
+    default="1.0.1",
+    show_default=True,
+    envvar="TASK_SDK_VERSION",
+)
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def task_sdk_integration_tests(
     python: str,
@@ -786,6 +793,7 @@ def task_sdk_integration_tests(
     skip_docker_compose_deletion: bool,
     github_repository: str,
     include_success_outputs: bool,
+    task_sdk_version: str,
     extra_pytest_args: tuple,
 ):
     """Run task SDK integration tests."""
@@ -793,7 +801,14 @@ def task_sdk_integration_tests(
     if image_name is None:
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
+
+    # Set the TASK_SDK_VERSION environment variable for the test
+    import os
+
+    os.environ["TASK_SDK_VERSION"] = task_sdk_version
+
     get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         include_success_outputs=include_success_outputs,

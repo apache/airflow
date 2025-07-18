@@ -193,6 +193,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-docker-compose-deletion",
                 "--include-success-outputs",
                 "--github-repository",
+                "--task-sdk-version",
             ],
         }
     ],
