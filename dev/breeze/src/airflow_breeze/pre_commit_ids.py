@@ -162,6 +162,7 @@ PRE_COMMIT_LIST = [
     "update-version",
     "validate-chart-annotations",
     "validate-operators-init",
+    "verify-signatures",
     "yamllint",
     "zizmor",
 ]
