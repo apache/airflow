@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 import aiohttp
@@ -32,8 +33,8 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+from airflow.providers.http.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -50,7 +51,7 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
 
 
 def _process_extra_options_from_connection(
-    conn: Connection, extra_options: dict[str, Any]
+    conn, extra_options: dict[str, Any]
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """
     Return the updated extra options from the connection, as well as those passed.
@@ -173,7 +174,7 @@ class HttpHook(BaseHook):
         session = Session()
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
-        session = self._configure_session_from_auth(session, connection)
+        session = self._configure_session_from_auth(session, connection)  # type: ignore[arg-type]
 
         # Since get_conn can be called outside of run, we'll check this again
         extra_options = extra_options or {}
@@ -189,7 +190,7 @@ class HttpHook(BaseHook):
             session.headers.update(headers)
         return session
 
-    def _set_base_url(self, connection: Connection) -> None:
+    def _set_base_url(self, connection) -> None:
         host = connection.host or self.default_host
         schema = connection.schema or "http"
         # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
@@ -215,7 +216,7 @@ class HttpHook(BaseHook):
         return None
 
     def _configure_session_from_extra(
-        self, session: Session, connection: Connection, extra_options: dict[str, Any]
+        self, session: Session, connection, extra_options: dict[str, Any]
     ) -> Session:
         """
         Configure the session using both the extra field from the Connection and passed in extra_options.
@@ -234,7 +235,7 @@ class HttpHook(BaseHook):
         session.stream = self.merged_extra.get("stream", False)
         session.verify = self.merged_extra.get("verify", self.merged_extra.get("verify_ssl", True))
         session.cert = self.merged_extra.get("cert", None)
-        session.max_redirects = self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.max_redirects = cast("int", self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT))
         session.trust_env = self.merged_extra.get("trust_env", True)
 
         try:
@@ -378,7 +379,7 @@ class HttpHook(BaseHook):
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
-        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
+        return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""

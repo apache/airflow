@@ -542,7 +542,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
 )
 @click.option(
     "--python-version",
-    default="3.9",
+    default="3.10",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",
@@ -675,6 +675,7 @@ def install_airflow_and_providers(
             # providers from the installed separate source packages
             console.print("[yellow]Uninstalling Airflow-3 only providers\n")
             providers_to_uninstall_for_airflow_2 = [
+                "apache-airflow-providers-keycloak",
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
             ]

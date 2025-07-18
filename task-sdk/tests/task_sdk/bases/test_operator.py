@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import uuid
 import warnings
@@ -109,8 +110,8 @@ class MockOperator(BaseOperator):
 
 
 class TestBaseOperator:
-    # Since we have a custom metaclass, lets double check the behaviour of passing args in the wrong way (args
-    # etc)
+    # Since we have a custom metaclass, lets double check the behaviour of
+    # passing args in the wrong way (args etc)
     def test_kwargs_only(self):
         with pytest.raises(TypeError, match="keyword arguments"):
             BaseOperator("task_id")
@@ -122,6 +123,29 @@ class TestBaseOperator:
     def test_missing_kwargs(self):
         with pytest.raises(TypeError, match="missing keyword arguments"):
             FakeSubClass(task_id="task_id")
+
+    def test_baseoperator_raises_exception_when_task_id_plus_taskgroup_id_exceeds_250_chars(self):
+        with DAG(dag_id="foo"), TaskGroup("A"):
+            with pytest.raises(ValueError, match="The key has to be less than 250 characters"):
+                BaseOperator(task_id="1" * 249)
+
+    def test_baseoperator_with_task_id_and_taskgroup_id_less_than_250_chars(self):
+        with DAG(dag_id="foo", schedule=None), TaskGroup("A" * 10):
+            BaseOperator(task_id="1" * 239)
+
+    def test_baseoperator_with_task_id_less_than_250_chars(self):
+        """Test exception is not raised when operator task id  < 250 chars."""
+        with DAG(dag_id="foo"):
+            op = BaseOperator(task_id="1" * 249)
+        assert op.task_id == "1" * 249
+
+    def test_task_naive_datetime(self):
+        naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
+        op_no_dag = BaseOperator(
+            task_id="test_task_naive_datetime", start_date=naive_datetime, end_date=naive_datetime
+        )
+        assert op_no_dag.start_date.tzinfo
+        assert op_no_dag.end_date.tzinfo
 
     def test_hash(self):
         """Two operators created equally should hash equaylly"""
@@ -250,13 +274,13 @@ class TestBaseOperator:
             )
 
     def test_warnings_are_properly_propagated(self):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(DeprecationWarning, match="deprecated") as warnings:
             DeprecatedOperator(task_id="test")
-            assert len(warnings) == 1
-            warning = warnings[0]
-            # Here we check that the trace points to the place
-            # where the deprecated class was used
-            assert warning.filename == __file__
+        assert len(warnings) == 1
+        warning = warnings[0]
+        # Here we check that the trace points to the place
+        # where the deprecated class was used
+        assert warning.filename == __file__
 
     def test_setattr_performs_no_custom_action_at_execute_time(self, spy_agency):
         op = MockOperator(task_id="test_task")
@@ -499,6 +523,27 @@ class TestBaseOperator:
         ):
             BaseOperator(task_id="op1", trigger_rule="some_rule")
 
+    def test_trigger_rule_validation(self):
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        # An operator with default trigger rule and a fail-stop dag should be allowed.
+        with DAG(
+            dag_id="test_dag_trigger_rule_validation",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            fail_fast=True,
+        ):
+            BaseOperator(task_id="test_valid_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE)
+
+        # An operator with non default trigger rule and a non fail-stop dag should be allowed.
+        with DAG(
+            dag_id="test_dag_trigger_rule_validation",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            fail_fast=False,
+        ):
+            BaseOperator(task_id="test_valid_trigger_rule", trigger_rule="always")
+
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
         [
@@ -680,8 +725,8 @@ class TestBaseOperator:
         with pytest.warns(UserWarning, match=warning_message) as warnings:
             task = StringTemplateFieldsOperator(task_id="op1")
 
-            assert len(warnings) == 1
-            assert isinstance(task.template_fields, list)
+        assert len(warnings) == 1
+        assert isinstance(task.template_fields, list)
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
@@ -697,6 +742,39 @@ class TestBaseOperator:
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         assert mock_jinja_env.call_count == 1
+
+    def test_deepcopy(self):
+        # Test bug when copying an operator attached to a DAG
+        with DAG("dag0", schedule=None, start_date=DEFAULT_DATE) as dag:
+
+            @dag.task
+            def task0():
+                pass
+
+            MockOperator(task_id="task1", arg1=task0())
+
+        copy.deepcopy(dag)
+
+    def test_mro(self):
+        from airflow.providers.common.sql.operators import sql
+
+        class Mixin(sql.BaseSQLOperator):
+            pass
+
+        class Branch(Mixin, sql.BranchSQLOperator):
+            pass
+
+        # The following throws an exception if metaclass breaks MRO:
+        #   airflow.exceptions.AirflowException: Invalid arguments were passed to Branch (task_id: test). Invalid arguments were:
+        #   **kwargs: {'sql': 'sql', 'follow_task_ids_if_true': ['x'], 'follow_task_ids_if_false': ['y']}
+        op = Branch(
+            task_id="test",
+            conn_id="abc",
+            sql="sql",
+            follow_task_ids_if_true=["x"],
+            follow_task_ids_if_false=["y"],
+        )
+        assert isinstance(op, Branch)
 
 
 def test_init_subclass_args():

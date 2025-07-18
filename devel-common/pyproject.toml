@@ -35,9 +35,9 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.11.13",
+    "ruff==0.12.3",
     "semver>=3.0.2",
-    "time-machine>=2.13.0",
+    "time-machine>=2.15.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
     "apache-airflow-devel-common[basic]"
@@ -48,9 +48,7 @@ dependencies = [
     "coverage>=7.4.0",
 ]
 "duckdb" = [
-    # Python 3.12 support was added in 0.10.0
-    "duckdb>=0.10.0; python_version >= '3.12'",
-    "duckdb>=0.9.0; python_version < '3.12'",
+    "duckdb>=1.2.0",
 ]
 "debuggers" = [
     "ipdb>=0.13.13",
@@ -103,7 +101,7 @@ dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.9.0",
+    "mypy==1.16.1",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -149,7 +147,7 @@ dependencies = [
     "sqlalchemy-utils>=0.41.2",
 ]
 "basic" = [
-    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
+    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest,sqlalchemy]"
 ]
 "no-doc" = [
     "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"

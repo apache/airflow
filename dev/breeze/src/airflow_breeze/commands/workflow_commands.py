@@ -59,7 +59,7 @@ def workflow_run():
 )
 @click.option(
     "--exclude-docs",
-    help="Comma separated list of docs packages to exclude from the publish.",
+    help="Comma separated short name list of docs packages to exclude from the publish. (example: apache.druid,google)",
     default="no-docs-excluded",
 )
 @click.option(
@@ -122,6 +122,7 @@ def workflow_run_publish(
         "include-docs": " ".join(doc_packages),
         "exclude-docs": exclude_docs,
         "skip-write-to-stable-folder": skip_write_to_stable_folder,
+        "build-sboms": "true" if "apache-airflow" in doc_packages else "false",
     }
 
     trigger_workflow_and_monitor(

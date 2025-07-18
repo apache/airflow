@@ -2397,6 +2397,17 @@ export const $DAGRunResponse = {
                 }
             ]
         },
+        triggering_user_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Triggering User Name'
+        },
         conf: {
             anyOf: [
                 {
@@ -2444,7 +2455,7 @@ export const $DAGRunResponse = {
         }
     },
     type: 'object',
-    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
+    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
     title: 'DAGRunResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -3395,6 +3406,161 @@ export const $FastAPIRootMiddlewareResponse = {
     required: ['middleware', 'name'],
     title: 'FastAPIRootMiddlewareResponse',
     description: 'Serializer for Plugin FastAPI root middleware responses.'
+} as const;
+
+export const $HITLDetail = {
+    properties: {
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceResponse'
+        },
+        options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Options'
+        },
+        subject: {
+            type: 'string',
+            title: 'Subject'
+        },
+        body: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Body'
+        },
+        defaults: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Defaults'
+        },
+        multiple: {
+            type: 'boolean',
+            title: 'Multiple',
+            default: false
+        },
+        params: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params'
+        },
+        user_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Id'
+        },
+        response_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Response At'
+        },
+        chosen_options: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        },
+        response_received: {
+            type: 'boolean',
+            title: 'Response Received',
+            default: false
+        }
+    },
+    type: 'object',
+    required: ['task_instance', 'options', 'subject'],
+    title: 'HITLDetail',
+    description: 'Schema for Human-in-the-loop detail.'
+} as const;
+
+export const $HITLDetailCollection = {
+    properties: {
+        hitl_details: {
+            items: {
+                '$ref': '#/components/schemas/HITLDetail'
+            },
+            type: 'array',
+            title: 'Hitl Details'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['hitl_details', 'total_entries'],
+    title: 'HITLDetailCollection',
+    description: 'Schema for a collection of Human-in-the-loop details.'
+} as const;
+
+export const $HITLDetailResponse = {
+    properties: {
+        user_id: {
+            type: 'string',
+            title: 'User Id'
+        },
+        response_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Response At'
+        },
+        chosen_options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        }
+    },
+    type: 'object',
+    required: ['user_id', 'response_at', 'chosen_options'],
+    title: 'HITLDetailResponse',
+    description: 'Response of updating a Human-in-the-loop detail.'
 } as const;
 
 export const $HTTPExceptionResponse = {
@@ -4630,6 +4796,9 @@ export const $TaskInstanceResponse = {
             type: 'string',
             title: 'Dag Id'
         },
+        dag_version: {
+            '$ref': '#/components/schemas/DagVersionResponse'
+        },
         dag_run_id: {
             type: 'string',
             title: 'Dag Run Id'
@@ -4875,20 +5044,10 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ]
-        },
-        dag_version: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/DagVersionResponse'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_version', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
@@ -5692,6 +5851,27 @@ export const $TriggererInfoResponse = {
     description: 'Triggerer info serializer for responses.'
 } as const;
 
+export const $UpdateHITLDetailPayload = {
+    properties: {
+        chosen_options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        }
+    },
+    type: 'object',
+    required: ['chosen_options'],
+    title: 'UpdateHITLDetailPayload',
+    description: 'Schema for updating the content of a Human-in-the-loop detail.'
+} as const;
+
 export const $ValidationError = {
     properties: {
         loc: {
@@ -6111,6 +6291,49 @@ export const $BaseNodeResponse = {
     required: ['id', 'label', 'type'],
     title: 'BaseNodeResponse',
     description: 'Base Node serializer for responses.'
+} as const;
+
+export const $CalendarTimeRangeCollectionResponse = {
+    properties: {
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/CalendarTimeRangeResponse'
+            },
+            type: 'array',
+            title: 'Dag Runs'
+        }
+    },
+    type: 'object',
+    required: ['total_entries', 'dag_runs'],
+    title: 'CalendarTimeRangeCollectionResponse',
+    description: 'Response model for calendar time range results.'
+} as const;
+
+export const $CalendarTimeRangeResponse = {
+    properties: {
+        date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Date'
+        },
+        state: {
+            type: 'string',
+            enum: ['queued', 'running', 'success', 'failed', 'planned'],
+            title: 'State'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: ['date', 'state', 'count'],
+    title: 'CalendarTimeRangeResponse',
+    description: 'Represents a summary of DAG runs for a specific calendar time range.'
 } as const;
 
 export const $ConfigResponse = {
@@ -6693,120 +6916,6 @@ export const $ExtraMenuItem = {
     title: 'ExtraMenuItem'
 } as const;
 
-export const $GridDAGRunwithTIs = {
-    properties: {
-        dag_run_id: {
-            type: 'string',
-            title: 'Dag Run Id'
-        },
-        queued_at: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Queued At'
-        },
-        start_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Start Date'
-        },
-        end_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'End Date'
-        },
-        run_after: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Run After'
-        },
-        state: {
-            '$ref': '#/components/schemas/DagRunState'
-        },
-        run_type: {
-            '$ref': '#/components/schemas/DagRunType'
-        },
-        logical_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Logical Date'
-        },
-        data_interval_start: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Data Interval Start'
-        },
-        data_interval_end: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Data Interval End'
-        },
-        note: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Note'
-        },
-        task_instances: {
-            items: {
-                '$ref': '#/components/schemas/GridTaskInstanceSummary'
-            },
-            type: 'array',
-            title: 'Task Instances'
-        }
-    },
-    type: 'object',
-    required: ['dag_run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'logical_date', 'data_interval_start', 'data_interval_end', 'note', 'task_instances'],
-    title: 'GridDAGRunwithTIs',
-    description: 'DAG Run model for the Grid UI.'
-} as const;
-
 export const $GridNodeResponse = {
     properties: {
         id: {
@@ -6859,22 +6968,6 @@ export const $GridNodeResponse = {
     required: ['id', 'label', 'is_mapped'],
     title: 'GridNodeResponse',
     description: 'Base Node serializer for responses.'
-} as const;
-
-export const $GridResponse = {
-    properties: {
-        dag_runs: {
-            items: {
-                '$ref': '#/components/schemas/GridDAGRunwithTIs'
-            },
-            type: 'array',
-            title: 'Dag Runs'
-        }
-    },
-    type: 'object',
-    required: ['dag_runs'],
-    title: 'GridResponse',
-    description: 'Response model for the Grid UI.'
 } as const;
 
 export const $GridRunsResponse = {
@@ -6942,14 +7035,7 @@ export const $GridRunsResponse = {
             '$ref': '#/components/schemas/DagRunType'
         },
         duration: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'integer',
             title: 'Duration',
             readOnly: true
         }
@@ -6982,98 +7068,6 @@ export const $GridTISummaries = {
     required: ['run_id', 'dag_id', 'task_instances'],
     title: 'GridTISummaries',
     description: 'DAG Run model for the Grid UI.'
-} as const;
-
-export const $GridTaskInstanceSummary = {
-    properties: {
-        task_id: {
-            type: 'string',
-            title: 'Task Id'
-        },
-        try_number: {
-            type: 'integer',
-            title: 'Try Number'
-        },
-        start_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Start Date'
-        },
-        end_date: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'End Date'
-        },
-        queued_dttm: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Queued Dttm'
-        },
-        child_states: {
-            anyOf: [
-                {
-                    additionalProperties: {
-                        type: 'integer'
-                    },
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Child States'
-        },
-        task_count: {
-            type: 'integer',
-            title: 'Task Count'
-        },
-        state: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/TaskInstanceState'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        note: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Note'
-        }
-    },
-    type: 'object',
-    required: ['task_id', 'try_number', 'start_date', 'end_date', 'queued_dttm', 'child_states', 'task_count', 'state', 'note'],
-    title: 'GridTaskInstanceSummary',
-    description: 'Task Instance Summary model for the Grid UI.'
 } as const;
 
 export const $HistoricalMetricDataResponse = {
@@ -7135,10 +7129,48 @@ export const $LightGridTaskInstanceSummary = {
                     type: 'null'
                 }
             ]
+        },
+        child_states: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'integer'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Child States'
+        },
+        min_start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Min Start Date'
+        },
+        max_end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Max End Date'
         }
     },
     type: 'object',
-    required: ['task_id', 'state'],
+    required: ['task_id', 'state', 'child_states', 'min_start_date', 'max_end_date'],
     title: 'LightGridTaskInstanceSummary',
     description: 'Task Instance Summary model for the Grid UI.'
 } as const;

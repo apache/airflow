@@ -40,7 +40,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.9 locally.
+in our development workflow. To install and use it, you need at least Python 3.10 locally.
 
 Installing pre-commit hooks
 ---------------------------
@@ -128,6 +128,8 @@ require Breeze Docker image to be built locally.
 | check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-providers-bug-report-template               | Sort airflow-bug-report provider list                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -279,8 +281,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| generate-airflowctl-help-images                           | * Generate SVG from Airflow CTL Commands               | *       |
-|                                                           | * Generate SVG from Airflow CTL Commands               |         |
+| generate-airflowctl-help-images                           | Generate SVG from Airflow CTL Commands                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -354,6 +355,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| provider-version-compat                                   | Check for correct version_compat imports in providers  | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn               |         |
@@ -411,6 +414,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-version                                            | Update versions in docs                                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| validate-chart-annotations                                | Validate chart annotations                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -572,6 +577,12 @@ For example:
 
 .. code-block:: bash
 
+  pre-commit run --hook-stage manual mypy-airflow --all-files
+
+To show unused mypy ignores for any providers/airflow etc, eg: run below command:
+
+.. code-block:: bash
+  export SHOW_UNUSED_MYPY_WARNINGS=true
   pre-commit run --hook-stage manual mypy-airflow --all-files
 
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy

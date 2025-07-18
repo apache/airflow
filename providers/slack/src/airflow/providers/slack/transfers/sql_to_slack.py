@@ -19,9 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.slack.hooks.slack import SlackHook

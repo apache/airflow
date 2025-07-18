@@ -429,7 +429,7 @@ class TranslateHook(GoogleBaseHook, OperationHelper):
         project_id: str,
         location: str,
         retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | _MethodDefault = DEFAULT,
+        timeout: float | None | _MethodDefault = DEFAULT,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> automl_translation.Dataset:
         """

@@ -22,13 +22,11 @@ import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import ClientError
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -52,6 +50,21 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerTransformSensor,
     SageMakerTuningSensor,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain, task
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
@@ -419,7 +432,7 @@ def set_up(env_id, role_arn):
     _install_aws_cli_if_needed()
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
 
-    from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import get_current_context

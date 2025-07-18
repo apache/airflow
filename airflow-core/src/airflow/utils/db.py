@@ -27,12 +27,11 @@ import os
 import sys
 import time
 import warnings
-from collections.abc import Generator, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Protocol,
     TypeVar,
     overload,
@@ -94,7 +93,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "583e80dfcef4",
+    "3.1.0": "40f7c30a228b",
 }
 
 
@@ -1056,7 +1055,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
     # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
-    if _revision_greater(config, _REVISION_HEADS_MAP["3.0.0"], to_revision):
+    if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
         unitest_mode = conf.getboolean("core", "unit_test_mode")
         if unitest_mode:
             try:

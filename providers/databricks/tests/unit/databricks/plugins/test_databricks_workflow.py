@@ -22,6 +22,18 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
 
+pytest.importorskip("airflow.providers.fab")
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    pytest.skip(
+        "``airflow/providers/databricks/plugins/databricks_workflow.py`` is only compatible with Airflow 2.X.",
+        allow_module_level=True,
+    )
+
+from flask import url_for
+
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
@@ -37,9 +49,9 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_launch_task_id,
     store_databricks_job_run_link,
 )
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
@@ -168,8 +180,6 @@ def test_get_task_instance_airflow2():
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
 @pytest.mark.db_test
 def test_get_return_url_dag_id_run_id_airflow2():
-    from flask import url_for
-
     from airflow.www.app import create_app
 
     dag_id = "example_dag"

@@ -22,10 +22,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
+from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import jinja2
@@ -192,7 +191,7 @@ class GenericTransfer(BaseOperator):
                 )
 
                 self.log.info("Offset increased to %d", offset)
-                self.xcom_push(context=context, key="offset", value=offset)
+                context["ti"].xcom_push(key="offset", value=offset)
 
                 self.log.info("Inserting %d rows into %s", len(results), self.destination_conn_id)
                 self.destination_hook.insert_rows(

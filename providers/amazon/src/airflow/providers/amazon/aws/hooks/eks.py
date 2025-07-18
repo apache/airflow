@@ -23,11 +23,10 @@ import json
 import os
 import sys
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
@@ -524,7 +523,7 @@ class EksHook(AwsBaseHook):
         :return: A List of the combined results of the provided API call.
         """
         name_collection: list = []
-        token = DEFAULT_PAGINATION_TOKEN
+        token: str | None = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:
             response = api_call(nextToken=token)

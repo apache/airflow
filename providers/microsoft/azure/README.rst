@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``12.4.1``
+Release: ``12.5.0``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.5.0/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-azure``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -77,11 +77,11 @@ PIP package                               Version required
 ``azure-mgmt-containerinstance``          ``>=10.1.0``
 ``flask-appbuilder``                      ``>=4.0.0``
 ``msgraph-core``                          ``>=1.3.3``
-``microsoft-kiota-http``                  ``>=1.9.0,<2.0.0``
-``microsoft-kiota-serialization-json``    ``>=1.9.0``
-``microsoft-kiota-serialization-text``    ``>=1.9.0``
-``microsoft-kiota-abstractions``          ``>=1.9.0,<2.0.0``
-``microsoft-kiota-authentication-azure``  ``>=1.9.0,<2.0.0``
+``microsoft-kiota-http``                  ``>=1.9.4,<2.0.0``
+``microsoft-kiota-serialization-json``    ``>=1.9.4``
+``microsoft-kiota-serialization-text``    ``>=1.9.4``
+``microsoft-kiota-abstractions``          ``>=1.9.4,<2.0.0``
+``microsoft-kiota-authentication-azure``  ``>=1.9.4,<2.0.0``
 ``msal-extensions``                       ``>=1.1.0``
 ``portalocker``                           ``>=2.8.1``
 ========================================  ===================
@@ -109,4 +109,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.5.0/changelog.html>`_.

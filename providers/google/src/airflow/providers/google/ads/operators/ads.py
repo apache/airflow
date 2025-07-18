@@ -24,9 +24,9 @@ from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

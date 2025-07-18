@@ -42,7 +42,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
   const isSelected = runId === run.run_id;
 
   const search = searchParams.toString();
-  const { data: gridTISummaries } = useGridTiSummaries(run);
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
 
   return (
     <Box
@@ -65,7 +65,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
           color="white"
           dagId={dagId}
           flexDir="column"
-          height={`${((run.duration ?? 0) / max) * BAR_HEIGHT}px`}
+          height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
           label={run.run_after}
           minHeight="14px"

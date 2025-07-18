@@ -34,20 +34,20 @@ from airflowctl.api.datamodels.generated import (
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def import_(args, api_client: Client = NEW_API_CLIENT):
+def import_(args, api_client: Client = NEW_API_CLIENT) -> None:
     """Import pools from file."""
     filepath = Path(args.file)
     if not filepath.exists():
         raise SystemExit(f"Missing pools file {args.file}")
 
-    success, failed = _import_helper(api_client, filepath)
-    if failed:
-        raise SystemExit(f"Failed to update pool(s): {', '.join(failed)}")
+    success, errors = _import_helper(api_client, filepath)
+    if errors:
+        raise SystemExit(f"Failed to update pool(s): {errors}")
     rich.print(success)
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def export(args, api_client: Client = NEW_API_CLIENT):
+def export(args, api_client: Client = NEW_API_CLIENT) -> None:
     """
     Export all pools.
 
@@ -119,4 +119,4 @@ def _import_helper(api_client: Client, filepath: Path):
     )
     result = api_client.pools.bulk(pools=bulk_body)
     # Return the successful and failed entities directly from the response
-    return result.success, result.errors
+    return result.create.success, result.create.errors

@@ -24,12 +24,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from google.api_core import exceptions
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     ExperimentRunHook,
     GenerativeModelHook,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -93,7 +94,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="model_response", value=response)
+        context["ti"].xcom_push(key="model_response", value=response)
 
         return response
 
@@ -172,7 +173,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="model_response", value=response)
+        context["ti"].xcom_push(key="model_response", value=response)
 
         return response
 
@@ -261,8 +262,8 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         self.log.info("Tuned Model Name: %s", response.tuned_model_name)
         self.log.info("Tuned Model Endpoint Name: %s", response.tuned_model_endpoint_name)
 
-        self.xcom_push(context, key="tuned_model_name", value=response.tuned_model_name)
-        self.xcom_push(context, key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
+        context["ti"].xcom_push(key="tuned_model_name", value=response.tuned_model_name)
+        context["ti"].xcom_push(key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
 
         result = {
             "tuned_model_name": response.tuned_model_name,
@@ -332,8 +333,8 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         self.log.info("Total tokens: %s", response.total_tokens)
         self.log.info("Total billable characters: %s", response.total_billable_characters)
 
-        self.xcom_push(context, key="total_tokens", value=response.total_tokens)
-        self.xcom_push(context, key="total_billable_characters", value=response.total_billable_characters)
+        context["ti"].xcom_push(key="total_tokens", value=response.total_tokens)
+        context["ti"].xcom_push(key="total_billable_characters", value=response.total_billable_characters)
 
 
 class RunEvaluationOperator(GoogleCloudBaseOperator):
@@ -473,7 +474,7 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         model_name: str,
-        system_instruction: str | None = None,
+        system_instruction: Any | None = None,
         contents: list[Any] | None = None,
         ttl_hours: float = 1,
         display_name: str | None = None,
@@ -587,6 +588,11 @@ class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
         return cached_content_text
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class DeleteExperimentRunOperator(GoogleCloudBaseOperator):
     """
     Use the Rapid Evaluation API to evaluate a model.
