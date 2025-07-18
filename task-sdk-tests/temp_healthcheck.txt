@@ -1,0 +1,1 @@
+      test: ["CMD-SHELL", "pgrep -f scheduler"]
