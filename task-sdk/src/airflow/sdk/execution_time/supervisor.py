@@ -42,6 +42,7 @@ from typing import (
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -1641,10 +1642,34 @@ def supervise(
     if not client:
         if dry_run and server:
             raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
-        if not dry_run and (not server or not server.startswith(("http://", "https://"))):
-            raise ValueError(
-                "Invalid execution API server URL. Please ensure that a valid URL is configured."
-            )
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")

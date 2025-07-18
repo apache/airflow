@@ -27,6 +27,7 @@ import signal
 import socket
 import sys
 import time
+from contextlib import nullcontext
 from operator import attrgetter
 from random import randint
 from time import sleep
@@ -150,23 +151,22 @@ def client_with_ti_start(make_ti_context):
 @pytest.mark.usefixtures("disable_capturing")
 class TestSupervisor:
     @pytest.mark.parametrize(
-        "server, dry_run, error_pattern",
+        "server, dry_run, expectation",
         [
-            ("/execution/", False, "Invalid execution API server URL"),
-            ("", False, "Invalid execution API server URL"),
-            ("http://localhost:8080", True, "Can only specify one of"),
-            (None, True, None),
-            ("http://localhost:8080/execution/", False, None),
-            ("https://localhost:8080/execution/", False, None),
+            ("/execution/", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
+            ("", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
+            ("http://localhost:8080", True, pytest.raises(ValueError, match="Can only specify one of")),
+            (None, True, nullcontext()),
+            ("http://localhost:8080/execution/", False, nullcontext()),
+            ("https://localhost:8080/execution/", False, nullcontext()),
         ],
     )
     def test_supervise(
         self,
-        # mock_mask_secret,
         patched_secrets_masker,
         server,
         dry_run,
-        error_pattern,
+        expectation,
         test_dags_dir,
         client_with_ti_start,
     ):
@@ -184,27 +184,20 @@ class TestSupervisor:
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
 
+        kw = {
+            "ti": ti,
+            "dag_rel_path": "super_basic_deferred_run.py",
+            "token": "",
+            "bundle_info": bundle_info,
+            "dry_run": dry_run,
+            "server": server,
+        }
+        if isinstance(expectation, nullcontext):
+            kw["client"] = client_with_ti_start
+
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-            if error_pattern:
-                with pytest.raises(ValueError, match=error_pattern):
-                    supervise(
-                        ti=ti,
-                        dag_rel_path="super_basic_deferred_run.py",
-                        token="",
-                        bundle_info=bundle_info,
-                        dry_run=dry_run,
-                        server=server,
-                    )
-            else:
-                supervise(
-                    ti=ti,
-                    dag_rel_path="super_basic_deferred_run.py",
-                    token="",
-                    bundle_info=bundle_info,
-                    dry_run=dry_run,
-                    server=server,
-                    client=client_with_ti_start,
-                )
+            with expectation:
+                supervise(**kw)
 
 
 @pytest.mark.usefixtures("disable_capturing")
