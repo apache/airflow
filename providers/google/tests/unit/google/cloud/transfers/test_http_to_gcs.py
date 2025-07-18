@@ -21,6 +21,7 @@ from unittest import mock
 
 from airflow.providers.google.cloud.transfers.http_to_gcs import HttpToGCSOperator
 
+TASK_CONTEXT = None
 TASK_ID = "test-http-to-gcs-operator"
 GCP_CONN_ID = "GCP_CONN_ID"
 HTTP_CONN_ID = "HTTP_CONN_ID"
@@ -68,7 +69,7 @@ class TestHttpToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        task.execute(None)
+        task.execute(TASK_CONTEXT)
 
         # GCS
         gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -99,4 +100,7 @@ class TestHttpToGCSOperator:
         )
         task.http_hook.run.assert_called_once_with(
             endpoint=ENDPOINT, headers=HEADERS, data=DATA, extra_options=EXTRA_OPTIONS
+        )
+        task.process_response.assert_called_once_with(
+            context=TASK_CONTEXT, response=task.http_hook.run.return_value
         )
