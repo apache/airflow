@@ -31,6 +31,7 @@ const EditableMarkdownButton = ({
   isPending,
   mdContent,
   onConfirm,
+  onOpen,
   placeholder,
   setMdContent,
   text,
@@ -41,6 +42,7 @@ const EditableMarkdownButton = ({
   readonly isPending: boolean;
   readonly mdContent?: string | null;
   readonly onConfirm: () => void;
+  readonly onOpen: () => void;
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
   readonly text: string;
@@ -54,7 +56,10 @@ const EditableMarkdownButton = ({
       <ActionButton
         actionName={placeholder}
         icon={icon}
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          onOpen();
+          setIsOpen(true);
+        }}
         text={text}
         withText={withText}
       />
