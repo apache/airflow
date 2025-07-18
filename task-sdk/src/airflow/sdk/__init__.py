@@ -41,7 +41,6 @@ __all__ = [
     "PokeReturnValue",
     "TaskGroup",
     "Variable",
-    "WeightRule",
     "XComArg",
     "asset",
     "chain",

@@ -17,17 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow.utils.weight_rule import WeightRule
+from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, db_safe_priority
 
 
-class TestWeightRule:
-    def test_valid_weight_rules(self):
-        assert WeightRule.is_valid(WeightRule.DOWNSTREAM)
-        assert WeightRule.is_valid(WeightRule.UPSTREAM)
-        assert WeightRule.is_valid(WeightRule.ABSOLUTE)
-        assert len(WeightRule.all_weight_rules()) == 3
+def test_db_safe_priority():
+    """Test the db_safe_priority function."""
+    assert db_safe_priority(1) == 1
+    assert db_safe_priority(-1) == -1
+    assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
+    assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
 
-        with pytest.raises(ValueError):
-            WeightRule("NOT_EXIST_WEIGHT_RULE")
+
+def test_db_safe_constants():
+    """Test the database safe constants."""
+    assert DB_SAFE_MINIMUM == -2147483648
+    assert DB_SAFE_MAXIMUM == 2147483647
