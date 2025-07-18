@@ -28,6 +28,7 @@ export const supportedLanguages = [
   { code: "es", name: "Español" },
   { code: "fr", name: "Français" },
   { code: "he", name: "עברית" },
+  { code: "it", name: "Italiano" },
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
