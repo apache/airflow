@@ -24,6 +24,90 @@
 
 .. towncrier release notes start
 
+Airflow 3.0.3 (2025-07-14)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- Fix task execution failures with large data by improving internal communication protocol (#51924, #53194)
+- Fix reschedule sensors failing after multiple re-queue attempts over long periods (#52706)
+- Improve ``xcom_pull`` to cover different scenarios for mapped tasks (#51568)
+- Fix connection retrieval failures in triggerer when schema field is used (#52691)
+- Add back user impersonation (``run_as_user``) support for task execution (#51780)
+- Fix DAG version not updating when bundle name changes without DAG structure changes (#51939)
+- Add back ``exception`` to context for task callbacks (#52066)
+- Fix task log retrieval for retry attempts showing incorrect logs (#51592)
+- Fix data interval handling for DAGs created before AIP-39 during serialization (#51913)
+- Fix lingering task supervisors when ``EOF`` is missed (#51180) (#51970)
+- Persist ``EventsTimetable``'s description during serialization (#51926)
+- Delete import error when a dag bundle becomes inactive (#51921)
+- Cleanup import errors during DB migration (#51919)
+- Fix ``EOF`` detection of subprocesses in Dag Processor (#51895)
+- Stop streaming task logs if end of log mark is missing (#51482)
+- Allow more empty loops before stopping log streaming (#52624)
+- Fix Jinja2 Template deep copy error with ``dag.test`` (#51673)
+- Explicitly close log file descriptor in the supervise function (#51654)
+- Improve structured logging format and layout (#51567) (#51626)
+- Use Connection Hook Names for Dropdown instead of connection IDs (#51613)
+- Add back config setting to control exposing stacktrace (#51617)
+- Fix task level alias resolution in structure endpoint (#51579)
+- Fix backfill creation to include DAG run configuration from form (#51584)
+- Fix structure edges in API responses (#51489)
+- Make ``dag.test`` consistent with ``airflow dags test`` CLI command (#51476)
+- Fix downstream asset attachment at task level in structure endpoint (#51425)
+- Fix Task Instance ``No Status`` Filter (#52154)
+- UI: Fix backfill creation to respect run backwards setting from form (#52168)
+- UI: Set downstream option to default on task instance clear (#52246)
+- UI: Enable iframe script execution (#52568)
+- UI: Fix DAG tags filter not showing all tags in UI when tags are greater than 50 (#52714)
+- UI: Add real-time clock updates to timezone selector (#52414)
+- Improve Grid view performance and responsiveness with optimized data loading (#52718,#52822,#52919)
+- Fix editing connection with sensitive extra field (#52445)
+- Fix archival for cascading deletes by archiving dependent tables first (#51952)
+- Fix whitespace handling in DAG owners parsing for multiple owners (#52221)
+- Fix SQLite migration from 2.7.0 to 3.0.0 (#51431)
+- Fix http exception when ti not found for extra links API (#51465)
+- Fix Starting from Trigger when using ``MappedOperator`` (#52681)
+- Add ti information to re-queue logs (#49995)
+- Task SDK: Fix ``AssetEventOperations.get`` to use ``alias_name`` when specified (#52324)
+- Ensure trigger kwargs are properly deserialized during trigger execution (#52721)
+- Fixing bad cadwyn migration for upstream map indexes (#52797)
+- Run trigger expansion logic only when ``start_from_trigger`` is True (#52873)
+- Fix example dag ``example_external_task_parent_deferrable.py`` imports (#52957)
+- Fixes pagination in DAG run lists (#52989)
+- Fix db downgrade check condition (#53005)
+- Fix log viewing for skipped task (#53028,#53101)
+- Fixes Grid view refresh after user actions (#53086)
+- Fix ``no_status`` and ``duration`` for grid summaries (#53092)
+- Fix ``ti.log_url`` not in Task Context (#50376)
+- Fix XCom data deserialization when using ``XCom.get_all()`` method (#53102)
+
+Miscellaneous
+"""""""""""""
+
+- Update ``connections_test`` CLI to use Connection instead of BaseHook (#51834) (#51917)
+- Fix table pagination when DAG filtering changes (#51795)
+- UI: Move asset events to its own tab (#51655)
+- Exclude ``libcst`` 1.8.1 for Python 3.9 (#51609)
+- UI: Implement navigation on bar click (#50416)
+- Reduce unnecessary logging when retrieving connections and variables (#51826)
+
+Doc Only Changes
+""""""""""""""""
+
+- Add note about payload size considerations in API docs (#51768)
+- Enhance ENV vars and conns visibility docs (#52026)
+- Add http-only warning when running behind proxy in documentation (#52699)
+- Publish separate docs for Task SDK (#52682)
+- Streamline Taskflow examples and link to core tutorial (#52709)
+- Refresh Public Interface & align how-to guides for Airflow 3.0+ (#53011)
+
 Airflow 3.0.2 (2025-06-10)
 --------------------------
 

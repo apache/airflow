@@ -60,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     CommsDecoder,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -81,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     OKResponse,
     PrevSuccessfulDagRunResult,
@@ -750,7 +752,9 @@ class TestWatchedSubprocess:
         mocker.patch("time.monotonic", return_value=20.0)
 
         # Patch the task overtime threshold
-        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.TASK_OVERTIME_THRESHOLD", overtime_threshold
+        )
 
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -773,7 +777,9 @@ class TestWatchedSubprocess:
         if expected_kill:
             mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
             mock_logger.warning.assert_called_once_with(
-                "Workload success overtime reached; terminating process",
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
                 ti_id=TI_ID,
             )
         else:
@@ -1769,6 +1775,49 @@ class TestHandleRequest:
                 XComSequenceSliceResult(root=["foo", "bar"]),
                 None,
                 id="get_xcom_seq_slice",
+            ),
+            pytest.param(
+                CreateHITLDetailPayload(
+                    ti_id=TI_ID,
+                    options=["Approve", "Reject"],
+                    subject="This is subject",
+                    body="This is body",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                ),
+                {
+                    "ti_id": str(TI_ID),
+                    "options": ["Approve", "Reject"],
+                    "subject": "This is subject",
+                    "body": "This is body",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "params": {},
+                    "type": "HITLDetailRequestResult",
+                },
+                "hitl.add_response",
+                (),
+                {
+                    "body": "This is body",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "options": ["Approve", "Reject"],
+                    "params": {},
+                    "subject": "This is subject",
+                    "ti_id": TI_ID,
+                },
+                HITLDetailRequestResult(
+                    ti_id=TI_ID,
+                    options=["Approve", "Reject"],
+                    subject="This is subject",
+                    body="This is body",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                ),
+                None,
+                id="create_hitl_detail_payload",
             ),
         ],
     )

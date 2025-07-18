@@ -54,7 +54,6 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -65,7 +64,6 @@ else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
-
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
@@ -704,6 +702,61 @@ class TestKubernetesPodOperator:
             context=context,
         )
         if pod_phase == PodPhase.RUNNING:
+            mock_create_pod.assert_not_called()
+            mock_process_pod_deletion.assert_not_called()
+            assert result == mock_found_pod
+        else:
+            mock_process_pod_deletion.assert_called_once_with(mock_found_pod)
+            mock_create_pod.assert_called_once_with(pod=mock_pod_request_obj)
+            assert result == mock_pod_request_obj
+
+    @pytest.mark.parametrize(
+        "pod_phase, pod_reason, should_reuse",
+        [
+            ("Running", "", True),
+            ("Running", "Evicted", False),
+            ("Succeeded", None, False),
+            ("Failed", None, False),
+        ],
+        ids=["running", "evicted", "succeeded", "failed"],
+    )
+    @patch(f"{KPO_MODULE}.PodManager.create_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_get_or_create_pod_reattach_with_evicted(
+        self,
+        mock_find,
+        mock_process_pod_deletion,
+        mock_create_pod,
+        pod_phase,
+        pod_reason,
+        should_reuse,
+    ):
+        """Test that get_or_create_pod reattaches or recreates pod based on phase and reason."""
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+        )
+        k.reattach_on_restart = True
+        context = create_context(k)
+        mock_pod_request_obj = MagicMock()
+        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "test-pod"}}
+
+        mock_found_pod = MagicMock()
+        mock_found_pod.status.phase = pod_phase
+        mock_found_pod.status.reason = pod_reason
+        mock_find.return_value = mock_found_pod
+
+        result = k.get_or_create_pod(
+            pod_request_obj=mock_pod_request_obj,
+            context=context,
+        )
+
+        if should_reuse:
             mock_create_pod.assert_not_called()
             mock_process_pod_deletion.assert_not_called()
             assert result == mock_found_pod
@@ -1575,7 +1628,7 @@ class TestKubernetesPodOperator:
         with pytest.raises(AirflowException):
             k.execute(context=context)
 
-        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
+        context["ti"].xcom_push.assert_called_with("return_value", {"Test key": "Test value"})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

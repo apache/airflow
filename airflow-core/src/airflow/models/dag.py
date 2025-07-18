@@ -39,7 +39,6 @@ import methodtools
 import pendulum
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
-from packaging import version as packaging_version
 from sqlalchemy import (
     Boolean,
     Column,
@@ -75,7 +74,6 @@ from airflow.models.asset import (
     AssetModel,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
@@ -106,14 +104,15 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagbag import DagBag
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
-    from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
@@ -461,28 +460,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
-
-        from airflow.providers.fab import __version__ as FAB_VERSION
-        from airflow.providers.fab.www.security import permissions
-
         updated_access_control = {}
         for role, perms in access_control.items():
-            if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
-                updated_access_control[role] = updated_access_control.get(role, {})
-                if isinstance(perms, (set, list)):
-                    # Support for old-style access_control where only the actions are specified
-                    updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
-                else:
-                    updated_access_control[role] = perms
-            elif isinstance(perms, dict):
-                # Not allow new access control format with old FAB versions
-                raise AirflowException(
-                    "Please upgrade the FAB provider to a version >= 1.3.0 to allow "
-                    "use the Dag Level Access Control new format."
-                )
+            updated_access_control[role] = updated_access_control.get(role, {})
+            if isinstance(perms, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                updated_access_control[role]["DAGs"] = set(perms)
             else:
-                updated_access_control[role] = set(perms)
-
+                updated_access_control[role] = perms
         return updated_access_control
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:
@@ -1223,9 +1208,10 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param session: new session
         """
         from airflow.api.common.mark_tasks import set_state
+        from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
 
-        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
-        task_ids: list[str] = []
+        tasks_to_set_state: list
+        task_ids: list[str]
 
         task_group_dict = self.task_group.get_task_group_dict()
         task_group = task_group_dict.get(group_id)
@@ -1643,7 +1629,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_op = DagModelOperation(
             bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
-        )  # type: ignore[misc]
+        )
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, session=session)

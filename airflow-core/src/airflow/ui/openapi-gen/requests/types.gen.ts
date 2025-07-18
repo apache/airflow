@@ -918,6 +918,48 @@ export type FastAPIRootMiddlewareResponse = {
 };
 
 /**
+ * Schema for Human-in-the-loop detail.
+ */
+export type HITLDetail = {
+    task_instance: TaskInstanceResponse;
+    options: Array<(string)>;
+    subject: string;
+    body?: string | null;
+    defaults?: Array<(string)> | null;
+    multiple?: boolean;
+    params?: {
+        [key: string]: unknown;
+    };
+    user_id?: string | null;
+    response_at?: string | null;
+    chosen_options?: Array<(string)> | null;
+    params_input?: {
+        [key: string]: unknown;
+    };
+    response_received?: boolean;
+};
+
+/**
+ * Schema for a collection of Human-in-the-loop details.
+ */
+export type HITLDetailCollection = {
+    hitl_details: Array<HITLDetail>;
+    total_entries: number;
+};
+
+/**
+ * Response of updating a Human-in-the-loop detail.
+ */
+export type HITLDetailResponse = {
+    user_id: string;
+    response_at: string;
+    chosen_options: Array<(string)>;
+    params_input?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -1427,6 +1469,16 @@ export type TriggerResponse = {
 export type TriggererInfoResponse = {
     status: string | null;
     latest_triggerer_heartbeat: string | null;
+};
+
+/**
+ * Schema for updating the content of a Human-in-the-loop detail.
+ */
+export type UpdateHITLDetailPayload = {
+    chosen_options: Array<(string)>;
+    params_input?: {
+        [key: string]: unknown;
+    };
 };
 
 export type ValidationError = {
@@ -2846,6 +2898,44 @@ export type GetDagVersionsData = {
 };
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
+
+export type UpdateHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type UpdateHitlDetailResponse = HITLDetailResponse;
+
+export type GetHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+};
+
+export type GetHitlDetailResponse = HITLDetail;
+
+export type UpdateMappedTiHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
+
+export type GetMappedTiHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetMappedTiHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailsResponse = HITLDetailCollection;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -5790,6 +5880,136 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
+        patch: {
+            req: UpdateHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+        patch: {
+            req: UpdateMappedTiHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetMappedTiHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitl-details/': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailCollection;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
             };
         };
     };

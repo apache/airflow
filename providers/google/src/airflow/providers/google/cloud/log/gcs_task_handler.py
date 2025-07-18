@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING
 
 import attrs
 
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
+# Make mypy happy by importing as aliases
+import google.cloud.storage as storage
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
