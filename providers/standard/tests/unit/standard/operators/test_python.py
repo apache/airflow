@@ -28,7 +28,7 @@ import tempfile
 import warnings
 from collections import namedtuple
 from collections.abc import Generator
-from datetime import date, datetime, timezone as _timezone
+from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
@@ -46,6 +46,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
     DeserializingResultError,
+    TaskDeferred,
 )
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -62,6 +63,7 @@ from airflow.providers.standard.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
+from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -891,6 +893,53 @@ class TestShortCircuitOperator(BasePythonTest):
         skipped_task_ids = set(xcom_data.get("skipped", []))
         assert "wait_for_ticker_to_secid_lookup_s3_file" in skipped_task_ids, (
             "Sensor should be skipped by ShortCircuitOperator"
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 implementation is different")
+    def test_short_circuit_operator_skips_deferrable_sensors(self):
+        """Ensure ShortCircuitOperator skips downstream deferrable sensor"""
+        from airflow.sdk.bases.sensor import BaseSensorOperator
+
+        class CustomDeferrableS3Sensor(BaseSensorOperator):
+            def __init__(self, deferrable: bool = True, **kwargs):
+                super().__init__(**kwargs)
+                self.deferrable = deferrable
+
+            def execute(self, context: Context) -> str | None:
+                if self.deferrable:
+                    raise TaskDeferred(
+                        trigger=TimeDeltaTrigger(timedelta(seconds=1)),
+                        method_name="execute_complete",
+                    )
+                return "done"
+
+            def execute_complete(self, context: Context, event=None) -> str:
+                return "done"
+
+        with self.dag_maker("dag_test_shortcircuit_deferrable_sensor"):
+            short_circuit = ShortCircuitOperator(
+                task_id="check_if_should_continue",
+                python_callable=lambda: False,
+            )
+
+            deferrable_sensor = CustomDeferrableS3Sensor(
+                deferrable=True,
+                task_id="wait_for_s3_file_deferrable",
+            )
+
+            short_circuit >> deferrable_sensor
+
+        dr = self.dag_maker.create_dagrun()
+
+        self.dag_maker.run_ti("check_if_should_continue", dr)
+
+        tis = dr.get_task_instances()
+        xcom_data = tis[0].xcom_pull(task_ids="check_if_should_continue", key="skipmixin_key")
+
+        assert xcom_data is not None, "XCom data should exist"
+        skipped_task_ids = set(xcom_data.get("skipped", []))
+        assert "wait_for_s3_file_deferrable" in skipped_task_ids, (
+            "Deferrable sensor should be skipped by ShortCircuitOperator"
         )
 
 
