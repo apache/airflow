@@ -15,50 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-# Basic Airflow cluster configuration for CeleryExecutor with Redis and PostgreSQL.
-#
-# WARNING: This configuration is for local development. Do not use it in a production deployment.
-#
-# This configuration supports basic configuration using environment variables or an .env file
-# The following variables are supported:
-#
-# AIRFLOW_IMAGE_NAME           - Docker image name used to run Airflow.
-#                                Default: apache/airflow:3.0.3
-# AIRFLOW_UID                  - User ID in Airflow containers
-#                                Default: 50000
-# AIRFLOW_PROJ_DIR             - Base path to which all the files will be volumed.
-#                                Default: .
-# Those configurations are useful mostly in case of standalone testing/running Airflow in test/try-out mode
-#
-# _AIRFLOW_WWW_USER_USERNAME   - Username for the administrator account (if requested).
-#                                Default: airflow
-# _AIRFLOW_WWW_USER_PASSWORD   - Password for the administrator account (if requested).
-#                                Default: airflow
-# _PIP_ADDITIONAL_REQUIREMENTS - Additional PIP requirements to add when starting all containers.
-#                                Use this option ONLY for quick checks. Installing requirements at container
-#                                startup is done EVERY TIME the service is started.
-#                                A better way is to build a custom image or extend the official image
-#                                as described in https://airflow.apache.org/docs/docker-stack/build.html.
-#                                Default: ''
-#
-# Feel free to modify this file to suit your needs.
 ---
 x-airflow-common:
   &airflow-common
-  image: ghcr.io/apache/airflow/main/prod/python3.10
+  image: ${AIRFLOW_IMAGE_NAME:-ghcr.io/apache/airflow/main/prod/python3.10}
   environment:
     &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__API__BASE_URL: 'http://localhost:8080'
-    AIRFLOW__API__PORT: '8080'
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://localhost:8080/execution/'
-    AIRFLOW__CORE__AUTH_MANAGER: 'airflow.api.auth.managers.fab.FabAuthManager'
-    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
-    _AIRFLOW_WWW_USER_USERNAME: airflow
-    _AIRFLOW_WWW_USER_PASSWORD: airflow
-    _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-task-sdk==${TASK_SDK_VERSION:-1.0.1}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    _PIP_ADDITIONAL_REQUIREMENTS: >
+      ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-task-sdk==${TASK_SDK_VERSION:-1.0.1}}
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
 
 services:
   postgres:
@@ -69,36 +44,64 @@ services:
       POSTGRES_DB: airflow
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
-      interval: 5s
+      interval: 10s
       retries: 5
+      start_period: 5s
     restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo "Creating missing opt dirs if missing:"
+        mkdir -v -p /opt/airflow/{logs,dags,plugins,config}
+        echo "Airflow version:"
+        /entrypoint airflow version
+        echo "Running airflow config list to create default config file if missing."
+        /entrypoint airflow config list >/dev/null
+        echo "Change ownership of files in /opt/airflow to ${AIRFLOW_UID}:0"
+        chown -R "${AIRFLOW_UID}:0" /opt/airflow/
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
+    user: "0:0"
+    depends_on:
+      <<: *airflow-common-depends-on
 
   airflow-apiserver:
     <<: *airflow-common
-    command: bash -c "airflow db init && airflow users create -r Admin -u airflow -p airflow -e admin@example.com -f admin -l user && airflow webserver"
+    command: api-server
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v1/health"]
-      interval: 10s
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 30s
     restart: always
     depends_on:
-      postgres:
-        condition: service_healthy
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
-  airflow-worker:
+  airflow-scheduler:
     <<: *airflow-common
-    command: airflow worker
+    command: scheduler
     healthcheck:
-      test: ["CMD-SHELL", "airflow jobs check --job-type LocalTaskJob --hostname $(hostname)"]
-      interval: 10s
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
+      interval: 30s
       timeout: 10s
       retries: 5
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
-      airflow-apiserver:
-        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
