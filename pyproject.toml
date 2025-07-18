@@ -1302,6 +1302,8 @@ apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1402,6 +1404,8 @@ apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 # End of automatically generated provider workspace items
 
+
+
 [tool.uv.workspace]
 members = [
     ".",
@@ -1416,6 +1420,8 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
+    "shared/logging",
+    "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

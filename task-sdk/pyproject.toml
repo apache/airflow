@@ -65,6 +65,13 @@ dependencies = [
     "requests>=2.31.0,<3",
     "types-requests>=2.31.0",
     "tenacity>=8.3.0",
+    # Beginning of automatically included dependencies from shared airflow packages
+    # (this will be automatically updated by pre-commit hooks)
+    # apache-airflow-shared-logging
+    "structlog",
+    # apache-airflow-shared-timezones",
+    "pendulum",
+    # End of automatically included dependencies from shared airflow packages
 ]
 
 [project.urls]
@@ -84,6 +91,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/airflow/sdk/__init__.py"
+
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -152,7 +163,9 @@ dev = [
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
     "pandas>=2.1.2; python_version <\"3.13\"",
-    "pandas>=2.2.3; python_version >=\"3.13\""
+    "pandas>=2.2.3; python_version >=\"3.13\"",
+    "apache-airflow-shared-logging",
+    "apache-airflow-shared-timezones",
 ]
 docs = [
     "apache-airflow-devel-common[docs]",

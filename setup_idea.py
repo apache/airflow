@@ -95,11 +95,16 @@ AIRFLOW_IML_FILE = IDEA_FOLDER_PATH / "airflow.iml"
 MODULES_XML_FILE = IDEA_FOLDER_PATH / "modules.xml"
 
 ROOT_PROVIDERS_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / "providers"
+ROOT_SHARED_PATH = ROOT_AIRFLOW_FOLDER_PATH / "shared"
 
 
 def setup_idea():
     # Providers discovery
     for pyproject_toml_file in ROOT_PROVIDERS_FOLDER_PATH.rglob("pyproject.toml"):
+        relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
+        source_root_modules.append(f"{relative_path}")
+    # Shared discovery
+    for pyproject_toml_file in ROOT_SHARED_PATH.rglob("pyproject.toml"):
         relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
         source_root_modules.append(f"{relative_path}")
 
