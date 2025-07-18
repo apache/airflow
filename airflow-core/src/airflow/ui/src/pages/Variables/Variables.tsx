@@ -124,7 +124,7 @@ export const Variables = () => {
   const [selectedVariables, setSelectedVariables] = useState<Record<string, string | undefined>>({});
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}` : "-key";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
 
   const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,

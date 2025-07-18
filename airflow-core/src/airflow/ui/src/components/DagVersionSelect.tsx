@@ -36,7 +36,7 @@ type VersionSelected = {
 export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: boolean }) => {
   const { t: translate } = useTranslation("components");
   const { dagId = "" } = useParams();
-  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: "-version_number" });
+  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: ["-version_number"] });
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedVersionNumber = useSelectedVersion();
   const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
