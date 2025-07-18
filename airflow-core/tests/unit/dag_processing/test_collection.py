@@ -67,6 +67,11 @@ from tests_common.test_utils.db import (
 if TYPE_CHECKING:
     from kgb import SpyAgency
 
+mark_fab_auth_manager_test = pytest.mark.skipif(
+    condition="FabAuthManager" not in conf.get("core", "auth_manager"),
+    reason="This is only for FabAuthManager. Please set the environment variable `AIRFLOW__CORE__AUTH_MANAGER` to `airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager` in `files/airflow-breeze-config/environment_variables.env` before running breeze shell. To run the test, add the flag `--keep-env-variables` to the pytest command.",
+)
+
 
 def test_statement_latest_runs_one_dag():
     with warnings.catch_warnings():
@@ -340,10 +345,7 @@ class TestUpdateDagParsingResults:
         ser_dict = SerializedDAG.to_dict(dag)
         return LazyDeserializedDAG(data=ser_dict)
 
-    @pytest.mark.skipif(
-        condition="FabAuthManager" not in conf.get("core", "auth_manager"),
-        reason="This is only for FabAuthManager. Please set the environment variable `AIRFLOW__CORE__AUTH_MANAGER` to `airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager` in `files/airflow-breeze-config/environment_variables.env` before running breeze shell. To run the test, add the flag `--keep-env-variables` to the pytest command.",
-    )
+    @mark_fab_auth_manager_test
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
     def test_sync_perms_syncs_dag_specific_perms_on_update(
         self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
@@ -494,10 +496,7 @@ class TestUpdateDagParsingResults:
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
 
     @patch.object(ParseImportError, "full_file_path")
-    @pytest.mark.skipif(
-        condition="FabAuthManager" not in conf.get("core", "auth_manager"),
-        reason="This is only for FabAuthManager. Please set the environment variable `AIRFLOW__CORE__AUTH_MANAGER` to `airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager` in `files/airflow-breeze-config/environment_variables.env` before running breeze shell. To run the test, add the flag `--keep-env-variables` to the pytest command.",
-    )
+    @mark_fab_auth_manager_test
     @pytest.mark.usefixtures("clean_db")
     def test_import_error_persist_for_invalid_access_control_role(
         self,
