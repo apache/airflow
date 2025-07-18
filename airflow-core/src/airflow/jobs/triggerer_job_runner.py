@@ -60,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    OKResponse,
     PutVariable,
     SetXCom,
     TaskStatesResult,
@@ -244,7 +245,8 @@ ToTriggerRunner = Annotated[
     | TICount
     | TaskStatesResult
     | HITLDetailResponseResult
-    | ErrorResponse,
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
 """
