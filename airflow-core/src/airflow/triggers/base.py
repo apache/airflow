@@ -19,8 +19,6 @@ from __future__ import annotations
 import abc
 import json
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
-from datetime import timedelta
 from typing import Annotated, Any
 
 import structlog
@@ -32,21 +30,13 @@ from pydantic import (
     model_serializer,
 )
 
+from airflow.sdk.bases.trigger import StartTriggerArgs as StartTriggerArgs
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
 
-
-@dataclass
-class StartTriggerArgs:
-    """Arguments required for start task execution from triggerer."""
-
-    trigger_cls: str
-    next_method: str
-    trigger_kwargs: dict[str, Any] | None = None
-    next_kwargs: dict[str, Any] | None = None
-    timeout: timedelta | None = None
+__all__ = ["StartTriggerArgs"]
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):
