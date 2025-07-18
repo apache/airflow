@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+6.5.1
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``another magic pip resolver hint (#53329)``
+* ``fix: Improve logging and timeouts in OL helpers (#53139)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Cleanup type ignores in snowflake provider where possible (#53258)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
 6.5.0
 .....
 
