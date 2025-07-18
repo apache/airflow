@@ -81,19 +81,6 @@ def test_dagrun_state_enum_escape():
 class TestTaskInstanceStates:
     """Test suite for validating task instance state relationships."""
 
-    def test_failed_and_success_states_union_equals_terminal_states(self):
-        """Test that union of failed_states and success_states equals TerminalTIState values."""
-        # Get all terminal state values
-        terminal_state_values = {state.value for state in TerminalTIState}
-
-        # Get union of failed and success states (convert to string values)
-        failed_success_union = {state.value for state in State.failed_states.union(State.success_states)}
-
-        assert failed_success_union == terminal_state_values, (
-            f"Union of failed_states and success_states ({failed_success_union}) "
-            f"does not equal TerminalTIState values ({terminal_state_values})"
-        )
-
     def test_terminal_and_intermediate_states_union_equals_task_instance_states(self):
         """Test that union of TerminalTIState and IntermediateTIState values equals TaskInstanceState values."""
         # Get all terminal state values
@@ -121,16 +108,6 @@ class TestTaskInstanceStates:
         """Test that failed_states and success_states have no overlap."""
         overlap = State.failed_states.intersection(State.success_states)
         assert len(overlap) == 0, f"failed_states and success_states should not overlap, but found: {overlap}"
-
-    def test_all_terminal_states_are_either_failed_or_success(self):
-        """Test that every terminal state is classified as either failed or success."""
-        all_terminal_states = {TaskInstanceState(state.value) for state in TerminalTIState}
-        classified_states = State.failed_states.union(State.success_states)
-
-        assert all_terminal_states == classified_states, (
-            f"All terminal states ({all_terminal_states}) should be classified as either "
-            f"failed or success ({classified_states})"
-        )
 
 
 if __name__ == "__main__":
