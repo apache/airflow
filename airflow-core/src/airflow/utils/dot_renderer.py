@@ -26,10 +26,10 @@ from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     import graphviz

@@ -67,6 +67,8 @@ Extra (optional)
 
     * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication. It can be left out to fall back on DefaultAzureCredential_.
     * ``connection_string``: Connection string for use with connection string authentication. It can be left out to fall back on DefaultAzureCredential_.
+    * ``account_host``: Override for the default Azure Blob endpoint domain. Use this to specify a custom or private domain (e.g., `myaccount.blob.core.customdomain.io`) instead of the default `core.windows.net`.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
