@@ -312,3 +312,22 @@ class TestLatestOnlyOperator:
 
         # The task will raise DownstreamTasksSkipped exception if it is not the latest run
         assert run_task.state == State.SUCCESS
+
+    def test_regular_latest_only_run(self, run_task):
+        """Test latest_only running in normal mode."""
+        with DAG(
+            "test_dag",
+            start_date=datetime.datetime(2024, 12, 11),
+            schedule="* * * * *",
+            catchup=False,
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            latest_task >> downstream_task
+
+        run_task(latest_task, run_type=DagRunType.SCHEDULED)
+
+        assert run_task.dagrun.data_interval_start != run_task.dagrun.data_interval_end
+
+        # The task will raise DownstreamTasksSkipped exception if it is not the latest run
+        assert run_task.state == State.SUCCESS
