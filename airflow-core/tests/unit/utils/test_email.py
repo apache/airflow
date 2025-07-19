@@ -29,7 +29,6 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.utils import email
-from airflow.utils.email import build_xoauth2_string
 
 from tests_common.test_utils.config import conf_vars
 
@@ -404,7 +403,7 @@ class TestEmailSmtp:
 
 class TestEmailOauth2:
     def test_build_xoauth2_string(self):
-        s = build_xoauth2_string("airflow@example.com", "test-token")
+        s = email.build_xoauth2_string("airflow@example.com", "test-token")
         assert s == "user=airflow@example.com\x01auth=Bearer test-token\x01\x01"
 
     @mock.patch("airflow.utils.email._get_smtp_connection")

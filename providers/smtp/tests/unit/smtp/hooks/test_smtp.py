@@ -29,7 +29,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.smtp.hooks.smtp import SmtpHook
-from airflow.utils.email import build_xoauth2_string
+from airflow.utils import email
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
@@ -403,7 +403,7 @@ class TestSmtpHook:
         assert mock_conn.auth.called
         args, _ = mock_conn.auth.call_args
         assert args[0] == "XOAUTH2"
-        assert build_xoauth2_string("smtp_user", "test-token") == args[1]()
+        assert email.build_xoauth2_string("smtp_user", "test-token") == args[1]()
 
     @patch(smtplib_string)
     def test_oauth2_missing_token_raises(self, mock_smtplib, create_connection_without_db):
