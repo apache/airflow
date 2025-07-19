@@ -3,12 +3,12 @@
   "dagActions": {
     "delete": {
       "button": "Usuń Daga",
-      "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań i zadań zostaną usunięte."
+      "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań Dagów i zadań zostaną usunięte."
     }
   },
   "favoriteDag": "Ulubiony Dag",
   "filters": {
-    "allRunTypes": "Wszystkie Typy Wykonań",
+    "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
     "favorite": {
       "all": "Wszystkie",
@@ -19,7 +19,8 @@
       "active": "Aktywne",
       "all": "Wszystkie",
       "paused": "Wstrzymane"
-    }
+    },
+    "runIdPatternFilter": "Szukaj Wykonań Dagów"
   },
   "ownerLink": "Link do właściciela {{owner}}",
   "runAndTaskActions": {
@@ -77,12 +78,12 @@
       "desc": "Sortuj według Nazwy Wyświetlanej (Z-A)"
     },
     "lastRunStartDate": {
-      "asc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
-      "desc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
+      "asc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania Daga (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania Daga (Najnowsze-Najwcześniejsze)"
     },
     "lastRunState": {
-      "asc": "Sortuj według Stanu Ostatniego Wykonania (A-Z)",
-      "desc": "Sortuj według Stanu Ostatniego Wykonania (Z-A)"
+      "asc": "Sortuj według Stanu Ostatniego Wykonania Daga (A-Z)",
+      "desc": "Sortuj według Stanu Ostatniego Wykonania Daga (Z-A)"
     },
     "nextDagRun": {
       "asc": "Sortuj według Następnego Wykonania Daga (Najwcześniejsze-Najnowsze)",

@@ -1,19 +1,19 @@
 {
   "backfill": {
-    "affected_few": "{{count}} wykonania zostaną uruchomione.",
-    "affected_many": "{{count}} wykonań zostanie uruchomionych.",
-    "affected_one": "Dotyczy 1 wykonania.",
+    "affected_few": "{{count}} wykonania Dagów zostaną uruchomione.",
+    "affected_many": "{{count}} wykonań Dagów zostanie uruchomionych.",
+    "affected_one": "Dotyczy 1 wykonania Daga.",
     "affected_other": "Dotyczy {{count}} wykonań.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
-    "allRuns": "Wszystkie wykonania",
+    "allRuns": "Wszystkie wykonania Dagów",
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
     "dateRangeFrom": "Od",
     "dateRangeTo": "Do",
     "errorStartDateBeforeEndDate": "Data początkowa musi być wcześniejsza niż data końcowa",
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
-    "missingAndErroredRuns": "Brakujące i błędne wykonania",
-    "missingRuns": "Brakujące wykonania",
+    "missingAndErroredRuns": "Brakujące i błędne wykonania Daga",
+    "missingRuns": "Brakujące wykonania Daga",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
     "selectDescription": "Uruchom ten Dag dla zakresu dat",
@@ -26,7 +26,7 @@
       }
     },
     "tooltip": "Ponowne przetworzenie wymaga harmonogramu",
-    "unpause": "Wznów {{dag_display_name}} przy wykonaniu",
+    "unpause": "Wznów {{dag_display_name}} przy wykonaniu Daga",
     "validation": {
       "datesRequired": "Należy podać zarówno datę początkową, jak i końcową interwału danych.",
       "startBeforeEnd": "Data początkowa interwału danych musi być wcześniejsza lub równa dacie końcowej."
@@ -70,7 +70,7 @@
     "lastTaskInstance_other": "Ostatnie {{count}} instancje zadania",
     "queuedDuration": "Czas oczekiwania",
     "runAfter": "Uruchom po",
-    "runDuration": "Czas trwania wykonania"
+    "runDuration": "Czas trwania wykonania Daga"
   },
   "fileUpload": {
     "files_few": "{{count}} pliki",
@@ -121,7 +121,7 @@
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
     "selectDescription": "Wyzwól pojedyncze wykonanie tego Daga",
-    "selectLabel": "Pojedyncze wykonanie",
+    "selectLabel": "Pojedyncze wykonanie Daga",
     "title": "Uruchom Daga",
     "toaster": {
       "success": {
@@ -129,7 +129,7 @@
         "title": "Uruchomienie Daga"
       }
     },
-    "unpause": "Wznów {{dagDisplayName}} przy wykonaniu"
+    "unpause": "Wznów {{dagDisplayName}} przy wykonaniu Daga"
   },
   "trimText": {
     "details": "Szczegóły",

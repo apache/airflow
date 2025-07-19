@@ -1,5 +1,5 @@
 {
-  "allRuns": "Wszystkie wykonania",
+  "allRuns": "Wszystkie wykonania Dagów" ,
   "blockingDeps": {
     "dependency": "Zależność",
     "reason": "Powód",
@@ -23,7 +23,7 @@
     }
   },
   "logs": {
-    "allLevels": "Wszystkie poziomy logów",
+    "allLevels": "Wszystkie poziomy logowania",
     "allSources": "Wszystkie źródła",
     "critical": "CRITICAL",
     "debug": "DEBUG",
@@ -34,15 +34,16 @@
     },
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
+    "settings": "Ustawienia logowania",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
   "overview": {
     "buttons": {
-      "failedRun_few": "Nieudane wykonania",
-      "failedRun_many": "Nieudanych wykonań",
-      "failedRun_one": "Nieudane wykonanie",
-      "failedRun_other": "Nieudane wykonania",
+      "failedRun_few": "Nieudane wykonania Dagów",
+      "failedRun_many": "Nieudanych wykonań Dagów",
+      "failedRun_one": "Nieudane wykonanie Daga",
+      "failedRun_other": "Nieudane wykonania Dagów",
       "failedTask_few": "Nieudane zadania",
       "failedTask_many": "Nieudanych zadań",
       "failedTask_one": "Nieudane zadanie",
@@ -111,7 +112,7 @@
     "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
-    "runs": "Wykonania",
+    "runs": "Wykonania Dagów",
     "taskInstances": "Instancje zadań",
     "tasks": "Zadania",
     "xcom": "XCom"
