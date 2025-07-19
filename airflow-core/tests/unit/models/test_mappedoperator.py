@@ -49,8 +49,7 @@ if TYPE_CHECKING:
 
 
 @patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
-@pytest.mark.usefixtures("testing_dag_bundle")
-def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
+def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog, testing_dag_bundle):
     class UnrenderableClass:
         def __bool__(self):
             raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")

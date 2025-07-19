@@ -42,8 +42,7 @@ class TestPrevDagrunDep:
     def teardown_method(self):
         clear_db_runs()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_first_task_run_of_new_task(self):
+    def test_first_task_run_of_new_task(self, testing_dag_bundle):
         """
         The first task run of a new task in an old DAG should pass if the task has
         ignore_first_depends_on_past set to True.

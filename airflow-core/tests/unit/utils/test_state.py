@@ -32,8 +32,7 @@ from unit.models import DEFAULT_DATE
 pytestmark = pytest.mark.db_test
 
 
-@pytest.mark.usefixtures("testing_dag_bundle")
-def test_dagrun_state_enum_escape():
+def test_dagrun_state_enum_escape(testing_dag_bundle):
     """
     Make sure DagRunState.QUEUED is converted to string 'queued' when
     referenced in DB query

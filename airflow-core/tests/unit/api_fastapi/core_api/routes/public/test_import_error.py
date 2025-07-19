@@ -46,22 +46,12 @@ TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=timezone.utc)
 TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=timezone.utc)
 IMPORT_ERROR_NON_EXISTED_ID = 9999
 IMPORT_ERROR_NON_EXISTED_KEY = "non_existed_key"
-BUNDLE_NAME = "dag_maker"
+BUNDLE_NAME = "testing"
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture
 @provide_session
-def dag_bundle(clear_db, session: Session = NEW_SESSION) -> DagBundleModel:
-    orm_dag_bundle = DagBundleModel(name=BUNDLE_NAME)
-    session.add(orm_dag_bundle)
-    session.flush()
-    session.commit()
-    return orm_dag_bundle
-
-
-@pytest.fixture(scope="class")
-@provide_session
-def permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+def permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(
         fileloc=FILENAME1,
         relative_fileloc=FILENAME1,
@@ -74,9 +64,9 @@ def permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
     return dag_model
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture
 @provide_session
-def not_permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+def not_permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(
         fileloc=FILENAME1,
         bundle_name=BUNDLE_NAME,
@@ -89,7 +79,7 @@ def not_permitted_dag_model(dag_bundle, session: Session = NEW_SESSION) -> DagMo
     return dag_model
 
 
-@pytest.fixture(scope="class", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db():
     clear_db_import_errors()
     clear_db_dags()
@@ -102,7 +92,7 @@ def clear_db():
     clear_db_dag_bundles()
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True)
 @provide_session
 def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [

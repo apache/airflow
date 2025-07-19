@@ -196,7 +196,9 @@ class TestSageMakerExperimentOperator:
         "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
         new_callable=mock.PropertyMock,
     )
-    def test_create_experiment(self, conn_mock, session, clean_dags_dagruns_and_dagbundles):
+    def test_create_experiment(
+        self, conn_mock, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         # putting a DAG around the operator so that jinja template gets rendered
@@ -211,15 +213,8 @@ class TestSageMakerExperimentOperator:
         )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
 
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-
             DAG.bulk_write_to_db(bundle_name, None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)

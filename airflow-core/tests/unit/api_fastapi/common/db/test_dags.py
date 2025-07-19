@@ -24,7 +24,6 @@ import pytest
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import SortParam
 from airflow.models import DagModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import utcnow
@@ -51,14 +50,8 @@ class TestGenerateDagWithLatestRunQuery:
         self._clear_db()
 
     @pytest.fixture
-    def dag_with_queued_run(self, session):
+    def dag_with_queued_run(self, session, testing_dag_bundle):
         """Returns a DAG with a QUEUED DagRun and null start_date."""
-
-        bundle_name = "testing"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.add(orm_dag_bundle)
-        session.flush()
-
         dag_id = "dag_with_queued_run"
 
         # Create DagModel

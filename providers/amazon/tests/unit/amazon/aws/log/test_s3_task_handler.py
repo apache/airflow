@@ -55,7 +55,7 @@ class TestS3RemoteLogIO:
             clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
+    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
@@ -71,14 +71,7 @@ class TestS3RemoteLogIO:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
-
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
             DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(
@@ -196,7 +189,7 @@ class TestS3TaskHandler:
             clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
+    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
@@ -211,14 +204,7 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
-
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
             DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_run = DagRun(

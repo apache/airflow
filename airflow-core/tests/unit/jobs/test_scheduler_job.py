@@ -60,7 +60,6 @@ from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
@@ -5857,7 +5856,7 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
-    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, session):
+    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
         """
@@ -5898,14 +5897,8 @@ class TestSchedulerJob:
                 # but past its timeout, and one that is still good.
                 # We don't actually need a linked trigger here; the code doesn't check.
                 bundle_name = "testing"
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.merge(orm_dag_bundle)
-                session.flush()
-                dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
-                session.merge(dag_model)
-                session.flush()
-                dag.sync_to_db()
-                SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+                DAG.bulk_write_to_db(bundle_name, None, [dag])
+                SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
                 session.flush()
                 dr1 = dag_maker.create_dagrun()
                 dr2 = dag_maker.create_dagrun(

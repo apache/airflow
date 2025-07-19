@@ -83,18 +83,11 @@ class TestMongoToS3Operator:
         )
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
 
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-
             DAG.bulk_write_to_db(bundle_name, None, [self.dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.mock_operator.dag_id)

@@ -242,8 +242,7 @@ class TestDag:
         ti = dr.get_task_instance(task.task_id)
         assert ti.priority_weight == expected
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_get_num_task_instances(self):
+    def test_get_num_task_instances(self, testing_dag_bundle):
         test_dag_id = "test_get_num_task_instances_dag"
         test_task_id = "task_1"
 
@@ -339,8 +338,7 @@ class TestDag:
         )
         session.close()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_get_task_instances_before(self):
+    def test_get_task_instances_before(self, testing_dag_bundle):
         BASE_DATE = timezone.datetime(2022, 7, 20, 20)
 
         test_dag_id = "test_get_task_instances_before"
@@ -554,8 +552,7 @@ class TestDag:
 
         assert task.test_field == ["{{ ds }}", "some_string"]
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_create_dagrun_when_schedule_is_none_and_empty_start_date(self):
+    def test_create_dagrun_when_schedule_is_none_and_empty_start_date(self, testing_dag_bundle):
         # Check that we don't get an AttributeError 'start_date' for self.start_date when schedule is none
         dag = DAG("dag_with_none_schedule_and_empty_start_date", schedule=None)
         dag.add_task(BaseOperator(task_id="task_without_start_date"))
@@ -573,8 +570,7 @@ class TestDag:
         )
         assert dagrun is not None
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dagtag_repr(self):
+    def test_dagtag_repr(self, testing_dag_bundle):
         clear_db_dags()
         dag = DAG("dag-test-dagtag", schedule=None, start_date=DEFAULT_DATE, tags=["tag-1", "tag-2"])
         session = settings.Session()
@@ -970,7 +966,6 @@ class TestDag:
         dag = DAG("test_dag2", schedule=None, max_consecutive_failed_dag_runs=2)
         assert dag.max_consecutive_failed_dag_runs == 2
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
             dr = dag.create_dagrun(
@@ -1046,8 +1041,7 @@ class TestDag:
         dag = DAG("DAG", schedule=None, default_args=default_args)
         assert dag.timezone.name == local_tz.name
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_schedule_dag_no_previous_runs(self):
+    def test_schedule_dag_no_previous_runs(self, testing_dag_bundle):
         """
         Tests scheduling a dag with no previous runs
         """
@@ -1076,9 +1070,8 @@ class TestDag:
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     @patch("airflow.models.dagrun.Stats")
-    def test_dag_handle_callback_crash(self, mock_stats):
+    def test_dag_handle_callback_crash(self, mock_stats, testing_dag_bundle):
         """
         Tests avoid crashes from calling dag callbacks exceptions
         """
@@ -1119,8 +1112,7 @@ class TestDag:
             tags={"dag_id": "test_dag_callback_crash"},
         )
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dag_handle_callback_with_removed_task(self, dag_maker, session):
+    def test_dag_handle_callback_with_removed_task(self, dag_maker, session, testing_dag_bundle):
         """
         Tests avoid crashes when a removed task is the last one in the list of task instance
         """
@@ -1158,8 +1150,9 @@ class TestDag:
             dag_run.handle_dag_callback(dag=dag, success=True)
 
     @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_next_dagrun_after_fake_scheduled_previous(self, catchup, expected_next_dagrun):
+    def test_next_dagrun_after_fake_scheduled_previous(
+        self, catchup, expected_next_dagrun, testing_dag_bundle
+    ):
         """
         Test scheduling a dag where there is a prior DagRun
         which has the same run_id as the next run should have.
@@ -1204,8 +1197,7 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + delta
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_schedule_dag_once(self):
+    def test_schedule_dag_once(self, testing_dag_bundle):
         """
         Tests scheduling a dag scheduled for @once - should be scheduled the first time
         it is called, and not scheduled the second.
@@ -1307,8 +1299,7 @@ class TestDag:
         assert hash(dag_diff_name) != hash(dag)
         assert hash(dag_subclass) != hash(dag)
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_get_paused_dag_ids(self):
+    def test_get_paused_dag_ids(self, testing_dag_bundle):
         dag_id = "test_get_paused_dag_ids"
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         session = settings.Session()
@@ -1384,8 +1375,7 @@ class TestDag:
         assert dag.timetable == timetable
         assert dag.timetable.description == expected_description
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_create_dagrun_job_id_is_set(self):
+    def test_create_dagrun_job_id_is_set(self, testing_dag_bundle):
         job_id = 42
         dag = DAG(dag_id="test_create_dagrun_job_id_is_set", schedule=None)
         DAG.bulk_write_to_db("testing", None, [dag])
@@ -1538,8 +1528,7 @@ class TestDag:
         dagrun: DagRun = dagruns[0]
         assert dagrun.state == dag_run_state
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dag_test_basic(self):
+    def test_dag_test_basic(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         bundle_name = "testing"
         DAG.bulk_write_to_db(bundle_name, None, [dag])
@@ -1557,8 +1546,7 @@ class TestDag:
         dag.test()
         mock_object.assert_called_once()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dag_test_with_dependencies(self):
+    def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         bundle_name = "testing"
         DAG.bulk_write_to_db(bundle_name, None, [dag])
@@ -1580,8 +1568,7 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with("output of first task")
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dag_test_with_fail_handler(self):
+    def test_dag_test_with_fail_handler(self, testing_dag_bundle):
         mock_handle_object_1 = mock.MagicMock()
         mock_handle_object_2 = mock.MagicMock()
 
@@ -1635,8 +1622,7 @@ class TestDag:
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dag_connection_file(self, tmp_path):
+    def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
         test_connections_string = """
 ---
 my_postgres_conn:
@@ -1989,8 +1975,7 @@ my_postgres_conn:
             EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
             dag.validate()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_validate_params_on_trigger_dag(self):
+    def test_validate_params_on_trigger_dag(self, testing_dag_bundle):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         bundle_name = "testing"
         DAG.bulk_write_to_db(bundle_name, None, [dag])
@@ -2033,8 +2018,7 @@ my_postgres_conn:
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dag_owner_links(self):
+    def test_dag_owner_links(self, testing_dag_bundle):
         dag = DAG(
             "dag",
             schedule=None,
@@ -2132,8 +2116,7 @@ class TestDagModel:
     def teardown_method(self):
         self._clean()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dags_needing_dagruns_not_too_early(self):
+    def test_dags_needing_dagruns_not_too_early(self, testing_dag_bundle):
         dag = DAG(dag_id="far_future_dag", schedule=None, start_date=timezone.datetime(2038, 1, 1))
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
@@ -2274,8 +2257,7 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == ["consumer"]
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_max_active_runs_not_none(self):
+    def test_max_active_runs_not_none(self, testing_dag_bundle):
         dag = DAG(
             dag_id="test_max_active_runs_not_none",
             schedule=None,
@@ -2301,8 +2283,7 @@ class TestDagModel:
         session.rollback()
         session.close()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dags_needing_dagruns_only_unpaused(self):
+    def test_dags_needing_dagruns_only_unpaused(self, testing_dag_bundle):
         """
         We should never create dagruns for unpaused DAGs
         """
@@ -2336,8 +2317,7 @@ class TestDagModel:
         session.rollback()
         session.close()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_dags_needing_dagruns_doesnot_send_dagmodel_with_import_errors(self, session):
+    def test_dags_needing_dagruns_doesnot_send_dagmodel_with_import_errors(self, session, testing_dag_bundle):
         """
         We check that has_import_error is false for dags
         being set to scheduler to create dagruns
@@ -2372,8 +2352,7 @@ class TestDagModel:
         session.rollback()
         session.close()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_relative_fileloc(self, session):
+    def test_relative_fileloc(self, session, testing_dag_bundle):
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path
@@ -2405,7 +2384,6 @@ class TestDagModel:
         assert sdm.dag.fileloc == str(file_path)
         assert sdm.dag.relative_fileloc == str(rel_path)
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test__processor_dags_folder(self, session, testing_dag_bundle):
         """Only populated after deserializtion"""
         bundle_name = "testing"
@@ -2473,8 +2451,7 @@ class TestDagModel:
         last_queued_time = triggered_date_by_dag[dag.dag_id]
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_asset_expression(self, session: Session) -> None:
+    def test_asset_expression(self, session: Session, testing_dag_bundle) -> None:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
@@ -2581,8 +2558,7 @@ class TestQueries:
         clear_db_dag_bundles()
 
     @pytest.mark.parametrize("tasks_count", [3, 12])
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_count_number_queries(self, tasks_count):
+    def test_count_number_queries(self, tasks_count, testing_dag_bundle):
         dag = DAG("test_dagrun_query_count", schedule=None, start_date=DEFAULT_DATE)
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)

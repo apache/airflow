@@ -2542,13 +2542,16 @@ def mock_xcom_backend():
 
 @pytest.fixture
 def testing_dag_bundle():
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                testing = DagBundleModel(name="testing")
+                session.add(testing)
 
 
 @pytest.fixture

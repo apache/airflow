@@ -36,7 +36,6 @@ from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
 )
 from airflow.utils.log.logging_mixin import set_context
-from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -112,7 +111,7 @@ class TestFileTaskLogHandler:
     @conf_vars({("core", "executor"): "KubernetesExecutor"})
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
-        self, mock_kube_client, pod_override, namespace_to_call
+        self, mock_kube_client, pod_override, namespace_to_call, testing_dag_bundle
     ):
         reload(executor_loader)
         mock_read_log = mock_kube_client.return_value.read_namespaced_pod_log
@@ -134,13 +133,7 @@ class TestFileTaskLogHandler:
                 "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
-            from airflow.models.dagbundle import DagBundleModel
-
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
             DAG.bulk_write_to_db(bundle_name, None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         else:

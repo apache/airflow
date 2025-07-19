@@ -181,7 +181,7 @@ def _has_all_dags_access(user) -> bool:
 
 @contextlib.contextmanager
 def _create_dag_model_context(dag_id, session, security_manager):
-    bundle_name = "test_bundle"
+    bundle_name = "testing"
     _create_dag_bundle(bundle_name, session)
     dag = _create_dag_model(dag_id, bundle_name, session, security_manager)
     yield dag
@@ -253,7 +253,7 @@ def role(request, app, security_manager):
 @pytest.fixture
 def mock_dag_models(request, session, security_manager):
     dags_ids = request.param
-    bundle_name = "test_bundle"
+    bundle_name = "testing"
     _create_dag_bundle(bundle_name, session)
     dags = [_create_dag_model(dag_id, bundle_name, session, security_manager) for dag_id in dags_ids]
 
@@ -520,13 +520,11 @@ def test_get_current_user_permissions(app):
 
 
 @patch.object(FabAuthManager, "is_logged_in")
-def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, session):
+def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, session, testing_dag_bundle):
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_READ]
     dag_id = "dag_id"
     username = "ElUser"
-    bundle_name = "test_bundle"
-
     with app.app_context():
         with create_user_scope(
             app,
@@ -538,19 +536,17 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            session.add(DagBundleModel(name=bundle_name))
-            session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name=bundle_name,
+                    bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     schedule_interval="2 2 * * *",
                 )
             else:  # Airflow 3.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name=bundle_name,
+                    bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     timetable_summary="2 2 * * *",
                 )
@@ -564,7 +560,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
 
 @patch.object(FabAuthManager, "is_logged_in")
 def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
-    mock_is_logged_in, app, security_manager, session
+    mock_is_logged_in, app, security_manager, session, testing_dag_bundle
 ):
     # In this test case,
     # get_authorized_dag_ids() don't return DAGs to which the user has CAN_EDIT action
@@ -572,7 +568,6 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
     dag_id = "dag_id"
-    bundle_name = "test_bundle"
     with app.app_context():
         with create_user_scope(
             app,
@@ -583,19 +578,17 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            session.add(DagBundleModel(name=bundle_name))
-            session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name="test_bundle",
+                    bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     schedule_interval="2 2 * * *",
                 )
             else:  # Airflow 3.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name="test_bundle",
+                    bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     timetable_summary="2 2 * * *",
                 )
@@ -1043,13 +1036,18 @@ def test_get_all_roles_with_permissions(security_manager):
 
 
 def test_permissions_work_for_dags_with_dot_in_dagname(
-    app, security_manager, assert_user_has_dag_perms, assert_user_does_not_have_dag_perms, session
+    app,
+    security_manager,
+    assert_user_has_dag_perms,
+    assert_user_does_not_have_dag_perms,
+    session,
+    testing_dag_bundle,
 ):
     username = "dag_permission_user"
     role_name = "dag_permission_role"
     dag_id = "dag_id_1"
     dag_id_2 = "dag_id_1.with_dot"
-    bundle_name = "test_bundle"
+    bundle_name = "testing"
     with app.app_context():
         mock_roles = [
             {
@@ -1065,8 +1063,6 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             username=username,
             role_name=role_name,
         ) as user:
-            session.add(DagBundleModel(name=bundle_name))
-            session.flush()
             dag1 = DagModel(dag_id=dag_id, bundle_name=bundle_name)
             dag2 = DagModel(dag_id=dag_id_2, bundle_name=bundle_name)
             session.add_all([dag1, dag2])

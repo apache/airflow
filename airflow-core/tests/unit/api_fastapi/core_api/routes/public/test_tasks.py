@@ -234,7 +234,6 @@ class TestGetTask(TestTaskEndpoint):
             expected["task_display_name"] = task_id
             assert response.json() == expected
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_should_respond_200_serialized(self, test_client, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
 

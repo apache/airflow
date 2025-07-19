@@ -20,11 +20,10 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.dag import DagModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dag_warnings, clear_db_dags
+from tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -39,15 +38,11 @@ DAG_WARNING_TYPE = "non-existent pool"
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None) -> None:
+def setup(dag_maker, testing_dag_bundle, session=None) -> None:
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_dag_warnings()
 
-    bundle_name = "test_bundle"
-    orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.add(orm_dag_bundle)
-    session.flush()
+    bundle_name = "testing"
 
     session.add(DagModel(dag_id=DAG1_ID, bundle_name=bundle_name))
     session.add(DagModel(dag_id=DAG2_ID, bundle_name=bundle_name))

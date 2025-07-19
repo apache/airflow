@@ -444,8 +444,7 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_on_success_callback_when_task_skipped(self, session):
+    def test_on_success_callback_when_task_skipped(self, session, testing_dag_bundle):
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"
 
@@ -641,7 +640,6 @@ class TestDagRun:
 
         assert dag_run.span_status == SpanStatus.SHOULD_END
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, dag_maker, session):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
@@ -691,7 +689,6 @@ class TestDagRun:
             msg="success",
         )
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
@@ -1042,8 +1039,7 @@ class TestDagRun:
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_next_dagruns_to_examine_only_unpaused(self, session, state):
+    def test_next_dagruns_to_examine_only_unpaused(self, session, state, testing_dag_bundle):
         """
         Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
         and gets running/queued dagruns
@@ -1094,8 +1090,7 @@ class TestDagRun:
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session):
+    def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
@@ -1130,8 +1125,7 @@ class TestDagRun:
             ("@once", False),
         ],
     )
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_emit_scheduling_delay(self, session, schedule, expected):
+    def test_emit_scheduling_delay(self, session, schedule, expected, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.

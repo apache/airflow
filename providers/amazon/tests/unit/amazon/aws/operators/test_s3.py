@@ -631,7 +631,7 @@ class TestS3DeleteObjectsOperator:
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
 
     @pytest.mark.db_test
-    def test_dates_from_template(self, session):
+    def test_dates_from_template(self, session, testing_dag_bundle):
         """Specifically test for dates passed from templating that could be strings"""
         bucket = "testbucket"
         key_pattern = "path/data"
@@ -671,14 +671,8 @@ class TestS3DeleteObjectsOperator:
             )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
 
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
             DAG.bulk_write_to_db(bundle_name, None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)

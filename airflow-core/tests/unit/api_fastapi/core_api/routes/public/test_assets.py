@@ -448,9 +448,10 @@ class TestGetAssets(TestAssets):
         assert expected_assets == asset_urls
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
-    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
-    def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
+    def test_filter_assets_by_dag_ids_works(
+        self, test_client, dag_ids, expected_num, testing_dag_bundle, session
+    ):
         session.query(DagModel).delete()
         session.commit()
         bundle_name = "testing"
@@ -486,10 +487,9 @@ class TestGetAssets(TestAssets):
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
-    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
-        self, test_client, dag_ids, uri_pattern, expected_num, session
+        self, test_client, dag_ids, uri_pattern, expected_num, testing_dag_bundle, session
     ):
         session.query(DagModel).delete()
         session.commit()

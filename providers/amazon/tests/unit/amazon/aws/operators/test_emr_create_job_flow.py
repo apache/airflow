@@ -98,19 +98,12 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
 
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-
             DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
             SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
@@ -158,21 +151,16 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
 
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-
             DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
             SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)

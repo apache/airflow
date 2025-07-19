@@ -46,7 +46,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
@@ -94,10 +93,7 @@ def clean_database():
 
 
 def create_trigger_in_db(session, trigger, operator=None):
-    bundle_name = "test_bundle"
-    orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.add(orm_dag_bundle)
-    session.flush()
+    bundle_name = "testing"
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
@@ -115,7 +111,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
@@ -205,7 +201,7 @@ def supervisor_builder(mocker, session):
     return builder
 
 
-def test_trigger_lifecycle(spy_agency: SpyAgency, session):
+def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
     and send it to the trigger runner, and then delete it when it vanishes.
@@ -396,7 +392,7 @@ class TestTriggerRunner:
 
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder):
+async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -420,15 +416,11 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(trigger_orm)
     session.flush()
 
-    bundle_name = "test_bundle"
-    orm_dag_bundle = DagBundleModel(name=bundle_name)
-    session.add(orm_dag_bundle)
-    session.flush()
-
+    bundle_name = "testing"
     dag = DAG(dag_id="test-dag")
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(

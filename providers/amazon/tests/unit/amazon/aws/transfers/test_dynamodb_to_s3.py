@@ -263,7 +263,7 @@ class TestDynamodbToS3:
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
@@ -278,15 +278,8 @@ class TestDynamodbToS3:
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
-            from airflow.utils.session import create_session
 
             bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-
             DAG.bulk_write_to_db(bundle_name, None, [dag])
             SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)

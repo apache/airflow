@@ -62,8 +62,7 @@ class TestSqlAlchemyUtils:
 
         self.session = session
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_utc_transformations(self):
+    def test_utc_transformations(self, testing_dag_bundle):
         """
         Test whether what we are storing is what we are retrieving
         for datetimes

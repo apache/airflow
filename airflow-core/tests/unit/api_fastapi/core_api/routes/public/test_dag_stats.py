@@ -21,7 +21,6 @@ from datetime import datetime, timedelta
 import pytest
 
 from airflow.models.dag import DagModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -54,14 +53,9 @@ class TestDagStatsEndpoint:
         clear_db_serialized_dags()
 
     def _create_dag_and_runs(self, session=None):
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.add(orm_dag_bundle)
-        session.flush()
-
         dag_1 = DagModel(
             dag_id=DAG1_ID,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             fileloc="/tmp/dag_stats_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -87,7 +81,7 @@ class TestDagStatsEndpoint:
         )
         dag_2 = DagModel(
             dag_id=DAG2_ID,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             fileloc="/tmp/dag_stats_2.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -105,7 +99,7 @@ class TestDagStatsEndpoint:
         )
         dag_3 = DagModel(
             dag_id=DAG3_ID,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             fileloc="/tmp/dag_stats_3.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -144,7 +138,7 @@ class TestDagStatsEndpoint:
 class TestGetDagStats(TestDagStatsEndpoint):
     """Unit tests for Get DAG Stats."""
 
-    def test_should_respond_200(self, test_client, session):
+    def test_should_respond_200(self, test_client, session, testing_dag_bundle):
         self._create_dag_and_runs(session)
         exp_payload = {
             "dags": [
@@ -208,7 +202,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
         response = unauthorized_test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
         assert response.status_code == 403
 
-    def test_all_dags_should_respond_200(self, test_client, session):
+    def test_all_dags_should_respond_200(self, test_client, session, testing_dag_bundle):
         self._create_dag_and_runs(session)
         exp_payload = {
             "dags": [
@@ -426,7 +420,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             ),
         ],
     )
-    def test_single_dag_in_dag_ids(self, test_client, session, url, params, exp_payload):
+    def test_single_dag_in_dag_ids(self, test_client, session, testing_dag_bundle, url, params, exp_payload):
         self._create_dag_and_runs(session)
         response = test_client.get(url, params=params)
         assert response.status_code == 200

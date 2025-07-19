@@ -586,8 +586,7 @@ class TestDagBag:
 
         assert dagbag.process_file(None) == []
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_unknown_dags(self):
+    def test_deactivate_unknown_dags(self, testing_dag_bundle):
         """
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
@@ -706,8 +705,7 @@ with airflow.DAG(
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_get_dag_with_dag_serialization(self):
+    def test_get_dag_with_dag_serialization(self, testing_dag_bundle):
         """
         Test that Serialized DAG is updated in DagBag when it is updated in
         Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
@@ -757,7 +755,6 @@ with airflow.DAG(
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_dag_refresh_race_condition(self, session, testing_dag_bundle):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
@@ -814,7 +811,6 @@ with airflow.DAG(
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_collect_dags_from_db(self, testing_dag_bundle):
         """DAGs are collected from Database"""
         db.clear_db_dags()

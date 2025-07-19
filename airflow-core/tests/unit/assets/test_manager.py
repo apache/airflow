@@ -85,8 +85,7 @@ class TestAssetManager:
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_register_asset_change(self, session, dag_maker, mock_task_instance):
+    def test_register_asset_change(self, session, dag_maker, mock_task_instance, testing_dag_bundle):
         asset_manager = AssetManager()
 
         asset = Asset(uri="test://asset1", name="test_asset_uri", group="asset")
@@ -109,9 +108,10 @@ class TestAssetManager:
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.usefixtures("clear_assets")
-    def test_register_asset_change_with_alias(self, session, dag_maker, mock_task_instance):
+    def test_register_asset_change_with_alias(
+        self, session, dag_maker, mock_task_instance, testing_dag_bundle
+    ):
         bundle_name = "testing"
 
         consumer_dag_1 = DagModel(
@@ -164,8 +164,9 @@ class TestAssetManager:
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_register_asset_change_notifies_asset_listener(self, session, mock_task_instance):
+    def test_register_asset_change_notifies_asset_listener(
+        self, session, mock_task_instance, testing_dag_bundle
+    ):
         asset_manager = AssetManager()
         asset_listener.clear()
         get_listener_manager().add_listener(asset_listener)
