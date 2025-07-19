@@ -43,6 +43,7 @@ from typing import (
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -1639,12 +1640,42 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")
