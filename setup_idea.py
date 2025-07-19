@@ -23,6 +23,7 @@
 # ///
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 
 from rich import print
@@ -94,12 +95,13 @@ IDEA_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".idea"
 AIRFLOW_IML_FILE = IDEA_FOLDER_PATH / "airflow.iml"
 MODULES_XML_FILE = IDEA_FOLDER_PATH / "modules.xml"
 
-ROOT_PROVIDERS_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / "providers"
-
 
 def setup_idea():
-    # Providers discovery
-    for pyproject_toml_file in ROOT_PROVIDERS_FOLDER_PATH.rglob("pyproject.toml"):
+    # Providers and shared lib discovery
+    for pyproject_toml_file in itertools.chain(
+        (ROOT_AIRFLOW_FOLDER_PATH / "providers").rglob("pyproject.toml"),
+        (ROOT_AIRFLOW_FOLDER_PATH / "shared").rglob("pyproject.toml"),
+    ):
         relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
         source_root_modules.append(f"{relative_path}")
 

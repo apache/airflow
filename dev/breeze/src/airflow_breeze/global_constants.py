@@ -610,7 +610,10 @@ def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, Non
                 continue
             if trimmed_line.startswith('"'):
                 path = trimmed_line.split('"')[1]
-                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
+                if "*" in path:
+                    ALL_PYPROJECT_TOML_FILES.extend((AIRFLOW_ROOT_PATH).glob(path + "/pyproject.toml"))
+                else:
+                    ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
                 if trimmed_line.startswith('"providers/'):
                     yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
                     yield AIRFLOW_ROOT_PATH / path / "provider.yaml"

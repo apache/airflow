@@ -1342,6 +1342,12 @@ repos:
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
           airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
+      - id: typestubs-shared-libs
+        name: Generate typestubs for vendored shared libs
+        language: python
+        files: ^shared/.*/src/.*\.py$
+        pass_filenames: false
+        entry: bash scripts/ci/vendoring-shared-libs.sh
       - id: go-mockery
         name: Generate mocks for go
         entry: -w /src/go-sdk vektra/mockery:3
