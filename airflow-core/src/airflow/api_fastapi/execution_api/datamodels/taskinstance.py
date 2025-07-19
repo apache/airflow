@@ -35,7 +35,20 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
-from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
+from airflow.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk.definitions.state import (
+        IntermediateTIState,
+        TaskInstanceState as TIState,
+        TerminalTIState,
+    )
+else:
+    from airflow.utils.state import (  # type: ignore[no-redef]
+        IntermediateTIState,
+        TaskInstanceState as TIState,
+        TerminalTIState,
+    )
 from airflow.utils.types import DagRunType
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)

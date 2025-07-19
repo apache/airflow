@@ -28,6 +28,14 @@ __deprecated_classes = {
     "xcom": {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
+    "state": {
+        "JobState": "airflow.sdk.definitions.state.JobState",
+        "TerminalTIState": "airflow.sdk.definitions.state.TerminalTIState",
+        "IntermediateTIState": "airflow.sdk.definitions.state.IntermediateTIState",
+        "TaskInstanceState": "airflow.sdk.definitions.state.TaskInstanceState",
+        "DagRunState": "airflow.sdk.definitions.state.DagRunState",
+        "State": "airflow.sdk.definitions.state.State",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)

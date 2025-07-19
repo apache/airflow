@@ -220,9 +220,14 @@ class State:
     """
 
     adoptable_states = frozenset(
-        [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
+        [
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.DEFERRED,
+        ]
     )
     """
-    A list of states indicating that a task can be adopted or reset by a scheduler job
-    if it was queued by another scheduler job that is not running anymore.
+    A list of states indicating that a task can be adopted by a scheduler.
     """
