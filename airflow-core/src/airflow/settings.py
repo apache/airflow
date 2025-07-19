@@ -88,6 +88,7 @@ LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
+SQL_ALCHEMY_CONN_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
 LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
@@ -334,6 +335,31 @@ def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
     return {}
 
 
+def _configure_async_session() -> None:
+    """
+    Configure async SQLAlchemy session.
+
+    This exists so tests can reconfigure the session. How SQLAlchemy configures
+    this does not work well with Pytest and you can end up with issues when the
+    session and runs in a different event loop from the test itself.
+    """
+    global AsyncSession
+    global async_engine
+
+    async_engine = create_async_engine(
+        SQL_ALCHEMY_CONN_ASYNC,
+        connect_args=_get_connect_args("async"),
+        future=True,
+    )
+    AsyncSession = sessionmaker(
+        bind=async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=SAAsyncSession,
+        expire_on_commit=False,
+    )
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -346,8 +372,6 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
-    global AsyncSession
-    global async_engine
     global NonScopedSession
     global Session
     global engine
@@ -373,18 +397,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         **engine_args,
         future=True,
     )
-    async_engine = create_async_engine(
-        SQL_ALCHEMY_CONN_ASYNC,
-        connect_args=_get_connect_args("async"),
-        future=True,
-    )
-    AsyncSession = sessionmaker(
-        bind=async_engine,
-        autocommit=False,
-        autoflush=False,
-        class_=SAAsyncSession,
-        expire_on_commit=False,
-    )
+    _configure_async_session()
     mask_secret(engine.url.password)
     setup_event_handlers(engine)
 
