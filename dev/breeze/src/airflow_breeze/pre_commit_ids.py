@@ -71,6 +71,7 @@ PRE_COMMIT_LIST = [
     "check-pre-commit-information-consistent",
     "check-provide-create-sessions-imports",
     "check-provider-docs-valid",
+    "check-provider-exclusions-python-version",
     "check-provider-yaml-valid",
     "check-providers-subpackages-init-file-exist",
     "check-pydevd-left-in-code",

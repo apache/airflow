@@ -215,6 +215,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-provider-docs-valid                                 | Validate provider doc files                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-provider-exclusions-python-version                  | Check Provider Python Version Exclusions               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-provider-yaml-valid                                 | Validate provider.yaml files                           | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-providers-subpackages-init-file-exist               | Provider subpackage init files are there               |         |
