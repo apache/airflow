@@ -109,7 +109,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         cluster_image_version: str | None = None,
         ssh_public_keys: str | Iterable[str] | None = None,
         subnet_id: str | None = None,
-        services: Iterable[str] = ("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
+        services: Iterable[str] | None = ("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
         s3_bucket: str | None = None,
         zone: str = "ru-central1-b",
         service_account_id: str | None = None,
