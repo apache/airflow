@@ -142,8 +142,12 @@ Update your ``airflow.cfg`` to use the service account:
 See Also
 ========
 
-* :doc:`KubernetesExecutor Reference <kubernetes_executor>`
-* :doc:`KubernetesPodOperator Documentation <operators>`
+:doc:`KubernetesExecutor Reference <kubernetes_executor>`
+.. GitHub source: https://github.com/yranjan06/airflow/blob/docs/add-k8s-rbac-info/providers/cncf/kubernetes/docs/kubernetes_executor.rst
+
+:doc:`KubernetesPodOperator Documentation <operators>`
+.. GitHub source: https://github.com/yranjan06/airflow/blob/docs/add-k8s-rbac-info/providers/cncf/kubernetes/docs/operators.rst
+
 * `Helm Chart Permissions <https://github.com/apache/airflow/blob/main/chart/templates/rbac/pod-launcher-role.yaml>`_
 * `Kubernetes RBAC Docs <https://kubernetes.io/docs/reference/access-authn-authz/rbac/>`_
 
