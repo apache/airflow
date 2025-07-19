@@ -153,7 +153,7 @@ class SmtpHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
-        from wtforms.validators import NumberRange
+        from wtforms.validators import NumberRange, any_of
 
         return {
             "from_email": StringField(lazy_gettext("From email"), widget=BS3TextFieldWidget()),
@@ -177,6 +177,18 @@ class SmtpHook(BaseHook):
             "html_content_template": StringField(
                 lazy_gettext("Path to the html content template"), widget=BS3TextFieldWidget()
             ),
+            "auth_type": StringField(
+                lazy_gettext("Auth Type"),
+                widget=BS3TextFieldWidget(),
+                description="basic  or  oauth2",
+                validators=[any_of(["basic", "oauth2"])],
+                default="basic",
+            ),
+            "access_token": StringField(lazy_gettext("Access Token"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
+            "client_secret": StringField(lazy_gettext("Client Secret"), widget=BS3TextFieldWidget()),
+            "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "scope": StringField(lazy_gettext("Scope"), widget=BS3TextFieldWidget()),
         }
 
     def test_connection(self) -> tuple[bool, str]:
@@ -457,6 +469,19 @@ class SmtpHook(BaseHook):
     @property
     def ssl_context(self) -> str | None:
         return self.conn.extra_dejson.get("ssl_context")
+
+    @property
+    def auth_type(self) -> str:
+        return self.conn.extra_dejson.get("auth_type", self._auth_type)
+
+    @property
+    def access_token(self) -> str | None:
+        if self._access_token:
+            return self._access_token
+        token = self.conn.extra_dejson.get("access_token")
+        if token:
+            self._access_token = token
+        return self._access_token
 
     @staticmethod
     def _read_template(template_path: str) -> str:
