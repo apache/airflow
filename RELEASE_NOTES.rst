@@ -958,6 +958,8 @@ replaced with:
 
     from airflow.providers.standard.operators.python import PythonOperator
 
+The SimpleHttpOperator has been migrated to apache-airflow-providers-http and renamed to HttpOperator
+
 UI & Usability Improvements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
