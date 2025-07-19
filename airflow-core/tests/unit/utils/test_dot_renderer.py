@@ -24,10 +24,10 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.db import clear_db_dags
