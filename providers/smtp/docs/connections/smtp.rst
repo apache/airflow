@@ -64,6 +64,11 @@ Extra (optional)
       "smtp_provider", "ssl_context" configuration with the fallback to "email". "ssl_context" configuration. If none of it is specified, "default" is used.
     * ``subject_template``: A path to a file containing the email subject template.
     * ``html_content_template``: A path to a file containing the email html content template.
+    * ``auth_type``: "basic" (default) or "oauth2"
+    * ``access_token``: One-hour OAuth 2.0 bearer token (Gmail / Outlook)
+    * ``client_id`` / ``client_secret``: App credentials used to fetch a new token
+    * ``tenant_id`` *(optional)*: Azure tenant, default "common"
+    * ``scope`` *(optional)*: OAuth scope, default "https://outlook.office.com/.default"
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
