@@ -317,6 +317,24 @@ through ``breeze testing docker-compose-tests`` command.
 
 The docker-compose tests are in ``docker-tests/`` folder in the main repo.
 
+Running task-sdk integration tests
+..................................
+
+You can use Breeze to run the task-sdk integration tests. Those tests are run using Production image
+and they are running test with the Quick-start docker compose we have. Some scenarios of task-sdk tests are run here.
+
+.. image:: ./images/output_testing_docker-compose-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_task-sdk-integration-tests.svg
+  :width: 100%
+  :alt: Breeze testing task-sdk-integration-tests
+
+You can also iterate over those tests with pytest command, but - unlike regular unit tests and
+Helm tests, they need to be run in local virtual environment. They also require to have
+``DOCKER_IMAGE`` environment variable set, pointing to the image to test if you do not run them
+through ``breeze testing task-sdk-integration-tests`` command.
+
+The task-sdk tests are in ``task-sdk-tests/`` folder in the main repo.
+
 Running Kubernetes tests
 ------------------------
 
