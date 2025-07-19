@@ -215,7 +215,6 @@ class IntermediateTIState(str, Enum):
     RESTARTING = "restarting"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
 
 
@@ -353,6 +352,7 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+    UPSTREAM_FAILED = "upstream_failed"
 
 
 class TriggerDAGRunPayload(BaseModel):
@@ -471,6 +471,7 @@ class TerminalTIState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+    UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
 
 
