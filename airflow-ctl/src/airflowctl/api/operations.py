@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
 import structlog
+from pydantic import BaseModel
 
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
@@ -73,11 +74,11 @@ from airflowctl.api.datamodels.generated import (
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
-
     from airflowctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
+
+T = TypeVar("T", bound=BaseModel)
 
 
 # Generic Server Response Error
@@ -158,7 +159,7 @@ class BaseOperations:
         limit: int = 50,
         params: dict | None = None,
         **kwargs,
-    ) -> type[BaseModel] | ServerResponseError:
+    ) -> T | ServerResponseError:
         shared_params = {**(params or {}), **kwargs}
         try:
             self.response = self.client.get(path, params=shared_params)
@@ -168,8 +169,8 @@ class BaseOperations:
                     data_entity = key
                     print(f"data_entity {data_entity}")
                     break
-            entry_list = getattr(first_pass,key)
-            total_entries = first_pass.total_entries # type: ignore[attr-defined]
+            entry_list = getattr(first_pass, key)
+            total_entries = first_pass.total_entries  # type: ignore[attr-defined]
             if total_entries < limit:
                 return first_pass
             offset = offset + limit
@@ -179,7 +180,7 @@ class BaseOperations:
                 entry = data_model.model_validate_json(self.response.content)
                 offset = offset + limit
                 entry_list.extend(getattr(entry, data_entity))
-            obj = data_model(**{key: entry_list,"total_entries" :total_entries})
+            obj = data_model(**{key: entry_list, "total_entries": total_entries})
             return data_model.model_validate(obj.model_dump())
         except ServerResponseError as e:
             raise e
@@ -223,7 +224,7 @@ class AssetsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets from the API server."""
         return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
@@ -581,7 +582,9 @@ class JobsOperations(BaseOperations):
     def list(self, job_type: str, hostname: str, is_alive: bool) -> list | ServerResponseError:
         """List all jobs."""
         params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
-        return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params,offset = 2,limit = 5)
+        return super().execute_list(
+            path="jobs", data_model=JobCollectionResponse, params=params, offset=2, limit=5
+        )
 
 
 class PoolsOperations(BaseOperations):
@@ -602,7 +605,7 @@ class PoolsOperations(BaseOperations):
             return PoolCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e """
-        return super().execute_list(path="pools", data_model=PoolCollectionResponse,offset = 2,limit = 5)
+        return super().execute_list(path="pools", data_model=PoolCollectionResponse, offset=2, limit=5)
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
@@ -642,7 +645,6 @@ class ProvidersOperations(BaseOperations):
 
     def list(self) -> list | ServerResponseError:
         """List all providers."""
-        
         """ try:
             self.response = self.client.get(f"providers")
             return ProviderCollectionResponse.model_validate_json(self.response.content)
