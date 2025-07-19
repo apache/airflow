@@ -34,7 +34,7 @@ from airflow.sdk import (
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.utils.dag_edges import dag_edges
+from airflow.sdk.definitions.edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
