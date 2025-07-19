@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-18T19:47:58.883010
+# This constraints file was automatically generated on 2025-07-19T02:26:20.467688
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -181,7 +181,7 @@ apache-airflow-providers-slack==9.1.2
 apache-airflow-providers-smtp==2.1.1
 apache-airflow-providers-sqlite==4.1.1
 apache-airflow-providers-ssh==4.1.1
-apache-airflow-providers-standard==1.4.0
+apache-airflow-providers-standard==1.4.1
 apache-airflow-providers-tableau==5.1.1
 apache-airflow-providers-telegram==4.8.1
 apache-airflow-providers-teradata==3.2.0
