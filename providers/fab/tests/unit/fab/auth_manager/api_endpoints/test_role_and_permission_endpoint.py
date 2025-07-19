@@ -37,26 +37,33 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def configured_app(minimal_app_for_auth_api):
     app = minimal_app_for_auth_api
-    create_user(
-        app,
-        username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
-        ],
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
-    yield app
+    with app.app_context():
+        create_user(
+            app,
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
+            ],
+        )
+        create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+        yield app
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
+        delete_user(app, username="test")
+        delete_user(app, username="test_no_permissions")
+        session = app.appbuilder.session
+        existing_roles = set(EXISTING_ROLES)
+        existing_roles.update(["Test", "TestNoPermissions"])
+        roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
+        for role in roles:
+            delete_role(app, role.name)
 
 
 class TestRoleEndpoint:
@@ -64,18 +71,6 @@ class TestRoleEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
-
-    def teardown_method(self):
-        """
-        Delete all roles except these ones.
-        Test and TestNoPermissions are deleted by delete_user above
-        """
-        session = self.app.appbuilder.get_session
-        existing_roles = set(EXISTING_ROLES)
-        existing_roles.update(["Test", "TestNoPermissions"])
-        roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
-        for role in roles:
-            delete_role(self.app, role.name)
 
 
 class TestGetRoleEndpoint(TestRoleEndpoint):

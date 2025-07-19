@@ -33,7 +33,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
 
 TEST_EMAIL = "test@example.org"
 
-DEFAULT_TIME = "2021-01-09T13:59:56.336000+00:00"
+DEFAULT_TIME = "2021-01-09T13:59:56"
 
 pytestmark = pytest.mark.db_test
 
@@ -41,14 +41,15 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
     app = minimal_app_for_auth_api
-    create_role(
-        app,
-        name="TestRole",
-        permissions=[],
-    )
-    yield app
+    with minimal_app_for_auth_api.app_context():
+        create_role(
+            app,
+            name="TestRole",
+            permissions=[],
+        )
+        yield app
 
-    delete_role(app, "TestRole")
+        delete_role(app, "TestRole")
 
 
 class TestUserBase:
@@ -57,7 +58,7 @@ class TestUserBase:
         self.app = configured_app
         self.client = self.app.test_client()
         self.role = self.app.appbuilder.sm.find_role("TestRole")
-        self.session = self.app.appbuilder.get_session
+        self.session = self.app.appbuilder.session
 
     def teardown_method(self):
         user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
