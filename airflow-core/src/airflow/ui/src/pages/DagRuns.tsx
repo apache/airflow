@@ -52,6 +52,7 @@ const {
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
+  TRIGGERING_USER_NAME: TRIGGERING_USER_NAME_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
@@ -168,6 +169,7 @@ export const DagRuns = () => {
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
+  const filteredTriggeringUserName = searchParams.get(TRIGGERING_USER_NAME_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
 
@@ -192,6 +194,16 @@ export const DagRuns = () => {
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
+
+  // Client-side filtering for triggering_user_name (backend doesn't support this filter yet)
+  const filteredDagRuns =
+    data?.dag_runs.filter((run) => {
+      if (filteredTriggeringUserName === null || filteredTriggeringUserName === "") {
+        return true;
+      }
+
+      return run.triggering_user_name?.toLowerCase().includes(filteredTriggeringUserName.toLowerCase());
+    }) ?? [];
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
@@ -245,6 +257,22 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleTriggeringUserNameChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete(TRIGGERING_USER_NAME_PARAM);
+      } else {
+        searchParams.set(TRIGGERING_USER_NAME_PARAM, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   return (
     <>
       <HStack paddingY="4px">
@@ -255,6 +283,15 @@ export const DagRuns = () => {
             hotkeyDisabled={false}
             onChange={handleRunIdPatternChange}
             placeHolder={translate("dags:filters.runIdPatternFilter")}
+          />
+        </Box>
+        <Box>
+          <SearchBar
+            defaultValue={filteredTriggeringUserName ?? ""}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleTriggeringUserNameChange}
+            placeHolder="Filter by triggering user..."
           />
         </Box>
         <Select.Root
@@ -327,13 +364,13 @@ export const DagRuns = () => {
       </HStack>
       <DataTable
         columns={runColumns(translate, dagId)}
-        data={data?.dag_runs ?? []}
+        data={filteredDagRuns}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName={translate("common:dagRun_other")}
         onStateChange={setTableURLState}
-        total={data?.total_entries}
+        total={filteredDagRuns.length}
       />
     </>
   );
