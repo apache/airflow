@@ -640,7 +640,18 @@ export const UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn = ({ dagId, dagR
 export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetails>>;
 export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
-export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [])];
+export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }: {
+  dagIdPattern?: string;
+  dagRunId?: string[];
+  hitlDetailBodySearch?: string;
+  hitlDetailResponseReceived?: boolean;
+  hitlDetailSubjectSearch?: string;
+  hitlDetailUserId?: string[];
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  state?: string[];
+} = {}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [{ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";

@@ -52,6 +52,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
@@ -749,4 +750,28 @@ state_priority: list[None | TaskInstanceState] = [
 # Connections
 QueryConnectionIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Connection.conn_id, "connection_id_pattern"))
+]
+
+# Human in the loop
+QueryDagRunIdFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(filter_param_factory(DagRun.id, list[str], filter_name="dag_run_id")),
+]
+QueryHITLDetailResponseReceivedFilter = Annotated[
+    FilterParam[bool | None],
+    Depends(
+        filter_param_factory(
+            HITLDetail.response_received, bool | None, filter_name="hitl_detail_response_received"
+        )
+    ),
+]
+QueryHITLDetailUserIdFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(filter_param_factory(HITLDetail.user_id, list[str], filter_name="hitl_detail_user_id")),
+]
+QueryHITLDetailSubjectSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(HITLDetail.subject, "hitl_detail_subject_search"))
+]
+QueryHITLDetailBodySearch = Annotated[
+    _SearchParam, Depends(search_param_factory(HITLDetail.body, "hitl_detail_body_search"))
 ]
