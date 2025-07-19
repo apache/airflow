@@ -2798,7 +2798,7 @@ def test_teardown_and_fail_fast(dag_maker):
     in this case, the second teardown skips because its setup skips.
     """
     from airflow.sdk import task as task_decorator
-    from airflow.utils.task_group import TaskGroup
+    from airflow.sdk.definitions.taskgroup import TaskGroup
 
     with dag_maker(fail_fast=True) as dag:
         for num in (1, 2):
