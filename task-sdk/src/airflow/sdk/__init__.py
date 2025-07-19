@@ -103,6 +103,7 @@ __lazy_imports: dict[str, str] = {
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
+    "WeightRule": ".definitions.weight_rule",
     "XComArg": ".definitions.xcom_arg",
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",

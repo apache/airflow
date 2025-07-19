@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.utils.weight_rule import WeightRule
+from airflow.sdk.definitions.weight_rule import WeightRule
 
 
 class TestWeightRule:
     def test_valid_weight_rules(self):
+        """Test valid weight rules."""
         assert WeightRule.is_valid(WeightRule.DOWNSTREAM)
         assert WeightRule.is_valid(WeightRule.UPSTREAM)
         assert WeightRule.is_valid(WeightRule.ABSOLUTE)
