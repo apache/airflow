@@ -54,6 +54,14 @@ def minimal_app_for_auth_api():
                     "core",
                     "auth_manager",
                 ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                (
+                    "webserver",
+                    "cookie_secure",
+                ): "False",
+                (
+                    "webserver",
+                    "cookie_samesite",
+                ): "Lax",
             }
         ):
             _app = app.create_app(enable_plugins=False)
