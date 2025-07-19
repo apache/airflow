@@ -618,10 +618,10 @@ ARG_API_SERVER_HOSTNAME = Arg(
     default=conf.get("api", "host"),
     help="Set the host on which to run the API server",
 )
-ARG_API_SERVER_ACCESS_LOGFILE = Arg(
-    ("-A", "--access-logfile"),
-    default=conf.get("api", "access_logfile"),
-    help="The logfile to store the access log. Use '-' to print to stdout",
+ARG_API_SERVER_LOG_CONFIG = Arg(
+    ("--log-config",),
+    default=conf.get("api", "log_config", fallback=None),
+    help="(Optional) Path to the logging configuration file for the uvicorn server. If not set, the default uvicorn logging configuration will be used.",
 )
 ARG_API_SERVER_APPS = Arg(
     ("--apps",),
@@ -1795,7 +1795,7 @@ core_commands: list[CLICommand] = [
             ARG_DAEMON,
             ARG_STDOUT,
             ARG_STDERR,
-            ARG_API_SERVER_ACCESS_LOGFILE,
+            ARG_API_SERVER_LOG_CONFIG,
             ARG_API_SERVER_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
