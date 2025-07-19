@@ -62,7 +62,7 @@ class TestSqlAlchemyUtils:
 
         self.session = session
 
-    def test_utc_transformations(self):
+    def test_utc_transformations(self, testing_dag_bundle):
         """
         Test whether what we are storing is what we are retrieving
         for datetimes
@@ -74,8 +74,8 @@ class TestSqlAlchemyUtils:
 
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        DAG.bulk_write_to_db("testing", None, [dag], session=self.session)
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=self.session)
         run = dag.create_dagrun(
             run_id=iso_date,
             run_type=DagRunType.MANUAL,

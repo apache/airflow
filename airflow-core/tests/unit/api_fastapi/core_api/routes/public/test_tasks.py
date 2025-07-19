@@ -21,14 +21,20 @@ from datetime import datetime
 
 import pytest
 
+from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -77,6 +83,7 @@ class TestTaskEndpoint:
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
+        clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup(self, test_client) -> None:
@@ -235,9 +242,13 @@ class TestGetTask(TestTaskEndpoint):
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
             task1 >> task2
-
+        session = settings.Session()
+        bundle_name = "testing"
+        dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+        session.add(dag_model)
+        session.flush()
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
