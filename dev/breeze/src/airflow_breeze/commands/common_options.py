@@ -525,3 +525,10 @@ option_platform_single = click.option(
     callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
 )
+
+option_go_worker = click.option(
+    "--go-worker",
+    help="Start the go runner under go-sdk",
+    is_flag=True,
+    envvar="GO_WORKER",
+)
