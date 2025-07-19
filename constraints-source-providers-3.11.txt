@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-19T13:51:12.397012
+# This constraints file was automatically generated on 2025-07-19T19:43:22.604501
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -408,7 +408,7 @@ nest-asyncio==1.6.0
 networkx==3.5
 nh3==0.3.0
 nodeenv==1.9.1
-numpy==2.2.6
+numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
 openai==1.97.0
@@ -439,7 +439,7 @@ packaging==25.0
 pagerduty==3.1.0
 pandas-gbq==0.29.2
 pandas-stubs==2.3.0.250703
-pandas==2.2.3
+pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
@@ -557,7 +557,7 @@ rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.14.8
 rich==13.9.4
-rignore==0.6.2
+rignore==0.6.4
 roman-numerals-py==3.1.0
 rpds-py==0.26.0
 rsa==4.9.1

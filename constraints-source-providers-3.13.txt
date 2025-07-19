@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-19T13:49:56.001768
+# This constraints file was automatically generated on 2025-07-19T19:43:07.549489
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -536,7 +536,7 @@ rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.14.8
 rich==13.9.4
-rignore==0.6.2
+rignore==0.6.4
 roman-numerals-py==3.1.0
 rpds-py==0.26.0
 rsa==4.9.1
