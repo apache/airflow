@@ -44,7 +44,7 @@
     "lastExpired": "Ostatnio wygasły",
     "lastParsed": "Ostatnia analiza",
     "latestDagVersion": "Najnowsza wersja Daga",
-    "latestRun": "Ostatnie wykonanie",
+    "latestRun": "Ostatnie wykonanie Daga",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
     "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
@@ -63,7 +63,7 @@
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
-    "runType": "Typ wykonania",
+    "runType": "Typ wykonania Daga",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
     "triggeredBy": "Uruchomiony jako",
     "triggeringUser": "Użytkownik który uruchomił"
@@ -93,6 +93,7 @@
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
+    "hotkey": "e",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
   "expression": {
@@ -143,7 +144,7 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
-  "runId": "Identyfikator wykonania",
+  "runId": "Identyfikator wykonania Daga",
   "runTypes": {
     "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
@@ -167,6 +168,11 @@
   },
   "selectLanguage": "Wybierz język",
   "showDetailsPanel": "Pokaż panel szczegółów",
+  "source": {
+    "hide": "Ukryj źródła",
+    "hotkey": "s",
+    "show": "Pokaż źródła"
+  },
   "sourceAssetEvent_few": "Zdarzenia źródłowych zasobów",
   "sourceAssetEvent_many": "Zdarzeń źródłowych zasobów",
   "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
@@ -254,6 +260,11 @@
     "lastHour": "Ostatnia godzina",
     "pastWeek": "Poprzedni tydzień"
   },
+  "timestamp": {
+    "hide": "Ukryj znaczniki czasu",
+    "hotkey": "t",
+    "show": "Pokaż znaczniki czasu"
+  },
   "timezone": "Strefa czasowa",
   "timezoneModal": {
     "current-timezone": "Obecny czas w",
@@ -303,6 +314,7 @@
   "tryNumber": "Numer próby",
   "user": "Profil",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
