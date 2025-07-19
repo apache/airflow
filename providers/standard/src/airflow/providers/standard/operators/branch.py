@@ -56,9 +56,7 @@ class BranchMixIn(SkipMixin):
         if TYPE_CHECKING:
             assert dag
 
-        if branches_to_execute is None:
-            return
-        elif isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
+        if isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:
