@@ -117,6 +117,7 @@
   "note": {
     "add": "Add a note",
     "dagRun": "Dag Run Note",
+    "edit": "Edit note",
     "label": "Note",
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
