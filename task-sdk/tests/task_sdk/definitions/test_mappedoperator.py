@@ -732,3 +732,25 @@ def test_setters(setter_name: str, old_value: object, new_value: object) -> None
     assert getattr(op, setter_name) == old_value
     setattr(op, setter_name, new_value)
     assert getattr(op, setter_name) == new_value
+
+
+def test_mapped_operator_in_task_group_no_duplicate_prefix():
+    """Test that task_id doesn't get duplicated prefix when unmapping a mapped operator in a task group."""
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+
+    with DAG("test-dag") as dag:
+        with TaskGroup(group_id="tg1") as tg1:
+            # Create a mapped task within the task group
+            mapped_task = MockOperator.partial(task_id="mapped_task", arg1="a").expand(arg2=["a", "b", "c"])
+
+    # Check the mapped operator has correct task_id
+    assert mapped_task.task_id == "tg1.mapped_task"
+    assert mapped_task.task_group == tg1
+    assert mapped_task.task_group.group_id == "tg1"
+
+    # Simulate what happens during execution - unmap the operator
+    # unmap expects resolved kwargs
+    unmapped = mapped_task.unmap({"arg2": "a"})
+
+    # The unmapped operator should have the same task_id, not a duplicate prefix
+    assert unmapped.task_id == "tg1.mapped_task", f"Expected 'tg1.mapped_task' but got '{unmapped.task_id}'"
