@@ -46,6 +46,7 @@ export const Dag = () => {
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
     { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+    { icon: <TaskIcon />, label: translate("tabs.hitlTIs"), value: "hitl" },
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
