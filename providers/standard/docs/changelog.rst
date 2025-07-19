@@ -35,6 +35,14 @@
 Changelog
 ---------
 
+1.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sensor skipping in Airflow 3.x branching operators (#53455)``
+
 1.4.0
 .....
 

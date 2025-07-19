@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-standard``
 
-Release: ``1.4.0``
+Release: ``1.4.1``
 
 
 Airflow Standard Provider
