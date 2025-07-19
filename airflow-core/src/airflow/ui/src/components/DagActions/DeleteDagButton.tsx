@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonProps, useDisclosure } from "@chakra-ui/react";
+import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
@@ -28,17 +28,10 @@ import { useDeleteDag } from "src/queries/useDeleteDag";
 type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
-  readonly variant?: "ghost" | "outline" | "solid";
   readonly withText?: boolean;
 } & ButtonProps;
 
-const DeleteDagButton = ({
-  dagDisplayName,
-  dagId,
-  variant = "solid",
-  withText = true,
-  ...rest
-}: DeleteDagButtonProps) => {
+const DeleteDagButton = ({ dagDisplayName, dagId, withText = true, ...rest }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const { t: translate } = useTranslation("dags");
@@ -52,14 +45,13 @@ const DeleteDagButton = ({
   const { width } = rest;
 
   return (
-    <>
+    <Box {...(Boolean(width) ? { width } : {})}>
       <ActionButton
         actionName={translate("dagActions.delete.button")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dagActions.delete.button")}
-        variant={variant}
         withText={withText}
         {...(Boolean(width) ? { width } : {})}
       />
@@ -73,7 +65,7 @@ const DeleteDagButton = ({
         title={translate("dagActions.delete.button")}
         warningText={translate("dagActions.delete.warning")}
       />
-    </>
+    </Box>
   );
 };
 
