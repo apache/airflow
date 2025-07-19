@@ -19,6 +19,10 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+ScalarMapContainer = pytest.importorskip("google._upb._message.ScalarMapContainer")
+
 from airflow.providers.google.cloud.hooks.vertex_ai.ray import RayHook
 
 from unit.google.cloud.utils.base_gcp_mock import (
