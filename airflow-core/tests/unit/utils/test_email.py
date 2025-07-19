@@ -429,6 +429,7 @@ class TestEmailOauth2:
         args, _ = smtp_mock.auth.call_args
         assert args[0] == "XOAUTH2"
 
+    @pytest.mark.db_test
     @mock.patch("airflow.utils.email._get_smtp_connection")
     def test_send_mime_email_oauth2_missing_token(self, mock_get_smtp):
         smtp_mock = mock.Mock()
