@@ -75,6 +75,7 @@ export const Grid = ({ limit }: Props) => {
   }, [gridRuns, setHasActiveRun]);
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
@@ -106,9 +107,22 @@ export const Grid = ({ limit }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar key={dr.run_id} max={max} nodes={flatNodes} run={dr} />
-            ))}
+            {gridRuns?.map((dr: GridRunsResponse) => {
+              const showVersionIndicator = dr.is_version_changed;
+
+              return (
+                <Bar
+                  hasMixedVersions={dr.has_mixed_versions}
+                  key={dr.run_id}
+                  latestVersionNumber={dr.latest_version_number}
+                  max={max}
+                  nodes={flatNodes}
+                  run={dr}
+                  showVersionIndicator={showVersionIndicator}
+                  versionNumber={dr.dag_version_number}
+                />
+              );
+            })}
           </Flex>
           {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
             <Link to={`/dags/${dagId}`}>
