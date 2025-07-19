@@ -21,9 +21,11 @@ import datetime
 import json
 import uuid
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
@@ -90,6 +92,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -106,6 +109,11 @@ def make_api_client(
     return Client(base_url=base_url, transport=transport, token=token, kind=kind)
 
 
+class HelloCollectionResponse(BaseModel):
+    hello: list[str]
+    total_entries: int
+
+
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
@@ -113,6 +121,50 @@ class TestBaseOperations:
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
             client.connections.get("1")
+
+    @pytest.mark.parametrize(
+        "total_entries, offset, limit, expected_response",
+        [
+            (0, 0, 50, [HelloCollectionResponse(hello=[], total_entries=0)]),
+            (1, 0, 50, [HelloCollectionResponse(hello=["hello"], total_entries=1)]),
+            (3, 2, 50, [HelloCollectionResponse(hello=["hello"], total_entries=3)]),
+            (
+                20,
+                5,
+                5,
+                [
+                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                ],
+            ),
+            (2, 3, 50, []),
+        ],
+    )
+    def test_execute_list(self, total_entries, limit, offset, expected_response):
+        mock_operation = MagicMock(spec=BaseOperations)
+        mocked_response = []
+        total_entries = total_entries
+        if total_entries < limit:
+            if offset < total_entries:
+                if offset == 0:
+                    mocked_response.append([HelloCollectionResponse(hello=["hello"], total_entries=1)])
+                    mock_operation.execute_list.return_value = mocked_response
+                elif offset > 0:
+                    mocked_response.append([HelloCollectionResponse(hello=["hello"], total_entries=3)])
+                    mock_operation.execute_list.return_value = mocked_response
+            else:
+                mocked_response.append([])
+                mock_operation.execute_list.return_value = mocked_response
+        else:
+            while offset < total_entries:
+                response = HelloCollectionResponse(hello=["hello"], total_entries=total_entries)
+                mocked_response.append(response)
+                offset += limit
+            mock_operation.execute_list.return_value = mocked_response
+        assert mock_operation.execute_list(
+            path="", data_model=HelloCollectionResponse, offset=offset, limit=limit
+        )
 
 
 class TestAssetsOperations:
@@ -238,7 +290,9 @@ class TestAssetsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.list()
-        assert response == assets_collection_response
+        assets_collection_list_response = []
+        assets_collection_list_response.append(assets_collection_response)
+        assert response == assets_collection_list_response
 
     def test_list_by_alias(self):
         assets_collection_response = AssetAliasCollectionResponse(
@@ -368,7 +422,9 @@ class TestBackfillOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.backfills.list()
-        assert response == self.backfills_collection_response
+        backfills_collection_list_response = []
+        backfills_collection_list_response.append(self.backfills_collection_response)
+        assert response == backfills_collection_list_response
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -509,7 +565,9 @@ class TestConnectionsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.list()
-        assert response == self.connections_response
+        connections_list_response = []
+        connections_list_response.append(self.connections_response)
+        assert response == connections_list_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -726,7 +784,9 @@ class TestDagOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.list()
-        assert response == self.dag_collection_response
+        dag_collection_list_response = []
+        dag_collection_list_response.append(self.dag_collection_response)
+        assert response == dag_collection_list_response
 
     def test_patch(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -875,7 +935,9 @@ class TestDagRunOperations:
             state=DagRunState.RUNNING,
             limit=1,
         )
-        assert response == self.dag_run_collection_response
+        dag_run_collection_list_response = []
+        dag_run_collection_list_response.append(self.dag_run_collection_response)
+        assert response == dag_run_collection_list_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -917,7 +979,9 @@ class TestJobsOperations:
             hostname="hostname",
             is_alive=True,
         )
-        assert response == self.job_collection_response
+        job_collection_list_response = []
+        job_collection_list_response.append(self.job_collection_response)
+        assert response == job_collection_list_response
 
 
 class TestPoolsOperations:
@@ -975,7 +1039,9 @@ class TestPoolsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.list()
-        assert response == self.pool_response_collection
+        pool_collection_response_list = []
+        pool_collection_response_list.append(self.pool_response_collection)
+        assert response == pool_collection_response_list
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1023,7 +1089,9 @@ class TestProvidersOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.providers.list()
-        assert response == self.provider_collection_response
+        provider_collection_list_response = []
+        provider_collection_list_response.append(self.provider_collection_response)
+        assert response == provider_collection_list_response
 
 
 class TestVariablesOperations:
@@ -1078,7 +1146,9 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.list()
-        assert response == self.variable_collection_response
+        variable_response = []
+        variable_response.append(self.variable_collection_response)
+        assert response == variable_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
