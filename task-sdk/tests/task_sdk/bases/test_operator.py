@@ -776,6 +776,37 @@ class TestBaseOperator:
         )
         assert isinstance(op, Branch)
 
+    def test_validate_executor_config_valid(self):
+        """Test that valid executor_config keys are accepted."""
+        task = BaseOperator(
+            task_id="test_valid_executor_config",
+            executor_config={"pod_override": "some_pod_override", "pod_template_file": "some_template_file"},
+        )
+        # No exception should be raised
+        assert task.executor_config == {
+            "pod_override": "some_pod_override",
+            "pod_template_file": "some_template_file",
+        }
+
+    def test_validate_executor_config_invalid_keys(self):
+        """Test that invalid executor_config keys raise an AirflowException."""
+        with pytest.raises(
+            RuntimeError,
+            match="Invalid executor_config keys for task 'test_invalid_executor_config': \\['invalid_key'\\]",
+        ):
+            BaseOperator(task_id="test_invalid_executor_config", executor_config={"invalid_key": "value"})
+
+    def test_validate_executor_config_with_dag(self):
+        """Test that error message includes DAG ID when available."""
+        dag = DAG(dag_id="test_dag", schedule=None)
+        with pytest.raises(
+            RuntimeError,
+            match="Invalid executor_config keys for task 'test_invalid_executor_config': \\['invalid_key'\\]. Only 'pod_override' and 'pod_template_file' are allowed.",
+        ):
+            BaseOperator(
+                task_id="test_invalid_executor_config", executor_config={"invalid_key": "value"}, dag=dag
+            )
+
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
