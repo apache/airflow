@@ -282,9 +282,15 @@ def get_hitl_details(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "run_id"],
-                TI,
-            ).dynamic_depends(default="map_index"),
+                [
+                    "ti_id",
+                    "subject",
+                    "response_at",
+                    "task_instance.dag_id",
+                    "task_instance.run_id",
+                ],
+                HITLDetailModel,
+            ).dynamic_depends(),
         ),
     ],
     session: SessionDep,
