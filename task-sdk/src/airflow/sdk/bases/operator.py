@@ -1077,13 +1077,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
-
-        if executor:
-            warnings.warn(
-                "Specifying executors for operators is not yet supported, the value {executor!r} will have no effect",
-                category=UserWarning,
-                stacklevel=2,
-            )
         self.executor = executor
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user
