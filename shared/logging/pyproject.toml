@@ -16,19 +16,45 @@
 # under the License.
 
 [project]
-name = "airflow-shared-logging"
+name = "apache-airflow-shared-logging"
 description = "Shared logging code for Airflow distributions"
 version = "0.0"
 classifiers = [
     "Private :: Do Not Upload",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow_shared/logging", "src/airflow_shared"]
 
 dependencies = [
-  # DO NOT PUT ANY DEPENDENCIES HERE. Since this distribution is not
-  # installable, any dependencies should be put directly into the projects
-  # which include this
+    "structlog>=23.3.0",
+    "apache-airflow-shared-timezones",
+    # Beginning of automatically included dependencies from shared airflow packages
+    # (this will be automatically updated by pre-commit hooks)
+    # apache-airflow-shared-timezones",
+    "pendulum",
+    # End of automatically included dependencies from shared airflow packages
+
 ]
+
+[dependency-groups]
+dev = [
+    "structlog[dev]>=23.3.0",
+    "apache-airflow-devel-common",
+    "apache-airflow-shared-timezones",
+    # Beginning of automatically included dependencies from shared airflow packages
+    # (this will be automatically updated by pre-commit hooks)
+    # apache-airflow-shared-timezones",
+    "pendulum",
+    # End of automatically included dependencies from shared airflow packages
+]
+
+[tool.hatch.version]
+path = "src/airflow/sdk/__init__.py"
 
 [tool.ruff]
 extend = "../../pyproject.toml"
