@@ -215,8 +215,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          default:
+          - dag_id
           title: Order By
       - name: is_favorite
         in: query
@@ -436,8 +439,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: dag_id
         in: query
@@ -510,8 +516,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: run_after_gte
         in: query
@@ -595,8 +604,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: run_after_gte
         in: query

@@ -248,6 +248,11 @@ class TestGetDags(TestDagEndpoint):
                 3,
                 [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
+            (
+                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG2_ID, DAG1_ID],
+            ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),

@@ -1935,7 +1935,7 @@ export type GetAssetsData = {
     namePattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -1951,7 +1951,7 @@ export type GetAssetAliasesData = {
      */
     namePattern?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
@@ -1966,7 +1966,7 @@ export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
@@ -2051,7 +2051,7 @@ export type ListBackfillsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type ListBackfillsResponse = BackfillCollectionResponse;
@@ -2097,7 +2097,7 @@ export type ListBackfillsUiData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
@@ -2129,7 +2129,7 @@ export type GetConnectionsData = {
     connectionIdPattern?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type GetConnectionsResponse = ConnectionCollectionResponse;
@@ -2202,7 +2202,7 @@ export type GetDagRunsData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
     /**
@@ -2289,7 +2289,7 @@ export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     warningType?: DagWarningType | null;
 };
 
@@ -2314,7 +2314,7 @@ export type GetDagsData = {
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
@@ -2382,7 +2382,7 @@ export type UnfavoriteDagResponse = void;
 export type GetDagTagsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2407,7 +2407,7 @@ export type GetDagsUiData = {
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
@@ -2432,7 +2432,7 @@ export type GetEventLogsData = {
     limit?: number;
     mapIndex?: number | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     owner?: string | null;
     runId?: string | null;
     taskId?: string | null;
@@ -2490,7 +2490,7 @@ export type GetMappedTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
     runAfterGte?: string | null;
@@ -2574,7 +2574,7 @@ export type GetTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
     runAfterGte?: string | null;
@@ -2691,7 +2691,7 @@ export type GetImportErrorResponse = ImportErrorResponse;
 export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
@@ -2706,7 +2706,7 @@ export type GetJobsData = {
     jobType?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     startDateGte?: string | null;
     startDateLte?: string | null;
 };
@@ -2745,7 +2745,7 @@ export type PatchPoolResponse = PoolResponse;
 export type GetPoolsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2853,7 +2853,7 @@ export type PatchVariableResponse = VariableResponse;
 export type GetVariablesData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2893,7 +2893,7 @@ export type GetDagVersionsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     versionNumber?: number;
 };
 
@@ -2985,7 +2985,7 @@ export type GetDagStructureData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
 };
@@ -2996,7 +2996,7 @@ export type GetGridRunsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
 };
