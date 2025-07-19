@@ -555,6 +555,8 @@ class TaskInstance(Base, LoggingMixin):
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
+    hitl_detail = relationship("HITLDetail", lazy="noload", uselist=False)
+
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
     task_instance_note = relationship(
@@ -682,7 +684,7 @@ class TaskInstance(Base, LoggingMixin):
             runtime_ti.map_index = -1
         ti = TaskInstance(
             run_id=runtime_ti.run_id,
-            task=runtime_ti.task,  # type: ignore[arg-type]
+            task=runtime_ti.task,
             map_index=runtime_ti.map_index,
             dag_version_id=runtime_ti.dag_version_id,
         )
@@ -846,7 +848,7 @@ class TaskInstance(Base, LoggingMixin):
         self.pool_slots = task.pool_slots
         with contextlib.suppress(Exception):
             # This method is called from the different places, and sometimes the TI is not fully initialized
-            self.priority_weight = self.task.weight_rule.get_weight(self)  # type: ignore[arg-type]
+            self.priority_weight = self.task.weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
@@ -1264,7 +1266,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Closing all pooled connections to prevent
         # "max number of connections reached"
-        settings.engine.dispose()  # type: ignore
+        settings.engine.dispose()
         if verbose:
             if mark_success:
                 cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)
@@ -1777,7 +1779,7 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
         failure_context = TaskInstance.fetch_handle_failure_context(
-            ti=self,  # type: ignore[arg-type]
+            ti=self,
             error=error,
             test_mode=test_mode,
             session=session,
@@ -1985,7 +1987,7 @@ class TaskInstance(Base, LoggingMixin):
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
         if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task  # type: ignore[assignment]
+            self.task = context["ti"].task
 
         return original_task
 

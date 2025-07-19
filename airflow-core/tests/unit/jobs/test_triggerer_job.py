@@ -76,17 +76,17 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
     yield  # Test runs here
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):

@@ -52,6 +52,9 @@ from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, Base
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.databricks.operators.databricks_workflow import (
+        DatabricksWorkflowTaskGroup,
+    )
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
@@ -60,7 +63,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models import XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 DEFER_METHOD_NAME = "execute_complete"
@@ -1428,9 +1431,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             if not self.workflow_run_metadata:
                 launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
                 self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
-            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
-                **self.workflow_run_metadata
-            )
+            workflow_run_metadata = WorkflowRunMetadata(**self.workflow_run_metadata)
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
 
