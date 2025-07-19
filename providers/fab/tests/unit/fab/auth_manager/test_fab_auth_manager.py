@@ -23,12 +23,12 @@ from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 import pytest
-from flask import Flask, g
+from flask import g
 
-from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
-from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
+from airflow.providers.fab.www.app import create_app
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.db import resetdb
 
@@ -110,17 +110,14 @@ def flask_app():
             ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
         }
     ):
-        yield Flask(__name__)
+        app = create_app(enable_plugins=False)
+        with app.app_context():
+            yield app
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
-    flask_app.config["AUTH_RATE_LIMITED"] = False
-    flask_app.config["SERVER_NAME"] = "localhost"
-    appbuilder = init_appbuilder(flask_app, enable_plugins=False)
-    auth_manager = FabAuthManager()
-    auth_manager.appbuilder = appbuilder
-    return auth_manager
+    return get_auth_manager()
 
 
 @pytest.mark.db_test
@@ -148,7 +145,7 @@ class TestFabAuthManager:
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
         result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
-        assert user == result
+        assert user.get_id() == result.get_id()
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
@@ -667,15 +664,14 @@ class TestFabAuthManager:
         ],
     )
     def test_get_authorized_dag_ids(
-        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, dag_maker, flask_app
+        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, flask_app, dag_maker
     ):
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
         with dag_maker("test_dag2"):
             EmptyOperator(task_id="task1")
-
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+        dag_maker.session.commit()
+        dag_maker.session.close()
 
         user = create_user(
             flask_app,
@@ -683,6 +679,9 @@ class TestFabAuthManager:
             role_name="test",
             permissions=user_permissions,
         )
+
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
 
         results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
         assert results == expected_results
@@ -697,6 +696,8 @@ class TestFabAuthManager:
             pass
 
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
+        # Invalidate the cache
+        del auth_manager_with_appbuilder.__dict__["security_manager"]
         assert isinstance(auth_manager_with_appbuilder.security_manager, TestSecurityManager)
 
     def test_security_manager_wrong_inheritance_raise_exception(
@@ -706,7 +707,8 @@ class TestFabAuthManager:
             pass
 
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
-
+        # Invalidate the cache
+        del auth_manager_with_appbuilder.__dict__["security_manager"]
         with pytest.raises(
             AirflowConfigException,
             match="Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride.",
@@ -723,7 +725,6 @@ class TestFabAuthManager:
 
     @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
     def test_get_extra_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
-        auth_manager_with_appbuilder.register_views()
         result = auth_manager_with_appbuilder.get_extra_menu_items(user=Mock())
         assert len(result) == 5
         assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
