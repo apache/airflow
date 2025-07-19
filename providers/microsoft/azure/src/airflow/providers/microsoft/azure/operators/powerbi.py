@@ -50,7 +50,7 @@ class PowerBILink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
         url = (
-            "https://app.powerbi.com"  # type: ignore[attr-defined]
+            "https://app.powerbi.com"
             f"/groups/{operator.group_id}/datasets/{operator.dataset_id}"  # type: ignore[attr-defined]
             "/details?experience=power-bi"
         )

@@ -86,7 +86,7 @@ class SageMakerBaseOperator(AwsBaseOperator[SageMakerHook]):
         super().__init__(**kwargs)
         self.config = config
 
-    def parse_integer(self, config: dict, field: list[str] | str) -> None:
+    def parse_integer(self, config: dict | list, field: list[str] | str) -> None:
         """Recursive method for parsing string fields holding integer values to integers."""
         if len(field) == 1:
             if isinstance(config, list):
@@ -993,7 +993,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Tuning Job creation failed: {response}")
-
+        description: dict = {}
         if self.deferrable:
             self.defer(
                 trigger=SageMakerTrigger(
@@ -1009,7 +1009,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                     else None
                 ),
             )
-            description = {}  # never executed but makes static checkers happy
         elif self.wait_for_completion:
             description = self.hook.check_status(
                 self.config["HyperParameterTuningJobName"],

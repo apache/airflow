@@ -68,7 +68,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
+from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
@@ -80,11 +80,10 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     get_container_termination_message,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
+from airflow.providers.cncf.kubernetes.version_compat import XCOM_RETURN_KEY, BaseOperator
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
-from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -579,10 +578,15 @@ class KubernetesPodOperator(BaseOperator):
             pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
                 # If pod is terminated then delete the pod an create a new as not possible to get xcom
-                pod_phase = (
-                    pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
-                )
-                if pod_phase and pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED):
+                pod_phase = pod.status.phase if pod.status and pod.status.phase else None
+                pod_reason = pod.status.reason.lower() if pod.status and pod.status.reason else ""
+                if pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED) and pod_reason != "evicted":
+                    self.log.info(
+                        "Reusing existing pod '%s' (phase=%s, reason=%s) since it is not terminated or evicted.",
+                        pod.metadata.name,
+                        pod_phase,
+                        pod_reason,
+                    )
                     return pod
 
                 self.log.info(

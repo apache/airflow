@@ -19,7 +19,9 @@
 import { createContext } from "react";
 
 export type OpenGroupsContextType = {
+  allGroupIds: Array<string>;
   openGroupIds: Array<string>;
+  setAllGroupIds: (groupIds: Array<string>) => void;
   setOpenGroupIds: (groupIds: Array<string>) => void;
   toggleGroupId: (groupId: string) => void;
 };

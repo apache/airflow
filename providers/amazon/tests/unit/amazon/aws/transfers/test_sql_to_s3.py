@@ -30,8 +30,9 @@ from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
 class TestSqlToS3Operator:
+    @pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_csv(self, mock_s3_hook):
+    def test_execute_csv(self, mock_s3_hook, dtype_backend):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -49,6 +50,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
+            read_pd_kwargs={"dtype_backend": dtype_backend},
             pd_kwargs={"index": False, "header": False},
             dag=None,
         )
@@ -56,15 +58,18 @@ class TestSqlToS3Operator:
         op.execute(None)
 
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
-        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        get_df_mock.assert_called_once_with(
+            sql=query, parameters=None, df_type="pandas", dtype_backend=dtype_backend
+        )
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
         assert isinstance(file_obj, io.BytesIO)
         mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
             file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
         )
 
+    @pytest.mark.parametrize("dtype_backend", ["numpy_nullable", "pyarrow"])
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_parquet(self, mock_s3_hook):
+    def test_execute_parquet(self, mock_s3_hook, dtype_backend):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -82,6 +87,7 @@ class TestSqlToS3Operator:
             sql_conn_id="mysql_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
+            read_pd_kwargs={"dtype_backend": dtype_backend},
             file_format="parquet",
             replace=True,
             dag=None,
@@ -90,7 +96,10 @@ class TestSqlToS3Operator:
         op.execute(None)
 
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
-        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        get_df_mock.assert_called_once_with(
+            sql=query, parameters=None, df_type="pandas", dtype_backend=dtype_backend
+        )
+
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
         assert isinstance(file_obj, io.BytesIO)
         mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
@@ -185,11 +194,44 @@ class TestSqlToS3Operator:
             s3_key="s3_key",
             task_id="task_id",
             sql_conn_id="mysql_conn_id",
+            file_format=params["file_format"],
         )
         dirty_df = pd.DataFrame({"strings": ["a", "b", None], "ints": [1, 2, None]})
-        op._fix_dtypes(df=dirty_df, file_format=params["file_format"])
+        op._fix_dtypes(df=dirty_df, file_format=op.file_format)
         assert dirty_df["strings"].values[2] == params["null_string_result"]
         assert dirty_df["ints"].dtype.kind == "i"
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_fix_dtypes_not_called(self, mock_s3_hook):
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        mock_dbapi_hook = mock.Mock()
+        test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
+
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            read_pd_kwargs={"dtype_backend": "pyarrow"},
+            file_format="parquet",
+            replace=True,
+            dag=None,
+        )
+
+        op._get_hook = mock_dbapi_hook
+
+        with mock.patch.object(SqlToS3Operator, "_fix_dtypes") as mock_fix_dtypes:
+            op.execute(None)
+
+        mock_fix_dtypes.assert_not_called()
 
     def test_invalid_file_format(self):
         with pytest.raises(AirflowException):

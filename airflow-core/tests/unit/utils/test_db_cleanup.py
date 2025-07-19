@@ -30,13 +30,15 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
+from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
-    ARCHIVED_TABLES_FROM_DB_MIGRATIONS,
     CreateTableAs,
     _build_query,
     _cleanup_table,
@@ -350,7 +352,7 @@ class TestDBCleanup:
 
     @pytest.mark.parametrize(
         "skip_archive, expected_archives",
-        [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="do_archive")],
+        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
@@ -365,6 +367,9 @@ class TestDBCleanup:
             num_tis=num_tis,
         )
         with create_session() as session:
+            # cleanup any existing archived tables
+            for name in _get_archived_table_names(["dag_run"], session):
+                session.execute(text(f"DROP TABLE IF EXISTS {name}"))
             clean_before_date = base_date.add(days=5)
             _cleanup_table(
                 **config_dict["dag_run"].__dict__,
@@ -394,6 +399,9 @@ class TestDBCleanup:
         )
         try:
             with create_session() as session:
+                # cleanup any existing archived tables
+                for name in _get_archived_table_names(["dag_run"], session):
+                    session.execute(text(f"DROP TABLE IF EXISTS {name}"))
                 clean_before_date = base_date.add(days=5)
                 _cleanup_table(
                     **config_dict["dag_run"].__dict__,
@@ -406,8 +414,7 @@ class TestDBCleanup:
         except SQLAlchemyError:
             pass
         archived_table_names = _get_archived_table_names(["dag_run"], session)
-        assert len(archived_table_names) == 1
-        assert archived_table_names[0] in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+        assert len(archived_table_names) == 0
 
     def test_no_models_missing(self):
         """
@@ -665,8 +672,12 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        dag = DagModel(dag_id=f"test-dag_{uuid4()}")
-        session.add(dag)
+        dag_id = f"test-dag_{uuid4()}"
+        dag = DAG(dag_id=dag_id)
+        dm = DagModel(dag_id=dag_id)
+        session.add(dm)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
         for num in range(num_tis):
             start_date = base_date.add(days=num)
             dag_run = DagRun(
@@ -676,7 +687,9 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
                 start_date=start_date,
             )
             ti = TaskInstance(
-                PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
             )
             ti.dag_id = dag.dag_id
             ti.start_date = start_date
