@@ -309,7 +309,7 @@ def get_mapped_xcom_by_slice(
             else:
                 query = query.slice(-stop, -start)
 
-    values = [row.value for row in query.with_only_columns(XComModel.value)]
+    values = [row.value for row in session.scalars(query.with_only_columns(XComModel.value))]
     if step != 1:
         values = values[::step]
     return XComSequenceSliceResponse(values)
