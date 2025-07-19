@@ -260,6 +260,28 @@ Example of a parameterized DAG:
 
 **Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
 
+Wait for a DAG Run
+------------------
+
+Airflow provides an experimental API to **wait for a DAG run to complete**. This is particularly useful when integrating Airflow into external systems or automation pipelines that need to pause execution until a DAG finishes.
+
+The endpoint blocks (by polling) until the specified DAG run reaches a terminal state: ``success``, ``failed``, or ``canceled``.
+
+This endpoint streams responses using the **NDJSON (Newline-Delimited JSON)** format. Each line in the response is a JSON object representing the state of the DAG run at that moment.
+
+For example:
+
+.. code-block:: none
+
+   {"state": "running"}
+   {"state": "success", "results": {"op": 42}}
+
+This allows clients to monitor the run in real time and optionally collect XCom results from specific tasks.
+
+.. note::
+
+   This feature is **experimental** and may change or be removed in future Airflow versions.
+
 Using CLI
 ^^^^^^^^^^^
 
