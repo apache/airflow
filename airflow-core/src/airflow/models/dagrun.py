@@ -190,7 +190,7 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False, server_default="0")
-    backfill_id = Column(Integer, ForeignKey("backfill.id"), nullable=True)
+    backfill_id = Column(Integer, ForeignKey("backfill.id", ondelete="CASCADE"), nullable=True)
     """
     The backfill this DagRun is currently associated with.
 
