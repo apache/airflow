@@ -52,7 +52,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.task_group import (
+from airflow.sdk.definitions.taskgroup import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
