@@ -23,7 +23,7 @@ import csv
 from collections.abc import Sequence
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 try:
     import MySQLdb
@@ -97,7 +97,7 @@ class MySqlToHiveOperator(BaseOperator):
         recreate: bool = False,
         partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: int = csv.QUOTE_MINIMAL,
+        quoting: Literal[0, 1, 2, 3] = csv.QUOTE_MINIMAL,
         quotechar: str = '"',
         escapechar: str | None = None,
         mysql_conn_id: str = "mysql_default",
