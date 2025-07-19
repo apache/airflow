@@ -736,7 +736,19 @@ class MappedOperator(AbstractOperator):
             is_setup = kwargs.pop("is_setup", False)
             is_teardown = kwargs.pop("is_teardown", False)
             on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-            kwargs["task_id"] = self.task_id
+
+            # Fix task_id duplication issue: if task_group is present and has prefix enabled,
+            # strip the prefix from task_id to avoid double prefixing when BaseOperator.__init__ is called
+            if self.task_group and self.task_group.prefix_group_id:
+                # Strip the task group prefix to avoid double prefixing
+                prefix = f"{self.task_group.group_id}."
+                if self.task_id.startswith(prefix):
+                    kwargs["task_id"] = self.task_id[len(prefix) :]
+                else:
+                    kwargs["task_id"] = self.task_id
+            else:
+                kwargs["task_id"] = self.task_id
+
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             op.is_setup = is_setup
             op.is_teardown = is_teardown
