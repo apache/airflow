@@ -21,7 +21,7 @@ import csv
 import os
 from collections.abc import Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 from airflow.providers.microsoft.azure.version_compat import BaseOperator
@@ -45,6 +45,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param encoding: encoding type for the file.
     :param quotechar: Character to use in quoting.
     :param quoting: Quoting strategy. See csv library for more information.
+       It can take on any of the csv.QUOTE_* constants.
     """
 
     template_fields: Sequence[str] = ("filename", "sql", "sql_params")
@@ -63,7 +64,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         delimiter: str = ",",
         encoding: str = "utf-8",
         quotechar: str = '"',
-        quoting: int = csv.QUOTE_MINIMAL,
+        quoting: Literal[0, 1, 2, 3] = csv.QUOTE_MINIMAL,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
