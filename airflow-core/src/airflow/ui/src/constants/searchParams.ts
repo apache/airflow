@@ -36,6 +36,7 @@ export enum SearchParamsKeys {
   STATE = "state",
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
+  TRIGGERING_USER_NAME = "triggering_user_name",
   TRY_NUMBER = "try_number",
   VERSION_NUMBER = "version_number",
 }
