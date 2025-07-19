@@ -141,18 +141,6 @@ def async_get_batch():
     return func
 
 
-@pytest.fixture
-def async_get_operation():
-    def func(**kwargs):
-        m = mock.MagicMock()
-        m.configure_mock(**kwargs)
-        f = Future()
-        f.set_result(m)
-        return f
-
-    return func
-
-
 class TestDataprocClusterTrigger:
     def test_async_cluster_trigger_serialization_should_execute_successfully(self, cluster_trigger):
         classpath, kwargs = cluster_trigger.serialize()
