@@ -14,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-BASE_LINK = "https://console.cloud.google.com/lifesciences"
-LIFESCIENCES_LIST_LINK = BASE_LINK + "/pipelines?project={project_id}"
-
-
-class LifeSciencesLink(BaseGoogleLink):
-    """Helper class for constructing Life Sciences List link."""
-
-    name = "Life Sciences"
-    key = "lifesciences_key"
-    format_str = LIFESCIENCES_LIST_LINK
