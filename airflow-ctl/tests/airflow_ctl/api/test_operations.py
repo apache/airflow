@@ -1075,7 +1075,6 @@ class TestProvidersOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.providers.list()
-
         assert response == self.provider_collection_response
 
 
@@ -1131,7 +1130,6 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.list()
-
         assert response == self.variable_collection_response
 
     def test_create(self):

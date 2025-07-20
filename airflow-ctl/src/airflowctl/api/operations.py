@@ -154,7 +154,7 @@ class BaseOperations:
         self,
         *,
         path: str,
-        data_model,
+        data_model: type[T],
         offset: int = 0,
         limit: int = 50,
         params: dict | None = None,
@@ -165,9 +165,7 @@ class BaseOperations:
             self.response = self.client.get(path, params=shared_params)
             first_pass = data_model.model_validate_json(self.response.content)
             total_entries = first_pass.total_entries  # type: ignore[attr-defined]
-            print(total_entries)
             if total_entries < limit:
-                print(first_pass)
                 return first_pass
             for key, value in first_pass.model_dump().items():
                 if key != "total_entries" and isinstance(value, list):
@@ -184,7 +182,6 @@ class BaseOperations:
                 offset = offset + limit
                 entry_list.extend(getattr(entry, key))
             obj = data_model(**{key: entry_list, "total_entries": total_entries})
-            print(data_model.model_validate(obj.model_dump()))
             return data_model.model_validate(obj.model_dump())
         except ServerResponseError as e:
             raise e
@@ -228,7 +225,7 @@ class AssetsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> AssetAliasCollectionResponse | ServerResponseError:
+    def list(self) -> AssetCollectionResponse | ServerResponseError:
         """List all assets from the API server."""
         return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
@@ -594,7 +591,7 @@ class PoolsOperations(BaseOperations):
 
     def list(self) -> PoolCollectionResponse | ServerResponseError:
         """List all pools."""
-        return super().execute_list(path="pools", data_model=PoolCollectionResponse, offset=2, limit=5)
+        return super().execute_list(path="pools", data_model=PoolCollectionResponse)
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""

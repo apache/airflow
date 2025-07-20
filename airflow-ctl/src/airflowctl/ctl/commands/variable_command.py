@@ -87,6 +87,7 @@ def export(args, api_client=NEW_API_CLIENT) -> None:
     success_message = "[green]Export successful! {total_entries} variable(s) to {file}[/green]"
     var_dict = {}
     variables = api_client.variables.list()
+
     for variable in variables.variables:
         if variable.description:
             var_dict[variable.key] = {
@@ -98,5 +99,4 @@ def export(args, api_client=NEW_API_CLIENT) -> None:
 
     with open(Path(args.file), "w") as var_file:
         json.dump(var_dict, var_file, sort_keys=True, indent=4)
-
     rich.print(success_message.format(total_entries=variables.total_entries, file=args.file))
