@@ -46,6 +46,12 @@ def create_edge_worker_api_app() -> FastAPI:
     edge_worker_api_app.include_router(worker_router, prefix="/v1")
     edge_worker_api_app.include_router(health_router, prefix="/v1")
 
+    # Fix mimetypes to serve cjs files correctly
+    import mimetypes
+
+    if ".cjs" not in mimetypes.suffix_map:
+        mimetypes.add_type("application/javascript", ".cjs")
+
     static_files = Path(__file__).parents[1] / "plugins/www/dist"
     edge_worker_api_app.mount(
         "/static",
