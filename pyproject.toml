@@ -151,7 +151,7 @@ packages = []
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -408,7 +408,7 @@ packages = []
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
