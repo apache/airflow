@@ -609,7 +609,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         """
         return False
 
-    def get_external_log_url(self) -> str:
+    def get_external_log_url(self, task_instance, try_number) -> str:
         """
         Create an address for an external log collecting service.
 
