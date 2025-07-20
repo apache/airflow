@@ -1514,18 +1514,18 @@
         "jwtSecret": {
             "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
             "type": [
-+                "string",
-+                "null"
-+            ],
+                "string",
+                "null"
+            ],
             "x-docsSection": "Common",
             "default": null
         },
         "jwtSecretName": {
             "description": "The JWT secret name.",
             "type": [
-+                "string",
-+                "null"
-+            ],
+                "string",
+                "null"
+            ],
             "x-docsSection": "Airflow",
             "default": null
         },
