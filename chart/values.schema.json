@@ -710,6 +710,12 @@
             "x-docsSection": "Airflow",
             "default": true
         },
+        "allowJobLaunching": {
+            "description": "Whether various Airflow components launch jobs.",
+            "type": "boolean",
+            "x-docsSection": "Airflow",
+            "default": false
+        },
         "images": {
             "description": "Images.",
             "type": "object",

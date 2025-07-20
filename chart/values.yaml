@@ -409,6 +409,7 @@ executor: "CeleryExecutor"
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
 # will be able to launch pods.
 allowPodLaunching: true
+allowJobLaunching: false
 
 # Environment variables for all airflow containers
 env: []
