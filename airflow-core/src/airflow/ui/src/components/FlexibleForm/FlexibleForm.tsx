@@ -28,6 +28,7 @@ import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
 export type FlexibleFormProps = {
+  flexFormDescription?: string;
   flexibleFormDefaultSection: string;
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
@@ -35,6 +36,7 @@ export type FlexibleFormProps = {
 };
 
 export const FlexibleForm = ({
+  flexFormDescription,
   flexibleFormDefaultSection,
   initialParamsDict,
   setError,
@@ -126,7 +128,8 @@ export const FlexibleForm = ({
 
               <Accordion.ItemContent pt={0}>
                 <Accordion.ItemBody>
-                  <Stack separator={<StackSeparator />}>
+                  <Stack separator={<StackSeparator py={2} />}>
+                    {Boolean(flexFormDescription) ? <Text mb={2}>{flexFormDescription}</Text> : undefined}
                     {Object.entries(params)
                       .filter(
                         ([, param]) =>
