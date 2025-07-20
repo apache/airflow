@@ -234,6 +234,7 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.job_id = None  # Initialize job_id to None
 
     def _normalize_retry_value(self, retry_value):
         """
@@ -352,7 +353,12 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
             try:
-                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
+                if (
+                    hasattr(self, "job_id")
+                    and self.job_id
+                    and self.cancel_on_kill
+                    and await self.safe_to_cancel()
+                ):
                     self.log.info(
                         "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
                         " in deferred state."
@@ -364,7 +370,10 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
                     self.log.info("Job: %s is cancelled", self.job_id)
                     yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
             except Exception as e:
-                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                if hasattr(self, "job_id") and self.job_id:
+                    self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                else:
+                    self.log.error("Failed to cancel the job (no job_id available) with error : %s", str(e))
                 raise e
 
 
