@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+
 import rich
 
 from airflowctl import __version__ as airflowctl_version
@@ -29,6 +31,8 @@ def version_info(arg, api_client=NEW_API_CLIENT):
     try:
         version_response = api_client.version.get()
         version_dict.update(version_response.model_dump())
+        rich.print(version_dict)
     except Exception as e:
         rich.print(f"[red]Error fetching version information: {e}[/red]")
-    rich.print(version_dict)
+        rich.print(version_dict)
+        sys.exit(1)

@@ -59,7 +59,8 @@ class TestVersionCommand:
         """Test the version command with an exception."""
         mock_client.version.get.side_effect = Exception("Test exception")
         with redirect_stdout(StringIO()) as stdout:
-            version_info(self.parser.parse_args(["version"]), api_client=mock_client)
+            with pytest.raises(SystemExit):
+                version_info(self.parser.parse_args(["version"]), api_client=mock_client)
             output = stdout.getvalue()
-            assert "Error fetching version information: Test exception" in output
-            assert "airflowctl_version" in output
+        assert "Error fetching version information: Test exception" in output
+        assert "airflowctl_version" in output
