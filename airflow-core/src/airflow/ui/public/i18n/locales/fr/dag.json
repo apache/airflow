@@ -19,7 +19,7 @@
   },
   "header": {
     "buttons": {
-      "dagDocs": "Documentation du DAG"
+      "dagDocs": "Documentation du Dag"
     }
   },
   "logs": {
@@ -57,12 +57,12 @@
       "showGrid": "Afficher la grille"
     },
     "dagRuns": {
-      "label": "Nombre de Runs du DAG"
+      "label": "Nombre de Runs du Dag"
     },
     "dependencies": {
       "label": "Dépendances",
       "options": {
-        "allDagDependencies": "Toutes les dépendances du DAG",
+        "allDagDependencies": "Toutes les dépendances du Dag",
         "externalConditions": "Conditions externes",
         "onlyTasks": "Tâches uniquement"
       },
@@ -76,11 +76,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "La demande d'analyse du DAG a échoué. Il se peut qu'il y ait encore des demandes en attente.",
-        "title": "Échec de l'analyse du DAG"
+        "description": "La demande d'analyse du Dag a échoué. Il se peut qu'il y ait encore des demandes en attente.",
+        "title": "Échec de l'analyse du Dag"
       },
       "success": {
-        "description": "Le DAG devrait être analysé sous peu.",
+        "description": "Le Dag devrait être analysé sous peu.",
         "title": "Demande d'analyse soumise avec succès"
       }
     }

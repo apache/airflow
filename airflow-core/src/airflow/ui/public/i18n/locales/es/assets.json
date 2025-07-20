@@ -1,5 +1,5 @@
 {
-  "consumingDags": "Consumiendo DAGs",
+  "consumingDags": "Consumiendo Dags",
   "createEvent": {
     "button": "Crear Evento",
     "manual": {
@@ -8,15 +8,15 @@
       "label": "Manual"
     },
     "materialize": {
-      "description": "Activar el DAG upstream de este asset",
-      "descriptionWithDag": "Activar el DAG upstream de este asset: {{dagName}}",
+      "description": "Activar el Dag upstream de este asset",
+      "descriptionWithDag": "Activar el Dag upstream de este asset: {{dagName}}",
       "label": "Materializar",
       "unpauseDag": "Despausar {{dagName}} al activar"
     },
     "success": {
       "manualDescription": "La creación de eventos de asset manual fue exitosa.",
       "manualTitle": "Evento de Asset Creado",
-      "materializeDescription": "El DAG upstream {{dagId}} fue activado exitosamente.",
+      "materializeDescription": "El Dag upstream {{dagId}} fue activado exitosamente.",
       "materializeTitle": "Materializando Asset"
     },
     "title": "Crear Evento de Asset para {{name}}"
