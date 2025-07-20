@@ -37,11 +37,10 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    BREEZE_DEBUG_API_SERVER_PORT,
+    BREEZE_DEBUG_APISERVER_PORT,
     BREEZE_DEBUG_CELERY_WORKER_PORT,
     BREEZE_DEBUG_DAG_PROCESSOR_PORT,
     BREEZE_DEBUG_EDGE_PORT,
-    BREEZE_DEBUG_FLOWER_PORT,
     BREEZE_DEBUG_SCHEDULER_PORT,
     BREEZE_DEBUG_TRIGGERER_PORT,
     CELERY_BROKER_URLS_MAP,
@@ -157,6 +156,7 @@ class ShellParams:
     clean_airflow_installation: bool = False
     collect_only: bool = False
     debug_components: tuple[str, ...] = ()
+    debugger: str = "debugpy"
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
@@ -672,14 +672,20 @@ class ShellParams:
 
     def _set_debug_variables(self, env) -> None:
         """Set debug environment variables based on selected debug components."""
+        if self.debugger == "pydevd-pycharm":
+            print("Pycharm-pydevd debugger is under development and not yet supported in Breeze.")
+            return
+        if not self.debug_components:
+            return
 
         _set_var(env, "BREEZE_DEBUG_SCHEDULER_PORT", None, BREEZE_DEBUG_SCHEDULER_PORT)
         _set_var(env, "BREEZE_DEBUG_DAG_PROCESSOR_PORT", None, BREEZE_DEBUG_DAG_PROCESSOR_PORT)
         _set_var(env, "BREEZE_DEBUG_TRIGGERER_PORT", None, BREEZE_DEBUG_TRIGGERER_PORT)
-        _set_var(env, "BREEZE_DEBUG_API_SERVER_PORT", None, BREEZE_DEBUG_API_SERVER_PORT)
+        _set_var(env, "BREEZE_DEBUG_APISERVER_PORT", None, BREEZE_DEBUG_APISERVER_PORT)
         _set_var(env, "BREEZE_DEBUG_CELERY_WORKER_PORT", None, BREEZE_DEBUG_CELERY_WORKER_PORT)
         _set_var(env, "BREEZE_DEBUG_EDGE_PORT", None, BREEZE_DEBUG_EDGE_PORT)
-        _set_var(env, "BREEZE_DEBUG_FLOWER_PORT", None, BREEZE_DEBUG_FLOWER_PORT)
+
+        _set_var(env, "BREEZE_DEBUGGER", None, self.debugger)
 
         component_mappings = {
             "scheduler": "BREEZE_DEBUG_SCHEDULER",
@@ -687,7 +693,6 @@ class ShellParams:
             "api-server": "BREEZE_DEBUG_APISERVER",
             "dag-processor": "BREEZE_DEBUG_DAG_PROCESSOR",
             "edge-worker": "BREEZE_DEBUG_EDGE",
-            "flower": "BREEZE_DEBUG_FLOWER",
             "celery-worker": "BREEZE_DEBUG_CELERY_WORKER",
         }
 

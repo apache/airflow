@@ -479,13 +479,22 @@ option_install_airflow_with_constraints_default_true = click.option(
 )
 option_debug_components = click.option(
     "--debug",
+    "debug_components",
     help="Enable debugging for specific Airflow components. Can be one or more of: "
-    "scheduler, triggerer, api-server, dag-processor, edge-worker, flower, celery-worker.",
+    "scheduler, triggerer, api-server, dag-processor, edge-worker, celery-worker.",
     type=BetterChoice(
-        ["scheduler", "triggerer", "api-server", "dag-processor", "edge-worker", "flower", "celery-worker"]
+        ["scheduler", "triggerer", "api-server", "dag-processor", "edge-worker", "celery-worker"]
     ),
     multiple=True,
     envvar="DEBUG_COMPONENTS",
+)
+option_debugger = click.option(
+    "--debugger",
+    help="Debugger to use for debugging Airflow components.",
+    type=BetterChoice(["debugpy", "pydevd-pycharm"]),
+    default="debugpy",
+    show_default=True,
+    envvar="DEBUGGER",
 )
 
 

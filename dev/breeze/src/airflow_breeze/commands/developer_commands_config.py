@@ -295,9 +295,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "Debugging options",
-            "options": [
-                "--debug",
-            ],
+            "options": ["--debug", "--debugger"],
         },
     ],
     "breeze exec": [
