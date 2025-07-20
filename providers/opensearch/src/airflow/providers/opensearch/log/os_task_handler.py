@@ -608,3 +608,11 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         TODO: It should support frontend just like ElasticSearchTaskhandler.
         """
         return False
+
+    def get_external_log_url(self) -> str:
+        """
+        Create an address for an external log collecting service.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return ""
