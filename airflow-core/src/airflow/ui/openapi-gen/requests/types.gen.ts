@@ -2932,22 +2932,22 @@ export type GetHitlDetailsData = {
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
+    bodySearch?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
     dagIdPattern?: string | null;
-    dagRunId?: Array<(string)>;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    hitlDetailBodySearch?: string | null;
-    hitlDetailResponseReceived?: boolean | null;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    hitlDetailSubjectSearch?: string | null;
-    hitlDetailUserId?: Array<(string)>;
+    dagRunId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
+    responseReceived?: boolean | null;
     state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    userId?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;

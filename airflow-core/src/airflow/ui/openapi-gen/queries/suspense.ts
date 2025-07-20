@@ -1213,25 +1213,25 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetailSuspense = <TData = Co
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.dagRunId
 * @param data.state
-* @param data.hitlDetailResponseReceived
-* @param data.hitlDetailUserId
-* @param data.hitlDetailSubjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.hitlDetailBodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.responseReceived
+* @param data.userId
+* @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }: {
+export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }: {
+  bodySearch?: string;
   dagIdPattern?: string;
-  dagRunId?: string[];
-  hitlDetailBodySearch?: string;
-  hitlDetailResponseReceived?: boolean;
-  hitlDetailSubjectSearch?: string;
-  hitlDetailUserId?: string[];
+  dagRunId?: string;
   limit?: number;
   offset?: number;
   orderBy?: string;
+  responseReceived?: boolean;
   state?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ dagIdPattern, dagRunId, hitlDetailBodySearch, hitlDetailResponseReceived, hitlDetailSubjectSearch, hitlDetailUserId, limit, offset, orderBy, state }) as TData, ...options });
+  subjectSearch?: string;
+  userId?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

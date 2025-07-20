@@ -290,6 +290,10 @@ def get_hitl_details(
                     "task_instance.run_id",
                 ],
                 HITLDetailModel,
+                to_replace={
+                    "dag_id": TI.dag_id,
+                    "run_id": TI.run_id,
+                },
             ).dynamic_depends(),
         ),
     ],
@@ -332,6 +336,7 @@ def get_hitl_details(
     )
 
     hitl_details = session.scalars(hitl_detail_select)
+
     return HITLDetailCollection(
         hitl_details=hitl_details,
         total_entries=total_entries,

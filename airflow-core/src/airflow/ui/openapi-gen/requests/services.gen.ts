@@ -3495,10 +3495,10 @@ export class HumanInTheLoopService {
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagRunId
      * @param data.state
-     * @param data.hitlDetailResponseReceived
-     * @param data.hitlDetailUserId
-     * @param data.hitlDetailSubjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.hitlDetailBodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.responseReceived
+     * @param data.userId
+     * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns HITLDetailCollection Successful Response
      * @throws ApiError
      */
@@ -3513,10 +3513,10 @@ export class HumanInTheLoopService {
                 dag_id_pattern: data.dagIdPattern,
                 dag_run_id: data.dagRunId,
                 state: data.state,
-                hitl_detail_response_received: data.hitlDetailResponseReceived,
-                hitl_detail_user_id: data.hitlDetailUserId,
-                hitl_detail_subject_search: data.hitlDetailSubjectSearch,
-                hitl_detail_body_search: data.hitlDetailBodySearch
+                response_received: data.responseReceived,
+                user_id: data.userId,
+                subject_search: data.subjectSearch,
+                body_search: data.bodySearch
             },
             errors: {
                 401: 'Unauthorized',
