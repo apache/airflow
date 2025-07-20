@@ -116,8 +116,8 @@ def client(request):
 
 @pytest.fixture
 def configure_git_connection_for_dag_bundle(session):
-    # Git connection is required for the bundles to have a url.
     clear_db_connections(False)
+    # Git connection is required for the bundles to have a url.
     connection = Connection(
         conn_id="git_default",
         conn_type="git",
