@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import certifi
 import httpx
+import certifi
+import ssl
 import msgspec
 import structlog
 from pydantic import BaseModel
@@ -767,7 +769,6 @@ class Client(httpx.Client):
             ctx = ssl.create_default_context(cafile=certifi.where())
             if API_SSL_CERT_PATH:
                 ctx.load_verify_locations(API_SSL_CERT_PATH)
-              ctx.load_verify_locations(API_SSL_CERT_PATH)
             kwargs["verify"] = ctx
             ssl_verify = os.getenv("AIRFLOW_EXECUTION_API_SSL_VERIFY")
             if ssl_verify is not None:
