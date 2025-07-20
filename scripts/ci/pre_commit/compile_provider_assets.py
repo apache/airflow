@@ -32,9 +32,15 @@ from common_precommit_utils import AIRFLOW_ROOT_PATH
 # here that are not available in stdlib! You should not import common_precommit_utils.py here because
 # They are importing rich library which is not available in the node environment.
 
-FAB_PROVIDER_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers" / "fab"
-FAB_PROVIDER_WWW_PATH = FAB_PROVIDER_ROOT_PATH / "src" / "airflow" / "providers" / "fab" / "www"
-FAB_PROVIDER_WWW_HASH_FILE = FAB_PROVIDER_ROOT_PATH / "www-hash.txt"
+PROVIDERS_ROOT = AIRFLOW_ROOT_PATH / "providers"
+PROVIDERS_PATHS = {
+    "fab": {
+        "root": PROVIDERS_ROOT / "fab",
+        "www": PROVIDERS_ROOT / "fab" / "src" / "airflow" / "providers" / "fab" / "www",
+        "dist": PROVIDERS_ROOT / "fab" / "src" / "airflow" / "providers" / "fab" / "www" / "static" / "dist",
+        "hash": PROVIDERS_ROOT / "fab" / "www-hash.txt",
+    },
+}
 
 
 def get_directory_hash(directory: Path, skip_path_regexps: list[str]) -> str:
@@ -60,18 +66,18 @@ INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 SKIP_PATH_REGEXPS = [".*/node_modules.*"]
 
 
-def compile_assets(www_directory: Path):
-    dist_directory = www_directory / "static" / "dist"
-    FAB_PROVIDER_WWW_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
+def compile_assets(provider_name: str):
+    provider_paths = PROVIDERS_PATHS[provider_name]
+    www_directory = provider_paths["www"]
+    dist_directory = provider_paths["dist"]
+    provider_paths["hash"].parent.mkdir(exist_ok=True, parents=True)
     if dist_directory.exists():
-        old_hash = (
-            FAB_PROVIDER_WWW_HASH_FILE.read_text().strip() if FAB_PROVIDER_WWW_HASH_FILE.exists() else ""
-        )
+        old_hash = provider_paths["hash"].read_text().strip() if provider_paths["hash"].exists() else ""
         new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
         if new_hash == old_hash:
             print(f"The '{www_directory}' directory has not changed! Skip regeneration.")
             return
-        print("The directory has changed, regenerating assets.")
+        print(f"The directory has changed, regenerating assets in {www_directory}.")
         print("Old hash: " + old_hash)
         print("New hash: " + new_hash)
     else:
@@ -94,10 +100,10 @@ def compile_assets(www_directory: Path):
             sys.exit(result.returncode)
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
-    FAB_PROVIDER_WWW_HASH_FILE.write_text(new_hash + "\n")
+    provider_paths["hash"].write_text(new_hash + "\n")
     print(f"Assets compiled successfully. New hash: {new_hash}")
 
 
 if __name__ == "__main__":
-    # Compile assets for fab provider
-    compile_assets(FAB_PROVIDER_WWW_PATH)
+    provider = sys.argv[1]
+    compile_assets(provider)
