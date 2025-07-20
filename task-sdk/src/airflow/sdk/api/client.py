@@ -768,6 +768,7 @@ class Client(httpx.Client):
             ctx = ssl.create_default_context(cafile=certifi.where())
             if API_SSL_CERT_PATH:
                 ctx.load_verify_locations(API_SSL_CERT_PATH)
+              ctx.load_verify_locations(API_SSL_CERT_PATH)
             kwargs["verify"] = ctx
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
