@@ -1048,7 +1048,7 @@ class TestOpenLineageListenerAirflow3:
             start_date=date,
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.QUEUED,
-            **dagrun_kwargs,  # type: ignore[arg-type]
+            **dagrun_kwargs,
         )
         task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         task_instance.dag_run = dagrun

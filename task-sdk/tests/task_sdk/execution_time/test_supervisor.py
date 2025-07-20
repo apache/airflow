@@ -27,6 +27,7 @@ import signal
 import socket
 import sys
 import time
+from contextlib import nullcontext
 from operator import attrgetter
 from random import randint
 from time import sleep
@@ -147,6 +148,58 @@ def client_with_ti_start(make_ti_context):
     client = MagicMock(spec=sdk_client.Client)
     client.task_instances.start.return_value = make_ti_context()
     return client
+
+
+@pytest.mark.usefixtures("disable_capturing")
+class TestSupervisor:
+    @pytest.mark.parametrize(
+        "server, dry_run, expectation",
+        [
+            ("/execution/", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
+            ("", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
+            ("http://localhost:8080", True, pytest.raises(ValueError, match="Can only specify one of")),
+            (None, True, nullcontext()),
+            ("http://localhost:8080/execution/", False, nullcontext()),
+            ("https://localhost:8080/execution/", False, nullcontext()),
+        ],
+    )
+    def test_supervise(
+        self,
+        patched_secrets_masker,
+        server,
+        dry_run,
+        expectation,
+        test_dags_dir,
+        client_with_ti_start,
+    ):
+        """
+        Test that the supervisor validates server URL and dry_run parameter combinations correctly.
+        """
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+
+        kw = {
+            "ti": ti,
+            "dag_rel_path": "super_basic_deferred_run.py",
+            "token": "",
+            "bundle_info": bundle_info,
+            "dry_run": dry_run,
+            "server": server,
+        }
+        if isinstance(expectation, nullcontext):
+            kw["client"] = client_with_ti_start
+
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            with expectation:
+                supervise(**kw)
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -752,7 +805,9 @@ class TestWatchedSubprocess:
         mocker.patch("time.monotonic", return_value=20.0)
 
         # Patch the task overtime threshold
-        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.TASK_OVERTIME_THRESHOLD", overtime_threshold
+        )
 
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -775,7 +830,9 @@ class TestWatchedSubprocess:
         if expected_kill:
             mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
             mock_logger.warning.assert_called_once_with(
-                "Workload success overtime reached; terminating process",
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
                 ti_id=TI_ID,
             )
         else:

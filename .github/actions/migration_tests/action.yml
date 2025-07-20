@@ -18,6 +18,10 @@
 ---
 name: 'Run migration tests'
 description: 'Runs migration tests'
+inputs:
+  python-version:
+    description: "Python version to run the tests on"
+    required: true
 runs:
   using: "composite"
   steps:
@@ -38,12 +42,18 @@ runs:
           airflow db migrate --to-revision heads &&
           airflow db downgrade -n 2.7.0 -y &&
           airflow db migrate
-      if: env.BACKEND != 'sqlite'
+      # migration tests cannot be run with Python 3.13 now - currently we have no FAB and no FABDBManager -
+      # and airflow (correctly) refuses to migrate things to Airflow 2 when there is no "ab_user"
+      # table created. So migration tests for now will have to be excluded for Python 3.13 until
+      # we start working on 3.2 (with migration to 3.1) or until FAB is supported in 3.13 (FAB 5)
+      # TODO(potiuk) bring migration tests back for Python 3.13 when one of the two conditions are fulfilled
+      if: env.BACKEND != 'sqlite' && inputs.python-version != '3.13'
     - name: "Bring composer down"
       shell: bash
       run: breeze down
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+      if: inputs.python-version != '3.13'
     - name: "Test ORM migration 2 to 3: ${{env.BACKEND}}"
       shell: bash
       run: >
@@ -60,12 +70,13 @@ runs:
           airflow db migrate --to-revision heads &&
           airflow db downgrade -n 2.7.0 -y &&
           airflow db migrate
-      if: env.BACKEND != 'sqlite'
+      if: env.BACKEND != 'sqlite' && inputs.python-version != '3.13'
     - name: "Bring compose down again"
       shell: bash
       run: breeze down
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+      if: inputs.python-version != '3.13'
     - name: "Test ORM migration ${{env.BACKEND}}"
       shell: bash
       run: >
@@ -77,11 +88,13 @@ runs:
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
         DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+      if: inputs.python-version != '3.13'
     - name: "Bring compose down again"
       shell: bash
       run: breeze down
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+      if: inputs.python-version != '3.13'
     - name: "Test offline migration ${{env.BACKEND}}"
       shell: bash
       run: >
@@ -93,12 +106,13 @@ runs:
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
         DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
-      if: env.BACKEND != 'sqlite'
+      if: env.BACKEND != 'sqlite' && inputs.python-version != '3.13'
     - name: "Bring any containers left down"
       shell: bash
       run: breeze down
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+      if: inputs.python-version != '3.13'
     - name: "Dump logs on failure ${{env.BACKEND}}"
       shell: bash
       run: docker ps -q | xargs docker logs
