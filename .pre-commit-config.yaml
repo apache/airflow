@@ -945,7 +945,7 @@ repos:
         name: Compile Edge provider assets
         language: node
         files: ^providers/edge3/.*/www/
-        entry: ./scripts/ci/pre_commit/compile_edge_assets.py
+        entry: ./scripts/ci/pre_commit/compile_provider_assets.py edge
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
