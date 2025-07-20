@@ -315,7 +315,7 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         return task_state != TaskInstanceState.DEFERRED
 
     def submit_job(self):
-        return self.get_sync_hook().submit_job(
+        return self.get_async_hook().submit_job(
             project_id=self.project_id,
             region=self.region,
             job=self.job,
