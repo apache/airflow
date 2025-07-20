@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.deprecation_tools import add_deprecated_classes
+from datetime import datetime
 
-add_deprecated_classes(
-    {__name__: {"*": "airflow.sdk.execution_time.macros"}},
-    package=__name__,
-)
+from airflow.models.dag import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+
+DEFAULT_DATE = datetime(2019, 12, 1)
+
+dag = DAG(dag_id="test_dag_under_subdir1", start_date=DEFAULT_DATE, schedule=None)
+task = BashOperator(task_id="task1", bash_command='echo "test dag under sub directory subdir2"', dag=dag)

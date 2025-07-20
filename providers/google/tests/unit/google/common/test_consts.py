@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,9 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.deprecation_tools import add_deprecated_classes
+from google.api_core.gapic_v1.client_info import ClientInfo
 
-add_deprecated_classes(
-    {__name__: {"*": "airflow.sdk.execution_time.macros"}},
-    package=__name__,
+from airflow import version
+from airflow.providers.google.common.consts import (
+    CLIENT_INFO,
+    GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
 )
+
+
+def test_google_default_deferrable_method_name():
+    assert GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME == "execute_complete"
+
+
+def test_client_info_instance():
+    assert isinstance(CLIENT_INFO, ClientInfo)
+    assert CLIENT_INFO.client_library_version == f"airflow_v{version.version}"
