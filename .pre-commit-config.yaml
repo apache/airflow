@@ -760,7 +760,8 @@ repos:
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           .*/dist/.*|
-          package-lock\.json$
+          package-lock\.json$|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/pnpm-lock.yaml$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -938,6 +939,13 @@ repos:
         language: node
         files: ^providers/fab/.*/www/
         entry: ./scripts/ci/prek/compile_provider_assets.py fab
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.21']
+      - id: compile-edge-assets
+        name: Compile Edge provider assets
+        language: node
+        files: ^providers/edge3/.*/www/
+        entry: ./scripts/ci/pre_commit/compile_edge_assets.py
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
