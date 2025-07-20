@@ -738,7 +738,7 @@ def test_mapped_operator_in_task_group_no_duplicate_prefix():
     """Test that task_id doesn't get duplicated prefix when unmapping a mapped operator in a task group."""
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
-    with DAG("test-dag") as dag:
+    with DAG("test-dag"):
         with TaskGroup(group_id="tg1") as tg1:
             # Create a mapped task within the task group
             mapped_task = MockOperator.partial(task_id="mapped_task", arg1="a").expand(arg2=["a", "b", "c"])
