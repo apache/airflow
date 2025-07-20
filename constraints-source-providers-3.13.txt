@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-20T07:44:59.744686
+# This constraints file was automatically generated on 2025-07-20T13:50:34.732234
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -10,7 +10,7 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 APScheduler==3.11.0
-Authlib==1.6.0
+Authlib==1.6.1
 Deprecated==1.2.18
 Events==0.5
 Flask-AppBuilder==4.8.0
@@ -100,7 +100,7 @@ azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.23.1
 azure-keyvault-secrets==4.10.0
-azure-kusto-data==5.0.4
+azure-kusto-data==5.0.5
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.6.0
@@ -656,7 +656,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.7.21
+uv==0.8.0
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
