@@ -145,9 +145,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         if ssh_public_keys is None:
             ssh_public_keys = []
 
-        if services is None:
-            services = []
-
         self.folder_id = folder_id
         self.yandex_conn_id = connection_id
         self.cluster_name = cluster_name
