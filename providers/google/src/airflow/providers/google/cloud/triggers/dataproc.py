@@ -235,6 +235,18 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
         self.timeout = timeout
         self.metadata = metadata
 
+    def _normalize_retry_value(self, retry_value):
+        """
+        Normalize retry value for serialization and API calls.
+
+        Since DEFAULT and Retry objects don't serialize well, we convert them to None.
+        """
+        if retry_value is DEFAULT or retry_value is None:
+            return None
+        # For other retry objects (like Retry instances), use None as fallback
+        # since they are complex objects that don't serialize well
+        return None
+
     def serialize(self):
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger",
@@ -243,7 +255,7 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
                 "region": self.region,
                 "job": self.job,
                 "request_id": self.request_id,
-                "retry": self.retry,
+                "retry": self._normalize_retry_value(self.retry),
                 "timeout": self.timeout,
                 "metadata": self.metadata,
                 "gcp_conn_id": self.gcp_conn_id,
@@ -314,21 +326,18 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
             task_state = task_instance.state
         return task_state != TaskInstanceState.DEFERRED
 
-    def submit_job(self):
-        return self.get_async_hook().submit_job(
-            project_id=self.project_id,
-            region=self.region,
-            job=self.job,
-            request_id=self.request_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-
     async def run(self):
         try:
             # Create a new Dataproc job
-            job = self.submit_job()
+            job = await self.get_async_hook().submit_job(
+                project_id=self.project_id,
+                region=self.region,
+                job=self.job,
+                request_id=self.request_id,
+                retry=self._normalize_retry_value(self.retry),
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
             self.job_id = job.reference.job_id
             while True:
                 job = await self.get_async_hook().get_job(
@@ -339,7 +348,7 @@ class DataprocSubmitJobTrigger(DataprocBaseTrigger):
                 if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
                     break
                 await asyncio.sleep(self.polling_interval_seconds)
-            yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+            yield TriggerEvent({"job_id": self.job_id, "job_state": str(state), "job": str(job)})
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
             try:
