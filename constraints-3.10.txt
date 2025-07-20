@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-20T13:53:28.513060
+# This constraints file was automatically generated on 2025-07-20T19:44:39.877830
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -731,7 +731,7 @@ sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
-starlette==0.47.1
+starlette==0.47.2
 statsd==4.0.1
 std-uritemplate==2.0.5
 strictyaml==1.7.3
