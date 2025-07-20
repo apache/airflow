@@ -664,13 +664,26 @@ API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 
 class Client(httpx.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
+        import os
+
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
 
+        # PATCH START: Allow user to control SSL verification for self-signed certs
+        # Check Airflow config or fallback to env var (env var for simplicity in this example)
+        verify_env = os.environ.get("AIRFLOW_EXECUTION_API_SSL_VERIFY")
+        if verify_env is not None:
+            # Accept boolean ("false"/"0"/"no") to disable, otherwise path to CA bundle or "true"
+            if verify_env.lower() in ["false", "0", "no"]:
+                kwargs["verify"] = False
+            elif verify_env.lower() in ["true", "1", "yes"]:
+                kwargs["verify"] = True
+            else:
+                kwargs["verify"] = verify_env  # CA bundle file
+        # PATCH END
+
         if dry_run:
-            # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
-            # real client, but just don't make any HTTP requests
             kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
             kwargs.setdefault("base_url", "dry-run://server")
         else:
