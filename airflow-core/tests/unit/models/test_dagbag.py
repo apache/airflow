@@ -55,6 +55,7 @@ pytestmark = pytest.mark.db_test
 example_dags_folder = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
+PY313 = sys.version_info >= (3, 13)
 
 # Include the words "airflow" and "dag" in the file contents,
 # tricking airflow into thinking these
@@ -651,10 +652,12 @@ with airflow.DAG(
 
     @staticmethod
     def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
-        marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_311_marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_313_marker = ["    ~~~~~~~~~^^\n"] if PY313 else []
         frames = (
             f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',
-            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{marker}',
+            *python_313_marker,
+            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{python_311_marker}',
         )
         depth = 0 if depth is None else -depth
         return (
@@ -886,14 +889,13 @@ with airflow.DAG(
         assert dag_file not in dagbag.captured_warnings
 
         dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
-        assert len(dagbag.dag_ids) == 1
-        assert dag_file in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[dag_file]
-        assert len(captured_warnings) == 2
         assert dagbag.dagbag_stats[0].warning_num == 2
-
-        assert captured_warnings[0] == (f"{dag_file}:47: DeprecationWarning: Deprecated Parameter")
-        assert captured_warnings[1] == f"{dag_file}:49: UserWarning: Some Warning"
+        assert dagbag.captured_warnings == {
+            dag_file: (
+                f"{dag_file}:46: DeprecationWarning: Deprecated Parameter",
+                f"{dag_file}:48: UserWarning: Some Warning",
+            )
+        }
 
         with warnings.catch_warnings():
             # Disable capture DeprecationWarning, and it should be reflected in captured warnings
@@ -920,12 +922,13 @@ with airflow.DAG(
     def test_dabgag_captured_warnings_zip(self, warning_zipped_dag_path: str):
         in_zip_dag_file = f"{warning_zipped_dag_path}/test_dag_warnings.py"
         dagbag = DagBag(dag_folder=warning_zipped_dag_path, include_examples=False)
-        assert len(dagbag.dag_ids) == 1
-        assert warning_zipped_dag_path in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[warning_zipped_dag_path]
-        assert len(captured_warnings) == 2
-        assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
-        assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"
+        assert dagbag.dagbag_stats[0].warning_num == 2
+        assert dagbag.captured_warnings == {
+            warning_zipped_dag_path: (
+                f"{in_zip_dag_file}:46: DeprecationWarning: Deprecated Parameter",
+                f"{in_zip_dag_file}:48: UserWarning: Some Warning",
+            )
+        }
 
     @pytest.mark.parametrize(
         ("known_pools", "expected"),

@@ -34,11 +34,15 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
-from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.providers.standard.operators.empty import EmptyOperator
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.sdk import Param
 from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.utils.trigger_rule import TriggerRule
@@ -48,11 +52,11 @@ if TYPE_CHECKING:
     try:
         from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
     except ImportError:
-        from airflow.models import TaskInstance  # type: ignore[assignment, no-redef]
+        from airflow.models import TaskInstance  # type: ignore[assignment]
     from airflow.utils.context import Context
 
 try:
-    from airflow.operators.python import PythonOperator  # type: ignore
+    from airflow.operators.python import PythonOperator
 except ImportError:
     from airflow.providers.common.compat.standard.operators import PythonOperator
 
@@ -273,7 +277,7 @@ with DAG(
 
         @task.virtualenv(requirements="numpy")
         def virtualenv():
-            import numpy  # type: ignore
+            import numpy
 
             print(f"Welcome to virtualenv with numpy version {numpy.__version__}.")
 

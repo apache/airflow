@@ -1551,7 +1551,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ---------------
     """
 
-    def get_resource(self, name: str) -> Resource:
+    def get_resource(self, name: str) -> Resource | None:
         """
         Return a resource record by name, if it exists.
 
@@ -1559,7 +1559,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
 
-    def create_resource(self, name) -> Resource:
+    def create_resource(self, name) -> Resource | None:
         """
         Create a resource with the given name.
 
@@ -1628,6 +1628,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if perm:
             return perm
         resource = self.create_resource(resource_name)
+        if resource is None:
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, f"Resource creation failed {resource_name}")
+            return None
         action = self.create_action(action_name)
         perm = self.permission_model()
         perm.resource_id, perm.action_id = resource.id, action.id
@@ -1725,7 +1728,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     --------------------
     """
 
-    def auth_user_ldap(self, username, password):
+    def auth_user_ldap(self, username, password, rotate_session_id=True):
         """
         Authenticate user with LDAP.
 
@@ -1892,7 +1895,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # LOGIN SUCCESS (only if user is now registered)
             if user:
-                self._rotate_session_id()
+                if rotate_session_id:
+                    self._rotate_session_id()
                 self.update_user_auth_stat(user)
                 return user
             return None
@@ -1921,7 +1925,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         return check_password_hash(user.password, password)
 
-    def auth_user_db(self, username, password):
+    def auth_user_db(self, username, password, rotate_session_id=True):
         """
         Authenticate user, auth db style.
 
@@ -1929,6 +1933,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             The username or registered email address
         :param password:
             The password, will be tested against hashed password on db
+        :param rotate_session_id:
+            Whether to rotate the session ID
         """
         if username is None or username == "":
             return None
@@ -1944,7 +1950,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
         if check_password_hash(user.password, password):
-            self._rotate_session_id()
+            if rotate_session_id:
+                self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
         self.update_user_auth_stat(user, False)

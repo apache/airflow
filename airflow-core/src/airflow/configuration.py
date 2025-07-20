@@ -372,6 +372,8 @@ class AirflowConfigParser(ConfigParser):
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
+        ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.1.0"),
+        ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -959,10 +961,10 @@ class AirflowConfigParser(ConfigParser):
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
-    @overload  # type: ignore[override]
+    @overload
     def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
-    def get(  # type: ignore[override,misc]
+    def get(  # type: ignore[misc]
         self,
         section: str,
         key: str,
@@ -2100,7 +2102,7 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             )
         else:
             # there
-            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
+            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
             warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
 
 

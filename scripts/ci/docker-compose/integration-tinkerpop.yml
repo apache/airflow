@@ -34,7 +34,7 @@ services:
     depends_on:
       - gremlin
     environment:
-      - INTEGRATION_GREMLIN=true
+      - INTEGRATION_TINKERPOP=true
     stdin_open: true
 volumes:
   graph-data:

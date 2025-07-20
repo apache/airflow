@@ -59,8 +59,7 @@ class ExasolHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self) -> ExaConnection:
-        conn_id = self.get_conn_id()
-        conn = self.get_connection(conn_id)
+        conn = self.get_connection(self.get_conn_id())
         conn_args = {
             "dsn": f"{conn.host}:{conn.port}",
             "user": conn.login,
@@ -199,7 +198,7 @@ class ExasolHook(DbApiHook):
             )
         return cols
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -268,9 +267,8 @@ class ExasolHook(DbApiHook):
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                 with closing(conn.execute(sql_statement, parameters)) as exa_statement:
                     if handler is not None:
-                        result = self._make_common_data_structure(  # type: ignore[attr-defined]
-                            handler(exa_statement)
-                        )
+                        result = self._make_common_data_structure(handler(exa_statement))
+
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_columns = self.get_description(exa_statement)

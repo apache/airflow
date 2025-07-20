@@ -67,8 +67,8 @@ class VerticaHook(DbApiHook):
 
     def get_conn(self) -> connect:
         """Return vertica connection object."""
-        conn = self.get_connection(self.vertica_conn_id)  # type: ignore
-        conn_config = {
+        conn = self.get_connection(self.get_conn_id())
+        conn_config: dict[str, Any] = {
             "user": conn.login,
             "password": conn.password or "",
             "database": conn.schema,
@@ -134,7 +134,7 @@ class VerticaHook(DbApiHook):
         conn = connect(**conn_config)
         return conn
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],

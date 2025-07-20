@@ -44,7 +44,6 @@ from airflow.triggers.base import (
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
 
@@ -117,12 +116,16 @@ def test_clean_unused(session, create_task_instance):
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
     fake_task1 = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
-    task_instance1 = TaskInstance(task=fake_task1, run_id=task_instance.run_id)
+    task_instance1 = TaskInstance(
+        task=fake_task1, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
+    )
     task_instance1.state = State.SUCCESS
     task_instance1.trigger_id = trigger2.id
     session.add(task_instance1)
     fake_task2 = EmptyOperator(task_id="fake3", dag=task_instance.task.dag)
-    task_instance2 = TaskInstance(task=fake_task2, run_id=task_instance.run_id)
+    task_instance2 = TaskInstance(
+        task=fake_task2, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
+    )
     task_instance2.state = State.SUCCESS
     task_instance2.trigger_id = trigger4.id
     session.add(task_instance2)
@@ -239,7 +242,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}), session=session
+        trigger.id, event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": "d"}), session=session
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()

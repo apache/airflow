@@ -78,6 +78,11 @@
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
   },
+  "expand": {
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
+  },
   "expression": {
     "all": "Alle",
     "and": "UND",
@@ -103,6 +108,7 @@
     "dags": "Dags",
     "docs": "Doku",
     "home": "Start",
+    "legacyFabViews": "Alte Ansichten",
     "plugins": "Plug-ins",
     "security": "Sicherheit"
   },
@@ -270,6 +276,7 @@
       }
     }
   },
+  "total": "Gesamt {{state}}",
   "triggered": "Angestoßen",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",

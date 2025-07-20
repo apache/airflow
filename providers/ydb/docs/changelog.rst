@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+2.2.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use PythonOperator import from standard provider in ydb providers example (#52165)``
+
 2.2.0
 .....
 

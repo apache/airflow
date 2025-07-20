@@ -629,9 +629,9 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
         try:
             while self.end_time > time.time():
                 cluster = await self.get_async_hook().get_cluster(
-                    region=self.region,  # type: ignore[arg-type]
+                    region=self.region,
                     cluster_name=self.cluster_name,
-                    project_id=self.project_id,  # type: ignore[arg-type]
+                    project_id=self.project_id,
                     metadata=self.metadata,
                 )
                 self.log.info(

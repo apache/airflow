@@ -141,7 +141,7 @@ def structure_data(
                     }
                 )
 
-        if asset_expression := serialized_dag.dag_model.asset_expression:
+        if (asset_expression := serialized_dag.dag_model.asset_expression) and entry_node_ref:
             upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
                 asset_expression, entry_node_ref["id"]
             )

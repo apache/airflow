@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 # the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
 #
 # You can try the regex here: https://regex101.com/r/69033B/1
-RE_SANITIZE_CONN_ID = re.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+RE_SANITIZE_CONN_ID = re.compile(r"^[\w#!()\-.:/\\]{1,}$")
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
 
@@ -487,7 +487,7 @@ class Connection(Base, LoggingMixin):
                 return conn
             except AirflowRuntimeError as e:
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+                    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
 
         # check cache first

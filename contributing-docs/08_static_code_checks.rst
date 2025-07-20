@@ -355,6 +355,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| provider-version-compat                                   | Check for correct version_compat imports in providers  | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn               |         |
@@ -575,6 +577,12 @@ For example:
 
 .. code-block:: bash
 
+  pre-commit run --hook-stage manual mypy-airflow --all-files
+
+To show unused mypy ignores for any providers/airflow etc, eg: run below command:
+
+.. code-block:: bash
+  export SHOW_UNUSED_MYPY_WARNINGS=true
   pre-commit run --hook-stage manual mypy-airflow --all-files
 
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
