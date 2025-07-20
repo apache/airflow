@@ -616,3 +616,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         TODO: It should support frontend just like ElasticSearchTaskhandler.
         """
         return ""
+
+    @property
+    def log_name(self) -> str:
+        """The log name."""
+        return self.LOG_NAME
