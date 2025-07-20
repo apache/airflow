@@ -164,10 +164,13 @@ class BaseOperations:
         try:
             self.response = self.client.get(path, params=shared_params)
             first_pass = data_model.model_validate_json(self.response.content)
+            total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+            print(total_entries)
+            if total_entries < limit:
+                print(first_pass)
+                return first_pass
             for key, value in first_pass.model_dump().items():
                 if key != "total_entries" and isinstance(value, list):
-                    data_entity = key
-                    print(f"data_entity {data_entity}")
                     break
             entry_list = getattr(first_pass, key)
             total_entries = first_pass.total_entries  # type: ignore[attr-defined]
@@ -179,8 +182,9 @@ class BaseOperations:
                 self.response = self.client.get(path, params=loop_params)
                 entry = data_model.model_validate_json(self.response.content)
                 offset = offset + limit
-                entry_list.extend(getattr(entry, data_entity))
+                entry_list.extend(getattr(entry, key))
             obj = data_model(**{key: entry_list, "total_entries": total_entries})
+            print(data_model.model_validate(obj.model_dump()))
             return data_model.model_validate(obj.model_dump())
         except ServerResponseError as e:
             raise e
@@ -230,11 +234,6 @@ class AssetsOperations(BaseOperations):
 
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
-        """ try:
-            self.response = self.client.get("/assets/aliases")
-            return AssetAliasCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e """
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
     def create_event(
@@ -333,7 +332,7 @@ class BackfillsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> BackfillCollectionResponse | ServerResponseError:
         """List all backfills."""
         return super().execute_list(path="backfills", data_model=BackfillCollectionResponse)
 
@@ -393,13 +392,8 @@ class ConnectionsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> ConnectionCollectionResponse | ServerResponseError:
         """List all connections from the API server."""
-        """ try:
-            self.response = self.client.get("connections")
-            return ConnectionCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e """
         return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
 
     def create(
@@ -485,7 +479,7 @@ class DagOperations(BaseOperations):
         """Get all DAG tags."""
         return super().execute_list(path="dagTags", data_model=DAGTagCollectionResponse)
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> DAGCollectionResponse | ServerResponseError:
         """List DAGs."""
         return super().execute_list(path="dags", data_model=DAGCollectionResponse)
 
@@ -554,7 +548,7 @@ class DagRunOperations(BaseOperations):
         end_date: datetime.datetime,
         state: str,
         limit: int,
-    ) -> list | ServerResponseError:
+    ) -> DAGRunCollectionResponse | ServerResponseError:
         """List all dag runs."""
         params = {
             "start_date": start_date,
@@ -579,12 +573,12 @@ class DagRunOperations(BaseOperations):
 class JobsOperations(BaseOperations):
     """Job operations."""
 
-    def list(self, job_type: str, hostname: str, is_alive: bool) -> list | ServerResponseError:
+    def list(
+        self, job_type: str, hostname: str, is_alive: bool
+    ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
-        return super().execute_list(
-            path="jobs", data_model=JobCollectionResponse, params=params, offset=2, limit=5
-        )
+        return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
 
 class PoolsOperations(BaseOperations):
@@ -598,13 +592,8 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> PoolCollectionResponse | ServerResponseError:
         """List all pools."""
-        """ try:
-            self.response = self.client.get("pools")
-            return PoolCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e """
         return super().execute_list(path="pools", data_model=PoolCollectionResponse, offset=2, limit=5)
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
@@ -643,13 +632,8 @@ class PoolsOperations(BaseOperations):
 class ProvidersOperations(BaseOperations):
     """Provider operations."""
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
-        """ try:
-            self.response = self.client.get(f"providers")
-            return ProviderCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e """
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
 
 
@@ -664,7 +648,7 @@ class VariablesOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> list | ServerResponseError:
+    def list(self) -> VariableCollectionResponse | ServerResponseError:
         """List all variables."""
         return super().execute_list(path="variables", data_model=VariableCollectionResponse)
 

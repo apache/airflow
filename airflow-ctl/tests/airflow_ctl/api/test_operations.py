@@ -290,9 +290,7 @@ class TestAssetsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.list()
-        assets_collection_list_response = []
-        assets_collection_list_response.append(assets_collection_response)
-        assert response == assets_collection_list_response
+        assert response == assets_collection_response
 
     def test_list_by_alias(self):
         assets_collection_response = AssetAliasCollectionResponse(
@@ -422,9 +420,7 @@ class TestBackfillOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.backfills.list()
-        backfills_collection_list_response = []
-        backfills_collection_list_response.append(self.backfills_collection_response)
-        assert response == backfills_collection_list_response
+        assert response == self.backfills_collection_response
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -565,9 +561,7 @@ class TestConnectionsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.list()
-        connections_list_response = []
-        connections_list_response.append(self.connections_response)
-        assert response == connections_list_response
+        assert response == self.connections_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -784,9 +778,7 @@ class TestDagOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.list()
-        dag_collection_list_response = []
-        dag_collection_list_response.append(self.dag_collection_response)
-        assert response == dag_collection_list_response
+        assert response == self.dag_collection_response
 
     def test_patch(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -935,9 +927,7 @@ class TestDagRunOperations:
             state=DagRunState.RUNNING,
             limit=1,
         )
-        dag_run_collection_list_response = []
-        dag_run_collection_list_response.append(self.dag_run_collection_response)
-        assert response == dag_run_collection_list_response
+        assert response == self.dag_run_collection_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -979,9 +969,7 @@ class TestJobsOperations:
             hostname="hostname",
             is_alive=True,
         )
-        job_collection_list_response = []
-        job_collection_list_response.append(self.job_collection_response)
-        assert response == job_collection_list_response
+        assert response == self.job_collection_response
 
 
 class TestPoolsOperations:
@@ -1039,9 +1027,7 @@ class TestPoolsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.list()
-        pool_collection_response_list = []
-        pool_collection_response_list.append(self.pool_response_collection)
-        assert response == pool_collection_response_list
+        assert response == self.pool_response_collection
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1089,9 +1075,8 @@ class TestProvidersOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.providers.list()
-        provider_collection_list_response = []
-        provider_collection_list_response.append(self.provider_collection_response)
-        assert response == provider_collection_list_response
+
+        assert response == self.provider_collection_response
 
 
 class TestVariablesOperations:
@@ -1146,9 +1131,8 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.list()
-        variable_response = []
-        variable_response.append(self.variable_collection_response)
-        assert response == variable_response
+
+        assert response == self.variable_collection_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:

@@ -79,16 +79,15 @@ def export(args, api_client=NEW_API_CLIENT) -> None:
     """Export connections to a file."""
     filepath = args.file
     try:
-        response = api_client.connections.list()
+        connections = api_client.connections.list()
         connection_dict = {}
-        for connections in response:
-            for conn in connections.connections:
-                connection_dict[conn.connection_id] = conn.model_dump()
-            with open(Path(args.file), "w") as var_file:
-                json.dump(connection_dict, var_file, sort_keys=True, indent=4)
-        for connections in response:
-            total_entries = connections.total_entries
-        rich.print(f"[green]Export successful! {total_entries} connections(s) to {filepath}[/green]")
+        for conn in connections.connections:
+            connection_dict[conn.connection_id] = conn.model_dump()
+        with open(Path(args.file), "w") as var_file:
+            json.dump(connection_dict, var_file, sort_keys=True, indent=4)
+        rich.print(
+            f"[green]Export successful! {connections.total_entries} connections(s) to {filepath}[/green]"
+        )
     except Exception as e:
         rich.print(f"[red]Failed to export connections: {e}[/red]")
         raise SystemExit(1)
