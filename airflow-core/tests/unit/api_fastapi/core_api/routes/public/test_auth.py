@@ -32,6 +32,7 @@ class TestAuthEndpoint:
     def setup(self, test_client) -> None:
         auth_manager_mock = MagicMock()
         auth_manager_mock.get_url_login.return_value = AUTH_MANAGER_LOGIN_URL
+        auth_manager_mock.get_url_refresh.return_value = AUTH_MANAGER_LOGIN_URL
         test_client.app.state.auth_manager = auth_manager_mock
 
 
@@ -91,3 +92,38 @@ class TestLogout(TestAuthEndpoint):
 
         assert response.status_code == 307
         assert response.headers["location"] == expected_redirection
+
+
+class TestRefresh(TestAuthEndpoint):
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {},
+            {"next": None},
+            {"next": "http://localhost:8080"},
+            {"next": "http://localhost:8080", "other_param": "something_else"},
+        ],
+    )
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.is_safe_url", return_value=True)
+    def test_should_respond_307(self, mock_is_safe_url, test_client, params):
+        response = test_client.get("/auth/refresh", follow_redirects=False, params=params)
+
+        assert response.status_code == 307
+        assert (
+            response.headers["location"] == f"{AUTH_MANAGER_LOGIN_URL}?next={params.get('next')}"
+            if params.get("next")
+            else AUTH_MANAGER_LOGIN_URL
+        )
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"next": "http://fake_domain.com:8080"},
+            {"next": "http://localhost:8080/../../up"},
+        ],
+    )
+    @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
+    def test_should_respond_400(self, test_client, params):
+        response = test_client.get("/auth/refresh", follow_redirects=False, params=params)
+
+        assert response.status_code == 400
