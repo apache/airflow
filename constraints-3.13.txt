@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-20T02:27:55.528073
+# This constraints file was automatically generated on 2025-07-20T07:48:03.647017
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.0
-Authlib==1.6.0
+Authlib==1.6.1
 Deprecated==1.2.18
 Events==0.5
 Flask-AppBuilder==4.8.0
