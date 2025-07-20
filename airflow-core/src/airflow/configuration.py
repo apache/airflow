@@ -365,6 +365,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "secret_key"): ("webserver", "secret_key", "3.0.2"),
         ("api", "enable_swagger_ui"): ("webserver", "enable_swagger_ui", "3.0.2"),
         ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.0.3"),
+        ("api", "log_config"): ("api", "access_logfile", "3.0.4"),
     }
 
     # A mapping of new section -> (old section, since_version).
