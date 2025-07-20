@@ -1,7 +1,7 @@
 {
   "favorite": {
-    "favoriteDags_one":   "第{{count}}個最愛的 DAG",
-    "favoriteDags_other": "前{{count}}個最愛的 DAG",
+    "favoriteDags_one":   "第{{count}}個最愛的 Dag",
+    "favoriteDags_other": "前{{count}}個最愛的 Dag",
     "noDagRuns": "此 DAG 尚未被觸發過。",
     "noFavoriteDags": "尚無最愛的 DAG 。請點擊 DAG 列表旁的星號圖示，將 DAG 加入最愛。"
   },
