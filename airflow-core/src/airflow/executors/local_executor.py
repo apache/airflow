@@ -30,15 +30,22 @@ import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
+import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
-
-from setproctitle import setproctitle
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+# add logger to parameter of setproctitle to support logging
+if sys.platform == "darwin":
+    setproctitle = lambda title, logger: logger.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle as real_setproctitle
+
+    setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -61,7 +68,7 @@ def _run_worker(
     log.info("Worker starting up pid=%d", os.getpid())
 
     while True:
-        setproctitle("airflow worker -- LocalExecutor: <idle>")
+        setproctitle("airflow worker -- LocalExecutor: <idle>", log)
         try:
             workload = input.get()
         except EOFError:
@@ -107,7 +114,7 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     from airflow.configuration import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
-    setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}")
+    setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}", log)
 
     base_url = conf.get("api", "base_url", fallback="/")
     # If it's a relative URL, use localhost:8080 as the default

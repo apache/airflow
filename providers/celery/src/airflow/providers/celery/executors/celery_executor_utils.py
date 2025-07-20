@@ -38,7 +38,6 @@ from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
@@ -58,6 +57,11 @@ except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 
 log = logging.getLogger(__name__)
+
+if sys.platform == "darwin":
+    setproctitle = lambda title: log.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle
 
 if TYPE_CHECKING:
     from typing import TypeAlias
