@@ -96,6 +96,10 @@
             "default": "3.0.3",
             "x-docsSection": "Common"
         },
+        "jobLauncherUser": {
+            "description": "GCP unique user ID allowed to launch Airflow GKE jobs.",
+            "type": "string"
+        },
         "securityContext": {
             "description": "Default pod security context definition (deprecated, use `securityContexts` instead). The values in this parameter will be used when `securityContext` is not defined for specific Pods",
             "type": "object",
