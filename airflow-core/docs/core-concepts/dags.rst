@@ -644,7 +644,7 @@ Here's an example DAG which illustrates labeling different branches:
 DAG & Task Documentation
 ------------------------
 
-It's possible to add documentation or notes to your dags & task objects that are visible in the web interface ("Graph" & "Tree" for dags, "Task Instance Details" for tasks).
+It's possible to add documentation or notes to your dags & task objects that are visible in the web interface ("Graph" & "Grid" for dags).
 
 There are a set of special task attributes that get rendered as rich content if defined:
 
