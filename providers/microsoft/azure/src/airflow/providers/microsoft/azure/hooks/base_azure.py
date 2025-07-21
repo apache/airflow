@@ -135,8 +135,8 @@ class AzureBaseHook(BaseHook):
         """
         Get Azure credential object for the connection.
 
-        Azure Identity based credential object (`ClientSecretCredential`, `DefaultAzureCredential`) can be used to get OAuth token using `get_token` method.
-        Older Credential objects (`ServicePrincipalCredentials`, `AzureIdentityCredentialAdapter`) are supported for backward compatibility.
+        Azure Identity based credential object (``ClientSecretCredential``, ``DefaultAzureCredential``) can be used to get OAuth token using ``get_token`` method.
+        Older Credential objects (``ServicePrincipalCredentials``, ``AzureIdentityCredentialAdapter``) are supported for backward compatibility.
 
         :return: The Azure credential object
         """
@@ -154,7 +154,9 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting credentials using specific credentials and subscription_id.")
             if use_azure_identity_object:
                 credential = ClientSecretCredential(
-                    client_id=conn.login, client_secret=conn.password, tenant_id=tenant  # type: ignore[arg-type]
+                    client_id=conn.login,
+                    client_secret=conn.password,
+                    tenant_id=tenant,  # type: ignore[arg-type]
                 )
             else:
                 credential = ServicePrincipalCredentials(
