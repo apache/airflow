@@ -16,7 +16,7 @@
 # under the License.
 
 from __future__ import annotations
-
+import os
 import logging
 import os
 import ssl
@@ -784,6 +784,14 @@ class Client(httpx.Client):
 
 
             kwargs["verify"] = ctx
+            ssl_verify = os.getenv("AIRFLOW_EXECUTION_API_SSL_VERIFY")
+            if ssl_verify is not None:
+                value = ssl_verify.strip().lower()
+                if value in ("false", "no", "0"):
+                    kwargs["verify"] = False
+                elif os.path.isabs(ssl_verify) and os.path.isfile(ssl_verify):
+                    kwargs["verify"] = ssl_verify
+
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
