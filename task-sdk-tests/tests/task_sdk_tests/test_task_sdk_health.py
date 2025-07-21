@@ -25,7 +25,7 @@ from shutil import copyfile
 from python_on_whales import DockerClient, docker
 from rich.console import Console
 
-from task_sdk_tests.constants import TASK_SDK_API_VERSION, TASK_SDK_HOST_PORT
+from task_sdk_tests.constants import AIRFLOW_ROOT_PATH, TASK_SDK_API_VERSION, TASK_SDK_HOST_PORT
 
 console = Console(width=400, color_system="standard")
 
@@ -78,22 +78,27 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         console.print(f"[yellow]Installing apache-airflow-task-sdk=={task_sdk_version}...")
 
         # Right now 1.1.0 is not yet released, and attempting to install 1.0.3 with 3.1.0 with fail due to an imcompat.
-        # For now, installing from git source, will update once the compatibility is regained in 3.1.0
+        # For now, installing from local path, will update once the compatibility is regained in 3.1.0
 
-        subprocess.check_call(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--no-deps",
-                "git+https://github.com/apache/airflow.git@main#subdirectory=task-sdk",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        task_sdk_path = AIRFLOW_ROOT_PATH / "task-sdk"
+        console.print(f"[blue]Installing from: {task_sdk_path}")
 
-        console.print("[green]Task SDK installed successfully")
+        try:
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-deps",
+                    str(task_sdk_path),
+                ]
+            )
+            console.print("[green]Task SDK installed successfully!")
+        except subprocess.CalledProcessError as e:
+            console.print(f"[red]Failed to install Task SDK: {e}")
+            console.print(f"[red]Command: {e.cmd}")
+            raise
 
         # Now import the client after installation
         from airflow.sdk.api.client import Client
