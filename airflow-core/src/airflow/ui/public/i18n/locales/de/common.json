@@ -81,6 +81,7 @@
   "expand": {
     "collapse": "Einklappen",
     "expand": "Ausklappen",
+    "hotkey": "e",
     "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
   },
   "expression": {
@@ -153,6 +154,11 @@
   },
   "selectLanguage": "Sprache wählen",
   "showDetailsPanel": "Detailansicht einblenden",
+  "source": {
+    "hide": "Log-Quelle ausblenden",
+    "hotkey": "s",
+    "show": "Log-Quelle einblenden"
+  },
   "sourceAssetEvent_one": "Urspung des Datenset (Asset) Ereignisses",
   "sourceAssetEvent_other": "Urspung der Datenset (Asset) Ereignisse",
   "startDate": "Startdatum",
@@ -232,6 +238,11 @@
     "lastHour": "Letzte Stunde",
     "pastWeek": "Letzte Woche"
   },
+  "timestamp": {
+    "hide": "Zeitstempel ausblenden",
+    "hotkey": "t",
+    "show": "Zeitstempel einblenden"
+  },
   "timezone": "Zeitzone",
   "timezoneModal": {
     "current-timezone": "Aktuelle Zeit in",
@@ -281,6 +292,7 @@
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"
