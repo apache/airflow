@@ -34,6 +34,11 @@ __deprecated_classes = {
         "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
         "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
     },
+    "context": {
+        "context_merge": "airflow.sdk.definitions.context.context_merge",
+        "context_copy_partial": "airflow.sdk.definitions.context.context_copy_partial",
+        "Context": "airflow.sdk.definitions.context.Context",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
