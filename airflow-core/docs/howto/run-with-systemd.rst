@@ -52,7 +52,7 @@ Using Virtual Environments
 --------------------------
 
 .. note::
-   If Airflow is installed inside a virtual environment (e.g. `venv` or `conda`), you must update the ``ExecStart`` line in each systemd unit file to activate the virtualenv first.
+   If Airflow is installed inside a virtual environment (e.g. ``venv`` or ``conda``), you must update the ``ExecStart`` line in each systemd unit file to activate the virtualenv first.
 
    Example:
 
