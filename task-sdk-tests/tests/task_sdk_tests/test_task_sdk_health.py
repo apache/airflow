@@ -83,7 +83,7 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         console.print(f"[blue]Installing from: {task_sdk_path}")
 
         try:
-            subprocess.check_call(["uv", "pip", "install", "--no-deps", str(task_sdk_path)])
+            subprocess.check_call(["uv", "pip", "install", str(task_sdk_path)])
             console.print("[green]Task SDK installed successfully!")
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Failed to install Task SDK: {e}")
