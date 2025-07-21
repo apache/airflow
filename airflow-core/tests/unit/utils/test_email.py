@@ -28,7 +28,6 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.providers.smtp.hooks.smtp import build_xoauth2_string
 from airflow.utils import email
 
 from tests_common.test_utils.config import conf_vars
@@ -400,49 +399,3 @@ class TestEmailSmtp:
         assert final_mock.starttls.called
         final_mock.sendmail.assert_called_once_with("from", "to", msg.as_string())
         assert final_mock.quit.called
-
-
-class TestEmailOauth2:
-    def test_build_xoauth2_string(self):
-        s = build_xoauth2_string("airflow@example.com", "test-token")
-        assert s == "user=airflow@example.com\x01auth=Bearer test-token\x01\x01"
-
-    @mock.patch("airflow.utils.email._get_smtp_connection")
-    def test_send_mime_email_oauth2_success(self, mock_get_smtp, monkeypatch):
-        smtp_mock = mock.Mock()
-        mock_get_smtp.return_value = smtp_mock
-
-        monkeypatch.setenv("AIRFLOW_CONN_SMTP_DEFAULT", "dummy")
-
-        msg = MIMEMultipart()
-
-        email.send_mime_email(
-            e_from="airflow@example.com",
-            e_to="apache@example.com",
-            mime_msg=msg,
-            dryrun=False,
-            auth_type="oauth2",
-            access_token="test-token",
-        )
-
-        assert smtp_mock.auth.called
-        args, _ = smtp_mock.auth.call_args
-        assert args[0] == "XOAUTH2"
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.utils.email._get_smtp_connection")
-    def test_send_mime_email_oauth2_missing_token(self, mock_get_smtp):
-        smtp_mock = mock.Mock()
-        mock_get_smtp.return_value = smtp_mock
-
-        msg = MIMEMultipart()
-        with pytest.raises(ValueError):
-            email.send_mime_email(
-                e_from="airflow@example.com",
-                e_to="apache@example.com",
-                mime_msg=msg,
-                dryrun=False,
-                auth_type="oauth2",
-            )
-
-        assert not smtp_mock.auth.called

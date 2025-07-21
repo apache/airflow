@@ -106,8 +106,6 @@ def send_email_smtp(
     conn_id: str = "smtp_default",
     from_email: str | None = None,
     custom_headers: dict[str, Any] | None = None,
-    auth_type: str = "basic",
-    access_token: str | None = None,
     **kwargs,
 ) -> None:
     """
@@ -125,9 +123,6 @@ def send_email_smtp(
     :param conn_id: Connection ID of the SMTP server.
     :param from_email: Sender email address.
     :param custom_headers: Dictionary of custom headers to include in the email.
-    :param auth_type: Authentication method for the SMTP session. Default: "basic".
-    :param access_token: OAuth 2.0 bearer token to supply when ``auth_type="oauth2"``.
-        If *None* and ``auth_type`` is *oauth2*, the caller (or Hook) must fetch a valid token.
     :param kwargs: Additional keyword arguments.
 
     >>> send_email("test@example.com", "foo", "<b>Foo</b> bar", ["/dev/null"], dryrun=True)
@@ -156,15 +151,7 @@ def send_email_smtp(
         custom_headers=custom_headers,
     )
 
-    send_mime_email(
-        e_from=mail_from,
-        e_to=recipients,
-        mime_msg=msg,
-        conn_id=conn_id,
-        dryrun=dryrun,
-        auth_type=auth_type,
-        access_token=access_token,
-    )
+    send_mime_email(e_from=mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
 
 
 def build_mime_message(
@@ -238,8 +225,6 @@ def send_mime_email(
     mime_msg: MIMEMultipart,
     conn_id: str = "smtp_default",
     dryrun: bool = False,
-    auth_type: str = "basic",
-    access_token: str | None = None,
 ) -> None:
     """
     Send a MIME email.
@@ -249,9 +234,6 @@ def send_mime_email(
     :param mime_msg: The MIME message to send.
     :param conn_id: The ID of the SMTP connection to use.
     :param dryrun: If True, the email will not be sent, but a log message will be generated.
-    :param auth_type: Authentication method for the SMTP session. Default: "basic".
-    :param access_token: OAuth 2.0 bearer token to supply when ``auth_type="oauth2"``.
-        If *None* and ``auth_type`` is *oauth2*, the caller (or Hook) must fetch a valid token.
     """
     smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST")
     smtp_port = conf.getint("smtp", "SMTP_PORT")
@@ -285,22 +267,12 @@ def send_mime_email(
             else:
                 if smtp_starttls:
                     smtp_conn.starttls()
-                if auth_type == "oauth2":
-                    if not access_token:
-                        raise ValueError("access_token required when auth_type='oauth2'")
-                    smtp_conn.auth(
-                        "XOAUTH2", lambda _=None: build_xoauth2_string(smtp_user or e_from, access_token)
-                    )
-                elif smtp_user and smtp_password:
+                if smtp_user and smtp_password:
                     smtp_conn.login(smtp_user, smtp_password)
                 log.info("Sent an alert email to %s", e_to)
                 smtp_conn.sendmail(e_from, e_to, mime_msg.as_string())
                 smtp_conn.quit()
                 break
-
-
-def build_xoauth2_string(username: str, token: str) -> str:
-    return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 
 def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:

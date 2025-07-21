@@ -39,20 +39,16 @@ from typing import TYPE_CHECKING, Any, cast
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.smtp.version_compat import BaseHook
 
-try:
-    from airflow.utils.email import build_xoauth2_string
-except ImportError:
-
-    def build_xoauth2_string(username: str, token: str) -> str:
-        """Local fallback for older Airflow cores (≤2.11)."""
-        return f"user={username}\x01auth=Bearer {token}\x01\x01"
-
-
 if TYPE_CHECKING:
     try:
         from airflow.sdk import Connection
     except ImportError:
         from airflow.models.connection import Connection  # type: ignore[assignment]
+
+
+def build_xoauth2_string(username: str, token: str) -> str:
+    """Local fallback for older Airflow cores (≤2.11)."""
+    return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 
 class SmtpHook(BaseHook):
