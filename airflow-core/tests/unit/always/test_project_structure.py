@@ -161,7 +161,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
             "providers/google/tests/unit/google/cloud/links/test_datastore.py",
             "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
-            "providers/google/tests/unit/google/cloud/links/test_life_sciences.py",
             "providers/google/tests/unit/google/cloud/links/test_mlengine.py",
             "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
             "providers/google/tests/unit/google/cloud/links/test_spanner.py",
@@ -446,8 +445,11 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.mlengine.MLEngineCreateModelOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DeleteReportOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360UploadLineItemsOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadLineItemsOperator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
         "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook",
         "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink",
@@ -493,7 +495,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.google.cloud.operators.life_sciences.LifeSciencesRunPipelineOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
         "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
@@ -503,6 +504,13 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator",
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator",
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator",
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator",
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator",
+        "airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360RunQuerySensor",
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator",
     }
 

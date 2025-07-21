@@ -27,6 +27,7 @@ source-date-epoch: 1751474457
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.4.1
   - 1.4.0
   - 1.3.0
   - 1.2.0
@@ -69,6 +70,7 @@ operators:
       - airflow.providers.standard.operators.latest_only
       - airflow.providers.standard.operators.smooth
       - airflow.providers.standard.operators.branch
+      - airflow.providers.standard.operators.hitl
 sensors:
   - integration-name: Standard
     python-modules:
@@ -93,6 +95,7 @@ triggers:
       - airflow.providers.standard.triggers.external_task
       - airflow.providers.standard.triggers.file
       - airflow.providers.standard.triggers.temporal
+      - airflow.providers.standard.triggers.hitl
 
 extra-links:
   - airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink

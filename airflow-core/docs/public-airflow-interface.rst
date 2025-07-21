@@ -47,6 +47,21 @@ For comprehensive Task SDK documentation, see the `Task SDK Reference <https://a
 Using Airflow Public Interfaces
 ===============================
 
+.. note::
+
+   As of **Airflow 3.0**, users should use the ``airflow.sdk`` namespace as the official **Public Interface**, as defined in `AIP-72 <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-72+Task+Execution+Interface+aka+Task+SDK>`_.
+
+   Direct interaction with internal modules or the metadata database is not possible.
+   For stable, production-safe integration, it is recommended to use:
+
+   - The official **REST API**
+   - The **Python Client SDK** (`airflow-client-python`)
+   - The new **Task SDK** (``airflow.sdk``)
+
+   Related docs:
+   - `Release Notes 3.0 <https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html>`_
+   - `Task SDK Overview <https://airflow.apache.org/docs/apache-airflow/stable/concepts/taskflow.html>`_
+
 The following are some examples of the public interface of Airflow:
 
 * When you are writing your own operators or hooks. This is commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.

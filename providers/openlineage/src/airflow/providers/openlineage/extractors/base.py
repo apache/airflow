@@ -59,7 +59,7 @@ class BaseExtractor(ABC, LoggingMixin):
 
     _allowed_query_params: list[str] = []
 
-    def __init__(self, operator):  # type: ignore
+    def __init__(self, operator):
         super().__init__()
         self.operator = operator
 

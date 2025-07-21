@@ -19,12 +19,12 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -34,7 +34,7 @@ from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -100,9 +100,55 @@ class Deadline(Base):
 
     @classmethod
     @provide_session
-    def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
-        """Add the provided deadline to the table."""
-        session.add(deadline)
+    def prune_deadlines(cls, *, session: Session, conditions: dict[Column, Any]) -> int:
+        """
+        Remove deadlines from the table which match the provided conditions and return the number removed.
+
+        NOTE: This should only be used to remove deadlines which are associated with
+            successful DagRuns. If the deadline was missed, it will be handled by the
+            scheduler.
+        TODO:  Create the missed_deadlines table (Ramit)
+
+        :param conditions: Dictionary of conditions to evaluate against.
+        :param session: Session to use.
+        """
+        from airflow.models import DagRun  # Avoids circular import
+
+        # Assemble the filter conditions.
+        filter_conditions = [column == value for column, value in conditions.items()]
+        if not filter_conditions:
+            return 0
+
+        try:
+            # Get deadlines which match the provided conditions and their associated DagRuns.
+            deadline_dagrun_pairs = (
+                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
+            )
+        except AttributeError as e:
+            logger.exception("Error resolving deadlines: %s", e)
+            raise
+
+        if not deadline_dagrun_pairs:
+            return 0
+
+        deleted_count = 0
+        dagruns_to_refresh = set()
+
+        for deadline, dagrun in deadline_dagrun_pairs:
+            if dagrun.end_date <= deadline.deadline_time:
+                # If the DagRun finished before the Deadline:
+                session.delete(deadline)
+                deleted_count += 1
+                dagruns_to_refresh.add(dagrun)
+        session.flush()
+
+        logger.debug("%d deadline records were deleted matching the conditions %s", deleted_count, conditions)
+
+        # Refresh any affected DAG runs.
+        for dagrun in dagruns_to_refresh:
+            session.refresh(dagrun)
+
+        return deleted_count
 
 
 class ReferenceModels:
@@ -143,7 +189,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, **kwargs: Any) -> datetime:
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -155,10 +201,10 @@ class ReferenceModels:
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
                 self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
 
-            return self._evaluate_with(**filtered_kwargs)
+            return self._evaluate_with(session=session, **filtered_kwargs) + interval
 
         @abstractmethod
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -192,7 +238,7 @@ class ReferenceModels:
 
         _datetime: datetime
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             return self._datetime
 
         def serialize_reference(self) -> dict:
@@ -208,22 +254,23 @@ class ReferenceModels:
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
-            return _fetch_from_db(DagRun.logical_date, **kwargs)
+            return _fetch_from_db(DagRun.logical_date, session=session, **kwargs)
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        @provide_session
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
-            return _fetch_from_db(DagRun.queued_at, **kwargs)
+            return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference

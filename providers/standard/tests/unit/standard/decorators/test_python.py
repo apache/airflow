@@ -28,9 +28,8 @@ from airflow.models.taskmap import TaskMap
 from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
@@ -38,6 +37,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+
 else:
     from airflow.decorators import setup, task as task_decorator, teardown
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
@@ -46,7 +46,7 @@ else:
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.xcom_arg import XComArg
-    from airflow.utils.task_group import TaskGroup
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 

@@ -100,7 +100,7 @@ class TaskResponse(BaseModel):
         return {param_name: param_val.dump() for param_name, param_val in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def extra_links(self) -> list[str]:
         """Extract and return extra_links."""

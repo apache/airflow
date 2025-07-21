@@ -427,7 +427,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         """
         self.log.info("Executing: %s", self.sql)
         self.query_ids = self._hook.execute_query(
-            self.sql,  # type: ignore[arg-type]
+            self.sql,
             statement_count=self.statement_count,
             bindings=self.bindings,
         )

@@ -62,6 +62,7 @@ CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
 LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
 LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/endpoints")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 

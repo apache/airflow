@@ -29,10 +29,10 @@ from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -56,367 +56,55 @@ INNER_TASK_GROUP = "inner_task_group"
 INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
-    "dag_run_id": "run_1",
-    "data_interval_end": "2024-11-30T00:00:00Z",
-    "data_interval_start": "2024-11-29T00:00:00Z",
+    "dag_id": "test_dag",
+    "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
-    "logical_date": "2024-11-30T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
+    "run_id": "run_1",
     "run_type": "scheduled",
     "start_date": "2016-01-01T00:00:00Z",
     "state": "success",
-    "task_instances": [
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 3,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 3,
-            "task_id": "mapped_task_group",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 2,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 2,
-            "task_id": "task_group.inner_task_group",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 5,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 5,
-            "task_id": "task_group",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 1,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 1,
-            "task_id": "mapped_task_2",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 3,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 3,
-            "task_id": "mapped_task_group.subtask",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 1,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 1,
-            "task_id": "task",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 2,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 2,
-            "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 4,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 4,
-            "task_id": "task_group.mapped_task",
-            "try_number": 0,
-        },
-    ],
 }
 
 GRID_RUN_2 = {
-    "dag_run_id": "run_2",
-    "data_interval_end": "2024-11-30T00:00:00Z",
-    "data_interval_start": "2024-11-29T00:00:00Z",
+    "dag_id": "test_dag",
+    "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
-    "logical_date": "2024-12-01T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
+    "run_id": "run_2",
     "run_type": "manual",
     "start_date": "2016-01-01T00:00:00Z",
     "state": "failed",
-    "task_instances": [
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 1,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 1,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 1,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "end_date": "2024-12-30T01:02:03Z",
-            "start_date": "2024-12-30T01:00:00Z",
-            "state": "running",
-            "task_count": 3,
-            "task_id": "mapped_task_group",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 2,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 0,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "task_count": 2,
-            "task_id": "task_group.inner_task_group",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 5,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 0,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "task_count": 5,
-            "task_id": "task_group",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 1,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 0,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "task_count": 1,
-            "task_id": "mapped_task_2",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 1,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 1,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 1,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "end_date": "2024-12-30T01:02:03Z",
-            "start_date": "2024-12-30T01:00:00Z",
-            "state": "running",
-            "task_count": 3,
-            "task_id": "mapped_task_group.subtask",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 1,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "state": "success",
-            "task_count": 1,
-            "task_id": "task",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 2,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 0,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "task_count": 2,
-            "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
-            "try_number": 0,
-        },
-        {
-            "child_states": {
-                "deferred": 0,
-                "failed": 0,
-                "no_status": 4,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 0,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-            "task_count": 4,
-            "task_id": "task_group.mapped_task",
-            "try_number": 0,
-        },
-    ],
 }
+
+GRID_NODES = [
+    {
+        "children": [{"id": "mapped_task_group.subtask", "is_mapped": True, "label": "subtask"}],
+        "id": "mapped_task_group",
+        "is_mapped": True,
+        "label": "mapped_task_group",
+    },
+    {"id": "task", "label": "task"},
+    {
+        "children": [
+            {
+                "children": [
+                    {
+                        "id": "task_group.inner_task_group.inner_task_group_sub_task",
+                        "is_mapped": True,
+                        "label": "inner_task_group_sub_task",
+                    }
+                ],
+                "id": "task_group.inner_task_group",
+                "label": "inner_task_group",
+            },
+            {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
+        ],
+        "id": "task_group",
+        "label": "task_group",
+    },
+    {"id": "mapped_task_2", "is_mapped": True, "label": "mapped_task_2"},
+]
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -582,286 +270,48 @@ def _freeze_time_for_dagruns(time_machine):
 @pytest.mark.usefixtures("_freeze_time_for_dagruns")
 class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
-        response = test_client.get(f"/grid/{DAG_ID}")
+        response = test_client.get(f"/grid/runs/{DAG_ID}")
         assert response.status_code == 200
-        assert response.json() == {
-            "dag_runs": [GRID_RUN_1, GRID_RUN_2],
-        }
+        assert response.json() == [
+            GRID_RUN_1,
+            GRID_RUN_2,
+        ]
 
     @pytest.mark.parametrize(
         "order_by,expected",
         [
             (
                 "logical_date",
-                {
-                    "dag_runs": [
-                        GRID_RUN_1,
-                        GRID_RUN_2,
-                    ],
-                },
+                [
+                    GRID_RUN_1,
+                    GRID_RUN_2,
+                ],
             ),
             (
                 "-logical_date",
-                {
-                    "dag_runs": [
-                        GRID_RUN_2,
-                        GRID_RUN_1,
-                    ],
-                },
+                [
+                    GRID_RUN_2,
+                    GRID_RUN_1,
+                ],
             ),
             (
                 "run_after",
-                {
-                    "dag_runs": [
-                        GRID_RUN_1,
-                        GRID_RUN_2,
-                    ],
-                },
+                [
+                    GRID_RUN_1,
+                    GRID_RUN_2,
+                ],
             ),
             (
                 "-run_after",
-                {
-                    "dag_runs": [
-                        GRID_RUN_2,
-                        GRID_RUN_1,
-                    ],
-                },
+                [
+                    GRID_RUN_2,
+                    GRID_RUN_1,
+                ],
             ),
         ],
     )
     def test_should_response_200_order_by(self, test_client, order_by, expected):
-        response = test_client.get(f"/grid/{DAG_ID}", params={"order_by": order_by})
-        assert response.status_code == 200
-        assert response.json() == expected
-
-    @pytest.mark.parametrize(
-        "include_upstream, include_downstream, expected",
-        [
-            (
-                "true",
-                "false",
-                {
-                    "dag_runs": [
-                        {
-                            **GRID_RUN_1,
-                            "task_instances": [
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 0,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 0,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 3,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "state": "success",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group",
-                                    "try_number": 0,
-                                },
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 0,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 0,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 3,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "state": "success",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group.subtask",
-                                    "try_number": 0,
-                                },
-                            ],
-                        },
-                        {
-                            **GRID_RUN_2,
-                            "task_instances": [
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 1,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 1,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 1,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "end_date": "2024-12-30T01:02:03Z",
-                                    "start_date": "2024-12-30T01:00:00Z",
-                                    "state": "running",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group",
-                                    "try_number": 0,
-                                },
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 1,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 1,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 1,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "end_date": "2024-12-30T01:02:03Z",
-                                    "start_date": "2024-12-30T01:00:00Z",
-                                    "state": "running",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group.subtask",
-                                    "try_number": 0,
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ),
-            (
-                "false",
-                "true",
-                {
-                    "dag_runs": [
-                        {
-                            **GRID_RUN_1,
-                            "task_instances": [
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 0,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 0,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 3,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "state": "success",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group",
-                                    "try_number": 0,
-                                },
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 0,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 0,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 3,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "state": "success",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group.subtask",
-                                    "try_number": 0,
-                                },
-                            ],
-                        },
-                        {
-                            **GRID_RUN_2,
-                            "task_instances": [
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 1,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 1,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 1,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "end_date": "2024-12-30T01:02:03Z",
-                                    "start_date": "2024-12-30T01:00:00Z",
-                                    "state": "running",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group",
-                                    "try_number": 0,
-                                },
-                                {
-                                    "child_states": {
-                                        "deferred": 0,
-                                        "failed": 0,
-                                        "no_status": 1,
-                                        "queued": 0,
-                                        "removed": 0,
-                                        "restarting": 0,
-                                        "running": 1,
-                                        "scheduled": 0,
-                                        "skipped": 0,
-                                        "success": 1,
-                                        "up_for_reschedule": 0,
-                                        "up_for_retry": 0,
-                                        "upstream_failed": 0,
-                                    },
-                                    "end_date": "2024-12-30T01:02:03Z",
-                                    "start_date": "2024-12-30T01:00:00Z",
-                                    "state": "running",
-                                    "task_count": 3,
-                                    "task_id": "mapped_task_group.subtask",
-                                    "try_number": 0,
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ),
-        ],
-    )
-    def test_should_response_200_include_upstream_downstream(
-        self, test_client, include_upstream, include_downstream, expected
-    ):
-        response = test_client.get(
-            f"/grid/{DAG_ID}",
-            params={
-                "root": SUB_TASK_ID,
-                "include_upstream": include_upstream,
-                "include_downstream": include_downstream,
-            },
-        )
+        response = test_client.get(f"/grid/runs/{DAG_ID}", params={"order_by": order_by})
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -870,20 +320,16 @@ class TestGetGridDataEndpoint:
         [
             (
                 1,
-                {
-                    "dag_runs": [GRID_RUN_1],
-                },
+                [GRID_RUN_1],
             ),
             (
                 2,
-                {
-                    "dag_runs": [GRID_RUN_1, GRID_RUN_2],
-                },
+                [GRID_RUN_1, GRID_RUN_2],
             ),
         ],
     )
     def test_should_response_200_limit(self, test_client, limit, expected):
-        response = test_client.get(f"/grid/{DAG_ID}", params={"limit": limit})
+        response = test_client.get(f"/grid/runs/{DAG_ID}", params={"limit": limit})
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -892,141 +338,80 @@ class TestGetGridDataEndpoint:
         [
             (
                 {
-                    "logical_date_gte": timezone.datetime(2024, 11, 30),
-                    "logical_date_lte": timezone.datetime(2024, 11, 30),
-                },
-                {
-                    "dag_runs": [GRID_RUN_1],
-                },
-            ),
-            (
-                {
-                    "logical_date_gte": timezone.datetime(2024, 10, 30),
-                    "logical_date_lte": timezone.datetime(2024, 10, 30),
-                },
-                {"dag_runs": []},
-            ),
-            (
-                {
                     "run_after_gte": timezone.datetime(2024, 11, 30),
                     "run_after_lte": timezone.datetime(2024, 11, 30),
                 },
-                {
-                    "dag_runs": [GRID_RUN_1, GRID_RUN_2],
-                },
+                [GRID_RUN_1, GRID_RUN_2],
             ),
             (
                 {
                     "run_after_gte": timezone.datetime(2024, 10, 30),
                     "run_after_lte": timezone.datetime(2024, 10, 30),
                 },
-                {"dag_runs": []},
+                [],
             ),
         ],
     )
-    def test_should_response_200_date_filters(self, test_client, params, expected):
+    def test_runs_should_response_200_date_filters(self, test_client, params, expected):
         response = test_client.get(
-            f"/grid/{DAG_ID}",
+            f"/grid/runs/{DAG_ID}",
             params=params,
         )
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "run_type, expected",
+        "params, expected",
         [
             (
-                ["manual"],
                 {
-                    "dag_runs": [GRID_RUN_2],
+                    "run_after_gte": timezone.datetime(2024, 11, 30),
+                    "run_after_lte": timezone.datetime(2024, 11, 30),
                 },
+                GRID_NODES,
             ),
             (
-                ["scheduled"],
                 {
-                    "dag_runs": [GRID_RUN_1],
+                    "run_after_gte": timezone.datetime(2024, 10, 30),
+                    "run_after_lte": timezone.datetime(2024, 10, 30),
                 },
+                GRID_NODES,
             ),
         ],
     )
-    def test_should_response_200_run_types(self, test_client, run_type, expected):
-        response = test_client.get(f"/grid/{DAG_ID}", params={"run_type": run_type})
+    def test_structure_should_response_200_date_filters(self, test_client, params, expected):
+        response = test_client.get(
+            f"/grid/structure/{DAG_ID}",
+            params=params,
+        )
         assert response.status_code == 200
         assert response.json() == expected
 
-    @pytest.mark.parametrize(
-        "run_type, expected",
-        [
-            (
-                ["invalid"],
-                {"detail": f"Invalid value for run type. Valid values are {', '.join(DagRunType)}"},
-            )
-        ],
-    )
-    def test_should_response_200_run_types_invalid(self, test_client, run_type, expected):
-        response = test_client.get(f"/grid/{DAG_ID}", params={"run_type": run_type})
-        assert response.status_code == 422
-        assert response.json() == expected
-
-    @pytest.mark.parametrize(
-        "state, expected",
-        [
-            (
-                ["success"],
-                {
-                    "dag_runs": [GRID_RUN_1],
-                },
-            ),
-            (
-                ["failed"],
-                {
-                    "dag_runs": [GRID_RUN_2],
-                },
-            ),
-            (
-                ["running"],
-                {"dag_runs": []},
-            ),
-        ],
-    )
-    def test_should_response_200_states(self, test_client, state, expected):
-        response = test_client.get(f"/grid/{DAG_ID}", params={"state": state})
-        assert response.status_code == 200
-        assert response.json() == expected
-
-    @pytest.mark.parametrize(
-        "state, expected",
-        [
-            (
-                ["invalid"],
-                {"detail": f"Invalid value for state. Valid values are {', '.join(DagRunState)}"},
-            )
-        ],
-    )
-    def test_should_response_200_states_invalid(self, test_client, state, expected):
-        response = test_client.get(f"/grid/{DAG_ID}", params={"state": state})
-        assert response.status_code == 422
-        assert response.json() == expected
-
-    def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/grid/{DAG_ID_3}")
+    @pytest.mark.parametrize("endpoint", ["runs", "structure", "latest_run"])
+    def test_should_response_401(self, unauthenticated_test_client, endpoint):
+        response = unauthenticated_test_client.get(f"/grid/{endpoint}/{DAG_ID_3}")
         assert response.status_code == 401
 
-    def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/grid/{DAG_ID_3}")
+    @pytest.mark.parametrize("endpoint", ["runs", "structure", "latest_run"])
+    def test_should_response_403(self, unauthorized_test_client, endpoint):
+        response = unauthorized_test_client.get(f"/grid/{endpoint}/{DAG_ID_3}")
         assert response.status_code == 403
 
-    def test_should_response_404(self, test_client):
-        response = test_client.get("/grid/invalid_dag")
+    @pytest.mark.parametrize("endpoint", ["runs", "structure"])
+    def test_should_response_404(self, test_client, endpoint):
+        response = test_client.get(f"/grid/{endpoint}/invalid_dag")
         assert response.status_code == 404
         assert response.json() == {"detail": "Dag with id invalid_dag was not found"}
 
-    def test_should_response_200_without_dag_run(self, test_client):
-        response = test_client.get(f"/grid/{DAG_ID_2}")
+    def test_structure_should_response_200_without_dag_run(self, test_client):
+        response = test_client.get(f"/grid/structure/{DAG_ID_2}")
         assert response.status_code == 200
-        assert response.json() == {
-            "dag_runs": [],
-        }
+        assert response.json() == [{"id": "task2", "label": "task2"}]
+
+    def test_runs_should_response_200_without_dag_run(self, test_client):
+        response = test_client.get(f"/grid/runs/{DAG_ID_2}")
+        assert response.status_code == 200
+        assert response.json() == []
 
     def test_should_response_200_with_deleted_task_and_taskgroup(self, session, test_client):
         # Mark one of the TI of the previous runs as "REMOVED" to simulate clearing an older DagRun.
@@ -1038,121 +423,17 @@ class TestGetGridDataEndpoint:
         ti.dag_version = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID_3)).dag_versions[-1]
         session.commit()
 
-        response = test_client.get(f"/grid/{DAG_ID_3}")
+        response = test_client.get(f"/grid/structure/{DAG_ID_3}")
         assert response.status_code == 200
-        assert response.json() == {
-            "dag_runs": [
-                {
-                    "dag_run_id": "run_3",
-                    "data_interval_end": "2024-11-30T00:00:00Z",
-                    "data_interval_start": "2024-11-29T00:00:00Z",
-                    "logical_date": "2024-11-30T00:00:00Z",
-                    "queued_at": "2024-12-31T00:00:00Z",
-                    "run_after": "2024-11-30T00:00:00Z",
-                    "run_type": "scheduled",
-                    "state": "queued",
-                    "task_instances": [
-                        {
-                            "child_states": {
-                                "deferred": 0,
-                                "failed": 0,
-                                "no_status": 0,
-                                "queued": 0,
-                                "removed": 0,
-                                "restarting": 0,
-                                "running": 0,
-                                "scheduled": 0,
-                                "skipped": 0,
-                                "success": 1,
-                                "up_for_reschedule": 0,
-                                "up_for_retry": 0,
-                                "upstream_failed": 0,
-                            },
-                            "state": "success",
-                            "task_count": 1,
-                            "task_id": "task_group",
-                            "try_number": 0,
-                        },
-                        {
-                            "child_states": {
-                                "deferred": 0,
-                                "failed": 0,
-                                "no_status": 0,
-                                "queued": 0,
-                                "removed": 0,
-                                "restarting": 0,
-                                "running": 0,
-                                "scheduled": 0,
-                                "skipped": 0,
-                                "success": 1,
-                                "up_for_reschedule": 0,
-                                "up_for_retry": 0,
-                                "upstream_failed": 0,
-                            },
-                            "state": "success",
-                            "task_count": 1,
-                            "task_id": "task3",
-                            "try_number": 0,
-                        },
-                        {
-                            "child_states": {
-                                "deferred": 0,
-                                "failed": 0,
-                                "no_status": 0,
-                                "queued": 0,
-                                "removed": 0,
-                                "restarting": 0,
-                                "running": 0,
-                                "scheduled": 0,
-                                "skipped": 0,
-                                "success": 1,
-                                "up_for_reschedule": 0,
-                                "up_for_retry": 0,
-                                "upstream_failed": 0,
-                            },
-                            "state": "success",
-                            "task_count": 1,
-                            "task_id": "task_group.inner_task",
-                            "try_number": 0,
-                        },
-                    ],
-                },
-                {
-                    "dag_run_id": "run_4",
-                    "data_interval_end": "2024-11-30T00:00:00Z",
-                    "data_interval_start": "2024-11-29T00:00:00Z",
-                    "end_date": "2024-12-31T00:00:00Z",
-                    "logical_date": "2024-12-01T00:00:00Z",
-                    "run_after": "2024-11-30T00:00:00Z",
-                    "run_type": "manual",
-                    "start_date": "2024-11-30T00:00:00Z",
-                    "state": "success",
-                    "task_instances": [
-                        {
-                            "child_states": {
-                                "deferred": 0,
-                                "failed": 0,
-                                "no_status": 0,
-                                "queued": 0,
-                                "removed": 0,
-                                "restarting": 0,
-                                "running": 0,
-                                "scheduled": 0,
-                                "skipped": 0,
-                                "success": 1,
-                                "up_for_reschedule": 0,
-                                "up_for_retry": 0,
-                                "upstream_failed": 0,
-                            },
-                            "state": "success",
-                            "task_count": 1,
-                            "task_id": "task3",
-                            "try_number": 0,
-                        },
-                    ],
-                },
-            ],
-        }
+        assert response.json() == [
+            {"id": "task3", "label": "task3"},
+            {"id": "task4", "label": "task4"},
+            {
+                "children": [{"id": "task_group.inner_task", "label": "inner_task"}],
+                "id": "task_group",
+                "label": "task_group",
+            },
+        ]
 
     def test_get_dag_structure(self, session, test_client):
         session.commit()
@@ -1224,9 +505,27 @@ class TestGetGridDataEndpoint:
             "dag_id": "test_dag_4",
             "run_id": "run_4-1",
             "task_instances": [
-                {"state": "success", "task_id": "t1"},
-                {"state": "success", "task_id": "t2"},
-                {"state": "success", "task_id": "t7"},
+                {
+                    "state": "success",
+                    "task_id": "t1",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "t2",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "t7",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
                 {
                     "child_states": {"success": 2},
                     "max_end_date": "2025-03-02T00:00:12Z",
@@ -1234,7 +533,13 @@ class TestGetGridDataEndpoint:
                     "state": "success",
                     "task_id": "task_group-1",
                 },
-                {"state": "success", "task_id": "task_group-1.t6"},
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.t6",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
                 {
                     "child_states": {"success": 3},
                     "max_end_date": "2025-03-02T00:00:12Z",
@@ -1242,9 +547,27 @@ class TestGetGridDataEndpoint:
                     "state": "success",
                     "task_id": "task_group-1.task_group-2",
                 },
-                {"state": "success", "task_id": "task_group-1.task_group-2.t3"},
-                {"state": "success", "task_id": "task_group-1.task_group-2.t4"},
-                {"state": "success", "task_id": "task_group-1.task_group-2.t5"},
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t3",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t4",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
+                {
+                    "state": "success",
+                    "task_id": "task_group-1.task_group-2.t5",
+                    "child_states": None,
+                    "max_end_date": None,
+                    "min_start_date": None,
+                },
             ],
         }
         for obj in actual, expected:
@@ -1269,7 +592,13 @@ class TestGetGridDataEndpoint:
             return out
 
         expected = [
-            {"child_states": {}, "task_id": "mapped_task_2"},
+            {
+                "child_states": {"None": 1},
+                "task_id": "mapped_task_2",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
             {
                 "child_states": {"running": 1},
                 "max_end_date": "2024-12-30T01:02:03Z",
@@ -1277,12 +606,48 @@ class TestGetGridDataEndpoint:
                 "state": "running",
                 "task_id": "mapped_task_group",
             },
-            {"state": "running", "task_id": "mapped_task_group.subtask"},
-            {"state": "success", "task_id": "task"},
-            {"child_states": {}, "task_id": "task_group"},
-            {"child_states": {}, "task_id": "task_group.inner_task_group"},
-            {"child_states": {}, "task_id": "task_group.inner_task_group.inner_task_group_sub_task"},
-            {"child_states": {}, "task_id": "task_group.mapped_task"},
+            {
+                "state": "running",
+                "task_id": "mapped_task_group.subtask",
+                "child_states": None,
+                "max_end_date": None,
+                "min_start_date": None,
+            },
+            {
+                "state": "success",
+                "task_id": "task",
+                "child_states": None,
+                "max_end_date": None,
+                "min_start_date": None,
+            },
+            {
+                "child_states": {"None": 2},
+                "task_id": "task_group",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"None": 1},
+                "task_id": "task_group.inner_task_group",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"None": 2},
+                "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
+            {
+                "child_states": {"None": 4},
+                "task_id": "task_group.mapped_task",
+                "max_end_date": None,
+                "min_start_date": None,
+                "state": None,
+            },
         ]
         expected = sort_dict(expected)
         actual = sort_dict(actual)

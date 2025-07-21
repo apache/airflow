@@ -68,8 +68,8 @@ from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
-from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -156,7 +156,7 @@ def _create_dagrun(
         data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        run_after=logical_date or data_interval.end,  # type: ignore
+        run_after=logical_date or data_interval.end,
         data_interval=data_interval,
     )
     return dag.create_dagrun(
@@ -1621,7 +1621,7 @@ my_postgres_conn:
         ) as dag:
             EmptyOperator(task_id=task_id)
 
-        session = settings.Session()  # type: ignore
+        session = settings.Session()
         dagrun_1 = dag_maker.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,
@@ -1906,63 +1906,6 @@ my_postgres_conn:
         assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
 
-    @pytest.mark.parametrize(
-        "fab_version, perms, expected_exception, expected_perms",
-        [
-            pytest.param(
-                "1.2.0",
-                {
-                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
-                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-                    # will raise error in old FAB with new access control format
-                },
-                AirflowException,
-                None,
-                id="old_fab_new_access_control_format",
-            ),
-            pytest.param(
-                "1.2.0",
-                {
-                    "role1": [
-                        permissions.ACTION_CAN_READ,
-                        permissions.ACTION_CAN_EDIT,
-                        permissions.ACTION_CAN_READ,
-                    ],
-                },
-                None,
-                {"role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-                id="old_fab_old_access_control_format",
-            ),
-            pytest.param(
-                "1.3.0",
-                {
-                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},  # old format
-                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},  # new format
-                },
-                None,
-                {
-                    "role1": {
-                        permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
-                    },
-                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-                },
-                id="new_fab_mixed_access_control_format",
-            ),
-        ],
-    )
-    def test_access_control_format(self, fab_version, perms, expected_exception, expected_perms):
-        if expected_exception:
-            with patch("airflow.providers.fab.__version__", fab_version):
-                with pytest.raises(
-                    expected_exception,
-                    match="Please upgrade the FAB provider to a version >= 1.3.0 to allow use the Dag Level Access Control new format.",
-                ):
-                    DAG(dag_id="dag_test", schedule=None, access_control=perms)
-        else:
-            with patch("airflow.providers.fab.__version__", fab_version):
-                dag = DAG(dag_id="dag_test", schedule=None, access_control=perms)
-            assert dag.access_control == expected_perms
-
     def test_validate_executor_field_executor_not_configured(self):
         dag = DAG("test-dag", schedule=None)
         EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
@@ -2063,6 +2006,41 @@ my_postgres_conn:
         assert dag.get_bundle_version() is None
         DAG.bulk_write_to_db("testing", "abc", [dag])
         assert dag.get_bundle_version() == "abc"
+
+    @pytest.mark.parametrize(
+        "reference_type, reference_column",
+        [
+            pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, "logical_date", id="logical_date"),
+            pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, "queued_at", id="queued_at"),
+            pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
+        ],
+    )
+    def test_dagrun_deadline(self, reference_type, reference_column, dag_maker, session):
+        interval = datetime.timedelta(hours=1)
+        with dag_maker(
+            dag_id="test_queued_deadline",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=reference_type,
+                interval=interval,
+                callback=print,
+            ),
+        ) as dag:
+            ...
+
+        dr = dag.create_dagrun(
+            run_id="test_dagrun_deadline",
+            run_type=DagRunType.SCHEDULED,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert len(dr.deadlines) == 1
+        assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
 
 class TestDagModel:
