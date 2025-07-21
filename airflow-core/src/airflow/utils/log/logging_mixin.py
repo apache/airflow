@@ -129,7 +129,7 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
-class ExternalLoggingMixin:
+class ExternalLoggingMixin(metaclass=abc.ABCMeta):
     """Define a log handler based on an external service (e.g. ELK, StackDriver)."""
 
     @property

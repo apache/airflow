@@ -209,9 +209,11 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    date_key: self._clean_date(ti.logical_date)
-                    if AIRFLOW_V_3_0_PLUS
-                    else self._clean_date(ti.execution_date),
+                    date_key: (
+                        self._clean_date(ti.logical_date)
+                        if AIRFLOW_V_3_0_PLUS
+                        else self._clean_date(ti.execution_date)
+                    ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -597,3 +599,25 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
+
+    @property
+    def supports_external_link(self) -> bool:
+        """
+        Whether we can support external links.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return False
+
+    def get_external_log_url(self, task_instance, try_number) -> str:
+        """
+        Create an address for an external log collecting service.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return ""
+
+    @property
+    def log_name(self) -> str:
+        """The log name."""
+        return self.LOG_NAME
