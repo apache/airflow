@@ -63,10 +63,6 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
-from airflow.api_fastapi.execution_api.datamodels.hitl import (
-    GetHITLDetailResponsePayload,
-    UpdateHITLDetailPayload,
-)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
     AssetEventResponse,
@@ -88,6 +84,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetailPayload,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -857,6 +854,12 @@ class GetDRCount(BaseModel):
     run_ids: list[str] | None = None
     states: list[str] | None = None
     type: Literal["GetDRCount"] = "GetDRCount"
+
+
+class GetHITLDetailResponsePayload(BaseModel):
+    """Schema for getting the response part of a Human-in-the-loop detail for a specific task instance."""
+
+    ti_id: UUID
 
 
 class GetHITLDetailResponse(GetHITLDetailResponsePayload):
