@@ -1955,20 +1955,25 @@ class TaskInstance(Base, LoggingMixin):
         # call XCom.deserialize_value() manually.
 
         # We are only pulling one single task.
+        print("okkak")
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = session.scalars(
-                query.with_only_columns(
-                    XComModel.run_id,
-                    XComModel.task_id,
-                    XComModel.dag_id,
-                    XComModel.map_index,
-                    XComModel.value,
+            first = (
+                session.execute(
+                    query.with_only_columns(
+                        XComModel.run_id,
+                        XComModel.task_id,
+                        XComModel.dag_id,
+                        XComModel.map_index,
+                        XComModel.value,
+                    )
                 )
-            ).first()
+                .mappings()
+                .first()
+            )
 
             if first is None:  # No matching XCom at all.
                 return default
-            if map_indexes is not None or first.map_index < 0:
+            if map_indexes is not None or first["map_index"] < 0:
                 return XComModel.deserialize_value(first)
 
             # raise RuntimeError("Nothing should hit this anymore")
