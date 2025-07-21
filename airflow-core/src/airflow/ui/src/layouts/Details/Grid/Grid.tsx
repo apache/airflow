@@ -131,3 +131,9 @@ export const Grid = ({ limit }: Props) => {
     </Flex>
   );
 };
+
+export const Grid = ({ limit }: Props) => (
+  <NavigationPreviewProvider>
+    <GridContent limit={limit} />
+  </NavigationPreviewProvider>
+);

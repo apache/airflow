@@ -1,0 +1,34 @@
+diff a/airflow-core/src/airflow/ui/src/layouts/Details/Grid/Bar.tsx b/airflow-core/src/airflow/ui/src/layouts/Details/Grid/Bar.tsx	(rejected hunks)
+@@ -20,6 +20,7 @@ import { Flex, Box } from "@chakra-ui/react";
+ import { useParams, useSearchParams } from "react-router-dom";
+ 
+ import { RunTypeIcon } from "src/components/RunTypeIcon";
++import { useNavigationPreview } from "src/context/navigationPreview";
+ 
+ import { GridButton } from "./GridButton";
+ import { TaskInstancesColumn } from "./TaskInstancesColumn";
+@@ -36,15 +37,22 @@ type Props = {
+ export const Bar = ({ max, nodes, run }: Props) => {
+   const { dagId = "", runId } = useParams();
+   const [searchParams] = useSearchParams();
++  const { previewRunId } = useNavigationPreview();
+ 
+   const isSelected = runId === run.dag_run_id;
+-
+   const search = searchParams.toString();
+ 
+   return (
+     <Box
+       _hover={{ bg: "blue.subtle" }}
+-      bg={isSelected ? "blue.muted" : undefined}
++      bg={
++        isSelected
++          ? "blue.muted"
++          : previewRunId === run.dag_run_id
++          ? "blue.subtle"
++          : undefined
++      }
++      data-run-id={run.dag_run_id}
+       position="relative"
+       transition="background-color 0.2s"
+     >

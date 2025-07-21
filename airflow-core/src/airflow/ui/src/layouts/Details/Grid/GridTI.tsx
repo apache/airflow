@@ -23,6 +23,7 @@ import { Link, useParams } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
+import { useNavigationPreview } from "src/context/navigationPreview";
 
 type Props = {
   readonly dagId: string;
@@ -53,11 +54,18 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 
 const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { previewTaskId } = useNavigationPreview();
 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "blue.muted" : undefined}
+      bg={
+        selectedTaskId === taskId || selectedGroupId === taskId
+          ? "blue.muted"
+          : previewTaskId === taskId
+          ? "blue.subtle"
+          : undefined
+      }
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"
