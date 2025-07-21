@@ -419,7 +419,7 @@ class TestBackfillOperations:
             return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.list()
+        response = client.backfills.list(dag_id="dag_id")
         assert response == self.backfills_collection_response
 
     def test_pause(self):

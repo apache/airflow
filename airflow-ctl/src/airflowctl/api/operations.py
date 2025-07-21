@@ -329,9 +329,10 @@ class BackfillsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> BackfillCollectionResponse | ServerResponseError:
+    def list(self, dag_id: str) -> BackfillCollectionResponse | ServerResponseError:
         """List all backfills."""
-        return super().execute_list(path="backfills", data_model=BackfillCollectionResponse)
+        params = {"dag_id": dag_id}
+        return super().execute_list(path="backfills", data_model=BackfillCollectionResponse, params=params)
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
