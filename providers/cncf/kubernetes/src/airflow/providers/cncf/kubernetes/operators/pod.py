@@ -343,6 +343,8 @@ class KubernetesPodOperator(BaseOperator):
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        log_prefix: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -438,6 +440,8 @@ class KubernetesPodOperator(BaseOperator):
         self._progress_callback = progress_callback
         self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
+        self.log_prefix = log_prefix
+        self.log_formatter = log_formatter
 
     @cached_property
     def _incluster_namespace(self):
@@ -750,6 +754,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     init_containers=self.init_container_logs,
                     follow_logs=True,
+                    log_prefix=self.log_prefix,
+                    log_formatter=self.log_formatter,
                 )
         except kubernetes.client.exceptions.ApiException as exc:
             self._handle_api_exception(exc, pod)
@@ -766,6 +772,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     containers=self.container_logs,
                     follow_logs=True,
+                    log_prefix=self.log_prefix,
+                    log_formatter=self.log_formatter,
                 )
             if not self.get_logs or (
                 self.container_logs is not True and self.base_container_name not in self.container_logs
@@ -914,6 +922,8 @@ class KubernetesPodOperator(BaseOperator):
                         container_name=self.base_container_name,
                         follow=follow,
                         since_time=last_log_time,
+                        log_prefix=self.log_prefix,
+                        log_formatter=self.log_formatter,
                     )
 
                     self.invoke_defer_method(pod_log_status.last_log_time)
