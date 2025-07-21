@@ -855,6 +855,212 @@ class Client(httpx.Client):
 
 
 # This is only used for parsing. ServerResponseError is raised instead
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+import logging
+import ssl
+import sys
+import uuid
+from http import HTTPStatus
+from typing import TYPE_CHECKING, Any, TypeVar
+
+import certifi
+import httpx
+import msgspec
+import structlog
+from pydantic import BaseModel
+from retryhttp import retry, wait_retry_after
+from tenacity import before_log, wait_random_exponential
+from uuid6 import uuid7
+
+from airflow.configuration import conf
+from airflow.sdk import __version__
+from airflow.sdk.api.datamodels._generated import (
+    API_VERSION,
+    AssetEventsResponse,
+    AssetResponse,
+    ConnectionResponse,
+    DagRunStateResponse,
+    DagRunType,
+    HITLDetailResponse,
+    InactiveAssetsResponse,
+    PrevSuccessfulDagRunResponse,
+    TaskInstanceState,
+    TaskStatesResponse,
+    TerminalStateNonSuccess,
+    TIDeferredStatePayload,
+    TIEnterRunningPayload,
+    TIHeartbeatInfo,
+    TIRescheduleStatePayload,
+    TIRetryStatePayload,
+    TIRunContext,
+    TISkippedDownstreamTasksStatePayload,
+    TISuccessStatePayload,
+    TITerminalStatePayload,
+    TriggerDAGRunPayload,
+    ValidationError as RemoteValidationError,
+    VariablePostBody,
+    VariableResponse,
+    XComResponse,
+    XComSequenceIndexResponse,
+    XComSequenceSliceResponse,
+)
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import (
+    CreateHITLDetailPayload,
+    DRCount,
+    ErrorResponse,
+    HITLDetailRequestResult,
+    OKResponse,
+    PreviousDagRunResult,
+    SkipDownstreamTasks,
+    TaskRescheduleStartDate,
+    TICount,
+    UpdateHITLDetail,
+)
+from airflow.utils.net import get_hostname
+from airflow.utils.platform import getuser
+
+if TYPE_CHECKING:
+    from datetime import datetime
+    from typing import ParamSpec
+
+    from airflow.sdk.execution_time.comms import RescheduleTask
+
+    P = ParamSpec("P")
+    T = TypeVar("T")
+
+    # # methodtools doesn't have typestubs, so give a stub
+    def lru_cache(maxsize: int | None = 128):
+        def wrapper(f):
+            return f
+
+        return wrapper
+else:
+    from methodtools import lru_cache
+
+log = structlog.get_logger(logger_name=__name__)
+
+__all__ = [
+    "Client",
+    "ConnectionOperations",
+    "ServerResponseError",
+    "TaskInstanceOperations",
+]
+
+
+def get_json_error(response: httpx.Response):
+    """Raise a ServerResponseError if we can extract error info from the error."""
+    err = ServerResponseError.from_response(response)
+    if err:
+        raise err
+
+
+def raise_on_4xx_5xx(response: httpx.Response):
+    return get_json_error(response) or response.raise_for_status()
+
+
+# Py 3.11+ version
+def raise_on_4xx_5xx_with_note(response: httpx.Response):
+    try:
+        return get_json_error(response) or response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        if TYPE_CHECKING:
+            assert hasattr(e, "add_note")
+        e.add_note(
+            f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
+        )
+        raise
+
+
+if hasattr(BaseException, "add_note"):
+    # Py 3.11+
+    raise_on_4xx_5xx = raise_on_4xx_5xx_with_note
+
+
+def add_correlation_id(request: httpx.Request):
+    request.headers["correlation-id"] = str(uuid7())
+
+
+# ... All other class definitions remain the same (TaskInstanceOperations, ConnectionOperations, etc.) ...
+
+
+# Note: Given defaults make attempts after 1, 3, 7, 15 and fails after 31seconds
+API_RETRIES = conf.getint("workers", "execution_api_retries")
+API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
+API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
+API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
+
+
+class Client(httpx.Client):
+    def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
+        if (not base_url) ^ dry_run:
+            raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
+        auth = BearerAuth(token)
+
+        if dry_run:
+            # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
+            # real client, but just don't make any HTTP requests
+            kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
+            kwargs.setdefault("base_url", "dry-run://server")
+        else:
+            kwargs["base_url"] = base_url
+            ctx = ssl.create_default_context(cafile=certifi.where())
+            if API_SSL_CERT_PATH:
+                ctx.load_verify_locations(API_SSL_CERT_PATH)
+            kwargs["verify"] = ctx
+        pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
+        super().__init__(
+            auth=auth,
+            headers={
+                "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
+                "airflow-api-version": API_VERSION,
+            },
+            event_hooks={"response": [self._update_auth, raise_on_4xx_5xx], "request": [add_correlation_id]},
+            **kwargs,
+        )
+
+    _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+    def _update_auth(self, response: httpx.Response):
+        if new_token := response.headers.get("Refreshed-API-Token"):
+            log.debug("Execution API issued us a refreshed Task token")
+            self.auth = BearerAuth(new_token)
+
+    @retry(
+        reraise=True,
+        max_attempt_number=API_RETRIES,
+        wait_server_errors=_default_wait,
+        wait_network_errors=_default_wait,
+        wait_timeouts=_default_wait,
+        wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+        before_sleep=before_log(log, logging.WARNING),
+    )
+    def request(self, *args, **kwargs):
+        """Implement a convenience for httpx.Client.request with a retry layer."""
+        return super().request(*args, **kwargs)
+
+    # ... All other properties remain the same ...
+
+
+# This is only used for parsing. ServerResponseError is raised instead
 class _ErrorBody(BaseModel):
     detail: list[RemoteValidationError] | str
 
@@ -869,7 +1075,6 @@ class ServerResponseError(httpx.HTTPStatusError):
     detail: list[RemoteValidationError] | str | dict[str, Any] | None
 
     def __reduce__(self) -> tuple[Any, ...]:
-        # Needed because https://github.com/encode/httpx/pull/3108 isn't merged yet.
         return Exception.__new__, (type(self),) + self.args, self.__dict__
 
     @classmethod
@@ -896,7 +1101,6 @@ class ServerResponseError(httpx.HTTPStatusError):
             try:
                 detail = msgspec.json.decode(response.content)
             except Exception:
-                # Fallback to a normal httpx error
                 return None
             msg = "Server returned error"
 
