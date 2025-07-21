@@ -39,6 +39,54 @@
             "default": null,
             "x-docsSection": null
         },
+        "devMode": {
+            "description": "Development mode. If true, the chart will mount the source code into the deployments.",
+            "type": "object",
+            "x-docsSection": "Airflow",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Whether to enable development mode.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "persistence": {
+                    "type": "object",
+                    "description": "Persistence configuration for development mode.",
+                    "properties": {
+                        "size": {
+                            "description": "Volume size for the source code",
+                            "type": "string",
+                            "default": "128Mi"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the source code PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "storageClassName": {
+                            "description": "If using a custom StorageClass, pass name here (templated).",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
+                }
+            }
+        },
         "nameOverride": {
             "description": "Override the name of the chart",
             "type": "string",
