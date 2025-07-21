@@ -91,7 +91,7 @@ class TestTaskInstanceStates:
             state.value for state in State.failed_states.union(State.success_states)
         }.union(
             {"removed"}
-        )  # Treat removed separately since it doesn't neatly fit into the "success" or "failure" category semantically.ßß
+        )  # Treat removed separately since it doesn't neatly fit into the "success" or "failure" category semantically.
 
         assert failed_success_union == terminal_state_values, (
             f"Union of failed_states and success_states ({failed_success_union}) "
