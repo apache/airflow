@@ -151,7 +151,10 @@ jobs:
       test-scope: "DB"
       test-group: "core"
       backend: "postgres"
-      python-versions: "['${{ inputs.default-python-version }}']"
+      # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. It should be
+      # removed after upgrading FAB to v5 (PR #50960). The setting below should be:
+      #   "['${{ inputs.default-python-version }}']"
+      python-versions: "['3.13']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
@@ -177,7 +180,10 @@ jobs:
       test-scope: "DB"
       test-group: "providers"
       backend: "postgres"
-      python-versions: "['${{ inputs.default-python-version }}']"
+      # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. It should be
+      # removed after upgrading FAB to v5 (PR #50960). The setting below should be:
+      #   "['${{ inputs.default-python-version }}']"
+      python-versions: "['3.13']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
