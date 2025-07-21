@@ -68,17 +68,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_de
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def get_user(
-    oauth_token: str | None = Depends(oauth2_scheme),
-    bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> BaseUser:
-    token_str = None
-
-    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
-        token_str = bearer_credentials.credentials
-    elif oauth_token:
-        token_str = oauth_token
-
+async def resolve_user_from_token(token_str: str | None) -> BaseUser:
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -88,6 +78,19 @@ async def get_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
+
+
+async def get_user(
+    oauth_token: str | None = Depends(oauth2_scheme),
+    bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> BaseUser:
+    token_str = None
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        token_str = bearer_credentials.credentials
+    elif oauth_token:
+        token_str = oauth_token
+
+    return await resolve_user_from_token(token_str)
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
