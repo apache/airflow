@@ -38,8 +38,8 @@ AIRFLOW_V_3_0_3_PLUS = get_base_airflow_version_tuple() >= (3, 0, 3)
 AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.bases.decorator import remove_task_decorator
     from airflow.sdk.bases.xcom import BaseXCom
+    from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:

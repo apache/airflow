@@ -40,7 +40,7 @@ __deprecated_classes = {
     },
     "decorators": {
         "remove_task_decorator": "airflow.sdk.definitions._internal.decorators.remove_task_decorator",
-        "fixup_decorator_warning_stack": "airflow.sdk._internal.decorators.fixup_decorator_warning_stack",
+        "fixup_decorator_warning_stack": "airflow.sdk.definitions._internal.decorators.fixup_decorator_warning_stack",
     },
 }
 
