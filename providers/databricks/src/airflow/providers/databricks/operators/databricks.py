@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -42,16 +41,20 @@ from airflow.providers.databricks.operators.databricks_workflow import (
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
+    store_databricks_job_run_link,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
 )
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.databricks.operators.databricks_workflow import (
+        DatabricksWorkflowTaskGroup,
+    )
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
@@ -60,7 +63,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models import XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 DEFER_METHOD_NAME = "execute_complete"
@@ -1214,10 +1217,16 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         super().__init__(**kwargs)
 
         if self._databricks_workflow_task_group is not None:
-            self.operator_extra_links = (
-                WorkflowJobRunLink(),
-                WorkflowJobRepairSingleTaskLink(),
-            )
+            # Conditionally set operator_extra_links based on Airflow version. In Airflow 3, only show the job run link.
+            # In Airflow 2, show the job run link and the repair link.
+            # TODO: Once we expand the plugin functionality in Airflow 3.1, this can be re-evaluated on how to handle the repair link.
+            if AIRFLOW_V_3_0_PLUS:
+                self.operator_extra_links = (WorkflowJobRunLink(),)
+            else:
+                self.operator_extra_links = (
+                    WorkflowJobRunLink(),
+                    WorkflowJobRepairSingleTaskLink(),
+                )
         else:
             # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
             self.operator_extra_links = (DatabricksJobRunLink(),)
@@ -1422,11 +1431,18 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             if not self.workflow_run_metadata:
                 launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
                 self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
-            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
-                **self.workflow_run_metadata
-            )
+            workflow_run_metadata = WorkflowRunMetadata(**self.workflow_run_metadata)
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
+
+            # Store operator links in XCom for Airflow 3 compatibility
+            if AIRFLOW_V_3_0_PLUS:
+                # Store the job run link
+                store_databricks_job_run_link(
+                    context=context,
+                    metadata=workflow_run_metadata,
+                    logger=self.log,
+                )
         else:
             self._launch_job(context=context)
         if self.wait_for_termination:

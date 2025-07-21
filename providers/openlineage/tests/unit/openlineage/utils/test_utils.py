@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import pathlib
+from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pendulum
@@ -26,19 +27,12 @@ import pytest
 from uuid6 import uuid7
 
 from airflow import DAG
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils import timezone
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import task
-else:
-    from airflow.decorators import task
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
+    _MAX_DOC_BYTES,
     DagInfo,
     DagRunInfo,
     TaskGroupInfo,
@@ -47,24 +41,35 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInstanceInfo,
     _get_task_groups_details,
     _get_tasks_details,
+    _truncate_string_to_byte_size,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_dag_documentation,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
+    get_operator_provider_version,
+    get_task_documentation,
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator, task
+else:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -282,6 +287,165 @@ def test_get_fully_qualified_class_name_bash_operator():
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="echo 0;"))
     expected_result = f"{BASH_OPERATOR_PATH}.BashOperator"
     assert result == expected_result
+
+
+def test_truncate_string_to_byte_size_ascii_below_limit():
+    s = "A" * (_MAX_DOC_BYTES - 500)
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES - 500
+
+
+def test_truncate_string_to_byte_size_ascii_exact_limit():
+    s = "A" * _MAX_DOC_BYTES
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES
+
+
+def test_truncate_string_to_byte_size_ascii_over_limit():
+    s = "A" * (_MAX_DOC_BYTES + 10)
+    result = _truncate_string_to_byte_size(s)
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES
+    assert result == s[:_MAX_DOC_BYTES]  # Each ASCII char = 1 byte
+
+
+def test_truncate_string_to_byte_size_utf8_multibyte_under_limit():
+    emoji = "🧠"
+    s = emoji * 1000  # Each emoji is 4 bytes, total 4000 bytes
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) <= _MAX_DOC_BYTES
+
+
+def test_truncate_string_to_byte_size_utf8_multibyte_truncation():
+    emoji = "🧠"
+    full = emoji * (_MAX_DOC_BYTES // 4 + 10)
+    result = _truncate_string_to_byte_size(full)
+    result_bytes = result.encode("utf-8")
+    assert len(result_bytes) <= _MAX_DOC_BYTES
+    assert result_bytes.decode("utf-8") == result  # still valid UTF-8
+    # Ensure we didn't include partial emoji
+    assert result.endswith(emoji)
+
+
+def test_truncate_string_to_byte_size_split_multibyte_character():
+    s = "A" * 10 + "🧠"
+    encoded = s.encode("utf-8")
+    # Chop in the middle of the emoji (🧠 = 4 bytes)
+    partial = encoded[:-2]
+    result = _truncate_string_to_byte_size(s, max_size=len(partial))
+    assert "🧠" not in result
+    assert result == "A" * 10  # emoji should be dropped
+
+
+def test_truncate_string_to_byte_size_empty_string():
+    result = _truncate_string_to_byte_size("")
+    assert result == ""
+
+
+def test_truncate_string_to_byte_size_exact_multibyte_fit():
+    emoji = "🚀"
+    num = _MAX_DOC_BYTES // len(emoji.encode("utf-8"))
+    s = emoji * num
+    result = _truncate_string_to_byte_size(s)
+    assert result == s
+    assert len(result.encode("utf-8")) <= _MAX_DOC_BYTES
+
+
+def test_truncate_string_to_byte_size_null_characters():
+    s = "\x00" * (_MAX_DOC_BYTES + 10)
+    result = _truncate_string_to_byte_size(s)
+    assert len(result.encode("utf-8")) == _MAX_DOC_BYTES
+    assert all(c == "\x00" for c in result)
+
+
+def test_truncate_string_to_byte_size_non_bmp_characters():
+    # Characters like '𝄞' (U+1D11E) are >2 bytes in UTF-8
+    s = "𝄞" * 1000
+    result = _truncate_string_to_byte_size(s)
+    assert len(result.encode("utf-8")) <= _MAX_DOC_BYTES
+    assert result.encode("utf-8").decode("utf-8") == result
+
+
+@pytest.mark.parametrize(
+    "operator, expected_doc, expected_mime_type",
+    [
+        (None, None, None),
+        (MagicMock(doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None), None, None),
+        (MagicMock(doc="Test doc"), "Test doc", "text/plain"),
+        (MagicMock(doc_md="test.md", doc=None), "test.md", "text/markdown"),
+        (
+            MagicMock(doc_json='{"key": "value"}', doc=None, doc_md=None),
+            '{"key": "value"}',
+            "application/json",
+        ),
+        (
+            MagicMock(doc_yaml="key: value", doc_json=None, doc=None, doc_md=None),
+            "key: value",
+            "application/x-yaml",
+        ),
+        (
+            MagicMock(doc_rst="Test RST", doc_yaml=None, doc_json=None, doc=None, doc_md=None),
+            "Test RST",
+            "text/x-rst",
+        ),
+    ],
+)
+def test_get_task_documentation(operator, expected_doc, expected_mime_type):
+    result_doc, result_mime_type = get_task_documentation(operator)
+    assert result_doc == expected_doc
+    assert result_mime_type == expected_mime_type
+
+
+def test_get_task_documentation_serialized_operator():
+    op = BashOperator(task_id="test", bash_command="echo 1", doc="some_doc")
+    op_doc_before_serialization = get_task_documentation(op)
+    assert op_doc_before_serialization == ("some_doc", "text/plain")
+
+    serialized = SerializedBaseOperator.serialize_operator(op)
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+
+    op_doc_after_deserialization = get_task_documentation(deserialized)
+    assert op_doc_after_deserialization == ("some_doc", "text/plain")
+
+
+def test_get_task_documentation_mapped_operator():
+    mapped = MockOperator.partial(task_id="task_2", doc_md="some_doc").expand(arg2=["a", "b", "c"])
+    mapped_op_doc = get_task_documentation(mapped)
+    assert mapped_op_doc == ("some_doc", "text/markdown")
+
+
+def test_get_task_documentation_longer_than_allowed():
+    doc = "A" * (_MAX_DOC_BYTES + 10)
+    operator = MagicMock(doc=doc)
+    result_doc, result_mime_type = get_task_documentation(operator)
+    assert result_doc == "A" * _MAX_DOC_BYTES
+    assert result_mime_type == "text/plain"
+
+
+@pytest.mark.parametrize(
+    "dag, expected_doc, expected_mime_type",
+    [
+        (None, None, None),
+        (MagicMock(doc_md=None, description=None), None, None),
+        (MagicMock(doc_md="test.md", description=None), "test.md", "text/markdown"),
+        (MagicMock(doc_md="test.md", description="Description text"), "test.md", "text/markdown"),
+        (MagicMock(description="Description text", doc_md=None), "Description text", "text/plain"),
+    ],
+)
+def test_get_dag_documentation(dag, expected_doc, expected_mime_type):
+    result_doc, result_mime_type = get_dag_documentation(dag)
+    assert result_doc == expected_doc
+    assert result_mime_type == expected_mime_type
+
+
+def test_get_dag_documentation_longer_than_allowed():
+    doc = "A" * (_MAX_DOC_BYTES + 10)
+    dag = MagicMock(doc_md=doc, description=None)
+    result_doc, result_mime_type = get_dag_documentation(dag)
+    assert result_doc == "A" * _MAX_DOC_BYTES
+    assert result_mime_type == "text/markdown"
 
 
 def test_get_job_name():
@@ -669,12 +833,23 @@ def test_get_task_groups_details_no_task_groups():
 
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
 def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -684,12 +859,23 @@ def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_fa
     return_value={"unit.openlineage.utils.custom_facet_fixture.get_additional_test_facet"},
 )
 def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 1
     assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
@@ -703,14 +889,25 @@ def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet
     },
 )
 def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=BashOperator(
-            task_id="test-task",
-            bash_command="exit 0;",
-            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=BashOperator(
+                task_id="test-task",
+                bash_command="exit 0;",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=BashOperator(
+                task_id="test-task",
+                bash_command="exit 0;",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -725,12 +922,23 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
     },
 )
 def test_get_user_provided_run_facets_with_multiple_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 2
     assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
@@ -746,12 +954,23 @@ def test_get_user_provided_run_facets_with_multiple_function_definition(mock_cus
     },
 )
 def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 1
     assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
@@ -763,12 +982,23 @@ def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_face
     return_value={"invalid_function"},
 )
 def test_get_user_provided_run_facets_with_invalid_function_definition(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -778,12 +1008,23 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
     return_value={"providers.unit.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
 )
 def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -793,12 +1034,23 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
     return_value={"providers.unit.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
 )
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
-    sample_ti = TaskInstance(
-        task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
-        ),
-        state="running",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+            dag_version_id=mock.MagicMock(),
+        )
+    else:
+        sample_ti = TaskInstance(
+            task=EmptyOperator(
+                task_id="test-task",
+                dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
+            ),
+            state="running",
+        )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
 
@@ -1122,7 +1374,7 @@ class TestDagInfoAirflow3:
             ],
             "restrict_to_events": False,
         }
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_0_3_PLUS:
             timetable.update(
                 {
                     "_summary": "My Team's Baseball Games",
@@ -1436,7 +1688,6 @@ def test_dagrun_info_af3(mocked_dag_versions):
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
-@pytest.mark.db_test
 def test_dagrun_info_af2():
     date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
     dag = DAG(
@@ -1496,6 +1747,7 @@ def test_taskinstance_info_af3():
         run_id="test_run",
         try_number=1,
         map_index=2,
+        dag_version_id=ti_id,
     )
     start_date = timezone.datetime(2025, 1, 1)
 
@@ -1599,6 +1851,7 @@ def test_task_info_af3():
         "multiple_outputs": False,
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
+        "operator_provider_version": None,  # Custom operator doesn't have provider version
         "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
         "owner": "airflow",
         "priority_weight": 1,
@@ -1676,6 +1929,7 @@ def test_task_info_af2():
         "multiple_outputs": False,
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
+        "operator_provider_version": None,  # Custom operator doesn't have provider version
         "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
         "owner": "airflow",
         "priority_weight": 1,
@@ -1697,3 +1951,85 @@ def test_task_info_complete():
     task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
     result = TaskInfoComplete(task_0)
     assert "'bash_command': 'exit 0;'" in str(result)
+
+
+@patch("airflow.providers.openlineage.utils.utils.get_fully_qualified_class_name")
+def test_get_operator_provider_version_exception_handling(mock_class_name):
+    mock_class_name.side_effect = Exception("Test exception")
+    operator = MagicMock()
+    assert get_operator_provider_version(operator) is None
+
+
+def test_get_operator_provider_version_for_core_operator():
+    """Test that get_operator_provider_version returns None for core operators."""
+    operator = BaseOperator(task_id="test_task")
+    result = get_operator_provider_version(operator)
+    assert result is None
+
+
+@patch("airflow.providers_manager.ProvidersManager")
+def test_get_operator_provider_version_for_provider_operator(mock_providers_manager):
+    """Test that get_operator_provider_version returns version for provider operators."""
+    # Mock ProvidersManager
+    mock_manager_instance = MagicMock()
+    mock_providers_manager.return_value = mock_manager_instance
+
+    # Mock providers data
+    mock_manager_instance.providers = {
+        "apache-airflow-providers-standard": MagicMock(version="1.2.0"),
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+        "apache-airflow-providers-google": MagicMock(version="10.5.0"),
+    }
+
+    # Test with BashOperator (standard provider)
+    operator = BashOperator(task_id="test_task", bash_command="echo test")
+    result = get_operator_provider_version(operator)
+    assert result == "1.2.0"
+
+
+@patch("airflow.providers_manager.ProvidersManager")
+def test_get_operator_provider_version_provider_not_found(mock_providers_manager):
+    """Test that get_operator_provider_version returns None when provider is not found."""
+    # Mock ProvidersManager with no matching provider
+    mock_manager_instance = MagicMock()
+    mock_providers_manager.return_value = mock_manager_instance
+    mock_manager_instance.providers = {
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+        "apache-airflow-providers-google": MagicMock(version="10.5.0"),
+    }
+
+    operator = BashOperator(task_id="test_task", bash_command="echo test")
+    result = get_operator_provider_version(operator)
+    assert result is None
+
+
+def test_get_operator_provider_version_for_custom_operator():
+    """Test that get_operator_provider_version returns None for custom operators."""
+
+    # Create a custom operator that doesn't belong to any provider
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            pass
+
+    operator = CustomOperator(task_id="test_task")
+    result = get_operator_provider_version(operator)
+    assert result is None
+
+
+@patch("airflow.providers_manager.ProvidersManager")
+def test_get_operator_provider_version_for_mapped_operator(mock_providers_manager):
+    """Test that get_operator_provider_version works with mapped operators."""
+    # Mock ProvidersManager
+    mock_manager_instance = MagicMock()
+    mock_providers_manager.return_value = mock_manager_instance
+
+    # Mock providers data
+    mock_manager_instance.providers = {
+        "apache-airflow-providers-standard": MagicMock(version="1.2.0"),
+        "apache-airflow-providers-amazon": MagicMock(version="8.12.0"),
+    }
+
+    # Test with mapped BashOperator (standard provider)
+    mapped_operator = BashOperator.partial(task_id="test_task").expand(bash_command=["echo 1", "echo 2"])
+    result = get_operator_provider_version(mapped_operator)
+    assert result == "1.2.0"

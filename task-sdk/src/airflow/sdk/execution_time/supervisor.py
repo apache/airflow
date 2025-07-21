@@ -29,7 +29,7 @@ import sys
 import time
 import weakref
 from collections import deque
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -37,12 +37,12 @@ from socket import socket, socketpair
 from typing import (
     TYPE_CHECKING,
     BinaryIO,
-    Callable,
     ClassVar,
     NoReturn,
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -69,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -141,6 +142,10 @@ MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
 SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout")
+
+# Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+# like listeners after task is complete.
+TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -666,7 +671,7 @@ class WatchedSubprocess:
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
-        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+        escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
         if force and signal_to_send in escalation_path:
             # Start from `signal_to_send` and escalate to the end of the escalation path
@@ -822,10 +827,6 @@ class ActivitySubprocess(WatchedSubprocess):
     # does not hang around forever.
     failed_heartbeats: int = attrs.field(default=0, init=False)
 
-    # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
-    # like listeners after task is complete.
-    # TODO: This should come from airflow.cfg: [core] task_success_overtime
-    TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
@@ -975,9 +976,14 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         if (
             self._task_end_time_monotonic
-            and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
+            and (time.monotonic() - self._task_end_time_monotonic) > TASK_OVERTIME_THRESHOLD
         ):
-            log.warning("Workload success overtime reached; terminating process", ti_id=self.id)
+            log.warning(
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
+                ti_id=self.id,
+            )
             self.kill(signal.SIGTERM, force=True)
 
     def _send_heartbeat_if_needed(self):
@@ -1016,11 +1022,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
-                self._handle_heartbeat_failures()
-        except Exception:
-            self._handle_heartbeat_failures()
+                self._handle_heartbeat_failures(e)
+        except Exception as e:
+            self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self):
+    def _handle_heartbeat_failures(self, exc: Exception | None):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -1028,7 +1034,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exc_info=True,
+            exception=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
@@ -1231,6 +1237,17 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
+        elif isinstance(msg, CreateHITLDetailPayload):
+            resp = self.client.hitl.add_response(
+                ti_id=msg.ti_id,
+                options=msg.options,
+                subject=msg.subject,
+                body=msg.body,
+                defaults=msg.defaults,
+                params=msg.params,
+                multiple=msg.multiple,
+            )
+            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1403,7 +1420,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
     def send_msg(
@@ -1634,12 +1651,42 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")

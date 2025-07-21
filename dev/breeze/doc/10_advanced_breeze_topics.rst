@@ -49,7 +49,7 @@ make sure to follow these steps:
   this will bypass the check we run in Breeze to see if there are new requirements to install for it
 
 See example configuration for PyCharm which has run/debug configuration for
-``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.9``
+``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.10``
 
 .. raw:: html
 

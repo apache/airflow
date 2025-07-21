@@ -17,8 +17,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping, Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Collection, Mapping, Sequence
+from typing import Any
 
 from airflow.providers.common.compat.standard.operators import PythonOperator, get_current_context
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook

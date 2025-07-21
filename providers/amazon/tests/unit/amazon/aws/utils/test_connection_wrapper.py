@@ -120,7 +120,7 @@ class TestAwsConnectionWrapper:
         warning_message = f"expected connection type 'aws', got '{conn_type}'"
         with pytest.warns(UserWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
-            assert wrap_conn.conn_type == conn_type
+        assert wrap_conn.conn_type == conn_type
 
     @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
     @pytest.mark.parametrize("aws_secret_access_key", ["mock-aws-secret-access-key"])

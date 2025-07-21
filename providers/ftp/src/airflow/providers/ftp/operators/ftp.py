@@ -27,8 +27,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
+from airflow.providers.ftp.version_compat import BaseOperator
 
 
 class FTPOperation:

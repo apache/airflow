@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import io
 import json
 import textwrap
@@ -30,7 +31,13 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.sdk import BaseOperatorLink
 
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
-from unit.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
+
+if importlib.util.find_spec("flask_appbuilder"):
+    flask_appbuilder_installed = True
+    from unit.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
+else:
+    ComplexAirflowPlugin = None  # type: ignore [misc, assignment]
+    flask_appbuilder_installed = False
 
 pytestmark = pytest.mark.db_test
 
@@ -61,6 +68,7 @@ class TestPluginsCommand:
             stdout = temp_stdout.getvalue()
         assert "No plugins loaded" in stdout
 
+    @pytest.mark.skipif(not flask_appbuilder_installed, reason="Flask AppBuilder is not installed")
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
     def test_should_display_one_plugin(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
@@ -99,6 +107,16 @@ class TestPluginsCommand:
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
                     },
+                ],
+                "react_apps": [
+                    {
+                        "name": "Test React App",
+                        "bundle_url": "https://example.com/test-plugin-bundle.js",
+                        "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+                        "url_route": "test_react_app",
+                        "destination": "nav",
+                        "category": "browse",
+                    }
                 ],
                 "appbuilder_views": [
                     {

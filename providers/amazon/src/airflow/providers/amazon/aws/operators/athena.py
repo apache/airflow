@@ -239,7 +239,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         run_facets: dict[str, BaseFacet] = {}
         if parse_result.errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
-                totalTasks=len(self.query) if isinstance(self.query, list) else 1,
+                totalTasks=1,
                 failedTasks=len(parse_result.errors),
                 errors=[
                     Error(

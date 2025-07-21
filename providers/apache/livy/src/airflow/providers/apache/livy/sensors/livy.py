@@ -14,15 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains the Apache Livy sensor."""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.apache.livy.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

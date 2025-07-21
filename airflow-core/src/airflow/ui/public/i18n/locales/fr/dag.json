@@ -19,10 +19,16 @@
   },
   "header": {
     "buttons": {
-      "dagDocs": "Documentation du DAG"
+      "dagDocs": "Documentation du Dag"
     }
   },
   "logs": {
+    "allLevels": "Tous les niveaux de journalisation",
+    "allSources": "Toutes les sources",
+    "fullscreen": {
+      "button": "Plein écran",
+      "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
+    },
     "noTryNumber": "Aucun essai",
     "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})"
   },
@@ -51,12 +57,12 @@
       "showGrid": "Afficher la grille"
     },
     "dagRuns": {
-      "label": "Nombre de Runs du DAG"
+      "label": "Nombre de Runs du Dag"
     },
     "dependencies": {
       "label": "Dépendances",
       "options": {
-        "allDagDependencies": "Toutes les dépendances du DAG",
+        "allDagDependencies": "Toutes les dépendances du Dag",
         "externalConditions": "Conditions externes",
         "onlyTasks": "Tâches uniquement"
       },
@@ -70,11 +76,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "La demande d'analyse du DAG a échoué. Il se peut qu'il y ait encore des demandes en attente.",
-        "title": "Échec de l'analyse du DAG"
+        "description": "La demande d'analyse du Dag a échoué. Il se peut qu'il y ait encore des demandes en attente.",
+        "title": "Échec de l'analyse du Dag"
       },
       "success": {
-        "description": "Le DAG devrait être analysé sous peu.",
+        "description": "Le Dag devrait être analysé sous peu.",
         "title": "Demande d'analyse soumise avec succès"
       }
     }
@@ -98,13 +104,5 @@
   "taskGroups": {
     "collapseAll": "Réduire tous les groupes de tâches",
     "expandAll": "Développer tous les groupes de tâches"
-  },
-  "taskLogs": {
-    "allLogLevels": "Tous les niveaux de journalisation",
-    "allSources": "Toutes les sources",
-    "fullscreen": {
-      "button": "Plein écran",
-      "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
-    }
   }
 }

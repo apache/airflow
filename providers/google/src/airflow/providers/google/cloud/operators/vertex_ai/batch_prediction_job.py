@@ -269,7 +269,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         batch_prediction_job_id = batch_prediction_job.name
         self.log.info("Batch prediction job was created. Job id: %s", batch_prediction_job_id)
 
-        self.xcom_push(context, key="batch_prediction_job_id", value=batch_prediction_job_id)
+        context["ti"].xcom_push(key="batch_prediction_job_id", value=batch_prediction_job_id)
         VertexAIBatchPredictionJobLink.persist(
             context=context,
             batch_prediction_job_id=batch_prediction_job_id,
@@ -303,13 +303,11 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         job: dict[str, Any] = event["job"]
         self.log.info("Batch prediction job %s created and completed successfully.", job["name"])
         job_id = self.hook.extract_batch_prediction_job_id(job)
-        self.xcom_push(
-            context,
+        context["ti"].xcom_push(
             key="batch_prediction_job_id",
             value=job_id,
         )
-        self.xcom_push(
-            context,
+        context["ti"].xcom_push(
             key="training_conf",
             value={
                 "training_conf_id": job_id,

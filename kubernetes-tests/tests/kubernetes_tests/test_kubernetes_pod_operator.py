@@ -76,7 +76,10 @@ def create_context(task) -> Context:
                 logical_date=logical_date,
             ),
         )
-    task_instance = TaskInstance(task=task)
+    if AIRFLOW_V_3_0_PLUS:
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=mock.MagicMock())
+    else:
+        task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.try_number = 1
@@ -1485,7 +1488,7 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     task = KubernetesPodOperator(
         task_id="dry_run_demo",
         name="hello-dry-run",
-        image="python:3.9-slim-buster",
+        image="python:3.10-slim-buster",
         cmds=["printenv"],
         env_vars=[
             V1EnvVar(name="password", value="{{ password }}"),

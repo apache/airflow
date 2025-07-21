@@ -44,6 +44,19 @@ LOCALES_DIR = (
     Path(__file__).parents[2] / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 )
 
+# Plural suffixes per language (expand as needed)
+PLURAL_SUFFIXES = {
+    "en": ["_one", "_other"],
+    "pl": ["_one", "_few", "_many", "_other"],
+    "de": ["_one", "_other"],
+    "fr": ["_one", "_other"],
+    "nl": ["_one", "_other"],
+    "ar": ["_zero", "_one", "_two", "_few", "_many", "_other"],
+    "he": ["_one", "_other"],
+    "ko": ["_other"],
+    "zh-TW": ["_other"],
+}
+
 
 class LocaleSummary(NamedTuple):
     """
@@ -82,6 +95,30 @@ class LocaleKeySet(NamedTuple):
 
     locale: str
     keys: set[str] | None
+
+
+def get_plural_base(key: str, suffixes: list[str]) -> str | None:
+    for suffix in suffixes:
+        if key.endswith(suffix):
+            return key[: -len(suffix)]
+    return None
+
+
+def expand_plural_keys(keys: set[str], lang: str) -> set[str]:
+    """
+    For a set of keys, expand all plural bases to include all required suffixes for the language.
+    """
+    suffixes = PLURAL_SUFFIXES.get(lang, ["_one", "_other"])
+    base_to_suffixes: dict[str, set[str]] = {}
+    for key in keys:
+        base = get_plural_base(key, suffixes)
+        if base:
+            base_to_suffixes.setdefault(base, set()).add(key[len(base) :])
+    expanded = set(keys)
+    for base in base_to_suffixes.keys():
+        for suffix in suffixes:
+            expanded.add(base + suffix)
+    return expanded
 
 
 def get_locale_files() -> list[LocaleFiles]:
@@ -127,6 +164,7 @@ def compare_keys(
     for filename in all_files:
         key_sets: list[LocaleKeySet] = []
         for lf in locale_files:
+            keys = set()
             if filename in lf.files:
                 path = LOCALES_DIR / lf.locale / filename
                 try:
@@ -134,26 +172,26 @@ def compare_keys(
                     keys = set(flatten_keys(data))
                 except Exception as e:
                     print(f"Error loading {path}: {e}")
-                    keys = set()
-            else:
-                keys = None
             key_sets.append(LocaleKeySet(locale=lf.locale, keys=keys))
         keys_by_locale = {ks.locale: ks.keys for ks in key_sets}
         en_keys = keys_by_locale.get("en", set()) or set()
+        # Expand English keys for all required plural forms in each language
+        expanded_en_keys = {lang: expand_plural_keys(en_keys, lang) for lang in keys_by_locale.keys()}
         missing_keys: dict[str, list[str]] = {}
         extra_keys: dict[str, list[str]] = {}
         missing_counts[filename] = {}
         for ks in key_sets:
             if ks.locale == "en":
                 continue
+            required_keys = expanded_en_keys.get(ks.locale, en_keys)
             if ks.keys is None:
-                missing_keys[ks.locale] = list(en_keys)
+                missing_keys[ks.locale] = list(required_keys)
                 extra_keys[ks.locale] = []
-                missing_counts[filename][ks.locale] = len(en_keys)
+                missing_counts[filename][ks.locale] = len(required_keys)
             else:
-                missing = list(en_keys - ks.keys)
+                missing = list(required_keys - ks.keys)
                 missing_keys[ks.locale] = missing
-                extra_keys[ks.locale] = list(ks.keys - en_keys)
+                extra_keys[ks.locale] = list(ks.keys - required_keys)
                 missing_counts[filename][ks.locale] = len(missing)
         summary[filename] = LocaleSummary(missing_keys=missing_keys, extra_keys=extra_keys)
     return summary, missing_counts
@@ -247,34 +285,25 @@ def get_outdated_entries_for_language(
     return outdated
 
 
-def count_todo_and_total(obj):
-    """Recursively count TODO: translate entries and total entries in a dict or list."""
-    todo = 0
-    total = 0
+def count_todos(obj) -> int:
+    """Count TODO: translate entries in a dict or list."""
     if isinstance(obj, dict):
-        for v in obj.values():
-            t, n = count_todo_and_total(v)
-            todo += t
-            total += n
-    elif isinstance(obj, list):
-        for v in obj:
-            t, n = count_todo_and_total(v)
-            todo += t
-            total += n
-    else:
-        total = 1
-        if isinstance(obj, str) and obj.strip().startswith("TODO: translate"):
-            todo = 1
-    return todo, total
+        return sum(count_todos(v) for v in obj.values())
+    if isinstance(obj, list):
+        return sum(count_todos(v) for v in obj)
+    if isinstance(obj, str) and obj.strip().startswith("TODO: translate"):
+        return 1
+    return 0
 
 
 def print_translation_progress(console, locale_files, missing_counts, summary):
-    from rich.table import Table
-
     tables = defaultdict(lambda: Table(show_lines=True))
     all_files = set()
     for lf in locale_files:
         all_files.update(lf.files)
+
+    has_todos = False
+
     for lf in sorted(locale_files):
         lang = lf.locale
         if lang == "en":
@@ -287,7 +316,8 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
         table.add_column("TODOs", style="magenta")
         table.add_column("Translated", style="green")
         table.add_column("Total", style="bold")
-        table.add_column("Percent", style="bold")
+        table.add_column("Coverage", style="bold")
+        table.add_column("Completion", style="bold")
         total_missing = 0
         total_extra = 0
         total_todos = 0
@@ -309,19 +339,15 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
                 file_missing = missing_counts.get(filename, {}).get(lang, 0)
                 file_extra = len(summary.get(filename, LocaleSummary({}, {})).extra_keys.get(lang, []))
 
-                # Count TODOs
-                def count_todos(obj):
-                    if isinstance(obj, dict):
-                        return sum(count_todos(v) for v in obj.values())
-                    if isinstance(obj, list):
-                        return sum(count_todos(v) for v in obj)
-                    if isinstance(obj, str) and obj.strip().startswith("TODO: translate"):
-                        return 1
-                    return 0
-
                 file_todos = count_todos(data)
+                if file_todos > 0:
+                    has_todos = True
                 file_translated = file_total - file_missing
-                percent = 100 * file_translated / file_total if file_total else 100
+                # Coverage: translated / total
+                file_coverage_percent = 100 * file_translated / file_total if file_total else 100
+                # Complete percent: (translated - todos) / translated
+                file_actual_translated = file_translated - file_todos
+                complete_percent = 100 * file_actual_translated / file_translated if file_translated else 100
                 style = (
                     "bold green"
                     if file_missing == 0 and file_extra == 0 and file_todos == 0
@@ -334,7 +360,9 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
                 file_extra = len(summary.get(filename, LocaleSummary({}, {})).extra_keys.get(lang, []))
                 file_todos = 0
                 file_translated = 0
-                percent = 0
+                file_actual_translated = 0
+                file_coverage_percent = 0
+                complete_percent = 0
                 style = "red"
             table.add_row(
                 f"[bold reverse]{filename}[/bold reverse]",
@@ -343,7 +371,8 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
                 str(file_todos),
                 str(file_translated),
                 str(file_total),
-                f"{percent:.1f}%",
+                f"{file_coverage_percent:.1f}%",
+                f"{complete_percent:.1f}%",
                 style=style,
             )
             total_missing += file_missing
@@ -351,7 +380,12 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
             total_todos += file_todos
             total_translated += file_translated
             total_total += file_total
-        percent = 100 * total_translated / total_total if total_total else 100
+
+        # Calculate totals for this language
+        total_coverage_percent = 100 * total_translated / total_total if total_total else 100
+        total_actual_translated = total_translated - total_todos
+        total_complete_percent = 100 * total_actual_translated / total_translated if total_translated else 100
+
         table.add_row(
             "All files",
             str(total_missing),
@@ -359,11 +393,15 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
             str(total_todos),
             str(total_translated),
             str(total_total),
-            f"{percent:.1f}%",
-            style="red" if percent < 100 else "bold green",
+            f"{total_coverage_percent:.1f}%",
+            f"{total_complete_percent:.1f}%",
+            style="red" if total_complete_percent < 100 else "bold green",
         )
+
     for _lang, table in tables.items():
         console.print(table)
+
+    return has_todos
 
 
 @click.command()
@@ -412,14 +450,14 @@ def cli(language: str | None = None, add_missing: bool = False):
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
-    print_translation_progress(
+    has_todos = print_translation_progress(
         console,
         [lf for lf in locale_files if language is None or lf.locale == language],
         missing_counts,
         summary,
     )
-    if not found_difference:
-        console.print("[green]All translations are complete and consistent![green]")
+    if not found_difference and not has_todos:
+        console.print("[green]All translations are complete and consistent![/green]")
     if found_difference:
         sys.exit(1)
 
@@ -429,9 +467,11 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
     Add missing translations for the selected language.
 
     It does it by copying them from English and prefixing with 'TODO: translate:'.
+    Ensures all required plural forms for the language are added.
     """
+    suffixes = PLURAL_SUFFIXES.get(language, ["_one", "_other"])
     for filename, diff in summary.items():
-        missing_keys = diff.missing_keys.get(language, [])
+        missing_keys = set(diff.missing_keys.get(language, []))
         if not missing_keys:
             continue
         en_path = LOCALES_DIR / "en" / filename
@@ -447,10 +487,23 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
             console.print(f"[yellow]Failed to load {language} file {language}: {e}[/yellow]")
             lang_data = {}  # Start with an empty dict if the file doesn't exist
 
-        # Helper to recursively add missing keys
+        # Helper to recursively add missing keys, including plural forms
         def add_keys(src, dst, prefix=""):
             for k, v in src.items():
                 full_key = f"{prefix}.{k}" if prefix else k
+                base = get_plural_base(full_key, suffixes)
+                if base and any(full_key == base + s for s in suffixes):
+                    # Add all plural forms at the current level (not nested)
+                    for suffix in suffixes:
+                        plural_key = base + suffix
+                        key_name = plural_key.split(".")[-1]
+                        if plural_key in missing_keys:
+                            if isinstance(v, dict):
+                                dst[key_name] = {}
+                                add_keys(v, dst[key_name], plural_key)
+                            else:
+                                dst[key_name] = f"TODO: translate: {v}"
+                    continue
                 if full_key in missing_keys:
                     if isinstance(v, dict):
                         dst[k] = {}
@@ -464,10 +517,27 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
                         add_keys(v, dst[k], full_key)
 
         add_keys(en_data, lang_data)
-        # Write back to file, preserving order
+
+        # Write back to file, preserving order and using eslint-style key sorting
+        def eslint_key_sort(obj):
+            if isinstance(obj, dict):
+                # Sort keys: numbers first, then uppercase, then lowercase, then others (eslint default)
+                def sort_key(k):
+                    if k.isdigit():
+                        return (0, int(k))
+                    if k and k[0].isupper():
+                        return (1, k)
+                    if k and k[0].islower():
+                        return (2, k)
+                    return (3, k)
+
+                return {k: eslint_key_sort(obj[k]) for k in sorted(obj, key=sort_key)}
+            return obj
+
+        lang_data = eslint_key_sort(lang_data)
         lang_path.parent.mkdir(parents=True, exist_ok=True)
         with open(lang_path, "w", encoding="utf-8") as f:
-            json.dump(lang_data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            json.dump(lang_data, f, ensure_ascii=False, indent=2)
             f.write("\n")  # Ensure newline at the end of the file
         console.print(f"[green]Added missing translations to {lang_path}[/green]")
 

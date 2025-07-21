@@ -223,7 +223,7 @@ jobs:
           VERBOSE: "false"
           SKIP_BREEZE_PRE_COMMITS: "true"
           SKIP: ${{ inputs.skip-pre-commits }}
-          COLUMNS: "250"
+          COLUMNS: "202"
 
   test-git-clone-on-windows:
     timeout-minutes: 5
@@ -267,6 +267,8 @@ jobs:
           skip-pre-commits: ${{ inputs.skip-pre-commits }}
       - name: "Autoupdate all pre-commits"
         run: pre-commit autoupdate
+      - name: "Autoupdate Lucas-C/pre-commit-hooks to bleeding edge"
+        run: pre-commit autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       - name: "Run automated upgrade for black"
         run: >
           pre-commit run
@@ -284,7 +286,7 @@ jobs:
       # For UV we are not failing the upgrade installers check if it is updated because
       # it is upgraded very frequently, so we want to manually upgrade it rather than
       # get notified about it - until it stabilizes in 1.* version
-      - name: "Run automated upgrade for uv (open to see if new version is updated)"
+      - name: "Run automated upgrade for uv (not failing - just informational)"
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose
@@ -292,10 +294,13 @@ jobs:
         if: always()
         env:
           UPGRADE_UV: "true"
+          UPGRADE_PYTHON: "false"
+          UPGRADE_GOLANG: "true"
           UPGRADE_PIP: "false"
           UPGRADE_PRE_COMMIT: "false"
           UPGRADE_NODE_LTS: "false"
-      - name: "Run automated upgrade for pip, pre-commit and node"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Run automated upgrade for pip, pre-commit and node (failing if needed)"
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose
@@ -303,9 +308,12 @@ jobs:
         if: always()
         env:
           UPGRADE_UV: "false"
+          UPGRADE_PYTHON: "true"
+          UPGRADE_GOLANG: "false"
           UPGRADE_PIP: "true"
           UPGRADE_PRE_COMMIT: "true"
           UPGRADE_NODE_LTS: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -356,11 +364,12 @@ jobs:
         run: |
           git remote add apache https://github.com/apache/airflow.git
           git fetch apache --tags
-          breeze release-management generate-providers-metadata --refresh-constraints
+          breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Fetch all git tags for origin"
         run: git fetch --tags >/dev/null 2>&1 || true
       - name: "Test airflow core issue generation automatically"
         run: |
-          breeze release-management generate-issue-content-core --limit-pr-count 25 --latest --verbose
+          breeze release-management generate-issue-content-core \
+            --limit-pr-count 2 --previous-release 3.0.1 --current-release 3.0.2 --verbose

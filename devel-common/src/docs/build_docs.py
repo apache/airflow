@@ -29,9 +29,9 @@ import os
 import shutil
 import sys
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 import rich_click as click
 from click import Choice

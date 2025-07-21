@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+17.0.0
+......
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove operator LifeSciencesRunPipelineOperator use Google Cloud Batch operators instead``
+  * ``Remove operator BigQueryCreateEmptyTableOperator use BigQueryCreateTableOperator instead``
+  * ``Remove operator BigQueryCreateExternalTableOperator use BigQueryCreateTableOperator instead``
+
+* Hooks
+
+  * ``Remove LifeSciencesHook use Google Cloud Batch hooks instead``
+  * ``Remove BigQueryHook.create_empty_table method use BigQueryHook.create_table instead``
+  * ``Remove DataflowHook.start_sql_job method use DataflowHook.launch_beam_yaml_job instead``
+
+* Links
+
+  * ``Remove LifeSciencesLink as support of the Life Sciences API will be discontinued on July 8, 2025``
+
+
+16.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add regional support for google secret manager hook (#52124)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add Google Cloud VertexAI and Translate datasets import data verification (#51364)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Google Provider (#52366)``
+* ``Bump google-cloud-bigquery>=3.24.0 (#52337)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Attempt2: Fix mypy in gcp generative_model (#52331)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Fix mypy errors in GCP 'generative_model' (#52321)``
+* ``Exclude ray in google provider for Python 3.13 (#51994)``
+* ``Change the Link implementation in Google Provider to make it cleand and compatible with Airflow 3 (#51576)``
+* ``Bump min version of google-cloud-spanner to 3.50 (#51837)``
+* ``Update Google Ads API version to v20 (#51683)``
+
+Doc-only
+~~~~~~~~
+
+* ``docstring update for gcp dataplex operator and hook (#52387)``
+* ``Add additional VertexAI Feature Store operators (#51958)``
+* ``docs: update vertex AI generative model documentation (#51983)``
+* ``Add new operator for Vertex AI (#51965)``
+* ``Create DAG for showing how to enable Ray on GKE cluster (#51107)``
+* ``Deprecate Data Catalog operators, hook, links because service will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. (#51647)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor the google cloud DataprocCreateBatchOperator tests (#52573)``
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Bring back providers compatibility checks (#52398)``
+   * ``Fix xdist compatibility for test_local_to_gcs test (#52244)``
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+   * ``tests: remove pytest db markers from google provider (#52039)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+   * ``Fix system tests for vertex ai generative operators (#51582)``
+
 16.0.0
 ......
 

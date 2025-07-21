@@ -38,12 +38,12 @@ from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableRef
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.providers.google.version_compat import BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -429,7 +429,6 @@ class GCSToBigQueryOperator(BaseOperator):
                                 table = job_configuration[job_type][table_prop]
                                 persist_kwargs = {
                                     "context": context,
-                                    "task_instance": self,
                                     "table_id": table,
                                 }
                                 if not isinstance(table, str):
@@ -581,7 +580,7 @@ class GCSToBigQueryOperator(BaseOperator):
         table_obj_api_repr = table.to_api_repr()
 
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
-        self.hook.create_empty_table(
+        self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
             location=self.location,
