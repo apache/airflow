@@ -139,7 +139,7 @@ dependencies = [
     "beautifulsoup4>=4.7.1",
 ]
 "sqlalchemy" = [
-    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    "sqlalchemy[asyncio]>=1.4.49",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
 ]
